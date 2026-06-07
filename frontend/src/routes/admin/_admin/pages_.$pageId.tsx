@@ -367,7 +367,7 @@ function PageEditorPage() {
         </Button>
         {effectivePublished && (
           <a
-            href={`/p/${effectiveSlug}`}
+            href={`/p/${encodeURIComponent(effectiveSlug)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-muted-foreground hover:text-foreground"

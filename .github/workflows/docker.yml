@@ -6,6 +6,9 @@ on:
   push:
     tags: ["v*"]
 
+permissions:
+  contents: read
+
 jobs:
   check:
     name: Check for new commits
