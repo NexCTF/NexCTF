@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-check:
+    name: Ruff + ty
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+      - uses: arduino/setup-task@v2
+      - run: uv sync --frozen
+        working-directory: backend
+      - run: task dev:backend:check
+
+  backend-test:
+    name: pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      db:
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_USER: nexctf
+          POSTGRES_PASSWORD: nexctf
+          POSTGRES_DB: nexctf
+        options: >-
+          --health-cmd "pg_isready -U nexctf"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      cache:
+        image: valkey/valkey:9.1-alpine
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      s3:
+        image: ghcr.io/coollabsio/maxio:0.4.2
+        env:
+          MAXIO_ACCESS_KEY: admin
+          MAXIO_SECRET_KEY: admin
+          MAXIO_DEFAULT_BUCKETS: nexctf
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      NEXCTF_TEST_MODE: "1"
+      POSTGRES_SERVER: db
+      POSTGRES_USER: nexctf
+      POSTGRES_PASSWORD: nexctf
+      POSTGRES_DB: nexctf
+      REDIS_HOST: cache
+      S3_HOST: s3
+      S3_PORT: "9000"
+      S3_BUCKET: nexctf
+      S3_ACCESS_KEY: admin
+      S3_SECRET_KEY: admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+      - run: uv sync --frozen
+      - run: uv run pytest -n auto
+
+  frontend-check:
+    name: TypeScript + Biome
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: arduino/setup-task@v2
+      - run: bun install --frozen-lockfile
+        working-directory: frontend
+      - run: task dev:frontend:check

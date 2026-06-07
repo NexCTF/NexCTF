@@ -1,0 +1,65 @@
+services:
+  db:
+    image: postgres:18.4-alpine
+    restart: always
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    volumes:
+      - app-db-data:/var/lib/postgresql
+    env_file:
+      - .env
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+  s3:
+    image: ghcr.io/coollabsio/maxio:0.4.2
+    ports:
+      - "9000:9000"
+    volumes:
+      - app-s3-data:/data
+    environment:
+      - MAXIO_ACCESS_KEY=${S3_ACCESS_KEY}
+      - MAXIO_SECRET_KEY=${S3_SECRET_KEY}
+      - MAXIO_DEFAULT_BUCKETS=${S3_BUCKET}
+
+  cache:
+    image: valkey/valkey:9.1-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+      timeout: 5s
+    volumes:
+      - app-redis-data:/data
+    command: >
+      sh -c "valkey-server
+      $( [ -n '${REDIS_PASSWORD}' ] && echo '--requirepass ${REDIS_PASSWORD}' )"
+
+  cap:
+    image: tiago2/cap:3.1
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      cache:
+        condition: service_healthy
+    environment:
+      - ADMIN_KEY=${CAP_ADMIN_KEY}
+      - REDIS_URL=redis://cache:6379/1
+
+volumes:
+  app-db-data:
+  app-s3-data:
+  app-redis-data:

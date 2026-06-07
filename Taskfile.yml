@@ -1,0 +1,113 @@
+version: "3"
+
+tasks:
+  dev:infra:up:
+    desc: "Start infrastructure services (db, cache, s3)"
+    cmds:
+      - docker compose -f compose.dev.yml up -d
+
+  dev:infra:down:
+    desc: "Stop infrastructure services (db, cache, s3)"
+    cmds:
+      - docker compose -f compose.dev.yml down {{.CLI_ARGS}}
+
+  dev:backend:
+    desc: "Run prestart (migrations + fixtures) then start the backend in dev mode"
+    cmds:
+      - bash -c 'source .venv/bin/activate && bash scripts/start.sh && fastapi dev --host 0.0.0.0 nexctf/main.py'
+    dir: backend
+    env:
+      PYTHONPATH: "{{.ROOT_DIR}}/backend"
+      POSTGRES_SERVER: 127.0.0.1
+      REDIS_HOST: 127.0.0.1
+      S3_HOST: 127.0.0.1
+      ENVIRONMENT: development
+
+  dev:scheduler:
+    desc: "Run the scheduler worker in dev mode"
+    cmds:
+      - bash -c 'source .venv/bin/activate && python -m nexctf.worker'
+    dir: backend
+    env:
+      PYTHONPATH: "{{.ROOT_DIR}}/backend"
+      POSTGRES_SERVER: 127.0.0.1
+      REDIS_HOST: 127.0.0.1
+
+  dev:backend:test:
+    desc: "Run prestart (migrations + fixtures) then start the backend in dev mode"
+    cmds:
+      - bash -c 'source .venv/bin/activate && pytest -n 4 {{.CLI_ARGS}}'
+    dir: backend
+    env:
+      PYTHONPATH: "{{.ROOT_DIR}}/backend"
+      POSTGRES_SERVER: 127.0.0.1
+      REDIS_HOST: 127.0.0.1
+      S3_HOST: 127.0.0.1
+
+  dev:backend:check:
+    desc: "Run ruff + ty (check-only)"
+    cmds:
+      - uv run ruff check .
+      - uv run ruff format --check .
+      - uv run ty check
+    dir: backend
+
+  dev:backend:fix:
+    desc: "Run ruff with auto-fix + format"
+    cmds:
+      - uv run ruff check --fix .
+      - uv run ruff format .
+    dir: backend
+
+  dev:frontend:
+    desc: "Start the frontend dev server"
+    cmds:
+      - bun dev --host 0.0.0.0
+    dir: frontend
+
+  dev:frontend:check:
+    desc: "Run tsc + biome (check-only)"
+    cmds:
+      - bunx tsc -b
+      - bunx biome check .
+    dir: frontend
+
+  dev:frontend:fix:
+    desc: "Run biome with auto-fix"
+    cmds:
+      - bunx biome check --write .
+    dir: frontend
+
+  dev:check:
+    desc: "Run all checks (backend + frontend)"
+    cmds:
+      - task: dev:backend:check
+      - task: dev:frontend:check
+
+  dev:fix:
+    desc: "Apply all auto-fixes (backend + frontend)"
+    cmds:
+      - task: dev:backend:fix
+      - task: dev:frontend:fix
+
+  dev:logs:
+    desc: "Follow logs"
+    cmds:
+      - docker compose -f compose.dev.yml logs -f {{.CLI_ARGS}}
+
+  # ------------------------------------------------------------
+
+  prod:up:
+    desc: "Build and start the full production stack"
+    cmds:
+      - docker compose up --build -d {{.CLI_ARGS}}
+
+  prod:down:
+    desc: "Stop the production stack"
+    cmds:
+      - docker compose down {{.CLI_ARGS}}
+
+  prod:logs:
+    desc: "Follow production logs"
+    cmds:
+      - docker compose logs -f {{.CLI_ARGS}}

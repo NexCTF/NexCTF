@@ -1,0 +1,10 @@
+[project]
+name = "nexctf-plugin-solution"
+version = "0.1.0"
+description = "Built-in solution types for NexCTF"
+
+[project.entry-points."nexctf.plugins"]
+solution = "nexctf.plugins.builtin.solution"
+
+[tool.nexctf]
+display_name = "Solution"

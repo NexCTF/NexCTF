@@ -1,0 +1,26 @@
+[project]
+name = "nexctf-orchestrator"
+version = "0.1.0"
+description = "Orchestrator challenge types for NexCTF — manages isolated per-team environments."
+authors = [{ name = "NexCTF" }]
+
+[project.urls]
+Repository = "https://github.com/NexCTF/orchestrator"
+
+[project.entry-points."nexctf.plugins"]
+nexctf_orchestrator = "nexctf_orchestrator"
+
+[tool.nexctf]
+display_name = "Orchestrator"
+
+[tool.nexctf.migrations]
+version_table = "alembic_version_nexctf_orchestrator"
+models = ["nexctf_orchestrator.model"]
+
+[tool.setuptools.packages.find]
+where = [".."]
+include = ["nexctf_orchestrator*"]
+
+[tool.ty.environment]
+python = "../../.venv"
+extra-paths = ["../", "../../"]

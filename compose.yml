@@ -1,0 +1,123 @@
+x-db-env: &db-env
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexctf}
+  POSTGRES_USER: ${POSTGRES_USER:-nexctf}
+  POSTGRES_DB: ${POSTGRES_DB:-nexctf}
+  POSTGRES_SERVER: ${POSTGRES_SERVER:-db}
+  POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+
+x-redis-env: &redis-env
+  REDIS_HOST: ${REDIS_HOST:-cache}
+  REDIS_PORT: ${REDIS_PORT:-6379}
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-nexctf}
+
+x-s3-env: &s3-env
+  S3_ACCESS_KEY: &s3-access-key ${S3_ACCESS_KEY:-admin}
+  S3_SECRET_KEY: &s3-secret-key ${S3_SECRET_KEY:-admin}
+  S3_BUCKET: &s3-bucket ${S3_BUCKET:-nexctf}
+  S3_HOST: ${S3_HOST:-s3}
+  S3_PORT: ${S3_PORT:-9000}
+  S3_REGION: ${S3_REGION:-us-east-1}
+
+x-app-env: &app-env
+  DOMAIN: ${DOMAIN:-localhost}
+  WORKERS: ${WORKERS:-4}
+  ENVIRONMENT: production
+  SECRET_KEY: ${SECRET_KEY:-123456789}
+  BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-}
+  FRONTEND_HOST: ${FRONTEND_HOST:-}
+
+services:
+  db:
+    image: postgres:18.4-alpine
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    volumes:
+      - app-db-data:/var/lib/postgresql
+    environment:
+      <<: *db-env
+    networks:
+      - internal
+
+  s3:
+    image: ghcr.io/coollabsio/maxio:0.4.2
+    restart: always
+    volumes:
+      - app-s3-data:/data
+    environment:
+      MAXIO_ACCESS_KEY: *s3-access-key
+      MAXIO_SECRET_KEY: *s3-secret-key
+      MAXIO_DEFAULT_BUCKETS: *s3-bucket
+    networks:
+      - internal
+
+  cache:
+    image: valkey/valkey:9.1-alpine
+    restart: always
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+      timeout: 5s
+    volumes:
+      - app-redis-data:/data
+    command: >
+      sh -c "valkey-server
+      $( [ -n '${REDIS_PASSWORD:-}' ] && echo '--requirepass ${REDIS_PASSWORD}' )"
+    networks:
+      - internal
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+    restart: always
+    # microsandbox requires KVM for microVM isolation
+    devices:
+      - /dev/kvm:/dev/kvm
+    # KVM_GID must match the host: KVM_GID=$(stat -c %g /dev/kvm)
+    group_add:
+      - "${KVM_GID:-36}"
+    ports:
+      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8443:443"
+    volumes:
+      - caddy-data:/data
+      # Uncomment and set CERTS_PATH to use custom TLS certificates:
+      # - ${CERTS_PATH:-/dev/null}:/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8000/api/v1/info"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+      s3:
+        condition: service_healthy
+        restart: true
+      cache:
+        condition: service_healthy
+        restart: true
+    environment:
+      <<: [*db-env, *redis-env, *s3-env, *app-env]
+    networks:
+      - internal
+
+networks:
+  internal:
+
+volumes:
+  app-db-data:
+  app-s3-data:
+  app-redis-data:
+  caddy-data:

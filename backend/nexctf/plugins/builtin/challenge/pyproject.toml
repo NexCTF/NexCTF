@@ -1,0 +1,10 @@
+[project]
+name = "nexctf-plugin-challenge"
+version = "0.1.0"
+description = "Built-in challenge types for NexCTF"
+
+[project.entry-points."nexctf.plugins"]
+challenge = "nexctf.plugins.builtin.challenge"
+
+[tool.nexctf]
+display_name = "Challenge"
