@@ -974,7 +974,7 @@ requires-dist = [
     { name = "aioboto3", specifier = ">=13.0.0" },
     { name = "alembic", specifier = ">=1.17.2" },
     { name = "argon2-cffi", specifier = ">=23.1.0" },
-    { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.124.4" },
+    { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.136.3" },
     { name = "fastapi-toolsets", extras = ["all"], specifier = ">=4,<5" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
