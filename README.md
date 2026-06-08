@@ -37,14 +37,11 @@ A self-hosted, extensible Capture The Flag platform with multi-question challeng
 # Download the compose.yml
 curl -O https://raw.githubusercontent.com/nexctf/nexctf/main/compose.yml
 
-# Add /etc/hosts entry
-echo "127.0.0.1 nexctf.local s3.nexctf.local" | sudo tee -a /etc/hosts
-
 # Start the docker stack
 docker compose up -d
 ```
 
-The app is available at **https://nexctf.local:8443**.
+The app is available at **https://localhost:8443**.
 
 ## Features
 ### 🎯 Challenges & Scoring
