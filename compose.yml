@@ -73,11 +73,7 @@ services:
       - internal
 
   app:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-      args:
-        VERSION: ${VERSION:-dev}
+    image: ghcr.io/nexctf/nexctf:0.1.0
     restart: always
     # microsandbox requires KVM for microVM isolation
     devices:
