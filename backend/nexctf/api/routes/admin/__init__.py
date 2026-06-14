@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Security
+from fastapi import APIRouter, Depends, Security
 
+from nexctf.api.dep import bind_audit_context
 from nexctf.api.security import auth
 from nexctf.model import UserRole
 
@@ -27,7 +28,11 @@ from .team import team_router
 from .user import user_router
 
 admin_router = APIRouter(
-    prefix="/admin", dependencies=[Security(auth.require(role=UserRole.admin))]
+    prefix="/admin",
+    dependencies=[
+        Security(auth.require(role=UserRole.admin)),
+        Depends(bind_audit_context),
+    ],
 )
 
 admin_router.include_router(router=category_router)

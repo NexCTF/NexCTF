@@ -410,10 +410,15 @@ async def submit_answer(
             redis,
             event_type="submission.correct",
             actor_id=user.id,
-            team_id=user.team_id,
-            challenge_id=challenge.id,
+            target_type="challenges",
+            target_id=challenge.id,
+            target_label=challenge.title,
             ip=client_ip,
-            meta={**event_meta_base, "points_earned": points_earned},
+            meta={
+                **event_meta_base,
+                "team_id": str(user.team_id),
+                "points_earned": points_earned,
+            },
         )
         if challenge_completed:
             await emit_event(
@@ -421,10 +426,11 @@ async def submit_answer(
                 redis,
                 event_type="challenge.complete",
                 actor_id=user.id,
-                team_id=user.team_id,
-                challenge_id=challenge.id,
+                target_type="challenges",
+                target_id=challenge.id,
+                target_label=challenge.title,
                 ip=client_ip,
-                meta={"challenge_title": challenge.title},
+                meta={"team_id": str(user.team_id)},
             )
     else:
         await emit_event(
@@ -432,10 +438,11 @@ async def submit_answer(
             redis,
             event_type="submission.wrong",
             actor_id=user.id,
-            team_id=user.team_id,
-            challenge_id=challenge.id,
+            target_type="challenges",
+            target_id=challenge.id,
+            target_label=challenge.title,
             ip=client_ip,
-            meta=event_meta_base,
+            meta={**event_meta_base, "team_id": str(user.team_id)},
         )
 
     await session.commit()
@@ -490,11 +497,12 @@ async def unlock_hint(
             redis,
             event_type="hint.unlock",
             actor_id=user.id,
-            team_id=user.team_id,
-            challenge_id=challenge.id,
+            target_type="challenges",
+            target_id=challenge.id,
+            target_label=challenge.title,
             ip=get_client_ip(request),
             meta={
-                "challenge_title": challenge.title,
+                "team_id": str(user.team_id),
                 "hint_title": hint.title,
                 "cost": hint.cost,
             },

@@ -6,6 +6,8 @@ from fastapi_toolsets.schemas import Response
 
 from nexctf.api.dep import RedisDep, SessionDep
 from nexctf.core import appconfig
+from nexctf.module.audit import audit_actor, redact
+from nexctf.module.events import emit
 from nexctf.module.scoreboard import invalidate as invalidate_scoreboard
 from nexctf.schema.config import AdminConfigBulkUpdate, AdminConfigRead
 
@@ -44,6 +46,7 @@ async def bulk_update_config(
 ) -> Response[list[AdminConfigRead]]:
     errors: list[str] = []
     staged: dict[str, str] = {}
+    old_overrides = await appconfig.fetch_overrides(redis)
 
     for key, value in obj.items.items():
         if key not in appconfig.all_defs():
@@ -61,8 +64,27 @@ async def bulk_update_config(
     await appconfig.commit_and_cache(session, redis, staged)
     await redis.publish("config:update", "1")
 
+    overrides = await appconfig.fetch_overrides(redis)
+
+    if staged:
+        actor_id, ip = audit_actor()
+        changes = {
+            key: [
+                redact(key, appconfig.get_with_overrides(key, old_overrides)),
+                redact(key, appconfig.get_with_overrides(key, overrides)),
+            ]
+            for key in sorted(staged)
+        }
+        await emit(
+            session,
+            redis,
+            event_type="config.updated",
+            actor_id=actor_id,
+            ip=ip,
+            meta={"changes": changes},
+        )
+
     if "ctf.freeze_time" in staged:
         await invalidate_scoreboard(redis)
 
-    overrides = await appconfig.fetch_overrides(redis)
     return Response(data=[_build_item(k, overrides) for k in appconfig.all_defs()])
