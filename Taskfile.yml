@@ -1,5 +1,7 @@
 version: "3"
 
+dotenv: [".env.dev"]
+
 tasks:
   dev:infra:up:
     desc: "Start infrastructure services (db, cache, s3)"
