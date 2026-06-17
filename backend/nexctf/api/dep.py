@@ -16,15 +16,22 @@ from nexctf.core.cache import get_redis
 from nexctf.core.db import get_db
 from nexctf.exceptions import EventEndedError, EventNotStartedError, NoTeamError
 from nexctf.model import Challenge, OAuthProvider, Solution, User, UserRole
+from nexctf.module.audit import AuditContext, set_audit_context
 from nexctf.plugins.registry import (
     challenge_registry,
     solution_registry,
 )
 from nexctf.util.datetime import parse_config_dt
+from nexctf.util.ip import get_client_ip
 
 SessionDep = Annotated[AsyncSession, Depends(get_db)]
 RedisDep = Annotated[Redis, Depends(get_redis)]
 CurrentUserDep = Annotated[User, Security(auth)]
+
+
+async def bind_audit_context(request: Request, user: CurrentUserDep) -> None:
+    """Bind the acting user and client IP for audit logging on this request."""
+    set_audit_context(AuditContext(actor_id=user.id, ip=get_client_ip(request)))
 
 
 async def _optional_auth(request: Request) -> User | None:

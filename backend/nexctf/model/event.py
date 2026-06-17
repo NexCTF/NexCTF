@@ -22,15 +22,17 @@ class _InetString(TypeDecorator):
 
 
 if TYPE_CHECKING:
-    from .challenge import Challenge
-    from .user import Team, User
+    from .user import User
 
 
 class Event(Base):
     """System-generated audit event (admin-only)."""
 
     __tablename__ = "events"
-    __table_args__ = (Index("ix_events_event_type", "event_type"),)
+    __table_args__ = (
+        Index("ix_events_event_type", "event_type"),
+        Index("ix_events_target", "target_type", "target_id"),
+    )
 
     event_type: Mapped[str]
     ip: Mapped[str | None] = mapped_column(_InetString, nullable=True)
@@ -41,24 +43,10 @@ class Event(Base):
     )
     actor: Mapped[User | None] = relationship(foreign_keys=[actor_id])
 
-    team_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("teams.id", ondelete="SET NULL"), nullable=True
-    )
-    team: Mapped[Team | None] = relationship(foreign_keys=[team_id])
-
-    challenge_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("challenges.id", ondelete="SET NULL"), nullable=True
-    )
-    challenge: Mapped[Challenge | None] = relationship(foreign_keys=[challenge_id])
+    target_type: Mapped[str | None] = mapped_column(nullable=True)
+    target_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    target_label: Mapped[str | None] = mapped_column(nullable=True)
 
     @property
     def actor_username(self) -> str | None:
         return self.actor.username if self.actor else None
-
-    @property
-    def team_name(self) -> str | None:
-        return self.team.name if self.team else None
-
-    @property
-    def challenge_title(self) -> str | None:
-        return self.challenge.title if self.challenge else None

@@ -1,9 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { CalendarDays } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
 import { IdCell } from "@/components/id-cell";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSSEEvent } from "@/hooks/use-sse-event";
 import { type AdminEvent, getAdminEvents } from "@/lib/api";
 
@@ -14,6 +16,7 @@ export const Route = createFileRoute("/admin/_admin/events")({
 export const EVENT_TYPE_COLORS: Record<string, string> = {
   "user.register": "bg-green-500/10 text-green-600 dark:text-green-400",
   "user.login": "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+  "user.login_failed": "bg-red-600/10 text-red-700 dark:text-red-400",
   "user.logout": "bg-slate-500/10 text-slate-600 dark:text-slate-400",
   "user.totp_enabled": "bg-teal-500/10 text-teal-600 dark:text-teal-400",
   "user.totp_disabled": "bg-orange-500/10 text-orange-600 dark:text-orange-400",
@@ -91,23 +94,15 @@ export const COLUMNS: Column<AdminEvent>[] = [
       ),
   },
   {
-    key: "team_name",
-    header: "Team",
+    key: "target_type",
+    header: "Target",
     sortable: true,
     cell: (e) =>
-      e.team_id ? (
-        <span className="text-muted-foreground">{e.team_name ?? e.team_id}</span>
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      ),
-  },
-  {
-    key: "challenge_title",
-    header: "Challenge",
-    sortable: false,
-    cell: (e) =>
-      e.challenge_id ? (
-        <span className="text-muted-foreground">{e.challenge_title ?? e.challenge_id}</span>
+      e.target_type ? (
+        <span className="text-muted-foreground">
+          {e.target_label ?? e.target_id}
+          <span className="ml-1 text-xs opacity-60">({e.target_type})</span>
+        </span>
       ) : (
         <span className="text-muted-foreground">—</span>
       ),
@@ -117,22 +112,86 @@ export const COLUMNS: Column<AdminEvent>[] = [
     header: "Details",
     sortable: false,
     cell: (e) => {
-      const entries = Object.entries(e.meta).filter(([k]) => !["challenge_title"].includes(k));
-      if (entries.length === 0) return <span className="text-muted-foreground">—</span>;
-      return (
-        <span className="text-xs text-muted-foreground font-mono">
-          {entries.map(([k, v]) => `${k}: ${v}`).join(" · ")}
+      const summary = formatMeta(e.meta).join(" · ");
+      return summary ? (
+        <span className="block max-w-[28rem] truncate font-mono text-xs text-muted-foreground">
+          {summary}
         </span>
+      ) : (
+        <span className="text-muted-foreground">—</span>
       );
     },
   },
 ];
+
+// Flatten meta into display lines. `changes` holds a {field: [old, new]} diff,
+// rendered as "field: old → new"; everything else as "key: value".
+function formatMeta(meta: Record<string, unknown>): string[] {
+  return Object.entries(meta).flatMap(([k, v]) => {
+    if (k === "changes" && v && typeof v === "object") {
+      return Object.entries(v as Record<string, unknown>).map(([field, pair]) =>
+        Array.isArray(pair) ? `${field}: ${pair[0]} → ${pair[1]}` : `${field}: ${pair}`,
+      );
+    }
+    return [`${k}: ${v}`];
+  });
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-2">
+      <span className="shrink-0 text-muted-foreground">{label}:</span>
+      <span className="break-all">{value}</span>
+    </div>
+  );
+}
+
+function EventDetailsDialog({ event, onClose }: { event: AdminEvent | null; onClose: () => void }) {
+  const parts = event ? formatMeta(event.meta) : [];
+  return (
+    <Dialog open={!!event} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            <EventTypeBadge type={event?.event_type ?? ""} />
+          </DialogTitle>
+        </DialogHeader>
+        {event && (
+          <div className="space-y-3 text-sm">
+            <DetailRow label="Time" value={new Date(event.created_at).toLocaleString()} />
+            <DetailRow
+              label="User"
+              value={event.actor_id ? (event.actor_username ?? event.actor_id) : "—"}
+            />
+            <DetailRow label="IP" value={event.ip ?? "—"} />
+            <DetailRow
+              label="Target"
+              value={
+                event.target_type
+                  ? `${event.target_label ?? event.target_id} (${event.target_type})`
+                  : "—"
+              }
+            />
+            {parts.length > 0 && (
+              <div className="space-y-1 rounded-md bg-muted p-3 font-mono text-xs break-all">
+                {parts.map((part) => (
+                  <div key={part}>{part}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function EventsPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const table = useTableState();
+  const [selected, setSelected] = useState<AdminEvent | null>(null);
 
   const {
     data: response,
@@ -165,7 +224,10 @@ function EventsPage() {
         isFetching={isFetching}
         rowKey={(e) => e.id}
         onRefresh={() => void refetch()}
+        onRowClick={(e) => setSelected(e)}
       />
+
+      <EventDetailsDialog event={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }

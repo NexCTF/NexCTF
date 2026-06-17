@@ -1569,14 +1569,14 @@ export interface AdminEvent {
   id: string;
   created_at: string;
   event_type: string;
+  category: string;
   ip: string | null;
   meta: Record<string, unknown>;
   actor_id: string | null;
   actor_username: string | null;
-  team_id: string | null;
-  team_name: string | null;
-  challenge_id: string | null;
-  challenge_title: string | null;
+  target_type: string | null;
+  target_id: string | null;
+  target_label: string | null;
 }
 
 export async function getAdminEvents(queryString: string): Promise<PaginatedResponse<AdminEvent>> {

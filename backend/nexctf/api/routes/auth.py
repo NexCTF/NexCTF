@@ -9,7 +9,9 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.responses import Response as RawResponse
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
+from redis.asyncio import Redis
 from sqlalchemy import update as sql_update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.exceptions import (
     AccountDisabledError,
@@ -99,6 +101,31 @@ async def register(
     return result
 
 
+async def _record_login_failure(
+    session: AsyncSession,
+    redis: Redis,
+    *,
+    username: str,
+    ip: str,
+    actor_id: UUID | None,
+    reason: str,
+) -> None:
+    """Persist a failed-login audit event, committing so it survives the raise.
+
+    The login handler raises an HTTP error right after, which would otherwise
+    roll the event back before the request-end commit runs.
+    """
+    await emit(
+        session,
+        redis,
+        event_type="user.login_failed",
+        actor_id=actor_id,
+        ip=ip,
+        meta={"username": username, "reason": reason},
+    )
+    await session.commit()
+
+
 @auth_router.post("/token", status_code=204)
 async def login(
     request: Request,
@@ -131,11 +158,33 @@ async def login(
         dummy_verify_password(password)
         password_valid = False
     if not user or not password_valid or not user.is_active:
+        if not user:
+            reason = "unknown_user"
+        elif not password_valid:
+            reason = "bad_password"
+        else:
+            reason = "disabled"
+        await _record_login_failure(
+            session,
+            redis,
+            username=username,
+            ip=client_ip,
+            actor_id=user.id if user else None,
+            reason=reason,
+        )
         raise InvalidCredentialsError()
     if user.totp_secret:
         if not totp_code:
             raise TotpRequiredError()
         if not pyotp.TOTP(user.totp_secret).verify(totp_code, valid_window=1):
+            await _record_login_failure(
+                session,
+                redis,
+                username=username,
+                ip=client_ip,
+                actor_id=user.id,
+                reason="bad_totp",
+            )
             raise InvalidOtpError()
     cookie_auth.set_cookie(response, f"{user.id}:{user.session_version}")
     await emit(
@@ -143,7 +192,6 @@ async def login(
         redis,
         event_type="user.login",
         actor_id=user.id,
-        team_id=user.team_id,
         ip=client_ip,
         meta={"username": user.username},
     )
@@ -220,7 +268,6 @@ async def logout(
             redis,
             event_type="user.logout",
             actor_id=user.id,
-            team_id=user.team_id,
             ip=get_client_ip(request),
             meta={"username": user.username},
         )
@@ -411,7 +458,6 @@ async def oauth_callback(
         redis,
         event_type="user.login",
         actor_id=user.id,
-        team_id=user.team_id,
         ip=client_ip,
         meta={"username": user.username, "provider": provider.slug},
     )

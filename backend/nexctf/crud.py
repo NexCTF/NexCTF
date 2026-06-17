@@ -1,6 +1,8 @@
 from fastapi_toolsets.crud import AsyncCrud
 from sqlalchemy.orm import joinedload, selectinload
 
+from nexctf.module.audit import AuditedCrud
+
 from nexctf.model import (
     Challenge,
     ChallengeCategory,
@@ -40,7 +42,7 @@ class TeamCrud(AsyncCrud[Team]):
     ]
 
 
-class CustomFieldDefinitionCrud(AsyncCrud[CustomFieldDefinition]):
+class CustomFieldDefinitionCrud(AuditedCrud[CustomFieldDefinition]):
     model = CustomFieldDefinition
     cursor_column = CustomFieldDefinition.created_at
     searchable_fields = [CustomFieldDefinition.name, CustomFieldDefinition.label]
@@ -85,7 +87,7 @@ class UserTokenCrud(AsyncCrud[UserToken]):
     default_load_options = [joinedload(UserToken.user)]
 
 
-class OAuthProviderCrud(AsyncCrud[OAuthProvider]):
+class OAuthProviderCrud(AuditedCrud[OAuthProvider]):
     model = OAuthProvider
     cursor_column = OAuthProvider.created_at
     searchable_fields = [
@@ -118,7 +120,7 @@ class OAuthAccountCrud(AsyncCrud[OAuthAccount]):
     ]
 
 
-class ChallengeCrud(AsyncCrud[Challenge]):
+class ChallengeCrud(AuditedCrud[Challenge]):
     model = Challenge
     cursor_column = Challenge.created_at
     searchable_fields = [
@@ -141,7 +143,7 @@ class ChallengeCrud(AsyncCrud[Challenge]):
     m2m_fields = {"tags_ids": Challenge.tags}
 
 
-class ChallengeCategoryCrud(AsyncCrud[ChallengeCategory]):
+class ChallengeCategoryCrud(AuditedCrud[ChallengeCategory]):
     model = ChallengeCategory
     cursor_column = ChallengeCategory.created_at
     searchable_fields = [ChallengeCategory.name, ChallengeCategory.slug]
@@ -152,7 +154,7 @@ class ChallengeCategoryCrud(AsyncCrud[ChallengeCategory]):
     ]
 
 
-class QuestionCrud(AsyncCrud[Question]):
+class QuestionCrud(AuditedCrud[Question]):
     model = Question
     cursor_column = Question.created_at
     searchable_fields = [Question.label]
@@ -173,7 +175,7 @@ class QuestionCrud(AsyncCrud[Question]):
     m2m_fields = {"files_ids": Question.files, "tags_ids": Question.tags}
 
 
-class HintCrud(AsyncCrud[Hint]):
+class HintCrud(AuditedCrud[Hint]):
     model = Hint
     cursor_column = Hint.created_at
     searchable_fields = [Hint.title]
@@ -191,7 +193,7 @@ class SolutionCrud(AsyncCrud[Solution]):
     default_load_options = [joinedload(Solution.question)]
 
 
-class NotificationCrud(AsyncCrud[Notification]):
+class NotificationCrud(AuditedCrud[Notification]):
     model = Notification
     cursor_column = Notification.created_at
     searchable_fields = [Notification.title, Notification.content]
@@ -257,7 +259,7 @@ class ScoreAdjustmentCrud(AsyncCrud[ScoreAdjustment]):
     ]
 
 
-class TagCrud(AsyncCrud[Tag]):
+class TagCrud(AuditedCrud[Tag]):
     model = Tag
     cursor_column = Tag.created_at
     searchable_fields = [Tag.name, Tag.color]
@@ -266,7 +268,7 @@ class TagCrud(AsyncCrud[Tag]):
     default_load_options = []
 
 
-class OAuthServerClientCrud(AsyncCrud[OAuthServerClient]):
+class OAuthServerClientCrud(AuditedCrud[OAuthServerClient]):
     model = OAuthServerClient
     cursor_column = OAuthServerClient.created_at
     searchable_fields = [OAuthServerClient.name, OAuthServerClient.client_id]
@@ -298,7 +300,7 @@ class SchedulerTaskCrud(AsyncCrud[SchedulerTask]):
     default_load_options = []
 
 
-class PageCrud(AsyncCrud[CustomPage]):
+class PageCrud(AuditedCrud[CustomPage]):
     model = CustomPage
     cursor_column = CustomPage.created_at
     searchable_fields = [CustomPage.title, CustomPage.slug]
@@ -312,23 +314,20 @@ class EventCrud(AsyncCrud[Event]):
     cursor_column = Event.created_at
     searchable_fields = [
         Event.event_type,
+        Event.target_type,
+        Event.target_label,
         (Event.actor, User.username),
-        (Event.team, Team.name),
-        (Event.challenge, Challenge.title),
     ]
     facet_fields = [
         Event.event_type,
+        Event.target_type,
         (Event.actor, User.username),
-        (Event.team, Team.name),
-        (Event.challenge, Challenge.title),
     ]
     order_fields = [
         Event.event_type,
+        Event.target_type,
         (Event.actor, User.username),
-        (Event.team, Team.name),
     ]
     default_load_options = [
         joinedload(Event.actor),
-        joinedload(Event.team),
-        joinedload(Event.challenge),
     ]

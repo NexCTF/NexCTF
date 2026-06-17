@@ -519,8 +519,9 @@ def upgrade() -> None:
         sa.Column("ip", nexctf.model.event._InetString(), nullable=True),
         sa.Column("meta", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("actor_id", sa.Uuid(), nullable=True),
-        sa.Column("team_id", sa.Uuid(), nullable=True),
-        sa.Column("challenge_id", sa.Uuid(), nullable=True),
+        sa.Column("target_type", sa.String(), nullable=True),
+        sa.Column("target_id", sa.Uuid(), nullable=True),
+        sa.Column("target_label", sa.String(), nullable=True),
         sa.Column("id", sa.Uuid(), server_default=sa.text("uuidv7()"), nullable=False),
         sa.Column(
             "created_at",
@@ -535,13 +536,12 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.ForeignKeyConstraint(["actor_id"], ["users.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(
-            ["challenge_id"], ["challenges.id"], ondelete="SET NULL"
-        ),
-        sa.ForeignKeyConstraint(["team_id"], ["teams.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_events_event_type", "events", ["event_type"], unique=False)
+    op.create_index(
+        "ix_events_target", "events", ["target_type", "target_id"], unique=False
+    )
     op.create_table(
         "notification_targets",
         sa.Column("notification_id", sa.Uuid(), nullable=False),
@@ -851,6 +851,7 @@ def downgrade() -> None:
     op.drop_table("scheduler_tasks")
     op.drop_table("questions")
     op.drop_table("notification_targets")
+    op.drop_index("ix_events_target", table_name="events")
     op.drop_index("ix_events_event_type", table_name="events")
     op.drop_table("events")
     op.drop_table("challenge_tags")
