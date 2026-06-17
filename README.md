@@ -73,6 +73,10 @@ The app is available at **https://localhost:8443**.
   - Plugins own their DB tables with Alembic migrations
   - Plugin-scoped config keys auto-prefixed and merged with core config
 
+## Roadmap
+
+See [roadmap.md](roadmap.md) for planned features and progress toward v1.0.
+
 ## Tech Stack
 | Layer | Technology |
 |---|---|
