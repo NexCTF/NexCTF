@@ -73,7 +73,7 @@ services:
       - internal
 
   app:
-    image: ghcr.io/nexctf/nexctf:0.1.0
+    image: ghcr.io/nexctf/nexctf:0.2.0
     restart: always
     # microsandbox requires KVM for microVM isolation
     devices:
