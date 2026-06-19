@@ -5,11 +5,7 @@ from uuid import UUID
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from fastapi_toolsets.exceptions import ForbiddenError, UnauthorizedError
-from fastapi_toolsets.security import (
-    BearerTokenAuth,
-    CookieAuth,
-    MultiAuth,
-)
+from fastapi_multiauth import APIKeyCookieAuth, HTTPBearerAuth, MultiAuth
 from sqlalchemy.orm import selectinload
 
 import nexctf.crud as crud
@@ -97,11 +93,11 @@ async def _verify_cookie(credential: str, role: UserRole | None = None) -> User:
     return user
 
 
-bearer_auth = BearerTokenAuth(
+bearer_auth = HTTPBearerAuth(
     validator=_verify_token,
     prefix="nexctf_",
 )
-cookie_auth = CookieAuth(
+cookie_auth = APIKeyCookieAuth(
     name="NexCTF",
     validator=_verify_cookie,
     secret_key=settings.SECRET_KEY,

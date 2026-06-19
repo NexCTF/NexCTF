@@ -24,9 +24,10 @@ from nexctf.exceptions import (
     RegistrationDisabledError,
     TotpRequiredError,
 )
-from fastapi_toolsets.security import (
+from fastapi_multiauth.oauth import (
     oauth_build_authorization_redirect,
     oauth_decode_state,
+    oauth_exchange_code,
     oauth_fetch_userinfo,
     oauth_generate_state_token,
     oauth_resolve_provider_urls,
@@ -360,9 +361,7 @@ async def oauth_authorize(
     if not provider.is_active:
         raise NotFoundError()
 
-    authorization_url, _, _ = await oauth_resolve_provider_urls(
-        discovery_url=provider.discovery_url
-    )
+    endpoints = await oauth_resolve_provider_urls(provider.discovery_url)
     destination = (
         redirect_url
         if redirect_url and urlparse(redirect_url).netloc in _ALLOWED_REDIRECT_ORIGINS
@@ -370,7 +369,7 @@ async def oauth_authorize(
     )
     state_token = oauth_generate_state_token()
     redirect = oauth_build_authorization_redirect(
-        authorization_url,
+        endpoints.authorization_endpoint,
         client_id=provider.client_id,
         scopes=provider.scopes,
         redirect_uri=f"{settings.BACKEND_HOST}{settings.API_V1_STR}/auth/providers/{slug}/callback",
@@ -412,6 +411,7 @@ async def oauth_callback(
         state,
         expected_state_token=expected_state_token,
         fallback=settings.FRONTEND_HOST,
+        allowed_hosts=tuple(_ALLOWED_REDIRECT_ORIGINS),
     )
     redirect = RedirectResponse(url=destination, status_code=302)
     redirect.delete_cookie(
@@ -421,19 +421,20 @@ async def oauth_callback(
         secure=settings.ENVIRONMENT != "development",
     )
 
-    _, token_url, userinfo_url = await oauth_resolve_provider_urls(
-        provider.discovery_url
-    )
-    if not userinfo_url:
+    endpoints = await oauth_resolve_provider_urls(provider.discovery_url)
+    if not endpoints.userinfo_endpoint:
         raise OAuthProviderConfigError()
 
-    userinfo = await oauth_fetch_userinfo(
-        token_url=token_url,
-        userinfo_url=userinfo_url,
+    token = await oauth_exchange_code(
+        token_url=endpoints.token_endpoint,
         code=code,
         client_id=provider.client_id,
         client_secret=provider.client_secret,
         redirect_uri=f"{settings.BACKEND_HOST}{settings.API_V1_STR}/auth/providers/{slug}/callback",
+    )
+    userinfo = await oauth_fetch_userinfo(
+        userinfo_url=endpoints.userinfo_endpoint,
+        access_token=token["access_token"],
     )
 
     user, is_new_user = await _resolve_user_from_userinfo(
