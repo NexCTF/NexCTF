@@ -101,7 +101,7 @@ function ChallengeInfoSection({ challenge }: { challenge: ChallengeDetail }) {
 
   const { data: categoriesResp } = useQuery({
     queryKey: ["admin", "categories", "all"],
-    queryFn: () => getAdminCategories("per_page=100"),
+    queryFn: () => getAdminCategories("items_per_page=100"),
     staleTime: 30_000,
   });
   const categories = categoriesResp?.data ?? [];
@@ -907,7 +907,7 @@ function ManageFilesDialog({ question, onSaved }: { question: Question; onSaved:
 
   const { data: filesResp, isLoading } = useQuery({
     queryKey: ["admin", "files", "all"],
-    queryFn: () => getAdminFiles("per_page=200"),
+    queryFn: () => getAdminFiles("items_per_page=200"),
     enabled: open,
     staleTime: 30_000,
   });
@@ -1049,8 +1049,8 @@ function QuestionCard({
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
-  const solQS = `question_id=${question.id}&per_page=50`;
-  const hintQS = `question_id=${question.id}&per_page=50&order_by=order&order=asc`;
+  const solQS = `question_id=${question.id}&items_per_page=50`;
+  const hintQS = `question_id=${question.id}&items_per_page=50&order_by=order&order=asc`;
 
   const { data: solutionsResp, refetch: refetchSolutions } = useQuery({
     queryKey: ["admin", "solutions", question.id],
@@ -1330,7 +1330,7 @@ function QuestionsSection({ challengeId }: { challengeId: string }) {
     staleTime: Infinity,
   });
 
-  const qsQuery = `challenge_id=${challengeId}&per_page=100&order_by=index&order=asc`;
+  const qsQuery = `challenge_id=${challengeId}&items_per_page=100&order_by=index&order=asc`;
 
   const { data: questionsResp } = useQuery({
     queryKey: ["admin", "questions", challengeId],

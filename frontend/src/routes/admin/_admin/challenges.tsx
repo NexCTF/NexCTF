@@ -142,7 +142,7 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
 
   const { data: categoriesResp } = useQuery({
     queryKey: ["admin", "categories", "all"],
-    queryFn: () => getAdminCategories("per_page=100"),
+    queryFn: () => getAdminCategories("items_per_page=100"),
     staleTime: 30_000,
   });
   const categories = categoriesResp?.data ?? [];
