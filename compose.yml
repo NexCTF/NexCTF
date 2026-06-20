@@ -38,6 +38,7 @@ services:
       timeout: 10s
     volumes:
       - app-db-data:/var/lib/postgresql
+    command: ["postgres", "-c", "max_connections=350"]
     environment:
       <<: *db-env
     networks:

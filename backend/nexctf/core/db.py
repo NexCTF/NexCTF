@@ -3,7 +3,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from nexctf.core.config import settings
 
-engine = create_async_engine(str(settings.SQLALCHEMY_DATABASE_URI), future=True)
+engine = create_async_engine(
+    str(settings.SQLALCHEMY_DATABASE_URI),
+    future=True,
+    pool_size=settings.POSTGRES_POOL_SIZE,
+    max_overflow=settings.POSTGRES_MAX_OVERFLOW,
+    pool_timeout=settings.POSTGRES_POOL_TIMEOUT,
+)
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
 get_db = create_db_dependency(session_maker=async_session_maker)
