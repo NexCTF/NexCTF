@@ -6,6 +6,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pyotp
 import pytest
+from fastapi_multiauth.oauth import OIDCEndpoints
 from httpx import AsyncClient
 import nexctf.core.appconfig as appconfig
 import nexctf.crud as crud
@@ -546,10 +547,13 @@ class TestOAuthFlow:
         await db_session.flush()
         return provider
 
-    _FAKE_URLS = (
-        "https://idp.example.com/auth",
-        "https://idp.example.com/token",
-        "https://idp.example.com/userinfo",
+    _FAKE_URLS = OIDCEndpoints(
+        authorization_endpoint="https://idp.example.com/auth",
+        token_endpoint="https://idp.example.com/token",
+        userinfo_endpoint="https://idp.example.com/userinfo",
+        jwks_uri=None,
+        end_session_endpoint=None,
+        issuer="https://idp.example.com",
     )
 
     async def test_authorize_redirects_to_provider(self, http_client, oauth_provider):
@@ -563,7 +567,7 @@ class TestOAuthFlow:
                 follow_redirects=False,
             )
 
-        assert resp.status_code in (302, 307)
+        assert resp.status_code in (302, 303, 307)
         location = resp.headers["location"]
         assert location.startswith("https://idp.example.com/auth")
         assert "state=" in location
@@ -594,7 +598,7 @@ class TestOAuthFlow:
                 follow_redirects=False,
             )
 
-        assert auth_resp.status_code in (302, 307)
+        assert auth_resp.status_code in (302, 303, 307)
         state = parse_qs(urlparse(auth_resp.headers["location"]).query).get(
             "state", [None]
         )[0]
@@ -604,6 +608,11 @@ class TestOAuthFlow:
                 "nexctf.api.routes.auth.oauth_resolve_provider_urls",
                 new_callable=AsyncMock,
                 return_value=self._FAKE_URLS,
+            ),
+            patch(
+                "nexctf.api.routes.auth.oauth_exchange_code",
+                new_callable=AsyncMock,
+                return_value={"access_token": "fake-access-token"},
             ),
             patch(
                 "nexctf.api.routes.auth.oauth_fetch_userinfo",
@@ -644,6 +653,11 @@ class TestOAuthFlow:
                 return_value=self._FAKE_URLS,
             ),
             patch(
+                "nexctf.api.routes.auth.oauth_exchange_code",
+                new_callable=AsyncMock,
+                return_value={"access_token": "fake-access-token"},
+            ),
+            patch(
                 "nexctf.api.routes.auth.oauth_fetch_userinfo",
                 new_callable=AsyncMock,
                 return_value={"sub": "returning-user-001"},
@@ -674,6 +688,11 @@ class TestOAuthFlow:
                 "nexctf.api.routes.auth.oauth_resolve_provider_urls",
                 new_callable=AsyncMock,
                 return_value=self._FAKE_URLS,
+            ),
+            patch(
+                "nexctf.api.routes.auth.oauth_exchange_code",
+                new_callable=AsyncMock,
+                return_value={"access_token": "fake-access-token"},
             ),
             patch(
                 "nexctf.api.routes.auth.oauth_fetch_userinfo",
@@ -739,6 +758,11 @@ class TestOAuthFlow:
                 "nexctf.api.routes.auth.oauth_resolve_provider_urls",
                 new_callable=AsyncMock,
                 return_value=self._FAKE_URLS,
+            ),
+            patch(
+                "nexctf.api.routes.auth.oauth_exchange_code",
+                new_callable=AsyncMock,
+                return_value={"access_token": "fake-access-token"},
             ),
             patch(
                 "nexctf.api.routes.auth.oauth_fetch_userinfo",
@@ -901,10 +925,13 @@ class TestOAuthLinking:
         await db_session.flush()
         return provider
 
-    _FAKE_URLS = (
-        "https://idp.example.com/auth",
-        "https://idp.example.com/token",
-        "https://idp.example.com/userinfo",
+    _FAKE_URLS = OIDCEndpoints(
+        authorization_endpoint="https://idp.example.com/auth",
+        token_endpoint="https://idp.example.com/token",
+        userinfo_endpoint="https://idp.example.com/userinfo",
+        jwks_uri=None,
+        end_session_endpoint=None,
+        issuer="https://idp.example.com",
     )
 
     async def _do_authorize(self, client, slug="link-idp"):
@@ -920,7 +947,7 @@ class TestOAuthLinking:
                 f"/auth/providers/{slug}/authorize",
                 follow_redirects=False,
             )
-        assert auth_resp.status_code in (302, 307)
+        assert auth_resp.status_code in (302, 303, 307)
         state = parse_qs(urlparse(auth_resp.headers["location"]).query).get(
             "state", [None]
         )[0]
@@ -947,6 +974,11 @@ class TestOAuthLinking:
                     "nexctf.api.routes.auth.oauth_resolve_provider_urls",
                     new_callable=AsyncMock,
                     return_value=self._FAKE_URLS,
+                ),
+                patch(
+                    "nexctf.api.routes.auth.oauth_exchange_code",
+                    new_callable=AsyncMock,
+                    return_value={"access_token": "fake-access-token"},
                 ),
                 patch(
                     "nexctf.api.routes.auth.oauth_fetch_userinfo",
@@ -1005,6 +1037,11 @@ class TestOAuthLinking:
                     "nexctf.api.routes.auth.oauth_resolve_provider_urls",
                     new_callable=AsyncMock,
                     return_value=self._FAKE_URLS,
+                ),
+                patch(
+                    "nexctf.api.routes.auth.oauth_exchange_code",
+                    new_callable=AsyncMock,
+                    return_value={"access_token": "fake-access-token"},
                 ),
                 patch(
                     "nexctf.api.routes.auth.oauth_fetch_userinfo",
@@ -1067,6 +1104,11 @@ class TestOAuthLinking:
                     "nexctf.api.routes.auth.oauth_resolve_provider_urls",
                     new_callable=AsyncMock,
                     return_value=self._FAKE_URLS,
+                ),
+                patch(
+                    "nexctf.api.routes.auth.oauth_exchange_code",
+                    new_callable=AsyncMock,
+                    return_value={"access_token": "fake-access-token"},
                 ),
                 patch(
                     "nexctf.api.routes.auth.oauth_fetch_userinfo",
