@@ -114,7 +114,7 @@ export function useTableState(defaults?: Partial<TableState>) {
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
     params.set("page", state.page.toString());
-    params.set("per_page", state.perPage.toString());
+    params.set("items_per_page", state.perPage.toString());
     if (state.search) {
       params.set("search", state.search);
       if (state.searchColumn) params.set("search_by", state.searchColumn);
