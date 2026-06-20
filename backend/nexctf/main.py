@@ -3,20 +3,22 @@ import logging.config
 import os
 from contextlib import asynccontextmanager
 
-import nexctf.settings as _  # noqa: F401 — register config definitions
-from nexctf.api.openapi import setup_docs
-from nexctf.api.routes import router
-from nexctf.core.appconfig import load_from_db
-from nexctf.core.config import settings
-from nexctf.core.db import get_db_context
-from nexctf.core.cache import get_client as get_redis_client
-from nexctf.plugins import init_plugins
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi_multiauth.exceptions import UnauthorizedError as MultiAuthUnauthorizedError
+from fastapi_toolsets.db import CommitOnResponseMiddleware
 from fastapi_toolsets.exceptions import UnauthorizedError, init_exceptions_handlers
 from fastapi_toolsets.schemas import ErrorResponse
+
+import nexctf.settings as _  # noqa: F401 — register config definitions
+from nexctf.api.openapi import setup_docs
+from nexctf.api.routes import router
+from nexctf.core.appconfig import load_from_db
+from nexctf.core.cache import get_client as get_redis_client
+from nexctf.core.config import settings
+from nexctf.core.db import get_db_context
+from nexctf.plugins import init_plugins
 
 _ADMIN_PREFIX = f"{settings.API_V1_STR}/admin"
 
@@ -69,6 +71,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app.add_middleware(CommitOnResponseMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.all_cors_origins,

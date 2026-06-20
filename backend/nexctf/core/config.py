@@ -69,6 +69,9 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = ""
     POSTGRES_DB: str = ""
     POSTGRES_TLS: bool = False
+    POSTGRES_POOL_SIZE: int = 20
+    POSTGRES_MAX_OVERFLOW: int = 40
+    POSTGRES_POOL_TIMEOUT: int = 10
 
     @computed_field
     @property

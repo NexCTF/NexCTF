@@ -522,16 +522,12 @@ oauth = [
 [[package]]
 name = "fastapi-toolsets"
 version = "4.1.3"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/d3vyce/fastapi-toolsets.git?branch=316-add-commitonresponsemiddleware-to-commit-the-request-transaction-before-the-response#9fef6211146094fa9e38e4116b4daff9f5c8fadc" }
 dependencies = [
     { name = "asyncpg" },
     { name = "fastapi" },
     { name = "pydantic" },
     { name = "sqlalchemy", extra = ["asyncio"] },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/62/fd/662107dd7a06196e7266f3b087b16819e95e813ca122b4cf1393e12a2613/fastapi_toolsets-4.1.3.tar.gz", hash = "sha256:c69801e664c3e1ef1e486086c4f92312d058e781481454572f76ccf09031f73b", size = 56003, upload-time = "2026-06-09T16:51:14.664Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/5e/93/f4fcf827b9ef9133c404ae6fee0a111e5221803aa7737042c184420dbd30/fastapi_toolsets-4.1.3-py3-none-any.whl", hash = "sha256:62f9b4b0b617bdc24b21be6685194dcc112c6e91ef39b7af1487301606473336", size = 74493, upload-time = "2026-06-09T16:51:13.503Z" },
 ]
 
 [package.optional-dependencies]
@@ -1019,7 +1015,7 @@ requires-dist = [
     { name = "argon2-cffi", specifier = ">=23.1.0" },
     { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.136.3" },
     { name = "fastapi-multiauth", extras = ["oauth"], specifier = ">=0.1.0" },
-    { name = "fastapi-toolsets", extras = ["all"], specifier = ">=4.1.3,<5" },
+    { name = "fastapi-toolsets", extras = ["all"], git = "https://github.com/d3vyce/fastapi-toolsets.git?branch=316-add-commitonresponsemiddleware-to-commit-the-request-transaction-before-the-response" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.14.2" },
     { name = "pyotp", specifier = ">=2.9.0" },
