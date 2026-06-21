@@ -74,14 +74,8 @@ services:
       - internal
 
   app:
-    image: ghcr.io/nexctf/nexctf:0.2.0
+    image: ghcr.io/nexctf/nexctf:0.3.0
     restart: always
-    # microsandbox requires KVM for microVM isolation
-    devices:
-      - /dev/kvm:/dev/kvm
-    # KVM_GID must match the host: KVM_GID=$(stat -c %g /dev/kvm)
-    group_add:
-      - "${KVM_GID:-36}"
     ports:
       - "127.0.0.1:8080:80"
       - "127.0.0.1:8443:443"
