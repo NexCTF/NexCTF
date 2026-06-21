@@ -43,6 +43,7 @@ dev = [
 
 
 [tool.fastapi-toolsets]
+custom_cli = "nexctf.cli:cli"
 fixtures = "nexctf.fixtures:fixture_registry"
 db_context = "nexctf.core.db:get_db_context"
 

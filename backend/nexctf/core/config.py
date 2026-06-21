@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     FRONTEND_HOST: str = "http://localhost:5173"
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
 
+    DEFAULT_ADMIN_USERNAME: str = "admin"
+    DEFAULT_ADMIN_PASSWORD: str = "admin"
+    DEFAULT_ADMIN_TOKEN: str | None = None
+
     @model_validator(mode="after")
     def require_secret_key_in_production(self) -> "Settings":
         if self.ENVIRONMENT != "development" and "SECRET_KEY" not in os.environ:
