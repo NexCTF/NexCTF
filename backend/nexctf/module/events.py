@@ -29,6 +29,7 @@ EVENT_CATEGORIES: dict[str, str] = {
     "team.left": "gameplay",
     "submission.correct": "gameplay",
     "submission.wrong": "gameplay",
+    "solution.timeout": "security",
     "hint.unlock": "gameplay",
     "challenge.complete": "gameplay",
     "score_adjustment.created": "admin",

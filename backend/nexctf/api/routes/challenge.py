@@ -9,7 +9,7 @@ from uuid import UUID
 from fastapi import APIRouter, Request
 from fastapi_toolsets.exceptions import ForbiddenError, NotFoundError, UnauthorizedError
 from fastapi_toolsets.schemas import Response
-from nexctf.exceptions import SequentialChallengeError
+from nexctf.exceptions import SequentialChallengeError, SolutionTimeoutError
 from sqlalchemy import select
 from sqlalchemy.orm import selectin_polymorphic, selectinload
 
@@ -361,10 +361,14 @@ async def submit_answer(
     answer = obj.answer
     team_id = user.team_id
     is_correct = False
+    timed_out: list[SolutionTimeoutError] = []
     for sol in question.solutions:
-        if await sol.verify(answer, team_id=team_id):
-            is_correct = True
-            break
+        try:
+            if await sol.verify(answer, team_id=team_id):
+                is_correct = True
+                break
+        except SolutionTimeoutError as exc:
+            timed_out.append(exc)
 
     points_earned = 0
     if is_correct:
@@ -404,6 +408,23 @@ async def submit_answer(
         "challenge_title": challenge.title,
         "question_label": question.label,
     }
+    for exc in timed_out:
+        await emit_event(
+            session,
+            redis,
+            event_type="solution.timeout",
+            actor_id=user.id,
+            target_type="challenges",
+            target_id=challenge.id,
+            target_label=challenge.title,
+            ip=client_ip,
+            meta={
+                **event_meta_base,
+                "team_id": str(user.team_id),
+                "solution_id": str(exc.solution_id),
+                "submission": answer[:200],
+            },
+        )
     if is_correct:
         await emit_event(
             session,
