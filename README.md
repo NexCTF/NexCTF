@@ -41,7 +41,7 @@ curl -O https://raw.githubusercontent.com/nexctf/nexctf/main/compose.yml
 docker compose up -d
 ```
 
-The app is available at **https://localhost:8443**.
+The app is available at **https://localhost:8443** (`admin`/`admin` by default).
 
 ## Features
 ### 🎯 Challenges & Scoring

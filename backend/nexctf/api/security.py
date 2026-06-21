@@ -14,6 +14,8 @@ from nexctf.core.db import get_db_context
 from nexctf.model import User, UserRole, UserToken
 from nexctf.schema import UserTokenCreate
 
+TOKEN_PREFIX = "nexctf_"
+
 _ph = PasswordHasher(time_cost=2, memory_cost=19456, parallelism=1)
 
 
@@ -95,7 +97,7 @@ async def _verify_cookie(credential: str, role: UserRole | None = None) -> User:
 
 bearer_auth = HTTPBearerAuth(
     validator=_verify_token,
-    prefix="nexctf_",
+    prefix=TOKEN_PREFIX,
 )
 cookie_auth = APIKeyCookieAuth(
     name="NexCTF",

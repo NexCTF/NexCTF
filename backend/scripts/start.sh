@@ -30,6 +30,9 @@ done
 log "loading fixtures (environment=${ENVIRONMENT:-production})"
 manager fixtures load "${ENVIRONMENT:-production}" --strategy skip_existing
 
+log "creating default admin account (if missing)"
+manager create-admin
+
 # Dev runs its own server (fastapi dev) after this; skip prod orchestration.
 [ "${ENVIRONMENT:-}" = "development" ] && exit 0
 
