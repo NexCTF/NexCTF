@@ -11,8 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectin_polymorphic, selectinload
 
 from nexctf.core.db import async_session_maker
+from nexctf.exceptions import SolutionTimeoutError
 from nexctf.model import Question, Submission
 from nexctf.model.solution import Solution
+from nexctf.module.events import emit
 from nexctf.module.scoreboard import invalidate
 
 
@@ -43,6 +45,7 @@ async def recalculate_question(
         wrong_count_by_team: dict[UUID, int] = {}
         solved_teams: set[UUID] = set()
         affected_teams: set[UUID] = set()
+        timed_out_solutions: set[UUID] = set()
 
         for sub in submissions:
             team_id = sub.team_id
@@ -50,9 +53,29 @@ async def recalculate_question(
 
             new_is_correct = False
             for sol in question.solutions:
-                if await sol.verify(sub.answer, team_id=team_id):
-                    new_is_correct = True
-                    break
+                try:
+                    if await sol.verify(sub.answer, team_id=team_id):
+                        new_is_correct = True
+                        break
+                except SolutionTimeoutError as exc:
+                    if (
+                        exc.solution_id is not None
+                        and exc.solution_id not in timed_out_solutions
+                    ):
+                        timed_out_solutions.add(exc.solution_id)
+                        await emit(
+                            session,
+                            redis,
+                            event_type="solution.timeout",
+                            target_type="questions",
+                            target_id=question_id,
+                            target_label=question.label,
+                            meta={
+                                "solution_id": str(exc.solution_id),
+                                "team_id": str(team_id),
+                                "context": "recalculation",
+                            },
+                        )
 
             if new_is_correct and team_id not in solved_teams:
                 new_points = max(

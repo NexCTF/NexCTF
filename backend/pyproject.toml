@@ -18,6 +18,7 @@ dependencies = [
     "redis>=7.3.0",
     "sqlalchemy[asyncio]>=2.0.50",
     "pyotp>=2.9.0",
+    "regex>=2026.5.9",
 ]
 
 [project.scripts]

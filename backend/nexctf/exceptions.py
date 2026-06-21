@@ -1,7 +1,18 @@
 """Domain-specific API exceptions for NexCTF."""
 
+from uuid import UUID
+
 from fastapi_toolsets.exceptions import ApiException
 from fastapi_toolsets.schemas import ApiError
+
+
+class SolutionTimeoutError(Exception):
+    """Raised by ``Solution.verify`` when matching exceeds its time budget."""
+
+    def __init__(self, solution_id: UUID | None, pattern: str | None = None) -> None:
+        self.solution_id = solution_id
+        self.pattern = pattern
+        super().__init__(f"Solution {solution_id} timed out during verify")
 
 
 class AuthError(ApiException, abstract=True):

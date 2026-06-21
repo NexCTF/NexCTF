@@ -24,6 +24,7 @@ export const EVENT_TYPE_COLORS: Record<string, string> = {
   "user.token_revoked": "bg-rose-500/10 text-rose-600 dark:text-rose-400",
   "submission.correct": "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   "submission.wrong": "bg-red-500/10 text-red-600 dark:text-red-400",
+  "solution.timeout": "bg-orange-600/10 text-orange-700 dark:text-orange-400",
   "challenge.complete": "bg-purple-500/10 text-purple-600 dark:text-purple-400",
   "hint.unlock": "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   "admin.user_updated": "bg-violet-500/10 text-violet-600 dark:text-violet-400",

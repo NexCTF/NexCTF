@@ -35,6 +35,10 @@ class Solution(Base):
 
         team_id is passed for solution types that need team context (e.g. script checker).
         Most implementations can ignore it.
+
+        Raises:
+            SolutionTimeoutError: If matching exceeds the implementation's time
+                budget. Callers treat this as a non-match.
         """
 
     def public_options(self) -> list[str] | None:
