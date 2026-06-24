@@ -11,6 +11,7 @@ from nexctf.util.ip import get_client_ip
 from nexctf.model import Submission
 from nexctf.module.events import emit
 from nexctf.module.scoreboard.cache import invalidate as invalidate_scoreboard
+from nexctf.module.stats import invalidate_team
 from nexctf.schema.submission import AdminSubmissionRead
 
 submission_router = APIRouter(prefix="/submission", tags=["Submission"])
@@ -60,6 +61,7 @@ async def delete_submission(
         return_response=True,
     )
     await invalidate_scoreboard(redis, team_id=team_id)
+    await invalidate_team(redis, team_id)
     await emit(
         session,
         redis,

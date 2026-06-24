@@ -16,6 +16,7 @@ from nexctf.model import Question, Submission
 from nexctf.model.solution import Solution
 from nexctf.module.events import emit
 from nexctf.module.scoreboard import invalidate
+from nexctf.module.stats import invalidate_team
 
 
 async def recalculate_question(
@@ -98,7 +99,10 @@ async def recalculate_question(
                 sub.points_earned = new_points
                 affected_teams.add(team_id)
 
-    await asyncio.gather(*[invalidate(redis, tid) for tid in affected_teams])
+    await asyncio.gather(
+        *[invalidate(redis, tid) for tid in affected_teams],
+        *[invalidate_team(redis, tid) for tid in affected_teams],
+    )
 
     return affected_teams
 

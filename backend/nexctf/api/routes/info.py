@@ -5,30 +5,22 @@ from __future__ import annotations
 import asyncio
 
 from fastapi import APIRouter, Security
-from fastapi_toolsets.schemas import PaginationType, Response
+from fastapi_toolsets.schemas import Response
 from sqlalchemy import func, select
 
-import nexctf.core.appconfig as appconfig
-import nexctf.crud as crud
 from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
 from nexctf.api.security import auth
 from nexctf.model import (
     Challenge,
     HintUnlock,
-    OAuthProvider,
     Submission,
     Team,
     User,
     UserRole,
 )
-from nexctf.schema import PublicOAuthProviderRead, PublicUserRead
-from nexctf.schema.info import (
-    AdminStats,
-    BrandingInfo,
-    CaptchaInfo,
-    CompetitionInfo,
-    PublicInfo,
-)
+from nexctf.module.info import get_public_info
+from nexctf.schema import PublicUserRead
+from nexctf.schema.info import AdminStats, PublicInfo
 
 info_router = APIRouter(prefix="/info", tags=["info"])
 
@@ -38,60 +30,7 @@ async def public_info(
     session: SessionDep,
     redis: RedisDep,
 ) -> Response[PublicInfo]:
-    overrides = await appconfig.fetch_overrides(redis)
-
-    def get(key: str) -> str:
-        return str(appconfig.get_with_overrides(key, overrides))
-
-    branding = BrandingInfo(
-        name=get("ctf.name"),
-        logo_url=get("appearance.logo_url"),
-        favicon_url=get("appearance.favicon_url"),
-        primary_color=get("appearance.primary_color"),
-    )
-
-    def get_bool(key: str) -> bool:
-        return bool(appconfig.get_with_overrides(key, overrides))
-
-    competition = CompetitionInfo(
-        description=get("ctf.description"),
-        start_time=get("ctf.start_time"),
-        end_time=get("ctf.end_time"),
-        freeze_time=get("ctf.freeze_time"),
-        allow_registration=get_bool("ctf.allow_registration"),
-        allow_team_creation=get_bool("ctf.allow_team_creation"),
-        team_size=int(appconfig.get_with_overrides("ctf.team_size", overrides)),
-    )
-
-    providers = await crud.OAuthProviderCrud.paginate(
-        session=session,
-        pagination_type=PaginationType.OFFSET,
-        filters=[OAuthProvider.is_active.is_(True)],
-        items_per_page=50,
-        page=1,
-        schema=PublicOAuthProviderRead,
-    )
-
-    captcha_enabled = bool(appconfig.get_with_overrides("captcha.enabled", overrides))
-    if captcha_enabled:
-        cap_api_url = get("captcha.cap_api_url").rstrip("/")
-        cap_site_key = get("captcha.cap_site_key")
-        widget_endpoint = (
-            f"{cap_api_url}/{cap_site_key}/" if cap_api_url and cap_site_key else ""
-        )
-    else:
-        widget_endpoint = ""
-
-    return Response(
-        data=PublicInfo(
-            branding=branding,
-            competition=competition,
-            oauth_providers=providers.data,
-            captcha=CaptchaInfo(
-                enabled=captcha_enabled, widget_endpoint=widget_endpoint
-            ),
-        )
-    )
+    return Response(data=await get_public_info(session, redis))
 
 
 @info_router.get("/me")

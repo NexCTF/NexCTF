@@ -143,6 +143,7 @@ async def process_scheduled_jobs(session: AsyncSession, redis: Redis) -> None:
     in_flight_ids = set(in_flight_result.scalars().all())
 
     processed_job_ids = []
+    structure_changed = False
 
     for job in due_jobs:
         if job.id in in_flight_ids:
@@ -170,6 +171,8 @@ async def process_scheduled_jobs(session: AsyncSession, redis: Redis) -> None:
         job.is_active = False
         session.add(job)
         processed_job_ids.append(job.id)
+        if job.job_type == "toggle_challenge":
+            structure_changed = True
 
     if processed_job_ids:
         inner = (
@@ -192,6 +195,14 @@ async def process_scheduled_jobs(session: AsyncSession, redis: Redis) -> None:
         )
 
     await session.commit()
+
+    # A toggled challenge changes is_active, which the cached player challenge
+    # structures filter on; invalidate after commit so the change is visible.
+    if structure_changed:
+        from nexctf.module.challenge import invalidate as invalidate_challenges
+
+        await invalidate_challenges(redis)
+
     logger.info("Scheduler tick completed")
 
 
