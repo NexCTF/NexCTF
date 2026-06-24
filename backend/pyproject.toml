@@ -33,8 +33,8 @@ module-name = "nexctf"
 module-root = ""
 
 [tool.uv.sources]
-# Track the CommitOnResponseMiddleware fix (PR #317) until it lands in a release.
-fastapi-toolsets = { git = "https://github.com/d3vyce/fastapi-toolsets.git", branch = "316-add-commitonresponsemiddleware-to-commit-the-request-transaction-before-the-response" }
+# Track the DB module rework (PR #324) until it lands in a release.
+fastapi-toolsets = { git = "https://github.com/d3vyce/fastapi-toolsets.git", branch = "318-rework-db-module" }
 
 [dependency-groups]
 dev = [

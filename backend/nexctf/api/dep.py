@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nexctf.api.security import auth, bearer_auth, cookie_auth
 from nexctf.core import appconfig
 from nexctf.core.cache import get_redis
-from nexctf.core.db import get_db
+from nexctf.core.db import db
 from nexctf.exceptions import EventEndedError, EventNotStartedError, NoTeamError
 from nexctf.model import Challenge, OAuthProvider, Solution, User, UserRole
 from nexctf.module.audit import AuditContext, set_audit_context
@@ -25,7 +25,7 @@ from nexctf.plugins.registry import (
 from nexctf.util.datetime import parse_config_dt
 from nexctf.util.ip import get_client_ip
 
-SessionDep = Annotated[AsyncSession, Depends(get_db)]
+SessionDep = Annotated[AsyncSession, Depends(db)]
 RedisDep = Annotated[Redis, Depends(get_redis)]
 CurrentUserDep = Annotated[User, Security(auth)]
 
@@ -127,7 +127,7 @@ RequireTeamDep = Annotated[User, Depends(_require_team)]
 ProviderDep = PathDependency(
     model=OAuthProvider,
     field=OAuthProvider.slug,
-    session_dep=get_db,
+    session_dep=db,
     param_name="slug",
 )
 
