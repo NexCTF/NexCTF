@@ -184,6 +184,37 @@ class CaptchaMisconfiguredError(CaptchaError):
     )
 
 
+class EmailError(ApiException, abstract=True):
+    """Base for SMTP / email delivery errors."""
+
+
+class EmailDisabledError(EmailError):
+    api_error = ApiError(
+        code=409,
+        msg="Email disabled",
+        desc="Email sending is not enabled. Enable it in the settings first.",
+        err_code="EMAIL-409-DISABLED",
+    )
+
+
+class EmailMisconfiguredError(EmailError):
+    api_error = ApiError(
+        code=500,
+        msg="Email misconfigured",
+        desc="The SMTP service is not properly configured. Contact an administrator.",
+        err_code="EMAIL-500",
+    )
+
+
+class EmailSendError(EmailError):
+    api_error = ApiError(
+        code=502,
+        msg="Email delivery failed",
+        desc="The SMTP server rejected or failed to deliver the message.",
+        err_code="EMAIL-502",
+    )
+
+
 class OAuthError(ApiException, abstract=True):
     """Base for OAuth provider and account linking errors."""
 

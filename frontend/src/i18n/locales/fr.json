@@ -708,7 +708,8 @@
       "scoring": "Notation",
       "visibility": "Visibilité",
       "appearance": "Apparence",
-      "security": "Sécurité"
+      "security": "Sécurité",
+      "email": "E-mail"
     },
     "ctf": {
       "name": {
@@ -833,6 +834,40 @@
       "favicon_url": {
         "label": "URL du favicon",
         "description": "URL du favicon affiché dans l'onglet du navigateur"
+      }
+    },
+    "email": {
+      "enabled": {
+        "label": "Activer l'e-mail",
+        "description": "Autoriser la plateforme à envoyer des e-mails via SMTP"
+      },
+      "smtp_host": {
+        "label": "Hôte SMTP",
+        "description": "Nom d'hôte de votre serveur SMTP (ex. smtp.example.com)"
+      },
+      "smtp_port": {
+        "label": "Port SMTP",
+        "description": "Port de votre serveur SMTP (généralement 587 pour STARTTLS, 465 pour TLS)"
+      },
+      "smtp_username": {
+        "label": "Nom d'utilisateur SMTP",
+        "description": "Nom d'utilisateur pour l'authentification SMTP (laisser vide si aucun)"
+      },
+      "smtp_password": {
+        "label": "Mot de passe SMTP",
+        "description": "Mot de passe pour l'authentification SMTP (laisser vide si aucun)"
+      },
+      "security": {
+        "label": "Sécurité de la connexion",
+        "description": "Chiffrement utilisé pour la connexion SMTP"
+      },
+      "from_address": {
+        "label": "Adresse d'expéditeur",
+        "description": "Adresse e-mail à partir de laquelle les messages sont envoyés"
+      },
+      "from_name": {
+        "label": "Nom d'expéditeur",
+        "description": "Nom affiché comme expéditeur (facultatif)"
       }
     }
   }

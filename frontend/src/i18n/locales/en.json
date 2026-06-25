@@ -708,7 +708,8 @@
       "scoring": "Scoring",
       "visibility": "Visibility",
       "appearance": "Appearance",
-      "security": "Security"
+      "security": "Security",
+      "email": "Email"
     },
     "ctf": {
       "name": {
@@ -833,6 +834,40 @@
       "favicon_url": {
         "label": "Favicon URL",
         "description": "URL of the favicon shown in the browser tab"
+      }
+    },
+    "email": {
+      "enabled": {
+        "label": "Enable Email",
+        "description": "Allow the platform to send emails via SMTP"
+      },
+      "smtp_host": {
+        "label": "SMTP Host",
+        "description": "Hostname of your SMTP server (e.g. smtp.example.com)"
+      },
+      "smtp_port": {
+        "label": "SMTP Port",
+        "description": "Port of your SMTP server (typically 587 for STARTTLS, 465 for TLS)"
+      },
+      "smtp_username": {
+        "label": "SMTP Username",
+        "description": "Username for SMTP authentication (leave empty for none)"
+      },
+      "smtp_password": {
+        "label": "SMTP Password",
+        "description": "Password for SMTP authentication (leave empty for none)"
+      },
+      "security": {
+        "label": "Connection Security",
+        "description": "Encryption used for the SMTP connection"
+      },
+      "from_address": {
+        "label": "From Address",
+        "description": "Email address messages are sent from"
+      },
+      "from_name": {
+        "label": "From Name",
+        "description": "Display name shown as the sender (optional)"
       }
     }
   }

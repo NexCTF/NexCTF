@@ -19,6 +19,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.50",
     "pyotp>=2.10.0",
     "regex>=2026.5.9",
+    "aiosmtplib>=3.0",
 ]
 
 [project.scripts]
