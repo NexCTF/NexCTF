@@ -1,3 +1,4 @@
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import datetime, timezone
 from typing import Annotated, Any
 from uuid import UUID
@@ -27,6 +28,33 @@ from nexctf.util.ip import get_client_ip
 SessionDep = Annotated[AsyncSession, Depends(get_db)]
 RedisDep = Annotated[Redis, Depends(get_redis)]
 CurrentUserDep = Annotated[User, Security(auth)]
+
+_WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+def invalidate_on_write(
+    *invalidators: Callable[[Redis], Awaitable[None]],
+) -> Callable[[Request, Redis], AsyncGenerator[None, None]]:
+    """Build a router dependency that invalidates caches after a mutating request.
+
+    The returned dependency lets the endpoint run, then runs every invalidator
+    for write methods (POST/PUT/PATCH/DELETE). It deliberately runs even when the
+    endpoint failed: over-invalidating only forces a harmless recompute, whereas
+    skipping invalidation would serve stale data.
+
+    Args:
+        invalidators: Async callables taking a Redis client and clearing a cache.
+    """
+
+    async def _dep(request: Request, redis: RedisDep) -> AsyncGenerator[None, None]:
+        try:
+            yield
+        finally:
+            if request.method in _WRITE_METHODS:
+                for invalidate in invalidators:
+                    await invalidate(redis)
+
+    return _dep
 
 
 async def bind_audit_context(request: Request, user: CurrentUserDep) -> None:

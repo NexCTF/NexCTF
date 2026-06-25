@@ -28,7 +28,7 @@ from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
 from nexctf.api.security import create_api_token
 from nexctf.util.ip import get_client_ip
 from nexctf.module.events import emit
-from nexctf.module.stats import compute_team_challenge_stats
+from nexctf.module.stats import get_team_challenge_stats
 from nexctf.model import OAuthAccount, Team, User, UserToken
 from nexctf.schema import (
     PublicApiTokenCreate,
@@ -292,6 +292,7 @@ def _build_team_read(
 @me_router.get("/team")
 async def get_my_team(
     session: SessionDep,
+    redis: RedisDep,
     user: CurrentUserDep,
 ) -> Response[PublicTeamRead | None]:
     if user.team_id is None:
@@ -300,7 +301,7 @@ async def get_my_team(
         crud.TeamCrud.first(
             session, [Team.id == user.team_id], load_options=[selectinload(Team.users)]
         ),
-        compute_team_challenge_stats(session, user.team_id),
+        get_team_challenge_stats(session, redis, user.team_id),
     )
     if team is None:
         raise NotFoundError()

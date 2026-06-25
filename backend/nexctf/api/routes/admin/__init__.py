@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, Security
 
-from nexctf.api.dep import bind_audit_context
+from nexctf.api.dep import bind_audit_context, invalidate_on_write
 from nexctf.api.security import auth
 from nexctf.model import UserRole
+from nexctf.module.challenge import invalidate as invalidate_challenges
+from nexctf.module.info import invalidate as invalidate_info
 
 from .category import category_router
 from .challenge import challenge_router
@@ -35,26 +37,33 @@ admin_router = APIRouter(
     ],
 )
 
-admin_router.include_router(router=category_router)
-admin_router.include_router(router=challenge_router)
-admin_router.include_router(router=config_router)
+# Writes to challenge-shaping data must drop the cached player challenge
+# structures; writes to config / OAuth providers must drop the cached public info.
+_invalidate_challenges = [Depends(invalidate_on_write(invalidate_challenges))]
+_invalidate_info = [Depends(invalidate_on_write(invalidate_info))]
+
+admin_router.include_router(router=category_router, dependencies=_invalidate_challenges)
+admin_router.include_router(
+    router=challenge_router, dependencies=_invalidate_challenges
+)
+admin_router.include_router(router=config_router, dependencies=_invalidate_info)
 admin_router.include_router(router=custom_field_router)
 admin_router.include_router(router=custom_field_value_router)
 admin_router.include_router(router=event_router)
-admin_router.include_router(router=file_router)
-admin_router.include_router(router=hint_router)
+admin_router.include_router(router=file_router, dependencies=_invalidate_challenges)
+admin_router.include_router(router=hint_router, dependencies=_invalidate_challenges)
 admin_router.include_router(router=notification_router)
-admin_router.include_router(router=oauth_router)
+admin_router.include_router(router=oauth_router, dependencies=_invalidate_info)
 admin_router.include_router(router=oauth_client_router)
 admin_router.include_router(router=plugin_router)
-admin_router.include_router(router=question_router)
+admin_router.include_router(router=question_router, dependencies=_invalidate_challenges)
 admin_router.include_router(router=scheduler_router)
 admin_router.include_router(router=score_adjustment_router)
 admin_router.include_router(router=scoreboard_router)
 admin_router.include_router(router=stats_router)
-admin_router.include_router(router=solution_router)
+admin_router.include_router(router=solution_router, dependencies=_invalidate_challenges)
 admin_router.include_router(router=submission_router)
 admin_router.include_router(router=admin_page_router)
-admin_router.include_router(router=tag_router)
+admin_router.include_router(router=tag_router, dependencies=_invalidate_challenges)
 admin_router.include_router(router=team_router)
 admin_router.include_router(router=user_router)

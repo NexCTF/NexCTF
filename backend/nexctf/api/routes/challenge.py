@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import random
 from uuid import UUID
 
@@ -11,7 +10,7 @@ from fastapi_toolsets.exceptions import ForbiddenError, NotFoundError, Unauthori
 from fastapi_toolsets.schemas import Response
 from nexctf.exceptions import SequentialChallengeError, SolutionTimeoutError
 from sqlalchemy import select
-from sqlalchemy.orm import selectin_polymorphic, selectinload
+from sqlalchemy.orm import selectinload
 
 from nexctf.api.dep import (
     CurrentUserDep,
@@ -22,15 +21,16 @@ from nexctf.api.dep import (
     RequireTeamDep,
     SessionDep,
 )
+from nexctf.module.challenge import get_detail_structure, get_list_structure
+from nexctf.module.challenge.compute import QuestionStructure, solution_load_option
 from nexctf.module.events import emit as emit_event
 from nexctf.module.scoreboard import invalidate as invalidate_scoreboard
 from nexctf.module.stats import invalidate as invalidate_stats
-from nexctf.core import appconfig, s3
+from nexctf.module.stats import invalidate_team
+from nexctf.core import appconfig
 from nexctf.util.ip import get_client_ip
 from nexctf.core.rate_limit import check_rate_limit
 from nexctf.model import Challenge, HintUnlock, Question, Submission, User, UserRole
-from nexctf.model.solution import Solution
-from nexctf.plugins.registry import solution_registry
 from nexctf.schema.challenge import (
     PublicChallengeDetail,
     PublicChallengeRead,
@@ -40,7 +40,6 @@ from nexctf.schema.challenge import (
 from nexctf.schema.file import PublicFileRead
 from nexctf.schema.hint import PublicHintRead
 from nexctf.schema.question import PublicQuestionRead
-from nexctf.schema.tag import PublicTagRead
 
 challenge_router = APIRouter(prefix="/challenges", tags=["Challenges"])
 
@@ -56,16 +55,6 @@ def _check_challenge_visibility(user: User | None) -> None:
         raise UnauthorizedError()
 
 
-def _solution_load_option():
-    """Return the correct selectinload option for Question.solutions."""
-    subclasses = solution_registry.polymorphic_subclasses
-    if subclasses:
-        return selectinload(Question.solutions).options(
-            selectin_polymorphic(Solution, subclasses)
-        )
-    return selectinload(Question.solutions)
-
-
 async def _get_active_challenge(session: SessionDep, challenge_id: UUID) -> Challenge:
     """Load a challenge with all relationships needed for the player view."""
     result = await session.execute(
@@ -75,7 +64,7 @@ async def _get_active_challenge(session: SessionDep, challenge_id: UUID) -> Chal
             selectinload(Challenge.category),
             selectinload(Challenge.tags),
             selectinload(Challenge.questions).options(
-                _solution_load_option(),
+                solution_load_option(),
                 selectinload(Question.hints),
                 selectinload(Question.files),
                 selectinload(Question.tags),
@@ -120,34 +109,19 @@ async def _unlocked_ids(
     return {r[0] for r in rows}
 
 
-async def _question_read(
-    q: Question,
+def _assemble_question(
+    q: QuestionStructure,
     *,
     is_solved: bool,
     is_locked: bool,
     unlocked_hint_ids: set[UUID],
 ) -> PublicQuestionRead:
-    files: list[PublicFileRead] = []
-    if not is_locked:
+    """Build a player question view from cached structure + per-user state.
 
-        async def _presign(key: str) -> str:
-            try:
-                return await s3.presigned_view_url(key)  # type: ignore[attr-defined]
-            except Exception:
-                return ""
-
-        urls = await asyncio.gather(*[_presign(f.s3_key) for f in q.files])
-        files = [
-            PublicFileRead(
-                id=f.id,
-                name=f.name,
-                original_filename=f.original_filename,
-                mime_type=f.mime_type,
-                file_size=f.file_size,
-                url=url,
-            )
-            for f, url in zip(q.files, urls)
-        ]
+    Locked questions hide their files, hints and options (the frontend blurs
+    them); option order is shuffled per request.
+    """
+    files: list[PublicFileRead] = [] if is_locked else list(q.files)
 
     hints: list[PublicHintRead] = []
     if not is_locked:
@@ -159,30 +133,13 @@ async def _question_read(
                 is_unlocked=h.id in unlocked_hint_ids,
                 content=h.content if h.id in unlocked_hint_ids else None,
             )
-            for h in sorted(q.hints, key=lambda h: h.order)
+            for h in q.hints
         ]
 
-    tags = [
-        PublicTagRead(id=t.id, name=t.name, description=t.description, color=t.color)
-        for t in q.tags
-    ]
-
-    # Collect player-facing options from solutions that expose them (e.g. MCQ).
-    # Solutions control what they expose via public_options() / is_multi_select().
     options: list[str] | None = None
-    multi_select: bool = False
-    if not is_locked:
-        all_opts: list[str] = []
-        for sol in q.solutions:
-            sol_opts = sol.public_options()
-            if sol_opts:
-                all_opts.extend(sol_opts)
-            if sol.is_multi_select():
-                multi_select = True
-        if all_opts:
-            unique = list(set(all_opts))
-            random.shuffle(unique)
-            options = unique
+    if not is_locked and q.options:
+        options = list(q.options)
+        random.shuffle(options)
 
     return PublicQuestionRead(
         id=q.id,
@@ -195,51 +152,37 @@ async def _question_read(
         is_locked=is_locked,
         files=files,
         hints=hints,
-        tags=tags,
+        tags=list(q.tags),
         options=options,
-        multi_select=multi_select,
+        multi_select=q.multi_select,
     )
 
 
 @challenge_router.get("")
 async def list_challenges(
     session: SessionDep,
+    redis: RedisDep,
     user: OptionalCurrentUserDep = None,
     _: EventStartedDep = None,
 ) -> Response[list[PublicChallengeRead]]:
     _check_challenge_visibility(user)
-    result = await session.execute(
-        select(Challenge)
-        .where(Challenge.is_active.is_(True))
-        .options(
-            selectinload(Challenge.questions),
-            selectinload(Challenge.category),
-            selectinload(Challenge.tags),
-        )
-        .order_by(Challenge.title)
-    )
-    challenges = list(result.scalars().all())
+    structure = await get_list_structure(session, redis)
 
-    all_q_ids = [q.id for c in challenges for q in c.questions]
+    all_q_ids = [qid for item in structure for qid in item.question_ids]
     solved = await _solved_ids(session, user, all_q_ids)
 
     return Response(
         data=[
             PublicChallengeRead(
-                id=c.id,
-                title=c.title,
-                category_id=c.category_id,
-                category_name=c.category_name,
-                question_count=len(c.questions),
-                solved_count=sum(1 for q in c.questions if q.id in solved),
-                tags=[
-                    PublicTagRead(
-                        id=t.id, name=t.name, description=t.description, color=t.color
-                    )
-                    for t in c.tags
-                ],
+                id=item.id,
+                title=item.title,
+                category_id=item.category_id,
+                category_name=item.category_name,
+                question_count=len(item.question_ids),
+                solved_count=sum(1 for qid in item.question_ids if qid in solved),
+                tags=list(item.tags),
             )
-            for c in challenges
+            for item in structure
         ]
     )
 
@@ -247,13 +190,14 @@ async def list_challenges(
 @challenge_router.get("/{challenge_id}")
 async def get_challenge(
     session: SessionDep,
+    redis: RedisDep,
     challenge_id: UUID,
     user: OptionalCurrentUserDep = None,
     _: EventStartedDep = None,
 ) -> Response[PublicChallengeDetail]:
     _check_challenge_visibility(user)
-    challenge = await _get_active_challenge(session, challenge_id)
-    questions = sorted(challenge.questions, key=lambda q: q.index)
+    structure = await get_detail_structure(session, redis, challenge_id)
+    questions = structure.questions
 
     solved = await _solved_ids(session, user, [q.id for q in questions])
     all_hint_ids = [h.id for q in questions for h in q.hints]
@@ -262,44 +206,35 @@ async def get_challenge(
     # Sequential: all questions are shown, but questions after the first unsolved
     # one are marked as locked (blurred on the frontend).
     locked_from: int | None = None
-    if challenge.sequential:
+    if structure.sequential:
         for i, q in enumerate(questions):
             if q.id not in solved:
                 locked_from = i + 1  # everything after this index is locked
                 break
 
-    question_reads = list(
-        await asyncio.gather(
-            *[
-                _question_read(
-                    q,
-                    is_solved=q.id in solved,
-                    is_locked=locked_from is not None and i >= locked_from,
-                    unlocked_hint_ids=unlocked,
-                )
-                for i, q in enumerate(questions)
-            ]
+    question_reads = [
+        _assemble_question(
+            q,
+            is_solved=q.id in solved,
+            is_locked=locked_from is not None and i >= locked_from,
+            unlocked_hint_ids=unlocked,
         )
-    )
+        for i, q in enumerate(questions)
+    ]
 
     return Response(
         data=PublicChallengeDetail(
-            id=challenge.id,
-            title=challenge.title,
-            description=challenge.description,
-            category_id=challenge.category_id,
-            category_name=challenge.category_name,
+            id=structure.id,
+            title=structure.title,
+            description=structure.description,
+            category_id=structure.category_id,
+            category_name=structure.category_name,
             question_count=len(questions),
             solved_count=len(solved),
-            challenge_type=challenge.challenge_type,
-            sequential=challenge.sequential,
+            challenge_type=structure.challenge_type,
+            sequential=structure.sequential,
             questions=question_reads,
-            tags=[
-                PublicTagRead(
-                    id=t.id, name=t.name, description=t.description, color=t.color
-                )
-                for t in challenge.tags
-            ],
+            tags=list(structure.tags),
         )
     )
 
@@ -470,6 +405,8 @@ async def submit_answer(
 
     if is_correct:
         await invalidate_scoreboard(redis, user.team_id)
+    # Any submission (right or wrong) changes the team's per-challenge stats.
+    await invalidate_team(redis, user.team_id)
 
     return Response(
         data=SubmitResult(
