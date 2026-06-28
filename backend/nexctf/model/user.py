@@ -50,6 +50,9 @@ class User(Base):
 
     username: Mapped[str] = mapped_column(unique=True, index=True)
     email: Mapped[str | None] = mapped_column(unique=True, index=True, nullable=True)
+    email_verified: Mapped[bool] = mapped_column(
+        default=False, server_default=text("false")
+    )
     hashed_password: Mapped[str | None]
     is_active: Mapped[bool] = mapped_column(default=True)
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.user)

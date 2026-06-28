@@ -2,11 +2,14 @@
 
 from unittest.mock import AsyncMock, patch
 
+from sqlalchemy import select
+
 from nexctf.exceptions import (
     EmailDisabledError,
     EmailMisconfiguredError,
     EmailSendError,
 )
+from nexctf.model import Event
 
 TEST_EMAIL_PATH = "/admin/email/test"
 PAYLOAD = {"to": "ops@example.com"}
@@ -36,14 +39,20 @@ class TestSendTestEmail:
         assert resp.status_code == 422
         mock_send.assert_not_called()
 
-    async def test_success(self, admin_client):
-        """A configured send returns success and forwards the recipient."""
+    async def test_success(self, admin_client, db_session):
+        """A configured send returns success, forwards the recipient, and is audited."""
         client, _ = admin_client
         with _patch_send() as mock_send:
             resp = await client.post(TEST_EMAIL_PATH, json=PAYLOAD)
         assert resp.status_code == 200
         mock_send.assert_awaited_once()
         assert mock_send.await_args.args[1] == "ops@example.com"
+        events = (
+            await db_session.scalars(
+                select(Event).where(Event.event_type == "admin.email_test")
+            )
+        ).all()
+        assert len(events) == 1
 
     async def test_disabled_surfaces_409(self, admin_client):
         client, _ = admin_client

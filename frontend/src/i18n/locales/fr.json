@@ -29,18 +29,43 @@
     "totp_back": "← Retour à la connexion",
     "disabled_title": "Compte désactivé",
     "disabled_message": "Votre compte a été désactivé. Veuillez contacter un administrateur.",
+    "forgot_password": "Mot de passe oublié ?",
+    "verify_title": "Vérifiez votre email",
+    "verify_message": "Veuillez confirmer votre adresse email avant de vous connecter. Entrez votre email pour recevoir un nouveau lien de vérification.",
     "no_account": "Pas encore de compte ?",
     "sign_up": "S'inscrire"
   },
   "register": {
     "subtitle": "Créez votre compte",
     "email": "Email (optionnel)",
+    "email_required": "Email",
     "submit": "S'inscrire",
     "submitting": "Création du compte...",
     "success": "Compte créé. Vous pouvez maintenant vous connecter.",
+    "success_verify": "Compte créé. Vérifiez votre boîte de réception pour confirmer votre email avant de vous connecter.",
     "error_unexpected": "Une erreur inattendue est survenue",
     "have_account": "Vous avez déjà un compte ?",
     "sign_in": "Se connecter"
+  },
+  "forgot_password": {
+    "subtitle": "Réinitialisez votre mot de passe",
+    "email_label": "Email",
+    "submit": "Envoyer le lien",
+    "error_unexpected": "Une erreur inattendue est survenue",
+    "success_title": "Vérifiez votre email",
+    "success_desc": "Si un compte existe pour cet email, un lien de réinitialisation est en route."
+  },
+  "verify_email": {
+    "checking": "Vérification de votre email…",
+    "success_title": "Email vérifié",
+    "success_desc": "Votre email est confirmé. Vous pouvez maintenant vous connecter.",
+    "invalid_title": "Échec de la vérification",
+    "invalid_desc": "Ce lien de vérification est invalide ou a expiré. Entrez votre email pour en recevoir un nouveau.",
+    "email_label": "Email",
+    "resend": "Renvoyer l'email de vérification",
+    "sending": "Envoi...",
+    "resent": "Si cet email nécessite une vérification, un nouveau lien est en route.",
+    "error_unexpected": "Une erreur inattendue est survenue"
   },
   "reset_password": {
     "subtitle": "Choisissez un nouveau mot de passe",

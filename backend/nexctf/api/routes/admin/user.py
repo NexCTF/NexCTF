@@ -1,4 +1,3 @@
-import secrets
 from typing import Annotated
 from uuid import UUID
 
@@ -9,7 +8,11 @@ from sqlalchemy import select
 
 import nexctf.crud as crud
 from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
-from nexctf.api.security import PWD_RESET_KEY_PREFIX, _hash_token
+from nexctf.api.security import (
+    PWD_RESET_KEY_PREFIX,
+    PWD_RESET_TTL,
+    issue_single_use_token,
+)
 from nexctf.util.ip import get_client_ip
 from nexctf.model import CustomFieldValue, User
 from nexctf.model.event import Event
@@ -24,8 +27,6 @@ from nexctf.schema.user import (
 )
 
 user_router = APIRouter(prefix="/user", tags=["User"])
-
-_PWD_RESET_TTL = 3600
 
 
 @user_router.get("")
@@ -155,9 +156,8 @@ async def admin_create_password_reset_token(
     target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
     if not target:
         raise NotFoundError()
-    token = secrets.token_urlsafe(32)
-    await redis.setex(
-        f"{PWD_RESET_KEY_PREFIX}{_hash_token(token)}", _PWD_RESET_TTL, str(uuid)
+    token = await issue_single_use_token(
+        redis, PWD_RESET_KEY_PREFIX, PWD_RESET_TTL, uuid
     )
     await emit(
         session,

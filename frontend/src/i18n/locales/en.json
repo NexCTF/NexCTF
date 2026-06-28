@@ -29,18 +29,43 @@
     "totp_back": "← Back to sign in",
     "disabled_title": "Account Disabled",
     "disabled_message": "Your account has been disabled. Please contact an administrator.",
+    "forgot_password": "Forgot password?",
+    "verify_title": "Verify your email",
+    "verify_message": "Please confirm your email address before signing in. Enter your email to receive a new verification link.",
     "no_account": "Don't have an account?",
     "sign_up": "Sign up"
   },
   "register": {
     "subtitle": "Create your account",
     "email": "Email (optional)",
+    "email_required": "Email",
     "submit": "Sign up",
     "submitting": "Creating account...",
     "success": "Account created. You can now sign in.",
+    "success_verify": "Account created. Check your inbox to verify your email before signing in.",
     "error_unexpected": "An unexpected error occurred",
     "have_account": "Already have an account?",
     "sign_in": "Sign in"
+  },
+  "forgot_password": {
+    "subtitle": "Reset your password",
+    "email_label": "Email",
+    "submit": "Send reset link",
+    "error_unexpected": "An unexpected error occurred",
+    "success_title": "Check your email",
+    "success_desc": "If an account exists for that email, a password reset link is on its way."
+  },
+  "verify_email": {
+    "checking": "Verifying your email…",
+    "success_title": "Email verified",
+    "success_desc": "Your email is confirmed. You can now sign in.",
+    "invalid_title": "Verification failed",
+    "invalid_desc": "This verification link is invalid or has expired. Enter your email to receive a new one.",
+    "email_label": "Email",
+    "resend": "Resend verification email",
+    "sending": "Sending...",
+    "resent": "If that email needs verification, a new link is on its way.",
+    "error_unexpected": "An unexpected error occurred"
   },
   "reset_password": {
     "subtitle": "Set a new password",
