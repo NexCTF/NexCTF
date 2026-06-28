@@ -55,6 +55,33 @@ class InvalidResetTokenError(AuthError):
     )
 
 
+class EmailRequiredError(AuthError):
+    api_error = ApiError(
+        code=400,
+        msg="Email required",
+        desc="An email address is required to register.",
+        err_code="AUTH-400-EMAIL-REQUIRED",
+    )
+
+
+class InvalidVerificationTokenError(AuthError):
+    api_error = ApiError(
+        code=400,
+        msg="Invalid verification token",
+        desc="The email verification token is invalid or has expired.",
+        err_code="AUTH-400-VERIFY-TOKEN",
+    )
+
+
+class EmailNotVerifiedError(AuthError):
+    api_error = ApiError(
+        code=403,
+        msg="Email not verified",
+        desc="Please verify your email address before logging in.",
+        err_code="AUTH-403-EMAIL-NOT-VERIFIED",
+    )
+
+
 class TotpError(ApiException, abstract=True):
     """Base for TOTP / two-factor authentication errors."""
 

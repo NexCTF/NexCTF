@@ -9,9 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as UserRouteImport } from './routes/_user'
 import { Route as UserIndexRouteImport } from './routes/_user/index'
 import { Route as OauthConsentRouteImport } from './routes/oauth.consent'
@@ -47,6 +49,11 @@ import { Route as AdminAdminSchedulerJobIdRouteImport } from './routes/admin/_ad
 import { Route as AdminAdminPagesPageIdRouteImport } from './routes/admin/_admin/pages_.$pageId'
 import { Route as AdminAdminChallengesChallengeIdRouteImport } from './routes/admin/_admin/challenges_.$challengeId'
 
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -60,6 +67,11 @@ const RegisterRoute = RegisterRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UserRoute = UserRouteImport.update({
@@ -239,9 +251,11 @@ const AdminAdminChallengesChallengeIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof UserIndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/challenges': typeof UserChallengesRoute
   '/scoreboard': typeof UserScoreboardRoute
   '/settings': typeof UserSettingsRoute
@@ -276,9 +290,11 @@ export interface FileRoutesByFullPath {
   '/admin/users/$userId': typeof AdminAdminUsersUserIdRoute
 }
 export interface FileRoutesByTo {
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/challenges': typeof UserChallengesRoute
   '/scoreboard': typeof UserScoreboardRoute
   '/settings': typeof UserSettingsRoute
@@ -315,9 +331,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_user': typeof UserRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/_user/challenges': typeof UserChallengesRoute
   '/_user/scoreboard': typeof UserScoreboardRoute
   '/_user/settings': typeof UserSettingsRoute
@@ -356,9 +374,11 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/forgot-password'
     | '/login'
     | '/register'
     | '/reset-password'
+    | '/verify-email'
     | '/challenges'
     | '/scoreboard'
     | '/settings'
@@ -393,9 +413,11 @@ export interface FileRouteTypes {
     | '/admin/users/$userId'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/forgot-password'
     | '/login'
     | '/register'
     | '/reset-password'
+    | '/verify-email'
     | '/challenges'
     | '/scoreboard'
     | '/settings'
@@ -431,9 +453,11 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_user'
+    | '/forgot-password'
     | '/login'
     | '/register'
     | '/reset-password'
+    | '/verify-email'
     | '/_user/challenges'
     | '/_user/scoreboard'
     | '/_user/settings'
@@ -471,15 +495,24 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   UserRoute: typeof UserRouteWithChildren
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  VerifyEmailRoute: typeof VerifyEmailRoute
   AdminAdminRoute: typeof AdminAdminRouteWithChildren
   OauthConsentRoute: typeof OauthConsentRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
@@ -499,6 +532,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_user': {
@@ -824,9 +864,11 @@ const AdminAdminRouteWithChildren = AdminAdminRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   UserRoute: UserRouteWithChildren,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  VerifyEmailRoute: VerifyEmailRoute,
   AdminAdminRoute: AdminAdminRouteWithChildren,
   OauthConsentRoute: OauthConsentRoute,
 }

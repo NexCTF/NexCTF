@@ -1,11 +1,14 @@
 import hashlib
+import secrets
 from datetime import datetime, timezone
+from typing import Any, cast
 from uuid import UUID
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from fastapi_toolsets.exceptions import ForbiddenError, UnauthorizedError
 from fastapi_multiauth import APIKeyCookieAuth, HTTPBearerAuth, MultiAuth
+from redis.asyncio import Redis
 from sqlalchemy.orm import selectinload
 
 import nexctf.crud as crud
@@ -42,10 +45,34 @@ def dummy_verify_password(plain: str) -> None:
 
 
 PWD_RESET_KEY_PREFIX = "pwd_reset:"
+PWD_RESET_TTL = 3600  # 1 hour
+EMAIL_VERIFY_KEY_PREFIX = "email_verify:"
+EMAIL_VERIFY_TTL = 86400  # 24 hours
 
 
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+async def issue_single_use_token(
+    redis: Redis, prefix: str, ttl: int, subject_id: UUID
+) -> str:
+    """Mint a single-use token and store its hash → subject id under ``prefix``.
+
+    Only the token's hash is persisted (with a TTL); the raw token is returned to
+    the caller to embed in a link. Shared by password-reset and email-verification.
+    """
+    token = secrets.token_urlsafe(32)
+    await redis.setex(f"{prefix}{_hash_token(token)}", ttl, str(subject_id))
+    return token
+
+
+async def consume_single_use_token(redis: Redis, prefix: str, token: str) -> str | None:
+    """Atomically consume a single-use token, returning its subject id or None.
+
+    Uses GETDEL so the token is invalidated on first read, preventing double-use.
+    """
+    return await cast(Any, redis.getdel(f"{prefix}{_hash_token(token)}"))
 
 
 async def _verify_token(token: str, role: UserRole | None = None) -> User:

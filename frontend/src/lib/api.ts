@@ -206,6 +206,7 @@ export interface CompetitionInfo {
   freeze_time: string;
   allow_registration: boolean;
   allow_team_creation: boolean;
+  require_email: boolean;
   team_size: number;
 }
 
@@ -459,6 +460,27 @@ export async function resetPassword(token: string, newPassword: string): Promise
   await rawRequest("/auth/reset-password", {
     method: "POST",
     body: JSON.stringify({ token, new_password: newPassword }),
+  });
+}
+
+export async function forgotPassword(email: string): Promise<void> {
+  await rawRequest("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function verifyEmail(token: string): Promise<void> {
+  await rawRequest("/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
+export async function resendVerification(email: string): Promise<void> {
+  await rawRequest("/auth/resend-verification", {
+    method: "POST",
+    body: JSON.stringify({ email }),
   });
 }
 

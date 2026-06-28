@@ -50,6 +50,7 @@ async def _compute(session: AsyncSession, redis: Redis) -> PublicInfo:
         freeze_time=get("ctf.freeze_time"),
         allow_registration=get_bool("ctf.allow_registration"),
         allow_team_creation=get_bool("ctf.allow_team_creation"),
+        require_email=get_bool("email.enabled"),
         team_size=int(appconfig.get_with_overrides("ctf.team_size", overrides)),
     )
 

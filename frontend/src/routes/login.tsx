@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
-import { ShieldBan } from "lucide-react";
+import { MailWarning, ShieldBan } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ResendVerificationForm } from "@/components/resend-verification-form";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ function LoginPage() {
   const [totpCode, setTotpCode] = useState("");
   const [totpRequired, setTotpRequired] = useState(false);
   const [accountDisabled, setAccountDisabled] = useState(false);
+  const [emailNotVerified, setEmailNotVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -83,6 +85,32 @@ function LoginPage() {
     );
   }
 
+  if (emailNotVerified) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-primary/10">
+              <MailWarning className="size-7 text-primary" />
+            </div>
+            <CardTitle>{t("login.verify_title")}</CardTitle>
+            <CardDescription>{t("login.verify_message")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResendVerificationForm />
+            <Button
+              className="mt-3 w-full"
+              variant="outline"
+              onClick={() => setEmailNotVerified(false)}
+            >
+              {t("reset_password.back_to_login")}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -107,6 +135,8 @@ function LoginPage() {
           setTotpCode("");
         } else if (err.errCode === "AUTH-403-DISABLED") {
           setAccountDisabled(true);
+        } else if (err.errCode === "AUTH-403-EMAIL-NOT-VERIFIED") {
+          setEmailNotVerified(true);
         } else {
           setError(err.description ?? err.message);
         }
@@ -183,7 +213,15 @@ function LoginPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">{t("login.password")}</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">{t("login.password")}</Label>
+                    <Link
+                      to="/forgot-password"
+                      className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                    >
+                      {t("login.forgot_password")}
+                    </Link>
+                  </div>
                   <Input
                     id="password"
                     type="password"
