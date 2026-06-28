@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import hmac
 import json
@@ -21,9 +22,9 @@ from nexctf.schema.oauth_server import (
     OAuthApproveRequest,
     OAuthApproveResponse,
     OAuthConsentInfo,
+    OAuthServerMetadata,
     OAuthTokenResponse,
     OAuthUserinfo,
-    OIDCDiscovery,
 )
 
 oauth_router = APIRouter(prefix="/oauth2", tags=["oauth2"])
@@ -40,10 +41,20 @@ _SCOPE_DESCRIPTIONS = {
 
 _CODE_PREFIX = "oauth:code:"
 _TOKEN_PREFIX = "oauth:token:"
+_PKCE_METHODS = ("S256",)
 
 
 def _hash(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _verify_pkce(verifier: str, challenge: str) -> bool:
+    """Verify a PKCE code_verifier against a stored S256 code_challenge."""
+    if not 43 <= len(verifier) <= 128 or not verifier.isascii():
+        return False
+    digest = hashlib.sha256(verifier.encode("ascii")).digest()
+    computed = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+    return hmac.compare_digest(computed, challenge)
 
 
 async def _get_active_client(
@@ -58,10 +69,10 @@ async def _get_active_client(
     return client
 
 
-@oauth_router.get("/.well-known/openid-configuration")
-async def discovery() -> OIDCDiscovery:
+@oauth_router.get("/.well-known/oauth-authorization-server")
+async def metadata() -> OAuthServerMetadata:
     base = f"{settings.BACKEND_HOST}{settings.API_V1_STR}/oauth2"
-    return OIDCDiscovery(
+    return OAuthServerMetadata(
         issuer=settings.BACKEND_HOST,
         authorization_endpoint=f"{base}/authorize",
         token_endpoint=f"{base}/token",
@@ -70,6 +81,7 @@ async def discovery() -> OIDCDiscovery:
         response_types_supported=["code"],
         grant_types_supported=["authorization_code"],
         token_endpoint_auth_methods_supported=["client_secret_post"],
+        code_challenge_methods_supported=list(_PKCE_METHODS),
     )
 
 
@@ -81,9 +93,14 @@ async def authorize(
     response_type: str = "code",
     scope: str = "openid profile",
     state: str | None = None,
+    code_challenge: str | None = None,
+    code_challenge_method: str | None = None,
 ) -> RedirectResponse:
     if response_type != "code":
         raise HTTPException(400, "unsupported_response_type")
+
+    if code_challenge and code_challenge_method not in _PKCE_METHODS:
+        raise HTTPException(400, "invalid_request")
 
     client = await _get_active_client(session, client_id)
 
@@ -93,6 +110,9 @@ async def authorize(
     qs = {"client_id": client_id, "redirect_uri": redirect_uri, "scope": scope}
     if state:
         qs["state"] = state
+    if code_challenge:
+        qs["code_challenge"] = code_challenge
+        qs["code_challenge_method"] = "S256"
 
     return RedirectResponse(
         url=f"{settings.FRONTEND_HOST}/oauth/consent?{urlencode(qs, quote_via=quote)}",
@@ -132,6 +152,9 @@ async def approve(
     if obj.redirect_uri not in client.redirect_uri_list:
         raise HTTPException(400, "invalid_redirect_uri")
 
+    if obj.code_challenge and obj.code_challenge_method not in _PKCE_METHODS:
+        raise HTTPException(400, "invalid_request")
+
     requested = set(obj.scope.split())
     granted = requested & set(client.allowed_scope_list)
     granted_scope = " ".join(sorted(granted))
@@ -144,13 +167,14 @@ async def approve(
             "redirect_uri": obj.redirect_uri,
             "scopes": granted_scope,
             "state": obj.state,
+            "code_challenge": obj.code_challenge,
         }
     )
     await redis.setex(_CODE_PREFIX + code, int(_CODE_TTL.total_seconds()), payload)
 
     redirect_url = f"{obj.redirect_uri}?code={code}"
     if obj.state:
-        redirect_url += f"&state={obj.state}"
+        redirect_url += f"&state={quote(obj.state)}"
 
     return Response(data=OAuthApproveResponse(redirect_to=redirect_url))
 
@@ -164,6 +188,7 @@ async def token(
     redirect_uri: Annotated[str, Form()],
     client_id: Annotated[str, Form()],
     client_secret: Annotated[str, Form()],
+    code_verifier: Annotated[str | None, Form()] = None,
 ) -> OAuthTokenResponse:
     if grant_type != "authorization_code":
         raise HTTPException(400, "unsupported_grant_type")
@@ -176,13 +201,19 @@ async def token(
     if raw_payload is None:
         raise HTTPException(400, "invalid_grant")
 
+    # One-time use: consume the code on any redemption attempt so a failed
+    # exchange (client mismatch, bad PKCE verifier) cannot be retried.
+    await redis.delete(_CODE_PREFIX + code)
+
     data = json.loads(raw_payload)
 
     if data["client_id"] != client_id or data["redirect_uri"] != redirect_uri:
         raise HTTPException(400, "invalid_grant")
 
-    # One-time use: delete the code immediately
-    await redis.delete(_CODE_PREFIX + code)
+    # PKCE: if a challenge was bound at authorization, a valid verifier is required
+    challenge = data.get("code_challenge")
+    if challenge and (not code_verifier or not _verify_pkce(code_verifier, challenge)):
+        raise HTTPException(400, "invalid_grant")
 
     raw_token = secrets.token_urlsafe(32)
     token_hash = _hash(raw_token)

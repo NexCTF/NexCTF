@@ -23,7 +23,7 @@ class AdminOAuthClientRead(BaseModel):
     def endpoints(self) -> dict[str, str]:
         base = f"{settings.BACKEND_HOST}{settings.API_V1_STR}/oauth2"
         return {
-            "discovery": f"{base}/.well-known/openid-configuration",
+            "metadata": f"{base}/.well-known/oauth-authorization-server",
             "authorize": f"{base}/authorize",
             "token": f"{base}/token",
             "userinfo": f"{base}/userinfo",
@@ -66,7 +66,9 @@ class AdminOAuthClientCreated(AdminOAuthClientRead):
     client_secret: str
 
 
-class OIDCDiscovery(BaseModel):
+class OAuthServerMetadata(BaseModel):
+    """RFC 8414 OAuth 2.0 Authorization Server Metadata."""
+
     issuer: str
     authorization_endpoint: str
     token_endpoint: str
@@ -75,6 +77,7 @@ class OIDCDiscovery(BaseModel):
     response_types_supported: list[str]
     grant_types_supported: list[str]
     token_endpoint_auth_methods_supported: list[str]
+    code_challenge_methods_supported: list[str]
 
 
 class OAuthApproveResponse(BaseModel):
@@ -94,6 +97,8 @@ class OAuthApproveRequest(BaseModel):
     redirect_uri: str
     scope: str = "openid profile"
     state: str | None = None
+    code_challenge: str | None = None
+    code_challenge_method: str | None = None
 
 
 class OAuthTokenResponse(BaseModel):
