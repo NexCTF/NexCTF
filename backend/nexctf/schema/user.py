@@ -30,6 +30,7 @@ class PublicUserRead(PydanticBase):
     id: UUID
     username: str
     email: str | None
+    email_verified: bool = False
     role: str
     is_active: bool
     team_id: UUID | None = None
@@ -62,6 +63,7 @@ class UserCreate(PydanticBase):
     username: str
     email: str | None = None
     hashed_password: str | None = None
+    email_verified: bool = False
 
 
 class UserTokenCreate(PydanticBase):
@@ -88,6 +90,23 @@ class UserTeamUpdate(PydanticBase):
 class PasswordResetRequest(PydanticBase):
     token: str
     new_password: str
+
+
+class ForgotPasswordRequest(PydanticBase):
+    email: EmailStr
+
+
+class EmailVerifyRequest(PydanticBase):
+    token: str
+
+
+class ResendVerificationRequest(PydanticBase):
+    email: EmailStr
+
+
+class UserEmailVerifiedUpdate(PydanticBase):
+    id: UUID | None = None
+    email_verified: bool = True
 
 
 class TotpSetupResponse(PydanticBase):

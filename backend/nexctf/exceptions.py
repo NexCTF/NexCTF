@@ -55,6 +55,33 @@ class InvalidResetTokenError(AuthError):
     )
 
 
+class EmailRequiredError(AuthError):
+    api_error = ApiError(
+        code=400,
+        msg="Email required",
+        desc="An email address is required to register.",
+        err_code="AUTH-400-EMAIL-REQUIRED",
+    )
+
+
+class InvalidVerificationTokenError(AuthError):
+    api_error = ApiError(
+        code=400,
+        msg="Invalid verification token",
+        desc="The email verification token is invalid or has expired.",
+        err_code="AUTH-400-VERIFY-TOKEN",
+    )
+
+
+class EmailNotVerifiedError(AuthError):
+    api_error = ApiError(
+        code=403,
+        msg="Email not verified",
+        desc="Please verify your email address before logging in.",
+        err_code="AUTH-403-EMAIL-NOT-VERIFIED",
+    )
+
+
 class TotpError(ApiException, abstract=True):
     """Base for TOTP / two-factor authentication errors."""
 
@@ -181,6 +208,37 @@ class CaptchaMisconfiguredError(CaptchaError):
         msg="Captcha misconfigured",
         desc="The captcha service is not properly configured. Contact an administrator.",
         err_code="CAPTCHA-500",
+    )
+
+
+class EmailError(ApiException, abstract=True):
+    """Base for SMTP / email delivery errors."""
+
+
+class EmailDisabledError(EmailError):
+    api_error = ApiError(
+        code=409,
+        msg="Email disabled",
+        desc="Email sending is not enabled. Enable it in the settings first.",
+        err_code="EMAIL-409-DISABLED",
+    )
+
+
+class EmailMisconfiguredError(EmailError):
+    api_error = ApiError(
+        code=500,
+        msg="Email misconfigured",
+        desc="The SMTP service is not properly configured. Contact an administrator.",
+        err_code="EMAIL-500",
+    )
+
+
+class EmailSendError(EmailError):
+    api_error = ApiError(
+        code=502,
+        msg="Email delivery failed",
+        desc="The SMTP server rejected or failed to deliver the message.",
+        err_code="EMAIL-502",
     )
 
 

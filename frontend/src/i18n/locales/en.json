@@ -29,18 +29,43 @@
     "totp_back": "← Back to sign in",
     "disabled_title": "Account Disabled",
     "disabled_message": "Your account has been disabled. Please contact an administrator.",
+    "forgot_password": "Forgot password?",
+    "verify_title": "Verify your email",
+    "verify_message": "Please confirm your email address before signing in. Enter your email to receive a new verification link.",
     "no_account": "Don't have an account?",
     "sign_up": "Sign up"
   },
   "register": {
     "subtitle": "Create your account",
     "email": "Email (optional)",
+    "email_required": "Email",
     "submit": "Sign up",
     "submitting": "Creating account...",
     "success": "Account created. You can now sign in.",
+    "success_verify": "Account created. Check your inbox to verify your email before signing in.",
     "error_unexpected": "An unexpected error occurred",
     "have_account": "Already have an account?",
     "sign_in": "Sign in"
+  },
+  "forgot_password": {
+    "subtitle": "Reset your password",
+    "email_label": "Email",
+    "submit": "Send reset link",
+    "error_unexpected": "An unexpected error occurred",
+    "success_title": "Check your email",
+    "success_desc": "If an account exists for that email, a password reset link is on its way."
+  },
+  "verify_email": {
+    "checking": "Verifying your email…",
+    "success_title": "Email verified",
+    "success_desc": "Your email is confirmed. You can now sign in.",
+    "invalid_title": "Verification failed",
+    "invalid_desc": "This verification link is invalid or has expired. Enter your email to receive a new one.",
+    "email_label": "Email",
+    "resend": "Resend verification email",
+    "sending": "Sending...",
+    "resent": "If that email needs verification, a new link is on its way.",
+    "error_unexpected": "An unexpected error occurred"
   },
   "reset_password": {
     "subtitle": "Set a new password",
@@ -708,7 +733,8 @@
       "scoring": "Scoring",
       "visibility": "Visibility",
       "appearance": "Appearance",
-      "security": "Security"
+      "security": "Security",
+      "email": "Email"
     },
     "ctf": {
       "name": {
@@ -833,6 +859,40 @@
       "favicon_url": {
         "label": "Favicon URL",
         "description": "URL of the favicon shown in the browser tab"
+      }
+    },
+    "email": {
+      "enabled": {
+        "label": "Enable Email",
+        "description": "Allow the platform to send emails via SMTP"
+      },
+      "smtp_host": {
+        "label": "SMTP Host",
+        "description": "Hostname of your SMTP server (e.g. smtp.example.com)"
+      },
+      "smtp_port": {
+        "label": "SMTP Port",
+        "description": "Port of your SMTP server (typically 587 for STARTTLS, 465 for TLS)"
+      },
+      "smtp_username": {
+        "label": "SMTP Username",
+        "description": "Username for SMTP authentication (leave empty for none)"
+      },
+      "smtp_password": {
+        "label": "SMTP Password",
+        "description": "Password for SMTP authentication (leave empty for none)"
+      },
+      "security": {
+        "label": "Connection Security",
+        "description": "Encryption used for the SMTP connection"
+      },
+      "from_address": {
+        "label": "From Address",
+        "description": "Email address messages are sent from"
+      },
+      "from_name": {
+        "label": "From Name",
+        "description": "Display name shown as the sender (optional)"
       }
     }
   }

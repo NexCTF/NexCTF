@@ -35,6 +35,7 @@ function RegisterPage() {
   });
 
   const allowRegistration = publicInfo?.competition?.allow_registration ?? true;
+  const emailRequired = publicInfo?.competition?.require_email ?? false;
 
   const {
     captchaEnabled,
@@ -59,7 +60,7 @@ function RegisterPage() {
         email: email || undefined,
         captchaToken: captchaEnabled ? (captchaToken ?? undefined) : undefined,
       });
-      toast.success(t("register.success"));
+      toast.success(email ? t("register.success_verify") : t("register.success"));
       navigate({ to: "/login" });
     } catch (err) {
       resetCaptcha();
@@ -103,10 +104,13 @@ function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">{t("register.email")}</Label>
+              <Label htmlFor="email">
+                {emailRequired ? t("register.email_required") : t("register.email")}
+              </Label>
               <Input
                 id="email"
                 type="email"
+                required={emailRequired}
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
