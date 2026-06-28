@@ -9,6 +9,7 @@ from nexctf.model import User
 from nexctf.model.oauth_server import OAuthServerClient
 
 _CLIENT_ID = "nexctf_testclientid"
+_ADMIN_CLIENT_ID = "nexctf_adminonly"  # fixture client with allowed_roles="admin"
 _CLIENT_SECRET = "test_secret"
 _REDIRECT_URI = "https://app.example.com/callback"
 
@@ -525,6 +526,89 @@ class TestOAuth2PKCE:
         assert resp.status_code == 400
         # The code must be consumed even on a failed PKCE check (no retry).
         mock_redis.delete.assert_called_once()
+
+
+class TestOAuth2RoleRestriction:
+    """A client's allowed_roles gates which user roles may authorize it.
+
+    Strict membership: the user's role must be explicitly listed; an empty
+    allowed_roles leaves the client open to every role.
+    """
+
+    async def test_client_info_allows_permitted_role(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_oauth_server_client: list[OAuthServerClient],
+    ) -> None:
+        c, _ = admin_client
+        resp = await c.get(
+            "/oauth2/client-info",
+            params={"client_id": _ADMIN_CLIENT_ID, "scope": "openid"},
+        )
+        assert resp.status_code == 200
+
+    async def test_client_info_rejects_disallowed_role(
+        self,
+        user_client: tuple[AsyncClient, User],
+        fixture_oauth_server_client: list[OAuthServerClient],
+    ) -> None:
+        c, _ = user_client
+        resp = await c.get(
+            "/oauth2/client-info",
+            params={"client_id": _ADMIN_CLIENT_ID, "scope": "openid"},
+        )
+        assert resp.status_code == 403
+
+    async def test_approve_rejects_disallowed_role(
+        self,
+        user_client: tuple[AsyncClient, User],
+        fixture_oauth_server_client: list[OAuthServerClient],
+        mock_redis,
+    ) -> None:
+        c, _ = user_client
+        mock_redis.setex = AsyncMock(return_value=True)
+        resp = await c.post(
+            "/oauth2/authorize/approve",
+            json={
+                "client_id": _ADMIN_CLIENT_ID,
+                "redirect_uri": _REDIRECT_URI,
+                "scope": "openid",
+            },
+        )
+        assert resp.status_code == 403
+        # No authorization code may be minted for a forbidden role.
+        mock_redis.setex.assert_not_called()
+
+    async def test_approve_allows_permitted_role(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_oauth_server_client: list[OAuthServerClient],
+        mock_redis,
+    ) -> None:
+        c, _ = admin_client
+        mock_redis.setex = AsyncMock(return_value=True)
+        resp = await c.post(
+            "/oauth2/authorize/approve",
+            json={
+                "client_id": _ADMIN_CLIENT_ID,
+                "redirect_uri": _REDIRECT_URI,
+                "scope": "openid",
+            },
+        )
+        assert resp.status_code == 200
+
+    async def test_unrestricted_client_allows_any_role(
+        self,
+        user_client: tuple[AsyncClient, User],
+        fixture_oauth_server_client: list[OAuthServerClient],
+    ) -> None:
+        # nexctf_testclientid has no allowed_roles -> open to every role.
+        c, _ = user_client
+        resp = await c.get(
+            "/oauth2/client-info",
+            params={"client_id": _CLIENT_ID, "scope": "openid"},
+        )
+        assert resp.status_code == 200
 
 
 class TestOAuth2Userinfo:

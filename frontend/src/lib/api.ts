@@ -1507,10 +1507,11 @@ export interface AdminOAuthClient {
   client_id: string;
   redirect_uris: string;
   allowed_scopes: string;
+  allowed_roles: string | null;
   is_active: boolean;
   created_at: string;
   endpoints: {
-    discovery: string;
+    metadata: string;
     authorize: string;
     token: string;
     userinfo: string;
@@ -1533,6 +1534,7 @@ export async function createAdminOAuthClient(data: {
   description: string | null;
   redirect_uris: string;
   allowed_scopes: string;
+  allowed_roles: string | null;
   is_active: boolean;
 }): Promise<AdminOAuthClientCreated> {
   return request<AdminOAuthClientCreated>("/admin/oauth-client", {
@@ -1548,6 +1550,7 @@ export async function updateAdminOAuthClient(
     description?: string | null;
     redirect_uris?: string;
     allowed_scopes?: string;
+    allowed_roles?: string | null;
     is_active?: boolean;
   },
 ): Promise<AdminOAuthClient> {

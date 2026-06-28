@@ -104,6 +104,7 @@ type ClientForm = {
   description: string;
   redirect_uris: string;
   allowed_scopes: string;
+  allowed_roles: string;
   is_active: boolean;
 };
 
@@ -151,6 +152,16 @@ function ClientFormFields({
           className="font-mono text-xs"
         />
         <p className="text-xs text-muted-foreground">{t("admin.oauth_client.scopes_hint")}</p>
+      </div>
+      <div className="space-y-1.5">
+        <Label>{t("admin.oauth_client.field_allowed_roles")}</Label>
+        <Input
+          value={form.allowed_roles}
+          onChange={(e) => onChange({ allowed_roles: e.target.value })}
+          placeholder="admin moderator user"
+          className="font-mono text-xs"
+        />
+        <p className="text-xs text-muted-foreground">{t("admin.oauth_client.roles_hint")}</p>
       </div>
       <div className="flex items-center gap-3">
         <Switch checked={form.is_active} onCheckedChange={(v) => onChange({ is_active: v })} />
@@ -219,6 +230,7 @@ const EMPTY_FORM: ClientForm = {
   description: "",
   redirect_uris: "",
   allowed_scopes: "openid profile email roles",
+  allowed_roles: "",
   is_active: true,
 };
 
@@ -233,6 +245,7 @@ function CreateClientDialog({ onCreated }: { onCreated: () => void }) {
       createAdminOAuthClient({
         ...form,
         description: form.description || null,
+        allowed_roles: form.allowed_roles || null,
       }),
     onSuccess: (data) => {
       setCreated(data);
@@ -341,6 +354,7 @@ function EditClientDialog({ client, onSaved }: { client: AdminOAuthClient; onSav
     description: client.description ?? "",
     redirect_uris: client.redirect_uris,
     allowed_scopes: client.allowed_scopes,
+    allowed_roles: client.allowed_roles ?? "",
     is_active: client.is_active,
   });
 
@@ -349,6 +363,7 @@ function EditClientDialog({ client, onSaved }: { client: AdminOAuthClient; onSav
       updateAdminOAuthClient(client.id, {
         ...form,
         description: form.description || null,
+        allowed_roles: form.allowed_roles || null,
       }),
     onSuccess: () => {
       toast.success(t("admin.oauth_client.saved"));
