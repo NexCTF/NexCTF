@@ -1,4 +1,4 @@
-import { OTPFieldPreview as OTPField } from "@base-ui/react/otp-field";
+import { OTPField } from "@base-ui/react/otp-field";
 import type * as React from "react";
 
 import { cn } from "@/lib/utils";
