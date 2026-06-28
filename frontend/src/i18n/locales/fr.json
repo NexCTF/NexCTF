@@ -525,6 +525,8 @@
       "redirect_uris_hint": "Une URI par ligne. Doit correspondre exactement à ce que le client envoie.",
       "field_allowed_scopes": "Scopes autorisés",
       "scopes_hint": "Séparés par des espaces. Disponibles : openid profile email roles",
+      "field_allowed_roles": "Rôles autorisés",
+      "roles_hint": "Séparés par des espaces. Laisser vide pour autoriser tous les rôles. Disponibles : admin moderator user",
       "field_active": "Actif",
       "endpoints": "Endpoints OAuth"
     },
@@ -690,6 +692,8 @@
     "deny": "Refuser",
     "authorizing": "Autorisation…",
     "invalid_request": "Demande d'autorisation invalide",
+    "access_denied_title": "Accès refusé",
+    "access_denied_desc": "Le rôle de votre compte n'est pas autorisé à utiliser cette application.",
     "scope": {
       "openid": "Vous identifier par un identifiant unique",
       "profile": "Lire votre nom d'utilisateur",

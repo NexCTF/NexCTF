@@ -74,6 +74,25 @@ class TestCreateOAuthClient(CreateGuardMixin):
         resp = await c.post(self.PREFIX, json={"name": "no-redirect"})
         assert resp.status_code == 422
 
+    async def test_create_with_allowed_roles(
+        self, admin_client: tuple[AsyncClient, User]
+    ) -> None:
+        c, _ = admin_client
+        resp = await c.post(
+            self.PREFIX, json={**_VALID_PAYLOAD, "allowed_roles": "admin moderator"}
+        )
+        assert resp.status_code == 200
+        assert resp.json()["data"]["allowed_roles"] == "admin moderator"
+
+    async def test_create_invalid_role_rejected(
+        self, admin_client: tuple[AsyncClient, User]
+    ) -> None:
+        c, _ = admin_client
+        resp = await c.post(
+            self.PREFIX, json={**_VALID_PAYLOAD, "allowed_roles": "admin superuser"}
+        )
+        assert resp.status_code == 422
+
 
 class TestGetOAuthClient(GetItemGuardMixin):
     PREFIX = "/admin/oauth-client"

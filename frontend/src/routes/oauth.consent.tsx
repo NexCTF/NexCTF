@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { approveOAuthConsent, getOAuthConsentInfo } from "@/lib/api";
+import { ApiError, approveOAuthConsent, getOAuthConsentInfo } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/oauth/consent")({
@@ -37,7 +37,11 @@ function ConsentPage() {
   const navigate = useNavigate();
   const { client_id, redirect_uri, scope, state } = Route.useSearch();
 
-  const { data: info, isLoading } = useQuery({
+  const {
+    data: info,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["oauth-consent", client_id, scope],
     queryFn: () => getOAuthConsentInfo(client_id, scope),
     enabled: !!user && !!client_id,
@@ -50,6 +54,12 @@ function ConsentPage() {
       window.location.href = redirect_to;
     },
   });
+
+  // The user's role may be disallowed for this client (403 from either the
+  // consent-info query or the approve call).
+  const forbidden =
+    (error instanceof ApiError && error.status === 403) ||
+    (approveMutation.error instanceof ApiError && approveMutation.error.status === 403);
 
   function handleDeny() {
     let url = `${redirect_uri}?error=access_denied`;
@@ -78,6 +88,21 @@ function ConsentPage() {
         <Card className="w-full max-w-sm">
           <CardHeader>
             <CardTitle className="text-destructive">{t("oauth_consent.invalid_request")}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader className="text-center">
+            <CardTitle className="text-destructive">
+              {t("oauth_consent.access_denied_title")}
+            </CardTitle>
+            <CardDescription>{t("oauth_consent.access_denied_desc")}</CardDescription>
           </CardHeader>
         </Card>
       </div>

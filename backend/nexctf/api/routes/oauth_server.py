@@ -69,6 +69,16 @@ async def _get_active_client(
     return client
 
 
+def _ensure_role_allowed(client: OAuthServerClient, user: User) -> None:
+    """Reject users whose role is not permitted to authorize this client.
+
+    An empty ``allowed_roles`` means the client is open to every role.
+    """
+    allowed = client.allowed_role_list
+    if allowed and user.role.value not in allowed:
+        raise HTTPException(403, "access_denied")
+
+
 @oauth_router.get("/.well-known/oauth-authorization-server")
 async def metadata() -> OAuthServerMetadata:
     base = f"{settings.BACKEND_HOST}{settings.API_V1_STR}/oauth2"
@@ -128,6 +138,7 @@ async def client_info(
     scope: str = "openid profile",
 ) -> Response[OAuthConsentInfo]:
     client = await _get_active_client(session, client_id)
+    _ensure_role_allowed(client, user)
     requested = [s for s in scope.split() if s in _SCOPE_DESCRIPTIONS]
     return Response(
         data=OAuthConsentInfo(
@@ -148,6 +159,7 @@ async def approve(
     user: CurrentUserDep,
 ) -> Response[OAuthApproveResponse]:
     client = await _get_active_client(session, obj.client_id)
+    _ensure_role_allowed(client, user)
 
     if obj.redirect_uri not in client.redirect_uri_list:
         raise HTTPException(400, "invalid_redirect_uri")

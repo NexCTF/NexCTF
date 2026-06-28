@@ -525,6 +525,8 @@
       "redirect_uris_hint": "One URI per line. Must match exactly what the client sends.",
       "field_allowed_scopes": "Allowed Scopes",
       "scopes_hint": "Space-separated. Available: openid profile email roles",
+      "field_allowed_roles": "Allowed Roles",
+      "roles_hint": "Space-separated. Leave empty to allow every role. Available: admin moderator user",
       "field_active": "Active",
       "endpoints": "OAuth Endpoints"
     },
@@ -690,6 +692,8 @@
     "deny": "Deny",
     "authorizing": "Authorizing…",
     "invalid_request": "Invalid authorization request",
+    "access_denied_title": "Access denied",
+    "access_denied_desc": "Your account role is not permitted to use this application.",
     "scope": {
       "openid": "Identify you with a unique user ID",
       "profile": "Read your username",

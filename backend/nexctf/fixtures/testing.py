@@ -138,4 +138,14 @@ def oauth_server_client() -> list[OAuthServerClient]:
             allowed_scopes="openid profile email roles",
             is_active=True,
         ),
+        OAuthServerClient(
+            id=UUID("00000000-0000-4000-8006-000000000002"),
+            name="Admin App",
+            client_id="nexctf_adminonly",
+            client_secret_hash=hashlib.sha256(b"test_secret").hexdigest(),
+            redirect_uris="https://app.example.com/callback",
+            allowed_scopes="openid profile email roles",
+            allowed_roles="admin",
+            is_active=True,
+        ),
     ]
