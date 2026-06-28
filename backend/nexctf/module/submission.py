@@ -3,14 +3,14 @@ from __future__ import annotations
 import asyncio
 from uuid import UUID
 
-from fastapi_toolsets.db import LockMode, lock_tables
+from fastapi_toolsets.db import LockMode
 from redis.asyncio import Redis
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectin_polymorphic, selectinload
 
-from nexctf.core.db import async_session_maker
+from nexctf.core.db import db
 from nexctf.exceptions import SolutionTimeoutError
 from nexctf.model import Question, Submission
 from nexctf.model.solution import Solution
@@ -28,9 +28,7 @@ async def recalculate_question(
     if question is None:
         raise ValueError(f"Question {question_id} not found")
 
-    async with lock_tables(
-        session_maker=async_session_maker, tables=[Submission], mode=LockMode.EXCLUSIVE
-    ) as locked:
+    async with db.lock_tables([Submission], mode=LockMode.EXCLUSIVE) as locked:
         submissions = (
             (
                 await locked.execute(

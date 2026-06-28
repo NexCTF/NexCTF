@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 os.environ["NEXCTF_TEST_MODE"] = "1"
 
 from nexctf.core.config import settings
-from nexctf.core.db import get_db
+from nexctf.core.db import db
 from nexctf.core.cache import get_redis
 from nexctf.fixtures import test_fixture_registry
 from nexctf.main import app
@@ -84,7 +84,7 @@ def client_factory(db_session: AsyncSession, mock_redis):
         async with create_async_client(
             app=app,
             base_url="http://127.0.0.1/api/v1",
-            dependency_overrides={get_db: _db, get_redis: _redis},
+            dependency_overrides={db: _db, get_redis: _redis},
         ) as c:
             yield c
 

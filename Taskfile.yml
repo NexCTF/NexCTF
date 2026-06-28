@@ -14,9 +14,9 @@ tasks:
       - docker compose -f compose.dev.yml down {{.CLI_ARGS}}
 
   dev:backend:
-    desc: "Run prestart (migrations + fixtures) then start the backend in dev mode"
+    desc: "Run prestart (migrations + fixtures) then start the backend with multiple workers (WEB_CONCURRENCY, default 4)"
     cmds:
-      - bash -c 'source .venv/bin/activate && bash scripts/start.sh && fastapi dev --host 0.0.0.0 nexctf/main.py'
+      - bash -c 'source .venv/bin/activate && bash scripts/start.sh && fastapi run --host 0.0.0.0 --workers ${WEB_CONCURRENCY:-4} nexctf/main.py'
     dir: backend
     env:
       PYTHONPATH: "{{.ROOT_DIR}}/backend"
