@@ -23,6 +23,7 @@ from nexctf.schema.user import (
     AdminUserDetailRead,
     AdminUserUpdate,
     PublicUserRead,
+    UserEmailVerifiedUpdate,
     UserTotpUpdate,
 )
 
@@ -99,6 +100,15 @@ async def update_user(
     obj: AdminUserUpdate,
     admin: CurrentUserDep,
 ) -> Response[PublicUserRead]:
+    if obj.email is not None:
+        # Changing the address invalidates any prior verification of it.
+        target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
+        if target and obj.email != target.email:
+            await crud.UserCrud.update(
+                session=session,
+                filters=[User.id == uuid],
+                obj=UserEmailVerifiedUpdate(id=uuid, email_verified=False),
+            )
     result = await crud.UserCrud.update(
         session=session,
         filters=[User.id == uuid],

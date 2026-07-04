@@ -25,6 +25,7 @@ async def send_email(
     *,
     text: str,
     html: str | None = None,
+    overrides: dict[str, str] | None = None,
 ) -> None:
     """Send an email through the configured SMTP server.
 
@@ -34,13 +35,17 @@ async def send_email(
         subject: Message subject.
         text: Plain-text body.
         html: Optional HTML body added as an alternative part.
+        overrides: Pre-fetched config overrides, to avoid a second Redis
+            round-trip when the caller already fetched them (e.g. for
+            branding). Fetched here when not supplied.
 
     Raises:
         EmailDisabledError: When ``email.enabled`` is false.
         EmailMisconfiguredError: When required SMTP settings are missing.
         EmailSendError: When the SMTP server rejects or fails to deliver.
     """
-    overrides = await appconfig.fetch_overrides(redis)
+    if overrides is None:
+        overrides = await appconfig.fetch_overrides(redis)
 
     if not appconfig.get_with_overrides("email.enabled", overrides):
         raise EmailDisabledError()
@@ -96,9 +101,10 @@ async def dispatch_email(
     *,
     text: str,
     html: str | None = None,
+    overrides: dict[str, str] | None = None,
 ) -> None:
     """Send an email, logging and swallowing any failure."""
     try:
-        await send_email(redis, to, subject, text=text, html=html)
+        await send_email(redis, to, subject, text=text, html=html, overrides=overrides)
     except Exception:
         logger.exception("background email dispatch to %s failed", to)

@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from html import escape
 
-from redis.asyncio import Redis
-
 from nexctf.core import appconfig
 
 
@@ -66,9 +64,8 @@ def _render(
     return text, html
 
 
-async def _branding(redis: Redis) -> tuple[str, str]:
-    """Resolve (ctf_name, logo_url) from the runtime config."""
-    overrides = await appconfig.fetch_overrides(redis)
+def _branding(overrides: dict[str, str]) -> tuple[str, str]:
+    """Resolve (ctf_name, logo_url) from a config overrides snapshot."""
     ctf_name = str(appconfig.get_with_overrides("ctf.name", overrides))
     logo_url = str(
         appconfig.get_with_overrides("appearance.logo_url", overrides)
@@ -76,9 +73,11 @@ async def _branding(redis: Redis) -> tuple[str, str]:
     return ctf_name, logo_url
 
 
-async def build_verification_email(redis: Redis, link: str) -> tuple[str, str, str]:
+async def build_verification_email(
+    overrides: dict[str, str], link: str
+) -> tuple[str, str, str]:
     """Build (subject, text, html) for the email-verification message."""
-    ctf_name, logo_url = await _branding(redis)
+    ctf_name, logo_url = _branding(overrides)
     subject = f"Verify your email for {ctf_name}"
     text, html = _render(
         ctf_name,
@@ -93,9 +92,11 @@ async def build_verification_email(redis: Redis, link: str) -> tuple[str, str, s
     return subject, text, html
 
 
-async def build_password_reset_email(redis: Redis, link: str) -> tuple[str, str, str]:
+async def build_password_reset_email(
+    overrides: dict[str, str], link: str
+) -> tuple[str, str, str]:
     """Build (subject, text, html) for the password-reset message."""
-    ctf_name, logo_url = await _branding(redis)
+    ctf_name, logo_url = _branding(overrides)
     subject = f"Reset your {ctf_name} password"
     text, html = _render(
         ctf_name,

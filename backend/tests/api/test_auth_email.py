@@ -6,13 +6,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlalchemy import select
 
-import nexctf.core.appconfig as appconfig
 from nexctf.api.security import hash_password
 from nexctf.model import Event, User
 
 
-def _enable_email(monkeypatch) -> None:
-    monkeypatch.setitem(appconfig._CACHE, "email.enabled", "true")
+def _enable_email(mock_redis) -> None:
+    """Make the email.enabled config read (via get_with_overrides) resolve true."""
+    mock_redis.hgetall = AsyncMock(return_value={"email.enabled": "true"})
 
 
 async def _event_count(db_session, event_type: str) -> int:
@@ -27,10 +27,10 @@ def _patch_dispatch():
 
 class TestRegisterVerification:
     async def test_email_enabled_creates_unverified_and_sends(
-        self, http_client, db_session, mock_redis, monkeypatch, override_db_context
+        self, http_client, db_session, mock_redis, override_db_context
     ):
         """With SMTP on, a registered email is unverified and gets a verify mail."""
-        _enable_email(monkeypatch)
+        _enable_email(mock_redis)
         with _patch_dispatch() as dispatch:
             resp = await http_client.post(
                 "/auth/register",
@@ -55,10 +55,9 @@ class TestRegisterVerification:
         dispatch.assert_awaited_once()
 
     async def test_email_disabled_creates_verified_no_send(
-        self, http_client, mock_redis, monkeypatch
+        self, http_client, mock_redis
     ):
         """With SMTP off there is no way to verify, so the account is usable."""
-        monkeypatch.setitem(appconfig._CACHE, "email.enabled", "false")
         with _patch_dispatch() as dispatch:
             resp = await http_client.post(
                 "/auth/register",
@@ -72,9 +71,9 @@ class TestRegisterVerification:
         assert resp.json()["data"]["email_verified"] is True
         dispatch.assert_not_awaited()
 
-    async def test_email_required_when_enabled(self, http_client, monkeypatch):
+    async def test_email_required_when_enabled(self, http_client, mock_redis):
         """With SMTP on, registering without an email is rejected."""
-        _enable_email(monkeypatch)
+        _enable_email(mock_redis)
         with _patch_dispatch() as dispatch:
             resp = await http_client.post(
                 "/auth/register",
@@ -84,9 +83,8 @@ class TestRegisterVerification:
         assert resp.json()["error_code"] == "AUTH-400-EMAIL-REQUIRED"
         dispatch.assert_not_awaited()
 
-    async def test_no_email_ok_when_disabled(self, http_client, monkeypatch):
+    async def test_no_email_ok_when_disabled(self, http_client):
         """With SMTP off, email stays optional and the account is verified."""
-        monkeypatch.setitem(appconfig._CACHE, "email.enabled", "false")
         with _patch_dispatch() as dispatch:
             resp = await http_client.post(
                 "/auth/register",
@@ -110,9 +108,9 @@ class TestLoginGate:
         return user
 
     async def test_unverified_blocked_when_email_enabled(
-        self, http_client, db_session, monkeypatch, override_db_context
+        self, http_client, db_session, mock_redis, override_db_context
     ):
-        _enable_email(monkeypatch)
+        _enable_email(mock_redis)
         await self._make_user(db_session, email="gate@test.com", verified=False)
         resp = await http_client.post(
             "/auth/token", data={"username": "gateuser", "password": "pass123"}
@@ -121,10 +119,9 @@ class TestLoginGate:
         assert resp.json()["error_code"] == "AUTH-403-EMAIL-NOT-VERIFIED"
 
     async def test_unverified_allowed_when_email_disabled(
-        self, http_client, db_session, monkeypatch, override_db_context
+        self, http_client, db_session, override_db_context
     ):
         """SMTP off must not lock out users who could never verify."""
-        monkeypatch.setitem(appconfig._CACHE, "email.enabled", "false")
         await self._make_user(db_session, email="gate@test.com", verified=False)
         resp = await http_client.post(
             "/auth/token", data={"username": "gateuser", "password": "pass123"}
@@ -132,9 +129,9 @@ class TestLoginGate:
         assert resp.status_code == 204
 
     async def test_verified_allowed(
-        self, http_client, db_session, monkeypatch, override_db_context
+        self, http_client, db_session, mock_redis, override_db_context
     ):
-        _enable_email(monkeypatch)
+        _enable_email(mock_redis)
         await self._make_user(db_session, email="gate@test.com", verified=True)
         resp = await http_client.post(
             "/auth/token", data={"username": "gateuser", "password": "pass123"}
@@ -142,9 +139,9 @@ class TestLoginGate:
         assert resp.status_code == 204
 
     async def test_no_email_allowed(
-        self, http_client, db_session, monkeypatch, override_db_context
+        self, http_client, db_session, mock_redis, override_db_context
     ):
-        _enable_email(monkeypatch)
+        _enable_email(mock_redis)
         await self._make_user(db_session, email=None, verified=False)
         resp = await http_client.post(
             "/auth/token", data={"username": "gateuser", "password": "pass123"}
@@ -187,9 +184,9 @@ class TestVerifyEmail:
 
 class TestForgotPassword:
     async def test_known_email_sends_reset(
-        self, http_client, db_session, mock_redis, monkeypatch, override_db_context
+        self, http_client, db_session, mock_redis, override_db_context
     ):
-        _enable_email(monkeypatch)
+        _enable_email(mock_redis)
         user = User(
             username="forgetme",
             email="fp@test.com",
@@ -211,9 +208,30 @@ class TestForgotPassword:
         dispatch.assert_awaited_once()
         assert await _event_count(db_session, "user.password_reset_requested") == 1
 
-    async def test_unknown_email_is_silent(self, http_client, mock_redis, monkeypatch):
+    async def test_known_email_case_insensitive(
+        self, http_client, db_session, mock_redis, override_db_context
+    ):
+        """A reset request must match regardless of the stored email's casing."""
+        _enable_email(mock_redis)
+        user = User(
+            username="caseme",
+            email="Case@Test.com",
+            hashed_password=hash_password("pass"),
+            email_verified=True,
+        )
+        db_session.add(user)
+        await db_session.flush()
+
+        with _patch_dispatch() as dispatch:
+            resp = await http_client.post(
+                "/auth/forgot-password", json={"email": "case@test.com"}
+            )
+        assert resp.status_code == 204
+        dispatch.assert_awaited_once()
+
+    async def test_unknown_email_is_silent(self, http_client, mock_redis):
         """No account enumeration: unknown email still returns 204, sends nothing."""
-        _enable_email(monkeypatch)
+        _enable_email(mock_redis)
         with _patch_dispatch() as dispatch:
             resp = await http_client.post(
                 "/auth/forgot-password", json={"email": "nobody@test.com"}
@@ -229,9 +247,9 @@ class TestForgotPassword:
 class TestResendVerification:
     @pytest.mark.parametrize("verified", [False, True])
     async def test_resend_respects_verified_state(
-        self, http_client, db_session, monkeypatch, override_db_context, verified
+        self, http_client, db_session, mock_redis, override_db_context, verified
     ):
-        _enable_email(monkeypatch)
+        _enable_email(mock_redis)
         user = User(
             username="resendme",
             email="rs@test.com",
@@ -253,9 +271,8 @@ class TestResendVerification:
         )
 
     async def test_resend_noop_when_email_disabled(
-        self, http_client, db_session, monkeypatch, override_db_context
+        self, http_client, db_session, override_db_context
     ):
-        monkeypatch.setitem(appconfig._CACHE, "email.enabled", "false")
         user = User(
             username="resenddisabled",
             email="rsd@test.com",

@@ -14,6 +14,7 @@ email_router = APIRouter(prefix="/email", tags=["Email"])
 async def send_test_email(
     session: SessionDep, redis: RedisDep, obj: AdminEmailTestRequest
 ) -> Response[None]:
+    """Send a test email using the current SMTP config, to verify it works."""
     await send_email(
         redis,
         obj.to,

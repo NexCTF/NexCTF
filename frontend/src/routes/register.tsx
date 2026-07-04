@@ -60,7 +60,7 @@ function RegisterPage() {
         email: email || undefined,
         captchaToken: captchaEnabled ? (captchaToken ?? undefined) : undefined,
       });
-      toast.success(email ? t("register.success_verify") : t("register.success"));
+      toast.success(emailRequired ? t("register.success_verify") : t("register.success"));
       navigate({ to: "/login" });
     } catch (err) {
       resetCaptcha();
