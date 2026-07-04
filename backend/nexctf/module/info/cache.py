@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from fastapi_toolsets.schemas import PaginationType
 from pydantic import TypeAdapter
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import nexctf.core.appconfig as appconfig
 import nexctf.crud as crud
 from nexctf.core.cache import get_or_compute
-from nexctf.model import OAuthProvider
+from nexctf.model import Link, OAuthProvider
+from nexctf.model.link import Visibility
 from nexctf.schema import PublicOAuthProviderRead
 from nexctf.schema.info import (
     BrandingInfo,
@@ -20,6 +20,7 @@ from nexctf.schema.info import (
     CompetitionInfo,
     PublicInfo,
 )
+from nexctf.schema.link import PublicLinkRead
 
 _KEY = "info:public"
 _TTL = timedelta(seconds=60)
@@ -54,13 +55,8 @@ async def _compute(session: AsyncSession, redis: Redis) -> PublicInfo:
         team_size=int(appconfig.get_with_overrides("ctf.team_size", overrides)),
     )
 
-    providers = await crud.OAuthProviderCrud.paginate(
-        session=session,
-        pagination_type=PaginationType.OFFSET,
-        filters=[OAuthProvider.is_active.is_(True)],
-        items_per_page=50,
-        page=1,
-        schema=PublicOAuthProviderRead,
+    providers = await crud.OAuthProviderCrud.get_multi(
+        session, filters=[OAuthProvider.is_active.is_(True)]
     )
 
     captcha_enabled = bool(appconfig.get_with_overrides("captcha.enabled", overrides))
@@ -73,11 +69,17 @@ async def _compute(session: AsyncSession, redis: Redis) -> PublicInfo:
     else:
         widget_endpoint = ""
 
+    links = await crud.LinkCrud.get_multi(
+        session,
+        filters=[Link.is_enabled.is_(True), Link.visibility == Visibility.PUBLIC],
+    )
+
     return PublicInfo(
         branding=branding,
         competition=competition,
-        oauth_providers=providers.data,
+        oauth_providers=[PublicOAuthProviderRead.model_validate(p) for p in providers],
         captcha=CaptchaInfo(enabled=captcha_enabled, widget_endpoint=widget_endpoint),
+        links=[PublicLinkRead.model_validate(link) for link in links],
     )
 
 

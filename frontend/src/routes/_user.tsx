@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
-import { Settings, Shield } from "lucide-react";
+import { ExternalLink, Settings, Shield } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { NotificationPopover } from "@/components/notification-popover";
 import { NotificationToastListener } from "@/components/notification-toast-listener";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { getPublishedPages, type PublicPageSummary } from "@/lib/api";
+import { getPublicInfo, getPublishedPages, type PublicPageSummary } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
 
@@ -41,6 +41,13 @@ function TopNav({ navPages }: { navPages: PublicPageSummary[] }) {
   const navigate = useNavigate();
   const { name, logoUrl } = useBranding();
 
+  const { data: info } = useQuery({
+    queryKey: ["info", "public"],
+    queryFn: getPublicInfo,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
   const navLinkCls =
     "px-3 py-1.5 rounded-md hover:text-foreground hover:bg-muted/60 transition-colors [&.active]:text-foreground [&.active]:font-medium";
 
@@ -68,6 +75,19 @@ function TopNav({ navPages }: { navPages: PublicPageSummary[] }) {
             <Link key={p.slug} to="/p/$slug" params={{ slug: p.slug }} className={navLinkCls}>
               {p.title}
             </Link>
+          ))}
+          {(info?.links ?? []).map((l, i) => (
+            <a
+              // biome-ignore lint/suspicious/noArrayIndexKey: links have no stable id; index is the identity
+              key={i}
+              href={l.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${navLinkCls} inline-flex items-center gap-1`}
+            >
+              {l.name}
+              <ExternalLink className="size-3" />
+            </a>
           ))}
         </nav>
 

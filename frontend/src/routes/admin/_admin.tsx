@@ -11,6 +11,7 @@ import {
   FolderOpen,
   KeyRound,
   LayoutDashboard,
+  Link2,
   ListChecks,
   LogOut,
   Puzzle,
@@ -23,6 +24,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { AdminLinksNav } from "@/components/admin-links-nav";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { NotificationToastListener } from "@/components/notification-toast-listener";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -84,6 +86,7 @@ const NAV_SECTIONS: NavSection[] = [
       },
       { to: "/admin/files", label: "admin.nav.files", icon: Files },
       { to: "/admin/pages", label: "admin.nav.pages", icon: ScrollText },
+      { to: "/admin/links", label: "admin.nav.links", icon: Link2 },
     ],
   },
   {
@@ -157,6 +160,8 @@ function AdminLayout() {
               </div>
             </div>
           ))}
+
+          <AdminLinksNav itemClassName={`${BASE_CLS} ${INACTIVE_CLS}`} />
         </nav>
 
         {/* Bottom */}

@@ -14,6 +14,7 @@ from .email import email_router
 from .event import event_router
 from .file import file_router
 from .hint import hint_router
+from .link import link_router
 from .notification import notification_router
 from .oauth import oauth_router
 from .oauth_client import oauth_client_router
@@ -47,25 +48,26 @@ admin_router.include_router(router=category_router, dependencies=_invalidate_cha
 admin_router.include_router(
     router=challenge_router, dependencies=_invalidate_challenges
 )
+admin_router.include_router(router=admin_page_router)
 admin_router.include_router(router=config_router, dependencies=_invalidate_info)
 admin_router.include_router(router=custom_field_router)
-admin_router.include_router(router=email_router)
 admin_router.include_router(router=custom_field_value_router)
+admin_router.include_router(router=email_router)
 admin_router.include_router(router=event_router)
 admin_router.include_router(router=file_router, dependencies=_invalidate_challenges)
 admin_router.include_router(router=hint_router, dependencies=_invalidate_challenges)
+admin_router.include_router(router=link_router, dependencies=_invalidate_info)
 admin_router.include_router(router=notification_router)
-admin_router.include_router(router=oauth_router, dependencies=_invalidate_info)
 admin_router.include_router(router=oauth_client_router)
+admin_router.include_router(router=oauth_router, dependencies=_invalidate_info)
 admin_router.include_router(router=plugin_router)
 admin_router.include_router(router=question_router, dependencies=_invalidate_challenges)
 admin_router.include_router(router=scheduler_router)
 admin_router.include_router(router=score_adjustment_router)
 admin_router.include_router(router=scoreboard_router)
-admin_router.include_router(router=stats_router)
 admin_router.include_router(router=solution_router, dependencies=_invalidate_challenges)
+admin_router.include_router(router=stats_router)
 admin_router.include_router(router=submission_router)
-admin_router.include_router(router=admin_page_router)
 admin_router.include_router(router=tag_router, dependencies=_invalidate_challenges)
 admin_router.include_router(router=team_router)
 admin_router.include_router(router=user_router)

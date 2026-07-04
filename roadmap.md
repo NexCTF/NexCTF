@@ -9,6 +9,7 @@
 ## 0.4.0
 - [x] SMTP integration
 - [x] Forgot password
+- [x] External links
 
 ## Before v1.0 release
 - [ ] Challenge feedback
