@@ -3,7 +3,7 @@
 import hashlib
 from uuid import UUID
 
-from fastapi_toolsets.fixtures import FixtureRegistry, get_obj_by_attr
+from fastapi_toolsets.fixtures import FixtureRegistry
 
 from nexctf.model import ChallengeCategory, OAuthProvider, Tag, Team, User, UserRole
 from nexctf.model.oauth_server import OAuthServerClient
@@ -35,7 +35,7 @@ def user_admin() -> list[User]:
 
 @fixtures.register(depends_on=["team"])
 def user_members() -> list[User]:
-    alpha_id = get_obj_by_attr(fixtures=team, attr_name="name", value="alpha").id
+    alpha_id = fixtures.field("team", "name", "alpha")
     return [
         User(
             id=UUID("00000000-0000-4000-8001-000000000002"),

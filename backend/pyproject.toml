@@ -10,7 +10,7 @@ dependencies = [
     "alembic>=1.17.2",
     "argon2-cffi>=23.1.0",
     "fastapi-multiauth[oauth]>=0.1.0",
-    "fastapi-toolsets[all]>=4.1.3,<5",
+    "fastapi-toolsets[all]==5.0.0b2",
     "fastapi[standard-no-fastapi-cloud-cli]>=0.138.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.14.2",
@@ -31,10 +31,6 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-name = "nexctf"
 module-root = ""
-
-[tool.uv.sources]
-# Track the DB module rework (PR #324) until it lands in a release.
-fastapi-toolsets = { git = "https://github.com/d3vyce/fastapi-toolsets.git", branch = "318-rework-db-module" }
 
 [dependency-groups]
 dev = [
