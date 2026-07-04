@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from fastapi_toolsets.fixtures import FixtureRegistry, get_obj_by_attr
+from fastapi_toolsets.fixtures import FixtureRegistry
 from fastapi_toolsets.fixtures.enum import Context
 
 from nexctf.model import (
@@ -74,9 +74,7 @@ def challenge_category() -> list[ChallengeCategory]:
 @fixtures.register(depends_on=["challenge_category"])
 def challenge() -> list[StandardChallenge]:
     def _catid(slug: str) -> UUID:
-        return get_obj_by_attr(
-            fixtures=challenge_category, attr_name="slug", value=slug
-        ).id
+        return fixtures.field("challenge_category", "slug", slug)
 
     return [
         StandardChallenge(
@@ -128,7 +126,7 @@ def challenge() -> list[StandardChallenge]:
 @fixtures.register(depends_on=["challenge"])
 def question() -> list[Question]:
     def _cid(title: str) -> UUID:
-        return get_obj_by_attr(fixtures=challenge, attr_name="title", value=title).id
+        return fixtures.field("challenge", "title", title)
 
     return [
         # Web Basics — 2 questions
@@ -260,7 +258,7 @@ def question() -> list[Question]:
 @fixtures.register(depends_on=["question"])
 def hint() -> list[Hint]:
     def _qid(label: str) -> UUID:
-        return get_obj_by_attr(fixtures=question, attr_name="label", value=label).id
+        return fixtures.field("question", "label", label)
 
     return [
         Hint(
@@ -325,7 +323,7 @@ def hint() -> list[Hint]:
 @fixtures.register(depends_on=["question"])
 def solution() -> list[MatchSolution]:
     def _qid(label: str) -> UUID:
-        return get_obj_by_attr(fixtures=question, attr_name="label", value=label).id
+        return fixtures.field("question", "label", label)
 
     return [
         MatchSolution(
@@ -434,7 +432,7 @@ def team() -> list[Team]:
 @fixtures.register(depends_on=["team"])
 def user() -> list[User]:
     def _tid(name: str) -> UUID:
-        return get_obj_by_attr(fixtures=team, attr_name="name", value=name).id
+        return fixtures.field("team", "name", name)
 
     return [
         User(
@@ -515,9 +513,7 @@ def token() -> list[UserToken]:
     return [
         UserToken(
             id=UUID("26a7ec48-f11e-4795-8e96-a6ac95e5b410"),
-            user_id=get_obj_by_attr(
-                fixtures=user, attr_name="username", value="admin"
-            ).id,
+            user_id=fixtures.field("user", "username", "admin"),
             token_hash="278e988e8437ac6c34fdcc9f43e43ed69d68361eb63808b97ae3befa3e989e0b",  # "nexctf_admin_token"
         )
     ]
@@ -557,7 +553,7 @@ _ADMIN_ID = UUID("f9a973c4-aecb-4b20-8529-ff8c7ec103bd")
 @fixtures.register(depends_on=["team", "user", "question", "solution"])
 def submission() -> list[Submission]:
     def _qid(label: str) -> UUID:
-        return get_obj_by_attr(fixtures=question, attr_name="label", value=label).id
+        return fixtures.field("question", "label", label)
 
     return [
         # ── team1 ─────────────────────────────────────────────────────────
@@ -890,7 +886,7 @@ def submission() -> list[Submission]:
 @fixtures.register(depends_on=["user", "hint"])
 def hint_unlock() -> list[HintUnlock]:
     def _hid(title: str) -> UUID:
-        return get_obj_by_attr(fixtures=hint, attr_name="title", value=title).id
+        return fixtures.field("hint", "title", title)
 
     return [
         HintUnlock(

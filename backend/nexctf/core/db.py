@@ -1,16 +1,14 @@
-from fastapi_toolsets.db import create_db_context, create_db_dependency
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from fastapi_toolsets.db import Database
 
 from nexctf.core.config import settings
 
-engine = create_async_engine(
+db = Database(
     str(settings.SQLALCHEMY_DATABASE_URI),
-    future=True,
     pool_size=settings.POSTGRES_POOL_SIZE,
     max_overflow=settings.POSTGRES_MAX_OVERFLOW,
     pool_timeout=settings.POSTGRES_POOL_TIMEOUT,
 )
-async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
-get_db = create_db_dependency(session_maker=async_session_maker)
-get_db_context = create_db_context(session_maker=async_session_maker)
+# Session context manager for code outside request handlers (CLI, worker,
+# background tasks). Also referenced by [tool.fastapi-toolsets] db_context.
+get_db_context = db.session
