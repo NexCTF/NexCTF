@@ -1,29 +1,15 @@
 """Authentication action endpoints: register, login, logout, OAuth flow."""
 
-from typing import Annotated, Any, cast
+import logging
+from collections.abc import Awaitable, Callable
+from typing import Annotated
 from urllib.parse import urlparse
 from uuid import UUID
 
 import pyotp
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.responses import Response as RawResponse
-from fastapi_toolsets.exceptions import ConflictError, NotFoundError
-from redis.asyncio import Redis
-from sqlalchemy import update as sql_update
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from nexctf.exceptions import (
-    AccountDisabledError,
-    InvalidCredentialsError,
-    InvalidOtpError,
-    InvalidResetTokenError,
-    OAuthAccountAlreadyLinkedError,
-    OAuthProviderConfigError,
-    OAuthProviderResponseError,
-    RegistrationDisabledError,
-    TotpRequiredError,
-)
 from fastapi_multiauth.oauth import (
     oauth_build_authorization_redirect,
     oauth_decode_state,
@@ -32,24 +18,51 @@ from fastapi_multiauth.oauth import (
     oauth_generate_state_token,
     oauth_resolve_provider_urls,
 )
+from fastapi_toolsets.exceptions import ConflictError, NotFoundError
+from redis.asyncio import Redis
+from sqlalchemy import func
+from sqlalchemy import update as sql_update
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 import nexctf.core.appconfig as appconfig
 import nexctf.crud as crud
 from nexctf.api.dep import ProviderDep, RedisDep, SessionDep
-from nexctf.core.rate_limit import check_rate_limit
 from nexctf.api.security import (
+    EMAIL_VERIFY_KEY_PREFIX,
+    EMAIL_VERIFY_TTL,
     PWD_RESET_KEY_PREFIX,
-    _hash_token,
+    PWD_RESET_TTL,
+    consume_single_use_token,
     cookie_auth,
     dummy_verify_password,
     hash_password,
+    issue_single_use_token,
     verify_password,
 )
 from nexctf.core.captcha import verify_captcha
 from nexctf.core.config import settings
+from nexctf.core.email import dispatch_email
+from nexctf.core.email_render import (
+    build_password_reset_email,
+    build_verification_email,
+)
+from nexctf.core.rate_limit import check_rate_limit
+from nexctf.exceptions import (
+    AccountDisabledError,
+    EmailNotVerifiedError,
+    EmailRequiredError,
+    InvalidCredentialsError,
+    InvalidOtpError,
+    InvalidResetTokenError,
+    InvalidVerificationTokenError,
+    OAuthAccountAlreadyLinkedError,
+    OAuthProviderConfigError,
+    OAuthProviderResponseError,
+    RegistrationDisabledError,
+    TotpRequiredError,
+)
 from nexctf.model import OAuthAccount, OAuthProvider, User, UserToken
-from nexctf.util.ip import get_client_ip
 from nexctf.module.events import emit
 from nexctf.schema import (
     OAuthAccountCreate,
@@ -57,9 +70,62 @@ from nexctf.schema import (
     PublicUserRead,
     UserCreate,
 )
-from nexctf.schema.user import PasswordResetRequest, UserPasswordUpdate
+from nexctf.schema.user import (
+    EmailVerifyRequest,
+    ForgotPasswordRequest,
+    PasswordResetRequest,
+    ResendVerificationRequest,
+    UserEmailVerifiedUpdate,
+    UserPasswordUpdate,
+)
+from nexctf.util.ip import get_client_ip
+
+logger = logging.getLogger(__name__)
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+async def _email_enabled(redis: Redis) -> bool:
+    """Read email.enabled from a fresh Redis snapshot so all workers agree."""
+    overrides = await appconfig.fetch_overrides(redis)
+    return bool(appconfig.get_with_overrides("email.enabled", overrides))
+
+
+async def _deliver_branded_email(
+    redis: Redis,
+    to: str,
+    link: str,
+    builder: Callable[[dict[str, str], str], Awaitable[tuple[str, str, str]]],
+) -> None:
+    """Render a branded email and send it. Run as a background task."""
+    try:
+        overrides = await appconfig.fetch_overrides(redis)
+        subject, text, html = await builder(overrides, link)
+    except Exception:
+        logger.exception("failed to render branded email to %s", to)
+        return
+    await dispatch_email(redis, to, subject, text=text, html=html, overrides=overrides)
+
+
+async def _send_verification_email(
+    redis: Redis,
+    background_tasks: BackgroundTasks,
+    *,
+    user_id: UUID,
+    email: str,
+) -> None:
+    """Mint a single-use verification token and queue the branded email.
+
+    The token is stored before returning so it is usable the moment the email
+    arrives; branding/rendering and the send are deferred to a background task.
+    """
+    token = await issue_single_use_token(
+        redis, EMAIL_VERIFY_KEY_PREFIX, EMAIL_VERIFY_TTL, user_id
+    )
+    link = f"{settings.FRONTEND_HOST}/verify-email?token={token}"
+    background_tasks.add_task(
+        _deliver_branded_email, redis, email, link, build_verification_email
+    )
 
 
 @auth_router.post("/register", status_code=201)
@@ -67,6 +133,7 @@ async def register(
     request: Request,
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     obj: PublicRegisterRequest,
 ):
     if not appconfig.get("ctf.allow_registration"):
@@ -81,12 +148,18 @@ async def register(
     )
     if existing:
         raise ConflictError(detail="Username already taken")
+    # When SMTP is enabled an email is mandatory: it is the verification channel
+    # and the login gate keys off it. With SMTP off, email stays optional.
+    email_enabled = await _email_enabled(redis)
+    if email_enabled and not obj.email:
+        raise EmailRequiredError()
     result = await crud.UserCrud.create(
         session=session,
         obj=UserCreate(
             username=obj.username,
             email=obj.email,
             hashed_password=hash_password(obj.password),
+            email_verified=not email_enabled,
         ),
         schema=PublicUserRead,
     )
@@ -99,6 +172,10 @@ async def register(
             ip=client_ip,
             meta={"username": result.data.username},
         )
+        if email_enabled and obj.email:
+            await _send_verification_email(
+                redis, background_tasks, user_id=result.data.id, email=obj.email
+            )
     return result
 
 
@@ -187,6 +264,18 @@ async def login(
                 reason="bad_totp",
             )
             raise InvalidOtpError()
+    # Gate login on email verification, but only while SMTP is enabled — otherwise
+    # users could never receive the verification email and would be locked out.
+    if user.email and not user.email_verified and await _email_enabled(redis):
+        await _record_login_failure(
+            session,
+            redis,
+            username=username,
+            ip=client_ip,
+            actor_id=user.id,
+            reason="email_not_verified",
+        )
+        raise EmailNotVerifiedError()
     cookie_auth.set_cookie(response, f"{user.id}:{user.session_version}")
     await emit(
         session,
@@ -210,10 +299,9 @@ async def reset_password(
     await check_rate_limit(
         redis, f"rl:pwd_reset:{client_ip}", window_seconds=60, max_requests=5
     )
-    redis_key = f"{PWD_RESET_KEY_PREFIX}{_hash_token(body.token)}"
-    # GETDEL is atomic: the token is consumed on first read, preventing double-use
-    # under concurrent requests with the same token.
-    user_id_str = await cast(Any, redis.getdel(redis_key))
+    user_id_str = await consume_single_use_token(
+        redis, PWD_RESET_KEY_PREFIX, body.token
+    )
     if not user_id_str:
         raise InvalidResetTokenError()
     user = await crud.UserCrud.first(
@@ -240,6 +328,124 @@ async def reset_password(
         event_type="user.password_reset",
         actor_id=user.id,
         ip=get_client_ip(request),
+        meta={"username": user.username},
+    )
+
+
+@auth_router.post("/verify-email", status_code=204)
+async def verify_email(
+    request: Request,
+    session: SessionDep,
+    redis: RedisDep,
+    body: EmailVerifyRequest,
+):
+    """Consume a single-use email verification token and mark the email verified."""
+    client_ip = get_client_ip(request) or "unknown"
+    await check_rate_limit(
+        redis, f"rl:verify_email:{client_ip}", window_seconds=60, max_requests=10
+    )
+    user_id_str = await consume_single_use_token(
+        redis, EMAIL_VERIFY_KEY_PREFIX, body.token
+    )
+    if not user_id_str:
+        raise InvalidVerificationTokenError()
+    user = await crud.UserCrud.first(
+        session=session, filters=[User.id == UUID(user_id_str)]
+    )
+    if not user:
+        raise InvalidVerificationTokenError()
+    await crud.UserCrud.update(
+        session=session,
+        filters=[User.id == user.id],
+        obj=UserEmailVerifiedUpdate(id=user.id, email_verified=True),
+    )
+    await emit(
+        session,
+        redis,
+        event_type="user.email_verified",
+        actor_id=user.id,
+        ip=client_ip,
+        meta={"username": user.username},
+    )
+
+
+async def _email_action_recipient(
+    request: Request,
+    session: SessionDep,
+    redis: Redis,
+    email: str,
+    *,
+    rate_limit_action: str,
+) -> tuple[User | None, str]:
+    """Rate-limit, gate on email.enabled, and look up the user case-insensitively."""
+    client_ip = get_client_ip(request) or "unknown"
+    await check_rate_limit(
+        redis,
+        f"rl:{rate_limit_action}:{client_ip}",
+        window_seconds=60,
+        max_requests=3,
+    )
+    if not await _email_enabled(redis):
+        return None, client_ip
+    user = await crud.UserCrud.first(
+        session=session, filters=[func.lower(User.email) == email.lower()]
+    )
+    return user, client_ip
+
+
+@auth_router.post("/resend-verification", status_code=204)
+async def resend_verification(
+    request: Request,
+    session: SessionDep,
+    redis: RedisDep,
+    background_tasks: BackgroundTasks,
+    body: ResendVerificationRequest,
+):
+    """Re-send the verification email. Always 204 to avoid account enumeration."""
+    user, client_ip = await _email_action_recipient(
+        request, session, redis, body.email, rate_limit_action="resend_verify"
+    )
+    if user and user.email and not user.email_verified:
+        await _send_verification_email(
+            redis, background_tasks, user_id=user.id, email=user.email
+        )
+        await emit(
+            session,
+            redis,
+            event_type="user.verification_resent",
+            actor_id=user.id,
+            ip=client_ip,
+            meta={"username": user.username},
+        )
+
+
+@auth_router.post("/forgot-password", status_code=204)
+async def forgot_password(
+    request: Request,
+    session: SessionDep,
+    redis: RedisDep,
+    background_tasks: BackgroundTasks,
+    body: ForgotPasswordRequest,
+):
+    """Email a single-use password reset link. Always 204 to avoid enumeration."""
+    user, client_ip = await _email_action_recipient(
+        request, session, redis, body.email, rate_limit_action="forgot_password"
+    )
+    if not user or not user.email:
+        return
+    token = await issue_single_use_token(
+        redis, PWD_RESET_KEY_PREFIX, PWD_RESET_TTL, user.id
+    )
+    link = f"{settings.FRONTEND_HOST}/reset-password?token={token}"
+    background_tasks.add_task(
+        _deliver_branded_email, redis, user.email, link, build_password_reset_email
+    )
+    await emit(
+        session,
+        redis,
+        event_type="user.password_reset_requested",
+        actor_id=user.id,
+        ip=client_ip,
         meta={"username": user.username},
     )
 
@@ -330,6 +536,8 @@ async def _resolve_user_from_userinfo(
                 or userinfo.get("login")
                 or subject,
                 email=email,
+                # The OAuth provider already verified ownership of this address.
+                email_verified=True,
             ),
         )
         is_new_user = True

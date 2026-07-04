@@ -10,6 +10,7 @@ from .category import category_router
 from .challenge import challenge_router
 from .config import config_router
 from .custom_field import custom_field_router, custom_field_value_router
+from .email import email_router
 from .event import event_router
 from .file import file_router
 from .hint import hint_router
@@ -48,6 +49,7 @@ admin_router.include_router(
 )
 admin_router.include_router(router=config_router, dependencies=_invalidate_info)
 admin_router.include_router(router=custom_field_router)
+admin_router.include_router(router=email_router)
 admin_router.include_router(router=custom_field_value_router)
 admin_router.include_router(router=event_router)
 admin_router.include_router(router=file_router, dependencies=_invalidate_challenges)

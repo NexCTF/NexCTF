@@ -3,12 +3,17 @@
 ## 0.2.0
 - [x] Rework event system
 
+## 0.3.0
+- [x] Provision first admin user via env variables
+
+## 0.4.0
+- [x] SMTP integration
+- [x] Forgot password
+
 ## Before v1.0 release
 - [ ] Challenge feedback
 - [ ] Challenge writeup
 - [ ] Event import/export/sync
-- [ ] SMTP integration
-- [ ] Forgot password
 - [ ] Plugins workflow
 - [ ] Documentation
 - [ ] Frontend tests

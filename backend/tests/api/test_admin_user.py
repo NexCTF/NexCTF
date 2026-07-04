@@ -134,6 +134,49 @@ class TestUpdateUser(UpdateGuardMixin):
         resp = await c.put(f"{self.PREFIX}/{NULL_UUID}", json={"id": NULL_UUID})
         assert resp.status_code == 404
 
+    async def test_update_email_resets_verification(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        fixture_user_members: list[User],
+    ) -> None:
+        """Changing a verified user's email must not carry over its verified status."""
+        c, _ = admin_client
+        u = fixture_user_members[0]
+        u.email = "old@test.com"
+        u.email_verified = True
+        await db_session.flush()
+
+        resp = await c.put(
+            f"{self.PREFIX}/{u.id}",
+            json={"id": str(u.id), "email": "new@test.com"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["data"]["email_verified"] is False
+
+        await db_session.refresh(u)
+        assert u.email == "new@test.com"
+        assert u.email_verified is False
+
+    async def test_update_same_email_keeps_verification(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        fixture_user_members: list[User],
+    ) -> None:
+        c, _ = admin_client
+        u = fixture_user_members[0]
+        u.email = "same@test.com"
+        u.email_verified = True
+        await db_session.flush()
+
+        resp = await c.put(
+            f"{self.PREFIX}/{u.id}",
+            json={"id": str(u.id), "email": "same@test.com"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["data"]["email_verified"] is True
+
 
 class TestAdminResetTotp:
     PREFIX = "/admin/user"

@@ -434,7 +434,7 @@ def user() -> list[User]:
     def _tid(name: str) -> UUID:
         return fixtures.field("team", "name", name)
 
-    return [
+    users = [
         User(
             id=UUID("f9a973c4-aecb-4b20-8529-ff8c7ec103bd"),
             username="admin",
@@ -506,6 +506,11 @@ def user() -> list[User]:
             team_id=_tid("team4"),
         ),
     ]
+    # Seed users predate any verification flow; mark them verified so enabling
+    # SMTP in dev does not lock them out (mirrors the migration backfill).
+    for u in users:
+        u.email_verified = True
+    return users
 
 
 @fixtures.register(depends_on=["user"])

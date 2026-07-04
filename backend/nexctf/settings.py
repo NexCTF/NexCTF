@@ -143,6 +143,67 @@ def _security():
     ]
 
 
+@config.category("email", "config.category.email", icon="mail")
+def _email():
+    return [
+        ConfigDef(
+            key="email.enabled",
+            label="config.email.enabled.label",
+            default=False,
+            description="config.email.enabled.description",
+        ),
+        ConfigDef(
+            key="email.smtp_host",
+            label="config.email.smtp_host.label",
+            default="",
+            description="config.email.smtp_host.description",
+            type=ConfigType.STRING,
+        ),
+        ConfigDef(
+            key="email.smtp_port",
+            label="config.email.smtp_port.label",
+            default=587,
+            description="config.email.smtp_port.description",
+        ),
+        ConfigDef(
+            key="email.smtp_username",
+            label="config.email.smtp_username.label",
+            default="",
+            description="config.email.smtp_username.description",
+            type=ConfigType.STRING,
+        ),
+        ConfigDef(
+            key="email.smtp_password",
+            label="config.email.smtp_password.label",
+            default="",
+            description="config.email.smtp_password.description",
+            type=ConfigType.STRING,
+        ),
+        ConfigDef(
+            key="email.security",
+            label="config.email.security.label",
+            default="starttls",
+            description="config.email.security.description",
+            type=ConfigType.CHOICE,
+            choices=["none", "starttls", "tls"],
+        ),
+        ConfigDef(
+            key="email.from_address",
+            label="config.email.from_address.label",
+            default="",
+            description="config.email.from_address.description",
+            type=ConfigType.STRING,
+        ),
+        ConfigDef(
+            key="email.from_name",
+            label="config.email.from_name.label",
+            default="",
+            description="config.email.from_name.description",
+            type=ConfigType.STRING,
+        ),
+    ]
+
+
 @config.category("visibility", "config.category.visibility", icon="eye")
 def _visibility():
     return [
