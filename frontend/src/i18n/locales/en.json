@@ -148,7 +148,8 @@
       "section": {
         "overview": "Overview",
         "manage": "Manage",
-        "system": "System"
+        "system": "System",
+        "links": "Links"
       },
       "dashboard": "Dashboard",
       "events": "Events",
@@ -161,6 +162,7 @@
       "pages": "Pages",
       "tags": "Tags",
       "categories": "Categories",
+      "links": "Links",
       "oauth_providers": "OAuth Providers",
       "oauth_clients": "OAuth Clients",
       "plugins": "Plugins",
@@ -298,6 +300,29 @@
         "countdown_end_label": "Countdown to end",
         "countdown_end_desc": "Live countdown until the event ends"
       }
+    },
+    "links": {
+      "field_name": "Name",
+      "field_url": "URL",
+      "field_visibility": "Visibility",
+      "field_enabled": "Enabled",
+      "visibility_public": "Public",
+      "visibility_admin": "Admin only",
+      "create": "New link",
+      "created": "Link created",
+      "create_error": "Failed to create link",
+      "edit": "Edit link",
+      "saved": "Link saved",
+      "save_error": "Save failed",
+      "deleted": "Link deleted",
+      "delete_error": "Delete failed",
+      "col_name": "Name",
+      "col_url": "URL",
+      "col_visibility": "Visibility",
+      "col_status": "Status",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "delete_confirm": "Delete link \"{{name}}\"?"
     },
     "submissions": {
       "col_team": "Team",

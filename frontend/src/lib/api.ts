@@ -215,11 +215,17 @@ export interface CaptchaInfo {
   widget_endpoint: string;
 }
 
+export interface PublicLink {
+  name: string;
+  url: string;
+}
+
 export interface PublicInfo {
   branding: BrandingInfo;
   competition: CompetitionInfo;
   oauth_providers: OAuthProvider[];
   captcha: CaptchaInfo;
+  links: PublicLink[];
 }
 
 export interface AdminStats {
@@ -1071,6 +1077,50 @@ export async function updateCategory(
 
 export async function deleteCategory(id: string): Promise<void> {
   await rawRequest(`/admin/category/${id}`, { method: "DELETE" });
+}
+
+// ---------------------------------------------------------------------------
+// Admin – Links
+// ---------------------------------------------------------------------------
+
+export type LinkVisibility = "public" | "admin";
+
+export interface AdminLink {
+  id: string;
+  name: string;
+  url: string;
+  visibility: LinkVisibility;
+  is_enabled: boolean;
+}
+
+export async function getAdminLinks(queryString = ""): Promise<PaginatedResponse<AdminLink>> {
+  return requestPaginated<AdminLink>(`/admin/link?${queryString}`);
+}
+
+export async function createLink(data: {
+  name: string;
+  url: string;
+  visibility: LinkVisibility;
+  is_enabled: boolean;
+}): Promise<AdminLink> {
+  return request<AdminLink>("/admin/link", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateLink(
+  id: string,
+  data: { name: string; url: string; visibility: LinkVisibility; is_enabled: boolean },
+): Promise<AdminLink> {
+  return request<AdminLink>(`/admin/link/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({ id, ...data }),
+  });
+}
+
+export async function deleteLink(id: string): Promise<void> {
+  await rawRequest(`/admin/link/${id}`, { method: "DELETE" });
 }
 
 // ---------------------------------------------------------------------------

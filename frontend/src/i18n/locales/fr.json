@@ -148,7 +148,8 @@
       "section": {
         "overview": "Vue d'ensemble",
         "manage": "Gestion",
-        "system": "Système"
+        "system": "Système",
+        "links": "Liens"
       },
       "dashboard": "Tableau de bord",
       "events": "Événements",
@@ -161,6 +162,7 @@
       "pages": "Pages",
       "tags": "Tags",
       "categories": "Catégories",
+      "links": "Liens",
       "oauth_providers": "Fournisseurs OAuth",
       "oauth_clients": "Clients OAuth",
       "plugins": "Plugins",
@@ -298,6 +300,29 @@
         "countdown_end_label": "Compte à rebours jusqu'à la fin",
         "countdown_end_desc": "Compte à rebours en direct jusqu'à la fin de l'événement"
       }
+    },
+    "links": {
+      "field_name": "Nom",
+      "field_url": "URL",
+      "field_visibility": "Visibilité",
+      "field_enabled": "Activé",
+      "visibility_public": "Public",
+      "visibility_admin": "Admin uniquement",
+      "create": "Nouveau lien",
+      "created": "Lien créé",
+      "create_error": "Échec de la création du lien",
+      "edit": "Modifier le lien",
+      "saved": "Lien enregistré",
+      "save_error": "Échec de l'enregistrement",
+      "deleted": "Lien supprimé",
+      "delete_error": "Échec de la suppression",
+      "col_name": "Nom",
+      "col_url": "URL",
+      "col_visibility": "Visibilité",
+      "col_status": "Statut",
+      "enabled": "Activé",
+      "disabled": "Désactivé",
+      "delete_confirm": "Supprimer le lien « {{name}} » ?"
     },
     "submissions": {
       "col_team": "Équipe",

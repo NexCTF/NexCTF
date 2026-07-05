@@ -11,6 +11,7 @@ from .custom_field import (
 from .event import Event
 from .file import File
 from .hint_unlock import HintUnlock
+from .link import Link
 from .notification import Notification
 from .oauth import OAuthAccount, OAuthProvider
 from .oauth_server import OAuthServerClient
@@ -35,6 +36,7 @@ __all__ = [
     "File",
     "Hint",
     "HintUnlock",
+    "Link",
     "Notification",
     "OAuthAccount",
     "OAuthProvider",

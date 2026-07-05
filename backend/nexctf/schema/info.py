@@ -1,5 +1,6 @@
 from fastapi_toolsets.schemas import PydanticBase
 
+from nexctf.schema.link import PublicLinkRead
 from nexctf.schema.oauth import PublicOAuthProviderRead
 
 
@@ -33,6 +34,7 @@ class PublicInfo(PydanticBase):
     competition: CompetitionInfo
     oauth_providers: list[PublicOAuthProviderRead]
     captcha: CaptchaInfo
+    links: list[PublicLinkRead]
 
 
 class AdminStats(PydanticBase):

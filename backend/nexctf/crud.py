@@ -1,8 +1,6 @@
 from fastapi_toolsets.crud import AsyncCrud
 from sqlalchemy.orm import joinedload, selectinload
 
-from nexctf.module.audit import AuditedCrud
-
 from nexctf.model import (
     Challenge,
     ChallengeCategory,
@@ -12,6 +10,7 @@ from nexctf.model import (
     Event,
     File,
     Hint,
+    Link,
     Notification,
     OAuthAccount,
     OAuthProvider,
@@ -27,6 +26,7 @@ from nexctf.model import (
     User,
     UserToken,
 )
+from nexctf.module.audit import AuditedCrud
 
 
 class TeamCrud(AsyncCrud[Team]):
@@ -182,6 +182,15 @@ class HintCrud(AuditedCrud[Hint]):
     facet_fields = [Hint.question_id]
     order_fields = [Hint.order, Hint.cost, Hint.title, (Hint.question, Question.label)]
     default_load_options = [selectinload(Hint.question)]
+
+
+class LinkCrud(AuditedCrud[Link]):
+    model = Link
+    cursor_column = Link.created_at
+    searchable_fields = [Link.name, Link.url]
+    facet_fields = [Link.visibility, Link.is_enabled]
+    order_fields = [Link.name, Link.url]
+    default_load_options = []
 
 
 class SolutionCrud(AsyncCrud[Solution]):

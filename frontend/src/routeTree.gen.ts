@@ -36,6 +36,7 @@ import { Route as AdminAdminPagesRouteImport } from './routes/admin/_admin/pages
 import { Route as AdminAdminOauthProvidersRouteImport } from './routes/admin/_admin/oauth-providers'
 import { Route as AdminAdminOauthClientsRouteImport } from './routes/admin/_admin/oauth-clients'
 import { Route as AdminAdminNotificationsRouteImport } from './routes/admin/_admin/notifications'
+import { Route as AdminAdminLinksRouteImport } from './routes/admin/_admin/links'
 import { Route as AdminAdminFilesRouteImport } from './routes/admin/_admin/files'
 import { Route as AdminAdminEventsRouteImport } from './routes/admin/_admin/events'
 import { Route as AdminAdminCustomFieldsRouteImport } from './routes/admin/_admin/custom-fields'
@@ -185,6 +186,11 @@ const AdminAdminNotificationsRoute = AdminAdminNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => AdminAdminRoute,
 } as any)
+const AdminAdminLinksRoute = AdminAdminLinksRouteImport.update({
+  id: '/links',
+  path: '/links',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
 const AdminAdminFilesRoute = AdminAdminFilesRouteImport.update({
   id: '/files',
   path: '/files',
@@ -269,6 +275,7 @@ export interface FileRoutesByFullPath {
   '/admin/custom-fields': typeof AdminAdminCustomFieldsRoute
   '/admin/events': typeof AdminAdminEventsRoute
   '/admin/files': typeof AdminAdminFilesRoute
+  '/admin/links': typeof AdminAdminLinksRoute
   '/admin/notifications': typeof AdminAdminNotificationsRoute
   '/admin/oauth-clients': typeof AdminAdminOauthClientsRoute
   '/admin/oauth-providers': typeof AdminAdminOauthProvidersRoute
@@ -308,6 +315,7 @@ export interface FileRoutesByTo {
   '/admin/custom-fields': typeof AdminAdminCustomFieldsRoute
   '/admin/events': typeof AdminAdminEventsRoute
   '/admin/files': typeof AdminAdminFilesRoute
+  '/admin/links': typeof AdminAdminLinksRoute
   '/admin/notifications': typeof AdminAdminNotificationsRoute
   '/admin/oauth-clients': typeof AdminAdminOauthClientsRoute
   '/admin/oauth-providers': typeof AdminAdminOauthProvidersRoute
@@ -350,6 +358,7 @@ export interface FileRoutesById {
   '/admin/_admin/custom-fields': typeof AdminAdminCustomFieldsRoute
   '/admin/_admin/events': typeof AdminAdminEventsRoute
   '/admin/_admin/files': typeof AdminAdminFilesRoute
+  '/admin/_admin/links': typeof AdminAdminLinksRoute
   '/admin/_admin/notifications': typeof AdminAdminNotificationsRoute
   '/admin/_admin/oauth-clients': typeof AdminAdminOauthClientsRoute
   '/admin/_admin/oauth-providers': typeof AdminAdminOauthProvidersRoute
@@ -392,6 +401,7 @@ export interface FileRouteTypes {
     | '/admin/custom-fields'
     | '/admin/events'
     | '/admin/files'
+    | '/admin/links'
     | '/admin/notifications'
     | '/admin/oauth-clients'
     | '/admin/oauth-providers'
@@ -431,6 +441,7 @@ export interface FileRouteTypes {
     | '/admin/custom-fields'
     | '/admin/events'
     | '/admin/files'
+    | '/admin/links'
     | '/admin/notifications'
     | '/admin/oauth-clients'
     | '/admin/oauth-providers'
@@ -472,6 +483,7 @@ export interface FileRouteTypes {
     | '/admin/_admin/custom-fields'
     | '/admin/_admin/events'
     | '/admin/_admin/files'
+    | '/admin/_admin/links'
     | '/admin/_admin/notifications'
     | '/admin/_admin/oauth-clients'
     | '/admin/_admin/oauth-providers'
@@ -695,6 +707,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAdminNotificationsRouteImport
       parentRoute: typeof AdminAdminRoute
     }
+    '/admin/_admin/links': {
+      id: '/admin/_admin/links'
+      path: '/links'
+      fullPath: '/admin/links'
+      preLoaderRoute: typeof AdminAdminLinksRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
     '/admin/_admin/files': {
       id: '/admin/_admin/files'
       path: '/files'
@@ -810,6 +829,7 @@ interface AdminAdminRouteChildren {
   AdminAdminCustomFieldsRoute: typeof AdminAdminCustomFieldsRoute
   AdminAdminEventsRoute: typeof AdminAdminEventsRoute
   AdminAdminFilesRoute: typeof AdminAdminFilesRoute
+  AdminAdminLinksRoute: typeof AdminAdminLinksRoute
   AdminAdminNotificationsRoute: typeof AdminAdminNotificationsRoute
   AdminAdminOauthClientsRoute: typeof AdminAdminOauthClientsRoute
   AdminAdminOauthProvidersRoute: typeof AdminAdminOauthProvidersRoute
@@ -837,6 +857,7 @@ const AdminAdminRouteChildren: AdminAdminRouteChildren = {
   AdminAdminCustomFieldsRoute: AdminAdminCustomFieldsRoute,
   AdminAdminEventsRoute: AdminAdminEventsRoute,
   AdminAdminFilesRoute: AdminAdminFilesRoute,
+  AdminAdminLinksRoute: AdminAdminLinksRoute,
   AdminAdminNotificationsRoute: AdminAdminNotificationsRoute,
   AdminAdminOauthClientsRoute: AdminAdminOauthClientsRoute,
   AdminAdminOauthProvidersRoute: AdminAdminOauthProvidersRoute,
