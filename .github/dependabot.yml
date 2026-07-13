@@ -36,3 +36,15 @@ updates:
       frontend:
         patterns:
           - "*"
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ⬆
+    groups:
+      docker:
+        patterns:
+          - "*"
