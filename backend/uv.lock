@@ -530,7 +530,7 @@ oauth = [
 
 [[package]]
 name = "fastapi-toolsets"
-version = "5.0.0b2"
+version = "5.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asyncpg" },
@@ -538,14 +538,13 @@ dependencies = [
     { name = "pydantic" },
     { name = "sqlalchemy", extra = ["asyncio"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/45/20/e709fe01c983950f30bd4f90f6a5086ff6004c3344e1e9d52d974eaf83e6/fastapi_toolsets-5.0.0b2.tar.gz", hash = "sha256:32c4e5ae6d3d12a8280c99773ed6ce84c6907741042738ab505191b08206739f", size = 59409, upload-time = "2026-07-04T09:08:34.683Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/16/d9/12012166e546e577db9bdcb56c16badfef864e3b965e98d12443f2e53569/fastapi_toolsets-5.0.0.tar.gz", hash = "sha256:0cdfecf522275832d8f26ee382ba81b670fce12037c0388a5c334ae7177584e6", size = 53176, upload-time = "2026-07-11T13:17:43.663Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8e/02/b1b0eebb756e41bdcca1c35f7e2eb615d4fd06f0d1ea9533bcf9b47793a5/fastapi_toolsets-5.0.0b2-py3-none-any.whl", hash = "sha256:5735b9a4227f09e6d33785a579e5ceb5e69db1d5713fcabb9830fb6d1f9ea788", size = 80020, upload-time = "2026-07-04T09:08:33.383Z" },
+    { url = "https://files.pythonhosted.org/packages/49/e1/14fe415c553df7ed0bf81ddb0d7dca8baeef6b63d820dc13da1ff8dec219/fastapi_toolsets-5.0.0-py3-none-any.whl", hash = "sha256:4e920fbf0f1ad3ae6488ec6442135d30bc556979111319f1f6aa3a0b3dc63a2f", size = 69297, upload-time = "2026-07-11T13:17:42.289Z" },
 ]
 
 [package.optional-dependencies]
 all = [
-    { name = "async-lru" },
     { name = "httpx" },
     { name = "prometheus-client" },
     { name = "pytest" },
@@ -1031,7 +1030,7 @@ requires-dist = [
     { name = "argon2-cffi", specifier = ">=23.1.0" },
     { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.138.1" },
     { name = "fastapi-multiauth", extras = ["oauth"], specifier = ">=0.1.0" },
-    { name = "fastapi-toolsets", extras = ["all"], specifier = "==5.0.0b2" },
+    { name = "fastapi-toolsets", extras = ["all"], specifier = ">=5.0.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.14.2" },
     { name = "pyotp", specifier = ">=2.10.0" },
