@@ -1,73 +1,79 @@
-# Code style
+# Development stack
+All dev commands are wrapped by `Taskfile.yml` (run `task` from the repo root). Env vars come from `.env.dev`.
+
+- Start infra (postgres, valkey, s3): `task dev:infra:up`
+- Start backend (runs migrations + fixtures, then serves): `task dev:backend`
+- Start frontend dev server: `task dev:frontend`
+- Stop infra: `task dev:infra:down`
+- Stop infra + clean volumes: `task dev:infra:down -- -v`
+- Run all checks (backend + frontend): `task dev:check`
+- Apply all auto-fixes (backend + frontend): `task dev:fix`
+- Tail infra logs: `task dev:logs`
+
+Infra must be up (`task dev:infra:up`) before running the backend or its tests.
+
+One-time setup: `task dev:hooks:install` installs git pre-commit hooks (via prek, running `dev:backend:check` / `dev:frontend:check` from `.pre-commit-config.yaml`). Run hooks on demand with `task dev:hooks:run`.
+
+# Backend
+The backend code is in `backend/` folder.
+
+## Package management
+This project uses uv. Do not use pip, pip-tools, poetry, or conda.
+
+- Add runtime dependency: `uv add <package>` (writes to `[project.dependencies]`)
+- Add dev dependency: `uv add --dev <package>` (writes to `[dependency-groups]` per PEP 735)
+- Remove dependency: `uv remove <package>`
+- Sync environment from lockfile: `uv sync`
+- Regenerate lockfile from constraints: `uv lock`
+- Upgrade locked versions: `uv lock --upgrade`
+- Commit `uv.lock` to version control (current uv guidance is to commit it for applications, CLIs, and libraries)
+
+## Testing
+- Tool: pytest
+- Before running you need to start the dev infra with `task dev:infra:up`
+- Run all backend tests: `task dev:backend:test`
+- Run specific backend tests: `task dev:backend:test -- [TEST_FILE_PATH]`
+
+## Linting, formatting and type checking
+- Tools: ruff (lint + format) and ty (type checking)
+- Check everything, no changes (what CI runs): `task dev:backend:check`
+- Auto-fix lint issues + format: `task dev:backend:fix`
+- Granular commands (run from `backend/`):
+  - `uv run ruff check .` / `uv run ruff check --fix .`
+  - `uv run ruff format .` / `uv run ruff format --check .`
+  - `uv run ty check`
+- Ruff has no explicit config in `pyproject.toml` (runs on defaults). ty config lives under `[tool.ty.src]`.
+
+## Code style
+- Follow the Google python style guide
 - Type hints required for all code
 - Public APIs must have docstrings
-- Follow the Google python style guide
+- All docstrings must remain short
 - Functions must be focused and small
 
-# Testing
-- Use ty and ruff
-- Run all backend tests with `task dev:backend:test` 
-- Run specific backend tests with `task dev:backend:test -- [TEST_FILE_PATH]` (ex. `task dev:backend:test -- tests/api/test_admin_category.py`)
 
-# Rules
+# Frontend
+The frontend code is in `frontend/` folder.
 
-These rules apply to every task in this project unless explicitly overridden.
-Bias: caution over speed on non-trivial work. Use judgment on trivial tasks.
+## Package management
+This project uses bun. Do not use npm or yarn.
 
-## Rule 1 — Think Before Coding
-State assumptions explicitly. If uncertain, ask rather than guess.
-Present multiple interpretations when ambiguity exists.
-Push back when a simpler approach exists.
-Stop when confused. Name what's unclear.
+- Add dependency: `bun add <package>`
+- Add dev dependency: `bun add -d <package>`
+- Remove dependency: `bun remove <package>`
+- Sync environment from lockfile: `bun install --frozen-lockfile`
+- Commit `bun.lock` to version control
 
-## Rule 2 — Simplicity First
-Minimum code that solves the problem. Nothing speculative.
-No features beyond what was asked. No abstractions for single-use code.
-Test: would a senior engineer say this is overcomplicated? If yes, simplify.
+## Linting, formatting and type checking
+- Tools: biome (lint + format) and tsc (type checking)
+- Check everything, no changes (what CI runs): `task dev:frontend:check`
+- Auto-fix lint + format: `task dev:frontend:fix`
+- Granular commands (run from `frontend/`):
+  - `bunx biome lint .` / `bunx biome check --write .`
+  - `bunx biome format --write .`
+  - `bunx tsc -b`
+- Biome config lives in `biome.json`. tsc config lives in `tsconfig.json` / `tsconfig.app.json`.
 
-## Rule 3 — Surgical Changes
-Touch only what you must. Clean up only your own mess.
-Don't "improve" adjacent code, comments, or formatting.
-Don't refactor what isn't broken. Match existing style.
-
-## Rule 4 — Goal-Driven Execution
-Define success criteria. Loop until verified.
-Don't follow steps. Define success and iterate.
-Strong success criteria let you loop independently.
-
-## Rule 5 — Use the model only for judgment calls
-Use me for: classification, drafting, summarization, extraction.
-Do NOT use me for: routing, retries, deterministic transforms.
-If code can answer, code answers.
-
-## Rule 6 — Token budgets are not advisory
-Per-task: 4,000 tokens. Per-session: 30,000 tokens.
-If approaching budget, summarize and start fresh.
-Surface the breach. Do not silently overrun.
-
-## Rule 7 — Surface conflicts, don't average them
-If two patterns contradict, pick one (more recent / more tested).
-Explain why. Flag the other for cleanup.
-Don't blend conflicting patterns.
-
-## Rule 8 — Read before you write
-Before adding code, read exports, immediate callers, shared utilities.
-"Looks orthogonal" is dangerous. If unsure why code is structured a way, ask.
-
-## Rule 9 — Tests verify intent, not just behavior
-Tests must encode WHY behavior matters, not just WHAT it does.
-A test that can't fail when business logic changes is wrong.
-
-## Rule 10 — Checkpoint after every significant step
-Summarize what was done, what's verified, what's left.
-Don't continue from a state you can't describe back.
-If you lose track, stop and restate.
-
-## Rule 11 — Match the codebase's conventions, even if you disagree
-Conformance > taste inside the codebase.
-If you genuinely think a convention is harmful, surface it. Don't fork silently.
-
-## Rule 12 — Fail loud
-"Completed" is wrong if anything was skipped silently.
-"Tests pass" is wrong if any were skipped.
-Default to surfacing uncertainty, not hiding it.
+## Code style
+- Type hints (TypeScript types) required for all code
+- Functions must be focused and small

@@ -36,7 +36,7 @@ tasks:
       REDIS_HOST: 127.0.0.1
 
   dev:backend:test:
-    desc: "Run prestart (migrations + fixtures) then start the backend in dev mode"
+    desc: "Run the backend test suite (pytest)"
     cmds:
       - bash -c 'source .venv/bin/activate && pytest -n 4 {{.CLI_ARGS}}'
     dir: backend
@@ -96,6 +96,16 @@ tasks:
     desc: "Follow logs"
     cmds:
       - docker compose -f compose.dev.yml logs -f {{.CLI_ARGS}}
+
+  dev:hooks:install:
+    desc: "Install git pre-commit hooks (prek)"
+    cmds:
+      - uvx prek install
+
+  dev:hooks:run:
+    desc: "Run pre-commit hooks against all files"
+    cmds:
+      - uvx prek run --all-files
 
   # ------------------------------------------------------------
 
