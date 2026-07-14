@@ -90,15 +90,10 @@ See [roadmap.md](roadmap.md) for planned features and progress toward v1.0.
 ```bash
 task dev:infra:up       # Start dev infrastructure (db, cache, s3)
 task dev:infra:down     # Stop dev infrastructure
-task dev:backend:       # Start the dev backend
+task dev:backend        # Start the dev backend
 task dev:backend:test   # Run backend tests
-task dev:frontend:      # Start the dev frontend
+task dev:frontend       # Start the dev frontend
 ```
 
 ### AI transparency disclosure
-AI-assisted contributions are accepted. Disclosure is required on all AI-assisted PRs.
-
-The same quality and security bar applies regardless of how code was written. Transparency about AI use helps keep its role in this project bounded — there is a wide spectrum between thoughtful autocomplete
-and unchecked generation, and this project sits firmly at the former end.
-
-Architectural and security decisions remain 100% human.
+AI-assisted contributions are accepted, but must be disclosed on the PR. The same quality and security bar applies regardless of how the code was written. Architectural and security decisions remain 100% human.
