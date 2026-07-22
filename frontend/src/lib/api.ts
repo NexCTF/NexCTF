@@ -228,6 +228,13 @@ export interface PublicInfo {
   links: PublicLink[];
 }
 
+export interface VersionInfo {
+  current: string;
+  latest: string | null;
+  release_url: string | null;
+  update_available: boolean;
+}
+
 export interface AdminStats {
   users: number;
   teams: number;
@@ -236,6 +243,7 @@ export interface AdminStats {
   correct_submissions: number;
   hint_unlocks: number;
   hint_cost_spent: number;
+  version: VersionInfo;
 }
 
 export async function getPublicInfo(): Promise<PublicInfo> {
