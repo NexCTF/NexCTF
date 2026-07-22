@@ -37,6 +37,13 @@ class PublicInfo(PydanticBase):
     links: list[PublicLinkRead]
 
 
+class VersionInfo(PydanticBase):
+    current: str
+    latest: str | None = None
+    release_url: str | None = None
+    update_available: bool = False
+
+
 class AdminStats(PydanticBase):
     users: int
     teams: int
@@ -45,3 +52,4 @@ class AdminStats(PydanticBase):
     correct_submissions: int
     hint_unlocks: int
     hint_cost_spent: int
+    version: VersionInfo

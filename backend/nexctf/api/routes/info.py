@@ -18,7 +18,7 @@ from nexctf.model import (
     User,
     UserRole,
 )
-from nexctf.module.info import get_public_info
+from nexctf.module.info import get_public_info, get_version_info
 from nexctf.schema import PublicUserRead
 from nexctf.schema.info import AdminStats, PublicInfo
 
@@ -43,6 +43,7 @@ async def me_info(
 @info_router.get("/admin")
 async def admin_info(
     session: SessionDep,
+    redis: RedisDep,
     _: User = Security(auth.require(role=UserRole.admin)),
 ) -> Response[AdminStats]:
     r_users, r_teams, r_challenges, r_subs, r_correct, r_hints = await asyncio.gather(
@@ -61,6 +62,7 @@ async def admin_info(
             ).select_from(HintUnlock)
         ),
     )
+    version = await get_version_info(redis)
     user_count: int = r_users.scalar_one()
     team_count: int = r_teams.scalar_one()
     challenge_count: int = r_challenges.scalar_one()
@@ -77,5 +79,6 @@ async def admin_info(
             correct_submissions=correct_submission_count,
             hint_unlocks=hint_unlock_count,
             hint_cost_spent=hint_cost_spent,
+            version=version,
         )
     )

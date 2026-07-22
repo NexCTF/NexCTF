@@ -636,6 +636,11 @@
       "no_teams": "Aucune équipe trouvée",
       "load_more": "Charger plus",
       "n_teams_selected": "{{count}} équipe(s) sélectionnée(s)"
+    },
+    "version": {
+      "update_available": "Mise à jour disponible",
+      "update_message": "NexCTF {{version}} est disponible.",
+      "view_release": "Voir les notes de version"
     }
   },
   "notifications": {

@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -23,11 +24,14 @@ import {
   Users,
   UsersRound,
 } from "lucide-react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { AdminLinksNav } from "@/components/admin-links-nav";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { NotificationToastListener } from "@/components/notification-toast-listener";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { type AdminStats, getAdminStats } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
 
@@ -124,6 +128,27 @@ function AdminLayout() {
   const navigate = useNavigate();
   const { name, logoUrl } = useBranding();
 
+  const { data: stats } = useQuery<AdminStats>({
+    queryKey: ["admin", "stats", "global"],
+    queryFn: getAdminStats,
+    staleTime: 30 * 60 * 1000,
+  });
+  const version = stats?.version;
+
+  useEffect(() => {
+    if (!version?.update_available) return;
+    toast.info(t("admin.version.update_available"), {
+      description: t("admin.version.update_message", { version: version.latest }),
+      action: version.release_url
+        ? {
+            label: t("admin.version.view_release"),
+            onClick: () => window.open(version.release_url ?? undefined, "_blank"),
+          }
+        : undefined,
+      duration: Infinity,
+    });
+  }, [version, t]);
+
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
@@ -197,6 +222,23 @@ function AdminLayout() {
             <LanguageSwitcher />
             <ThemeToggle />
           </div>
+
+          {version && (
+            <div className="flex items-center justify-center gap-1.5 pt-1 text-[11px] text-muted-foreground/60">
+              <span>v{version.current}</span>
+              {version.update_available && version.release_url && (
+                <a
+                  href={version.release_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-primary hover:underline"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  {t("admin.version.update_available")}
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </aside>
 
