@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi_toolsets.schemas import Response
 
 from nexctf.api.dep import RedisDep, SessionDep
@@ -14,8 +14,9 @@ scoreboard_router = APIRouter(prefix="/scoreboard", tags=["Admin Scoreboard"])
 async def get_admin_scoreboard_endpoint(
     session: SessionDep,
     redis: RedisDep,
+    bracket: str | None = Query(default=None),
 ) -> Response[AdminScoreboard]:
-    result = await get_admin_scoreboard(session, redis)
+    result = await get_admin_scoreboard(session, redis, bracket=bracket)
     return Response(data=result)
 
 

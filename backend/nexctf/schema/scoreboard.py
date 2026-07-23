@@ -41,6 +41,7 @@ class PublicScoreboardEntry(PydanticBase):
     rank: int
     team_id: UUID
     team_name: str
+    team_bracket: str | None
     total: int
 
 
@@ -48,6 +49,7 @@ class AdminScoreboardEntry(PydanticBase):
     rank: int
     team_id: UUID
     team_name: str
+    team_bracket: str | None
     total: int
     solve_points: int
     adjustment_points: int
@@ -58,11 +60,13 @@ class AdminScoreboardEntry(PydanticBase):
 class PublicScoreboard(PydanticBase):
     entries: list[PublicScoreboardEntry]
     computed_at: datetime
+    brackets: list[str] = []
 
 
 class AdminScoreboard(PydanticBase):
     entries: list[AdminScoreboardEntry]
     computed_at: datetime
+    brackets: list[str] = []
 
 
 class ScoreEvent(PydanticBase):

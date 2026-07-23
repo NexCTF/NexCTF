@@ -36,14 +36,16 @@ _history_adapter: TypeAdapter[ScoreboardHistory] = TypeAdapter(ScoreboardHistory
 async def get_scoreboard(
     session: AsyncSession,
     redis: Redis,
+    bracket: str | None = None,
     ttl: timedelta = DEFAULT_TTL,
 ) -> PublicScoreboard:
     freeze_time = parse_config_dt("ctf.freeze_time")
+    key = f"{_SCOREBOARD_KEY}:{bracket}" if bracket else _SCOREBOARD_KEY
     return await get_or_compute(
         redis,
-        _SCOREBOARD_KEY,
+        key,
         _scoreboard_adapter,
-        lambda: compute_scoreboard(session, freeze_time=freeze_time),
+        lambda: compute_scoreboard(session, freeze_time=freeze_time, bracket=bracket),
         ttl,
     )
 
@@ -51,13 +53,15 @@ async def get_scoreboard(
 async def get_admin_scoreboard(
     session: AsyncSession,
     redis: Redis,
+    bracket: str | None = None,
     ttl: timedelta = DEFAULT_TTL,
 ) -> AdminScoreboard:
+    key = f"{_ADMIN_SCOREBOARD_KEY}:{bracket}" if bracket else _ADMIN_SCOREBOARD_KEY
     return await get_or_compute(
         redis,
-        _ADMIN_SCOREBOARD_KEY,
+        key,
         _admin_scoreboard_adapter,
-        lambda: compute_admin_scoreboard(session),
+        lambda: compute_admin_scoreboard(session, bracket=bracket),
         ttl,
     )
 
@@ -82,15 +86,16 @@ async def get_scoreboard_history(
     session: AsyncSession,
     redis: Redis,
     limit: int = 10,
+    bracket: str | None = None,
     ttl: timedelta = DEFAULT_TTL,
 ) -> ScoreboardHistory:
     freeze_time = parse_config_dt("ctf.freeze_time")
     return await get_or_compute(
         redis,
-        f"{_HISTORY_KEY}:{limit}",
+        f"{_HISTORY_KEY}:{limit}:{bracket or '_all'}",
         _history_adapter,
         lambda: compute_scoreboard_history(
-            session, limit=limit, freeze_time=freeze_time
+            session, limit=limit, freeze_time=freeze_time, bracket=bracket
         ),
         ttl,
     )
@@ -102,7 +107,10 @@ async def invalidate(redis: Redis, team_id: UUID | None = None) -> None:
     - team_id=None  → invalidate the full scoreboard and all team caches.
     - team_id=<id>  → invalidate the scoreboard and that team's cache only.
     """
-    keys: list[str] = [_SCOREBOARD_KEY, _ADMIN_SCOREBOARD_KEY]
+    keys: list[str] = []
+    for prefix in (_SCOREBOARD_KEY, _ADMIN_SCOREBOARD_KEY):
+        async for key in redis.scan_iter(f"{prefix}*"):
+            keys.append(key)
 
     if team_id is None:
         async for key in redis.scan_iter(f"{_TEAM_KEY_PREFIX}*"):

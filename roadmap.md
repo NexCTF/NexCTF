@@ -13,6 +13,7 @@
 
 ## 0.5.0
 - [x] Challenge writeup
+- [x] Brackets
 
 ## Before v1.0 release
 - [ ] Challenge feedback
@@ -24,5 +25,4 @@
 - [ ] Admin tools
 - [ ] Support for Kubernetes deployment
 - [ ] Anti-cheat / flag sharing detection
-- [ ] Brackets
 - [ ] Notification integrations (Discord/webhook)

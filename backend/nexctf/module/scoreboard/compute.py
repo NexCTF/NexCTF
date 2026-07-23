@@ -47,6 +47,15 @@ async def _fetch_all_adjustments(
     return list((await session.execute(stmt)).scalars().all())
 
 
+def _filter_teams_by_bracket(
+    all_teams: list[Team], bracket: str | None
+) -> tuple[list[Team], list[str]]:
+    """Split teams for *bracket* (or all teams) and the set of brackets in play."""
+    brackets = sorted({t.bracket for t in all_teams if t.bracket})
+    teams = [t for t in all_teams if t.bracket == bracket] if bracket else all_teams
+    return teams, brackets
+
+
 def _build_ranked_entries(
     submissions: list[Submission],
     adjustments: list[ScoreAdjustment],
@@ -75,6 +84,7 @@ def _build_ranked_entries(
                 rank=0,
                 team_id=team.id,
                 team_name=team.name,
+                team_bracket=team.bracket,
                 total=solve_points + adjustment_points,
                 solve_points=solve_points,
                 adjustment_points=adjustment_points,
@@ -120,44 +130,60 @@ async def compute_team_score(
     )
 
 
-async def compute_admin_scoreboard(session: AsyncSession) -> AdminScoreboard:
+async def compute_admin_scoreboard(
+    session: AsyncSession, bracket: str | None = None
+) -> AdminScoreboard:
     """Compute the full ranked scoreboard with detailed breakdown for all teams."""
     submissions, adjustments, teams_r = await asyncio.gather(
         _fetch_all_submissions(session),
         _fetch_all_adjustments(session),
         session.execute(select(Team)),
     )
-    entries, now = _build_ranked_entries(
-        submissions, adjustments, list(teams_r.scalars().all())
-    )
-    return AdminScoreboard(entries=entries, computed_at=now)
+    teams, brackets = _filter_teams_by_bracket(list(teams_r.scalars().all()), bracket)
+
+    entries, now = _build_ranked_entries(submissions, adjustments, teams)
+    return AdminScoreboard(entries=entries, computed_at=now, brackets=brackets)
 
 
 async def compute_scoreboard(
-    session: AsyncSession, freeze_time: datetime | None = None
+    session: AsyncSession,
+    freeze_time: datetime | None = None,
+    bracket: str | None = None,
 ) -> PublicScoreboard:
-    """Compute the public ranked scoreboard, optionally frozen at *freeze_time*."""
+    """Compute the public ranked scoreboard, optionally frozen at *freeze_time*.
+
+    If *bracket* is given, only teams in that bracket are ranked (re-ranked
+    from 1, not just filtered from the global ranking).
+    """
     submissions, adjustments, teams_r = await asyncio.gather(
         _fetch_all_submissions(session, before=freeze_time),
         _fetch_all_adjustments(session, before=freeze_time),
         session.execute(select(Team)),
     )
-    entries, now = _build_ranked_entries(
-        submissions, adjustments, list(teams_r.scalars().all())
-    )
+    teams, brackets = _filter_teams_by_bracket(list(teams_r.scalars().all()), bracket)
+
+    entries, now = _build_ranked_entries(submissions, adjustments, teams)
     return PublicScoreboard(
         entries=[
             PublicScoreboardEntry(
-                rank=e.rank, team_id=e.team_id, team_name=e.team_name, total=e.total
+                rank=e.rank,
+                team_id=e.team_id,
+                team_name=e.team_name,
+                team_bracket=e.team_bracket,
+                total=e.total,
             )
             for e in entries
         ],
         computed_at=now,
+        brackets=brackets,
     )
 
 
 async def compute_scoreboard_history(
-    session: AsyncSession, limit: int = 10, freeze_time: datetime | None = None
+    session: AsyncSession,
+    limit: int = 10,
+    freeze_time: datetime | None = None,
+    bracket: str | None = None,
 ) -> ScoreboardHistory:
     """Compute score-over-time series for the top-N teams.
 
@@ -167,10 +193,12 @@ async def compute_scoreboard_history(
     """
     now = datetime.now(tz=timezone.utc)
 
-    all_submissions, all_adjustments = await asyncio.gather(
+    all_submissions, all_adjustments, teams_r = await asyncio.gather(
         _fetch_all_submissions(session, before=freeze_time),
         _fetch_all_adjustments(session, before=freeze_time),
+        session.execute(select(Team)),
     )
+    teams_by_id = {t.id: t for t in teams_r.scalars()}
 
     # Derive team totals and last-solve times from already-fetched data
     team_totals: dict[UUID, int] = {}
@@ -185,6 +213,13 @@ async def compute_scoreboard_history(
         if adj.team_id is not None:
             team_totals[adj.team_id] = team_totals.get(adj.team_id, 0) + adj.amount
 
+    if bracket is not None:
+        team_totals = {
+            tid: total
+            for tid, total in team_totals.items()
+            if teams_by_id[tid].bracket == bracket
+        }
+
     if not team_totals:
         return ScoreboardHistory(series=[], computed_at=now)
 
@@ -197,9 +232,6 @@ async def compute_scoreboard_history(
         ),
     )
     top_ids = set(sorted_ids[:limit])
-
-    teams_result = await session.execute(select(Team).where(Team.id.in_(top_ids)))
-    teams_by_id = {t.id: t for t in teams_result.scalars()}
 
     # Build per-team event lists from the already-fetched data
     events_by_team: dict[UUID, list[tuple[datetime, int]]] = {

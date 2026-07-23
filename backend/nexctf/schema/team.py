@@ -24,6 +24,7 @@ class TeamCreate(PydanticBase):
 class AdminTeamCreate(PydanticBase):
     name: str
     country: CountryCode | None = None
+    bracket: str | None = None
     links: list[Link] = []
 
 
@@ -31,6 +32,7 @@ class AdminTeamUpdate(PydanticBase):
     id: UUID
     name: str | None = None
     country: CountryCode | None = None
+    bracket: str | None = None
     links: list[Link] | None = None
 
 
@@ -38,6 +40,7 @@ class AdminTeamRead(PydanticBase):
     id: UUID
     name: str
     country: str | None = None
+    bracket: str | None = None
     links: list[Link] = []
 
 
@@ -63,6 +66,7 @@ class PublicTeamRead(PydanticBase):
     id: UUID
     name: str
     country: str | None
+    bracket: str | None
     members: list[PublicTeamMember]
     challenge_stats: list[TeamChallengeStats]
     invite_code: str | None

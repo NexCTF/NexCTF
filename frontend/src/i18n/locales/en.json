@@ -122,6 +122,8 @@
     "col_adjustments": "Adjustments",
     "col_solves": "Count",
     "col_last_solve": "Last Solve",
+    "bracket_global": "Global",
+    "bracket_label": "Bracket",
     "chart_title": "Score Evolution",
     "chart_no_data": "No score events yet.",
     "not_started_banner": "Competition starts on {{date}}",
@@ -367,13 +369,15 @@
       "col_progress": "Progress",
       "col_attempts": "Attempts",
       "field_country": "Country",
+      "field_bracket": "Bracket",
       "field_links": "Links",
       "add_link": "Add link",
       "link_label_placeholder": "Label",
       "info_saved": "Team info saved",
       "info_save_error": "Failed to save team info",
       "edit_info_title": "Edit Team",
-      "country_hint": "ISO 3166-1 alpha-2 code (e.g. FR, US)"
+      "country_hint": "ISO 3166-1 alpha-2 code (e.g. FR, US)",
+      "bracket_hint": "Groups this team into a sub-scoreboard (e.g. student, pro). Leave empty for none."
     },
     "custom_fields": {
       "title": "Custom Fields",

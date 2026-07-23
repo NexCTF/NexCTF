@@ -283,6 +283,7 @@ def _build_team_read(
         id=team.id,
         name=team.name,
         country=team.country,
+        bracket=team.bracket,
         members=members,
         challenge_stats=stats,
         invite_code=team.invite_code,
