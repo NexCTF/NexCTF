@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Clock, Snowflake, Trophy } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   CartesianGrid,
@@ -12,6 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { BracketSelect } from "@/components/bracket-select";
 import {
   getPublicInfo,
   getScoreboard,
@@ -64,13 +66,16 @@ function RankBadge({ rank }: { rank: number }) {
   );
 }
 
-function ScoreboardRow({ entry }: { entry: ScoreboardEntry }) {
+function ScoreboardRow({ entry, showBracket }: { entry: ScoreboardEntry; showBracket: boolean }) {
   return (
     <tr className="transition-colors hover:bg-muted/30">
       <td className="px-4 py-3">
         <RankBadge rank={entry.rank} />
       </td>
       <td className="px-4 py-3 font-medium">{entry.team_name}</td>
+      {showBracket && (
+        <td className="px-4 py-3 text-muted-foreground capitalize">{entry.team_bracket ?? "—"}</td>
+      )}
       <td className="px-4 py-3 text-right font-semibold tabular-nums">{entry.total}</td>
     </tr>
   );
@@ -187,6 +192,7 @@ function ScoreEvolutionChart({ series }: { series: TeamScoreSeries[] }) {
 
 function ScoreboardPage() {
   const { t } = useTranslation();
+  const [bracket, setBracket] = useState<string | undefined>(undefined);
 
   const { data: publicInfo } = useQuery({
     queryKey: ["public-info"],
@@ -195,14 +201,14 @@ function ScoreboardPage() {
   });
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["scoreboard"],
-    queryFn: getScoreboard,
+    queryKey: ["scoreboard", bracket],
+    queryFn: () => getScoreboard(bracket),
     refetchInterval: 30_000,
   });
 
   const { data: historyData } = useQuery({
-    queryKey: ["scoreboard", "history"],
-    queryFn: () => getScoreboardHistory(10),
+    queryKey: ["scoreboard", "history", bracket],
+    queryFn: () => getScoreboardHistory(10, bracket),
     refetchInterval: 30_000,
   });
 
@@ -219,9 +225,13 @@ function ScoreboardPage() {
 
   return (
     <div className="mx-auto max-w-screen-lg px-4 py-10 space-y-8">
-      <div className="flex items-center gap-3">
-        <Trophy className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">{t("scoreboard.title")}</h1>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Trophy className="h-6 w-6 text-primary" />
+          <h1 className="text-2xl font-bold">{t("scoreboard.title")}</h1>
+        </div>
+
+        {data && <BracketSelect brackets={data.brackets} value={bracket} onChange={setBracket} />}
       </div>
 
       {isNotStarted && (
@@ -280,6 +290,11 @@ function ScoreboardPage() {
                   <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
                     {t("scoreboard.col_team")}
                   </th>
+                  {data.brackets.length > 0 && (
+                    <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
+                      {t("scoreboard.bracket_label")}
+                    </th>
+                  )}
                   <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">
                     {t("scoreboard.col_total")}
                   </th>
@@ -288,12 +303,21 @@ function ScoreboardPage() {
               <tbody className="divide-y">
                 {data.entries.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
+                    <td
+                      colSpan={data.brackets.length > 0 ? 4 : 3}
+                      className="px-4 py-8 text-center text-muted-foreground"
+                    >
                       {t("scoreboard.empty")}
                     </td>
                   </tr>
                 ) : (
-                  data.entries.map((entry) => <ScoreboardRow key={entry.team_id} entry={entry} />)
+                  data.entries.map((entry) => (
+                    <ScoreboardRow
+                      key={entry.team_id}
+                      entry={entry}
+                      showBracket={data.brackets.length > 0}
+                    />
+                  ))
                 )}
               </tbody>
             </table>

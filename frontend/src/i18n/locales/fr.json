@@ -122,6 +122,8 @@
     "col_adjustments": "Ajustements",
     "col_solves": "Résolus",
     "col_last_solve": "Dernier solve",
+    "bracket_global": "Global",
+    "bracket_label": "Catégorie",
     "chart_title": "Évolution des scores",
     "chart_no_data": "Aucun événement de score pour l'instant.",
     "not_started_banner": "La compétition commence le {{date}}",
@@ -367,13 +369,15 @@
       "col_progress": "Progression",
       "col_attempts": "Tentatives",
       "field_country": "Pays",
+      "field_bracket": "Catégorie",
       "field_links": "Liens",
       "add_link": "Ajouter un lien",
       "link_label_placeholder": "Libellé",
       "info_saved": "Infos équipe enregistrées",
       "info_save_error": "Échec de l'enregistrement des infos équipe",
       "edit_info_title": "Modifier l'équipe",
-      "country_hint": "Code ISO 3166-1 alpha-2 (ex: FR, US)"
+      "country_hint": "Code ISO 3166-1 alpha-2 (ex: FR, US)",
+      "bracket_hint": "Regroupe cette équipe dans un sous-classement (ex: étudiant, pro). Laisser vide pour aucun."
     },
     "custom_fields": {
       "title": "Champs personnalisés",

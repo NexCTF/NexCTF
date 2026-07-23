@@ -28,6 +28,7 @@ class Team(Base):
 
     name: Mapped[str] = mapped_column(unique=True, index=True)
     country: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    bracket: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     links: Mapped[list] = mapped_column(
         JSONB, default=list, server_default=text("'[]'::jsonb")
     )

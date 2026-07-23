@@ -33,9 +33,10 @@ async def get_scoreboard_endpoint(
     session: SessionDep,
     redis: RedisDep,
     user: OptionalCurrentUserDep = None,
+    bracket: str | None = Query(default=None),
 ) -> Response[PublicScoreboard]:
     _check_scoreboard_visibility(user)
-    result = await get_scoreboard(session, redis)
+    result = await get_scoreboard(session, redis, bracket=bracket)
     return Response(data=result)
 
 
@@ -45,9 +46,10 @@ async def get_scoreboard_history_endpoint(
     redis: RedisDep,
     user: OptionalCurrentUserDep = None,
     limit: int = Query(default=10, ge=1, le=25),
+    bracket: str | None = Query(default=None),
 ) -> Response[ScoreboardHistory]:
     _check_scoreboard_visibility(user)
-    result = await get_scoreboard_history(session, redis, limit=limit)
+    result = await get_scoreboard_history(session, redis, limit=limit, bracket=bracket)
     return Response(data=result)
 
 

@@ -6,8 +6,9 @@ from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 
 import nexctf.crud as crud
-from nexctf.api.dep import SessionDep
+from nexctf.api.dep import RedisDep, SessionDep
 from nexctf.model import CustomFieldValue, Submission, Team
+from nexctf.module.scoreboard.cache import invalidate as invalidate_scoreboard
 from nexctf.module.stats import compute_admin_team_challenge_stats
 from nexctf.schema.custom_field import AdminCustomFieldValueRead
 from nexctf.schema.stats import AdminTeamChallengeStats
@@ -59,6 +60,7 @@ async def get_team_detail(
             id=team.id,
             name=team.name,
             country=team.country,
+            bracket=team.bracket,
             links=team.links or [],
             users=[AdminTeamMember.model_validate(u) for u in team.users],
             custom_field_values=[
@@ -106,15 +108,20 @@ async def get_team(
 @team_router.put("/{uuid}")
 async def update_team(
     session: SessionDep,
+    redis: RedisDep,
     uuid: UUID,
     obj: AdminTeamUpdate,
 ) -> Response[AdminTeamRead]:
-    return await crud.TeamCrud.update(
+    result = await crud.TeamCrud.update(
         session=session,
         filters=[Team.id == uuid],
         obj=obj,
         schema=AdminTeamRead,
     )
+    # name/bracket changes affect scoreboard entries; drop this team's cached views
+    if obj.name is not None or obj.bracket is not None:
+        await invalidate_scoreboard(redis, team_id=uuid)
+    return result
 
 
 @team_router.delete("/{uuid}")

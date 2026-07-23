@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ChevronRight, RefreshCw, Trophy } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { BracketSelect } from "@/components/bracket-select";
 import { Button } from "@/components/ui/button";
 import { apiErrorMessage, getAdminScoreboard, invalidateScoreboardCache } from "@/lib/api";
 
@@ -30,10 +32,11 @@ function ScoreboardSection() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [bracket, setBracket] = useState<string | undefined>(undefined);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "scoreboard"],
-    queryFn: getAdminScoreboard,
+    queryKey: ["admin", "scoreboard", bracket],
+    queryFn: () => getAdminScoreboard(bracket),
     refetchInterval: 30_000,
   });
 
@@ -49,12 +52,20 @@ function ScoreboardSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">{t("admin.scoreboard.rankings_title")}</h2>
-        <Button variant="outline" size="sm" onClick={() => invalidate()} disabled={isInvalidating}>
-          <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isInvalidating ? "animate-spin" : ""}`} />
-          {t("admin.scoreboard.invalidate_cache")}
-        </Button>
+        <div className="flex items-center gap-2">
+          {data && <BracketSelect brackets={data.brackets} value={bracket} onChange={setBracket} />}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => invalidate()}
+            disabled={isInvalidating}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isInvalidating ? "animate-spin" : ""}`} />
+            {t("admin.scoreboard.invalidate_cache")}
+          </Button>
+        </div>
       </div>
 
       {isLoading && <p className="text-muted-foreground text-sm">{t("common.loading")}</p>}
@@ -71,6 +82,11 @@ function ScoreboardSection() {
                   <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
                     {t("scoreboard.col_team")}
                   </th>
+                  {data.brackets.length > 0 && (
+                    <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
+                      {t("scoreboard.bracket_label")}
+                    </th>
+                  )}
                   <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">
                     {t("scoreboard.col_total")}
                   </th>
@@ -89,7 +105,10 @@ function ScoreboardSection() {
               <tbody className="divide-y">
                 {data.entries.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                    <td
+                      colSpan={data.brackets.length > 0 ? 8 : 7}
+                      className="px-4 py-8 text-center text-muted-foreground"
+                    >
                       {t("scoreboard.empty")}
                     </td>
                   </tr>
@@ -109,6 +128,11 @@ function ScoreboardSection() {
                         <RankCell rank={entry.rank} />
                       </td>
                       <td className="px-4 py-3 font-medium">{entry.team_name}</td>
+                      {data.brackets.length > 0 && (
+                        <td className="px-4 py-3 text-muted-foreground capitalize">
+                          {entry.team_bracket ?? "—"}
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-right font-semibold tabular-nums">
                         {entry.total}
                       </td>

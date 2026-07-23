@@ -33,8 +33,8 @@ async def _question(session, challenge_id, points=100, malus=None):
     return q
 
 
-async def _team(session, name="TeamA"):
-    t = Team(name=name)
+async def _team(session, name="TeamA", bracket=None):
+    t = Team(name=name, bracket=bracket)
     session.add(t)
     await session.flush()
     return t
@@ -138,6 +138,51 @@ async def test_compute_scoreboard_adjustment_only_team_last_solve_at_none(db_ses
     result = await compute_scoreboard(db_session)
     entry = next(e for e in result.entries if e.team_name == "AdjTeam")
     assert entry.total == 50
+
+
+async def test_compute_scoreboard_bracket_reranks_and_lists_brackets(db_session):
+    ch = await _challenge(db_session)
+    q = await _question(db_session, ch.id)
+    student_hi = await _team(db_session, "StudentHigh", bracket="student")
+    student_lo = await _team(db_session, "StudentLow", bracket="student")
+    pro = await _team(db_session, "Pro", bracket="pro")
+    await _submission(db_session, student_hi.id, q.id, points_earned=200)
+    await _submission(db_session, student_lo.id, q.id, points_earned=50)
+    await _submission(db_session, pro.id, q.id, points_earned=300)
+
+    result = await compute_scoreboard(db_session, bracket="student")
+    assert sorted(result.brackets) == ["pro", "student"]
+    assert [e.team_name for e in result.entries] == ["StudentHigh", "StudentLow"]
+    assert [e.rank for e in result.entries] == [1, 2]
+
+
+async def test_compute_scoreboard_history_bracket_filters_series(db_session):
+    ch = await _challenge(db_session)
+    q = await _question(db_session, ch.id, points=100)
+    student = await _team(db_session, "StudentHist", bracket="student")
+    pro = await _team(db_session, "ProHist", bracket="pro")
+    await _submission(db_session, student.id, q.id, points_earned=100)
+    await _submission(db_session, pro.id, q.id, points_earned=100)
+
+    result = await compute_scoreboard_history(db_session, bracket="student")
+    assert [s.team_name for s in result.series] == ["StudentHist"]
+
+
+async def test_compute_admin_scoreboard_bracket_reranks_and_lists_brackets(db_session):
+    from nexctf.module.scoreboard.compute import compute_admin_scoreboard
+
+    ch = await _challenge(db_session)
+    q = await _question(db_session, ch.id)
+    student = await _team(db_session, "StudentAdmin", bracket="student")
+    pro = await _team(db_session, "ProAdmin", bracket="pro")
+    await _submission(db_session, student.id, q.id, points_earned=100)
+    await _submission(db_session, pro.id, q.id, points_earned=200)
+
+    result = await compute_admin_scoreboard(db_session, bracket="student")
+    assert sorted(result.brackets) == ["pro", "student"]
+    assert [e.team_name for e in result.entries] == ["StudentAdmin"]
+    assert result.entries[0].rank == 1
+    assert result.entries[0].team_bracket == "student"
 
 
 async def test_compute_team_score_not_found(db_session):

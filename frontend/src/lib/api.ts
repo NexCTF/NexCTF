@@ -348,6 +348,7 @@ export interface MyTeam {
   id: string;
   name: string;
   country: string | null;
+  bracket: string | null;
   members: MyTeamMember[];
   challenge_stats: TeamChallengeStats[];
   invite_code: string | null;
@@ -555,6 +556,7 @@ export interface Team {
   id: string;
   name: string;
   country: string | null;
+  bracket: string | null;
   links: Link[];
 }
 
@@ -573,7 +575,7 @@ export interface TeamDetail extends Team {
 
 export async function updateAdminTeam(
   teamId: string,
-  data: { name?: string; country?: string | null; links?: Link[] },
+  data: { name?: string; country?: string | null; bracket?: string | null; links?: Link[] },
 ): Promise<Team> {
   return request<Team>(`/admin/team/${teamId}`, {
     method: "PUT",
@@ -1428,12 +1430,14 @@ export interface ScoreboardEntry {
   rank: number;
   team_id: string;
   team_name: string;
+  team_bracket: string | null;
   total: number;
 }
 
 export interface Scoreboard {
   entries: ScoreboardEntry[];
   computed_at: string;
+  brackets: string[];
 }
 
 export interface SolveDetail {
@@ -1484,14 +1488,18 @@ export interface ScoreboardHistory {
   computed_at: string;
 }
 
-export async function getScoreboard(): Promise<Scoreboard> {
-  return request<Scoreboard>("/scoreboard");
+export async function getScoreboard(bracket?: string): Promise<Scoreboard> {
+  const params = new URLSearchParams();
+  if (bracket) params.set("bracket", bracket);
+  const qs = params.toString();
+  return request<Scoreboard>(qs ? `/scoreboard?${qs}` : "/scoreboard");
 }
 
 export interface AdminScoreboardEntry {
   rank: number;
   team_id: string;
   team_name: string;
+  team_bracket: string | null;
   total: number;
   solve_points: number;
   adjustment_points: number;
@@ -1502,18 +1510,27 @@ export interface AdminScoreboardEntry {
 export interface AdminScoreboard {
   entries: AdminScoreboardEntry[];
   computed_at: string;
+  brackets: string[];
 }
 
-export async function getAdminScoreboard(): Promise<AdminScoreboard> {
-  return request<AdminScoreboard>("/admin/scoreboard");
+export async function getAdminScoreboard(bracket?: string): Promise<AdminScoreboard> {
+  const params = new URLSearchParams();
+  if (bracket) params.set("bracket", bracket);
+  const qs = params.toString();
+  return request<AdminScoreboard>(qs ? `/admin/scoreboard?${qs}` : "/admin/scoreboard");
 }
 
 export async function getTeamScore(teamId: string): Promise<TeamScoreDetail> {
   return request<TeamScoreDetail>(`/scoreboard/team/${teamId}`);
 }
 
-export async function getScoreboardHistory(limit = 10): Promise<ScoreboardHistory> {
-  return request<ScoreboardHistory>(`/scoreboard/history?limit=${limit}`);
+export async function getScoreboardHistory(
+  limit = 10,
+  bracket?: string,
+): Promise<ScoreboardHistory> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (bracket) params.set("bracket", bracket);
+  return request<ScoreboardHistory>(`/scoreboard/history?${params}`);
 }
 
 // ---------------------------------------------------------------------------

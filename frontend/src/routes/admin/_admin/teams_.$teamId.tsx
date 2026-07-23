@@ -53,6 +53,7 @@ function EditTeamDialog({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(team.name);
   const [country, setCountry] = useState(team.country ?? "");
+  const [bracket, setBracket] = useState(team.bracket ?? "");
   const [links, setLinks] = useState<Link[]>(team.links);
   const [cfValues, setCfValues] = useState<Record<string, string>>(
     Object.fromEntries(team.custom_field_values.map((cfv) => [cfv.definition.id, cfv.value ?? ""])),
@@ -72,6 +73,7 @@ function EditTeamDialog({
       await updateAdminTeam(teamId, {
         name,
         country: country.toUpperCase() || null,
+        bracket: bracket.trim() || null,
         links,
       });
       await Promise.all(
@@ -130,6 +132,17 @@ function EditTeamDialog({
               className="font-mono uppercase w-24"
             />
             <p className="text-xs text-muted-foreground">{t("admin.teams.country_hint")}</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>{t("admin.teams.field_bracket")}</Label>
+            <Input
+              value={bracket}
+              onChange={(e) => setBracket(e.target.value)}
+              placeholder="student"
+              className="w-44"
+            />
+            <p className="text-xs text-muted-foreground">{t("admin.teams.bracket_hint")}</p>
           </div>
 
           <LinksFormSection links={links} onChange={setLinks} />
@@ -348,6 +361,16 @@ function TeamDetailPage() {
                     className={team.country ? "font-mono font-medium" : "text-muted-foreground"}
                   >
                     {team.country ?? "—"}
+                  </span>
+                </div>
+                <div className="flex gap-2 px-4 py-3">
+                  <span className="text-muted-foreground w-24 shrink-0">
+                    {t("admin.teams.field_bracket")}
+                  </span>
+                  <span
+                    className={team.bracket ? "font-medium capitalize" : "text-muted-foreground"}
+                  >
+                    {team.bracket ?? "—"}
                   </span>
                 </div>
                 {team.links.length > 0 && (
