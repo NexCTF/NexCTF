@@ -22,7 +22,7 @@ from nexctf.plugins.registry import (
     challenge_registry,
     solution_registry,
 )
-from nexctf.util.datetime import parse_config_dt
+from nexctf.util.datetime import is_config_dt_past, parse_config_dt
 from nexctf.util.ip import get_client_ip
 
 SessionDep = Annotated[AsyncSession, Depends(db)]
@@ -99,8 +99,7 @@ async def _event_ended(user: OptionalCurrentUserDep = None) -> None:
     """Raise EventEndedError after the CTF ends. Admins/mods bypass."""
     if _is_staff(user):
         return
-    end_time = parse_config_dt("ctf.end_time")
-    if end_time is not None and datetime.now(timezone.utc) > end_time:
+    if is_config_dt_past("ctf.end_time"):
         raise EventEndedError()
 
 

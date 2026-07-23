@@ -71,6 +71,12 @@ def _competition():
             default=True,
             description="config.ctf.allow_team_creation.description",
         ),
+        ConfigDef(
+            key="ctf.release_writeups_after_end",
+            label="config.ctf.release_writeups_after_end.label",
+            default=False,
+            description="config.ctf.release_writeups_after_end.description",
+        ),
     ]
 
 

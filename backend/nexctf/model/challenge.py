@@ -46,6 +46,7 @@ class Challenge(Base):
     challenge_type: Mapped[str] = mapped_column(index=True)
     title: Mapped[str] = mapped_column(unique=True, index=True)
     description: Mapped[str | None]
+    writeup: Mapped[str | None]
     is_active: Mapped[bool] = mapped_column(default=False)
     sequential: Mapped[bool] = mapped_column(default=False)
 

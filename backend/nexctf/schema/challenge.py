@@ -9,6 +9,7 @@ from nexctf.schema.tag import AdminTagRead, PublicTagRead
 class AdminChallengeCreate(PydanticBase):
     title: str
     description: str | None = None
+    writeup: str | None = None
     is_active: bool = False
     sequential: bool = False
     category_id: UUID | None = None
@@ -19,6 +20,7 @@ class AdminChallengeUpdate(PydanticBase):
     id: UUID
     title: str | None = None
     description: str | None = None
+    writeup: str | None = None
     is_active: bool | None = None
     sequential: bool | None = None
     category_id: UUID | None = None
@@ -33,6 +35,7 @@ class AdminChallengeRead(PydanticBase):
     is_active: bool
     sequential: bool
     description: str | None
+    writeup: str | None = None
     author_id: UUID | None
     category_id: UUID | None
     category_name: str | None = None
@@ -53,6 +56,7 @@ class PublicChallengeRead(PydanticBase):
 class PublicChallengeDetail(PublicChallengeRead):
     challenge_type: str
     description: str | None = None
+    writeup: str | None = None
     sequential: bool
     questions: list[PublicQuestionRead]
 

@@ -81,6 +81,16 @@ def challenge() -> list[StandardChallenge]:
             id=UUID("a1000000-0000-4000-8000-000000000001"),
             title="Web Basics",
             description="A beginner-friendly web challenge. Find the hidden flag on this simple site.",
+            writeup=(
+                "## Solution\n\n"
+                "The flag for the first question is hidden in an HTML comment in the "
+                "page source (`Ctrl+U` / View Page Source).\n\n"
+                "The `/admin` path is protected by HTTP Basic Auth using the default "
+                "credentials `admin:admin` — the second flag is on that page.\n\n"
+                "```\n"
+                "curl -u admin:admin https://target/admin\n"
+                "```\n"
+            ),
             is_active=True,
             category_id=_catid("pentest"),
         ),

@@ -16,3 +16,9 @@ def parse_config_dt(key: str) -> datetime | None:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt
+
+
+def is_config_dt_past(key: str) -> bool:
+    """Return True if the given appconfig datetime key is set and in the past."""
+    dt = parse_config_dt(key)
+    return dt is not None and datetime.now(timezone.utc) > dt
