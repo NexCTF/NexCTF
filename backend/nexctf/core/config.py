@@ -131,4 +131,4 @@ class Settings(BaseSettings):
         return self.S3_PUBLIC_URL or self.S3_URL
 
 
-settings = Settings()  # type: ignore
+settings = Settings()
