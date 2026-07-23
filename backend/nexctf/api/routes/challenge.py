@@ -40,6 +40,7 @@ from nexctf.schema.challenge import (
 from nexctf.schema.file import PublicFileRead
 from nexctf.schema.hint import PublicHintRead
 from nexctf.schema.question import PublicQuestionRead
+from nexctf.util.datetime import is_config_dt_past
 
 challenge_router = APIRouter(prefix="/challenges", tags=["Challenges"])
 
@@ -93,6 +94,16 @@ async def _solved_ids(
         .distinct()
     )
     return {r[0] for r in rows}
+
+
+def _writeup_visible(*, challenge_completed: bool) -> bool:
+    """A writeup shows once the team completes the challenge, or once the CTF
+    ends if the admin opted to release writeups after the event."""
+    if challenge_completed:
+        return True
+    return bool(appconfig.get("ctf.release_writeups_after_end")) and is_config_dt_past(
+        "ctf.end_time"
+    )
 
 
 async def _unlocked_ids(
@@ -222,11 +233,19 @@ async def get_challenge(
         for i, q in enumerate(questions)
     ]
 
+    challenge_completed = len(questions) > 0 and len(solved) == len(questions)
+    writeup = (
+        structure.writeup
+        if _writeup_visible(challenge_completed=challenge_completed)
+        else None
+    )
+
     return Response(
         data=PublicChallengeDetail(
             id=structure.id,
             title=structure.title,
             description=structure.description,
+            writeup=writeup,
             category_id=structure.category_id,
             category_name=structure.category_name,
             question_count=len(questions),

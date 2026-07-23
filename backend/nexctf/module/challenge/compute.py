@@ -71,6 +71,7 @@ class ChallengeDetailStructure(BaseModel):
     id: UUID
     title: str
     description: str | None
+    writeup: str | None
     category_id: UUID | None
     category_name: str | None
     challenge_type: str
@@ -211,6 +212,7 @@ async def compute_detail_structure(
         id=challenge.id,
         title=challenge.title,
         description=challenge.description,
+        writeup=challenge.writeup,
         category_id=challenge.category_id,
         category_name=challenge.category_name,
         challenge_type=challenge.challenge_type,

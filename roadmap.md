@@ -11,9 +11,11 @@
 - [x] Forgot password
 - [x] External links
 
+## 0.5.0
+- [x] Challenge writeup
+
 ## Before v1.0 release
 - [ ] Challenge feedback
-- [ ] Challenge writeup
 - [ ] Event import/export/sync
 - [ ] Plugins workflow
 - [ ] Documentation

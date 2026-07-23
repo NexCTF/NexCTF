@@ -107,7 +107,8 @@
     "answer_placeholder": "Enter your answer…",
     "submit": "Submit",
     "submitting": "Checking…",
-    "submit_error": "Submission failed"
+    "submit_error": "Submission failed",
+    "writeup_title": "Writeup"
   },
   "scoreboard": {
     "title": "Scoreboard",
@@ -437,6 +438,8 @@
       "info_title": "Challenge Info",
       "field_title": "Title",
       "field_description": "Description",
+      "field_writeup": "Writeup",
+      "field_writeup_hint": "Markdown, shown to players once they complete the challenge (or after the event ends, if enabled)",
       "field_category": "Category",
       "field_tags": "Tags",
       "no_category": "No category",
@@ -798,6 +801,10 @@
       "allow_team_creation": {
         "label": "Allow Team Creation",
         "description": "Allow players to create teams and generate invite codes"
+      },
+      "release_writeups_after_end": {
+        "label": "Release Writeups After End",
+        "description": "Reveal challenge writeups to everyone once the competition ends, even for unsolved challenges"
       },
       "description": {
         "label": "CTF Description",

@@ -80,6 +80,7 @@ const SKIP_CHALLENGE = new Set([
   "id",
   "title",
   "description",
+  "writeup",
   "is_active",
   "sequential",
   "category_id",
@@ -116,6 +117,7 @@ function ChallengeInfoSection({ challenge }: { challenge: ChallengeDetail }) {
   const [form, setForm] = useState<Record<string, unknown>>(() => ({
     title: challenge.title,
     description: challenge.description,
+    writeup: challenge.writeup,
     is_active: challenge.is_active,
     sequential: challenge.sequential,
     category_id: challenge.category_id,
@@ -183,6 +185,17 @@ function ChallengeInfoSection({ challenge }: { challenge: ChallengeDetail }) {
           rows={5}
           value={String(form.description ?? "")}
           onChange={(v) => update({ description: v || null })}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="ch-writeup">{t("admin.challenge.field_writeup")}</Label>
+        <p className="text-xs text-muted-foreground">{t("admin.challenge.field_writeup_hint")}</p>
+        <MarkdownEditor
+          id="ch-writeup"
+          rows={8}
+          value={String(form.writeup ?? "")}
+          onChange={(v) => update({ writeup: v || null })}
         />
       </div>
 

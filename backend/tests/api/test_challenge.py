@@ -8,6 +8,7 @@ import nexctf.core.appconfig as appconfig
 import pytest
 from httpx import AsyncClient
 
+from nexctf.api.routes.challenge import _writeup_visible
 from nexctf.model import Team, User
 
 NULL_UUID = "00000000-0000-0000-0000-000000000000"
@@ -150,6 +151,36 @@ class TestSubmitBeforeStart:
             json={"answer": "flag"},
         )
         assert resp.status_code == 403
+
+
+# ── writeup visibility ──────────────────────────────────────────────────────────
+
+
+class TestWriteupVisible:
+    @pytest.mark.parametrize(
+        ("challenge_completed", "release_after_end", "end_time", "expected"),
+        [
+            (True, "false", "", True),
+            (False, "false", PAST, False),
+            (False, "true", FUTURE, False),
+            (False, "true", PAST, True),
+        ],
+        ids=["completed", "toggle_off", "event_not_ended", "toggle_on_and_ended"],
+    )
+    def test_writeup_visible(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        challenge_completed: bool,
+        release_after_end: str,
+        end_time: str,
+        expected: bool,
+    ) -> None:
+        """Writeup shows once completed, or once the event ends if the toggle is on."""
+        monkeypatch.setitem(
+            appconfig._CACHE, "ctf.release_writeups_after_end", release_after_end
+        )
+        monkeypatch.setitem(appconfig._CACHE, "ctf.end_time", end_time)
+        assert _writeup_visible(challenge_completed=challenge_completed) is expected
 
 
 # ── hint unlock ────────────────────────────────────────────────────────────────

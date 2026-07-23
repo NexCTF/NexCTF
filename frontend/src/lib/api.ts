@@ -757,6 +757,7 @@ export interface PublicChallenge {
 export interface PublicChallengeDetail extends PublicChallenge {
   challenge_type: string;
   description: string | null;
+  writeup: string | null;
   sequential: boolean;
   questions: PublicQuestion[];
 }
@@ -874,6 +875,7 @@ export interface Challenge {
 
 export interface ChallengeDetail extends Challenge {
   description: string | null;
+  writeup: string | null;
   author_id: string | null;
 }
 

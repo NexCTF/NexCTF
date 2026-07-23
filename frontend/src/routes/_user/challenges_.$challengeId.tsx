@@ -147,6 +147,15 @@ function ChallengeView({ challenge }: { challenge: PublicChallengeDetail }) {
           <QuestionCard key={q.id} question={q} index={i} challengeId={challenge.id} />
         ))}
       </div>
+
+      {challenge.writeup && (
+        <div className="rounded-xl border bg-card p-5 space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            {t("challenge.writeup_title")}
+          </h2>
+          <Markdown className="text-sm">{challenge.writeup}</Markdown>
+        </div>
+      )}
     </div>
   );
 }
