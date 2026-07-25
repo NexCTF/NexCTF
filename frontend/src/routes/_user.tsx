@@ -124,6 +124,12 @@ function TopNav({ navPages }: { navPages: PublicPageSummary[] }) {
               {t("common.sign_out")}
             </Button>
           )}
+
+          {!user && (
+            <Link to="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+              {t("nav.login")}
+            </Link>
+          )}
         </div>
       </div>
     </header>

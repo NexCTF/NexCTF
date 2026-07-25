@@ -89,7 +89,8 @@
     "scoreboard": "Classement",
     "teams": "Équipes",
     "notifications": "Notifications",
-    "admin": "Admin"
+    "admin": "Admin",
+    "login": "Connexion"
   },
   "challenge": {
     "event_ended_banner": "Le CTF est terminé. Les soumissions ne sont plus acceptées.",
