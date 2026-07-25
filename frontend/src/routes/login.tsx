@@ -213,15 +213,7 @@ function LoginPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">{t("login.password")}</Label>
-                    <Link
-                      to="/forgot-password"
-                      className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
-                    >
-                      {t("login.forgot_password")}
-                    </Link>
-                  </div>
+                  <Label htmlFor="password">{t("login.password")}</Label>
                   <Input
                     id="password"
                     type="password"
@@ -230,6 +222,12 @@ function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
+                  <Link
+                    to="/forgot-password"
+                    className="block text-right text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                  >
+                    {t("login.forgot_password")}
+                  </Link>
                 </div>
               </>
             )}
