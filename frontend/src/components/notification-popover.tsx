@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { buttonVariants } from "@/components/ui/button";
 import { useSSEEvent } from "@/hooks/use-sse-event";
 import { getMyNotifications, markNotificationsRead, type Notification } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -41,13 +42,10 @@ export function NotificationPopover() {
   return (
     <Popover.Root open={open} onOpenChange={handleOpenChange}>
       <Popover.Trigger
-        className={cn(
-          "relative inline-flex size-9 items-center justify-center rounded-md text-sm transition-colors outline-none",
-          "hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring",
-        )}
+        className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "relative")}
         title={t("nav.notifications", { defaultValue: "Notifications" })}
       >
-        <Bell className="size-4" />
+        <Bell />
         {hasUnread && (
           <span className="absolute top-1.5 right-1.5 flex size-2">
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-red-500 opacity-75" />

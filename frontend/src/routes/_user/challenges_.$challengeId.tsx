@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { Markdown } from "@/components/markdown";
 import { PluginSlot } from "@/components/plugin-slot";
 import { TagBadge } from "@/components/tag-badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -266,9 +266,9 @@ function QuestionCard({
                     href={f.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:border-primary hover:bg-muted/50 transition-colors"
+                    className={buttonVariants({ variant: "outline", size: "sm" })}
                   >
-                    <FileText className="size-3.5 text-muted-foreground" />
+                    <FileText className="text-muted-foreground" />
                     {f.name}
                     {f.file_size != null && (
                       <span className="text-xs text-muted-foreground">

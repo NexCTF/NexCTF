@@ -312,13 +312,13 @@ function TeamDetailPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-destructive hover:text-destructive"
+            className="size-7 text-destructive hover:text-destructive"
             onClick={(e) => {
               e.stopPropagation();
               if (confirm(t("admin.teams.submission_delete_confirm"))) removeSubmission(sub.id);
             }}
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="size-3.5" />
           </Button>
         </div>
       ),
@@ -640,7 +640,7 @@ function TeamDetailPage() {
                     }
                   }}
                 >
-                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                  <Trash2 />
                   {t("common.delete")}
                 </Button>
               </div>

@@ -570,7 +570,7 @@ export function DataTable<T>({
             onClick={() => setPage(state.page - 1)}
             disabled={state.page <= 1 || isFetching}
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft />
             {t("table.previous", { defaultValue: "Previous" })}
           </Button>
           <Button
@@ -580,7 +580,7 @@ export function DataTable<T>({
             disabled={!pagination?.has_more || isFetching}
           >
             {t("table.next", { defaultValue: "Next" })}
-            <ChevronRight className="size-4" />
+            <ChevronRight />
           </Button>
         </div>
       </div>
