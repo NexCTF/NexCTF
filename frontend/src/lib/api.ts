@@ -141,6 +141,7 @@ export interface User {
   team_id: string | null;
   team_name: string | null;
   totp_enabled: boolean;
+  has_password: boolean;
   links: Link[];
 }
 
@@ -314,6 +315,13 @@ export async function getMyOAuthAccounts(): Promise<OAuthAccount[]> {
 
 export async function deleteMyOAuthAccount(id: string): Promise<void> {
   await rawRequest(`/me/oauth/${id}`, { method: "DELETE" });
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await rawRequest("/me/password", {
+    method: "POST",
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
 }
 
 export async function totpDisable(code: string): Promise<void> {

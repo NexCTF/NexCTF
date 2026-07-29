@@ -67,6 +67,10 @@ class User(Base):
     def totp_enabled(self) -> bool:
         return self.totp_secret is not None
 
+    @property
+    def has_password(self) -> bool:
+        return self.hashed_password is not None
+
     oauth_accounts: Mapped[list["OAuthAccount"]] = relationship(back_populates="user")
     tokens: Mapped[list["UserToken"]] = relationship(back_populates="user")
     custom_field_values: Mapped[list["CustomFieldValue"]] = relationship(

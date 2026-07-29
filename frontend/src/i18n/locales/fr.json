@@ -657,6 +657,18 @@
   "settings": {
     "title": "Paramètres",
     "subtitle": "Gérez les paramètres de votre compte.",
+    "password": {
+      "section_title": "Mot de passe",
+      "section_hint": "Changez votre mot de passe. Les autres sessions actives seront déconnectées.",
+      "current": "Mot de passe actuel",
+      "new": "Nouveau mot de passe",
+      "confirm": "Confirmer le nouveau mot de passe",
+      "submit": "Changer le mot de passe",
+      "changed": "Mot de passe modifié",
+      "mismatch": "Les mots de passe ne correspondent pas",
+      "wrong_current": "Le mot de passe actuel est incorrect",
+      "error": "Impossible de changer le mot de passe"
+    },
     "totp": {
       "section_title": "Authentification à deux facteurs",
       "section_hint": "Ajoutez une couche de sécurité supplémentaire avec une application d'authentification.",

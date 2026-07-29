@@ -36,6 +36,7 @@ class PublicUserRead(PydanticBase):
     team_id: UUID | None = None
     team_name: str | None = None
     totp_enabled: bool = False
+    has_password: bool = False
     links: list[Link] = []
 
 
@@ -81,6 +82,7 @@ class UserTotpUpdate(PydanticBase):
 class UserPasswordUpdate(PydanticBase):
     id: UUID | None = None
     hashed_password: str | None = None
+    session_version: int | None = None
 
 
 class UserTeamUpdate(PydanticBase):
@@ -89,6 +91,11 @@ class UserTeamUpdate(PydanticBase):
 
 class PasswordResetRequest(PydanticBase):
     token: str
+    new_password: str
+
+
+class PasswordChangeRequest(PydanticBase):
+    current_password: str
     new_password: str
 
 

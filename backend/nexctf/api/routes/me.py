@@ -7,6 +7,7 @@ from uuid import UUID
 
 import pyotp
 from fastapi import APIRouter, Request
+from fastapi.responses import Response as RawResponse
 from fastapi_toolsets.schemas import PaginatedResponse, PaginationType, Response
 from sqlalchemy.orm import selectinload
 
@@ -16,6 +17,7 @@ from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from nexctf.exceptions import (
     CannotUnlinkLastOAuthError,
     AlreadyInTeamError,
+    InvalidCredentialsError,
     InvalidInviteCodeError,
     InvalidOtpError,
     NotInTeamError,
@@ -25,7 +27,12 @@ from nexctf.exceptions import (
     TotpNotEnabledError,
 )
 from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
-from nexctf.api.security import create_api_token
+from nexctf.api.security import (
+    cookie_auth,
+    create_api_token,
+    hash_password,
+    verify_password,
+)
 from nexctf.util.ip import get_client_ip
 from nexctf.module.events import emit
 from nexctf.module.stats import get_team_challenge_stats
@@ -45,7 +52,13 @@ from nexctf.schema.team import (
     TeamJoinRequest,
 )
 from nexctf.schema.stats import TeamChallengeStats
-from nexctf.schema.user import TotpDisableRequest, TotpEnableRequest, TotpSetupResponse
+from nexctf.schema.user import (
+    PasswordChangeRequest,
+    TotpDisableRequest,
+    TotpEnableRequest,
+    TotpSetupResponse,
+    UserPasswordUpdate,
+)
 
 me_router = APIRouter(prefix="/me", tags=["me"])
 
@@ -187,6 +200,40 @@ async def unlink_oauth_account(
         actor_id=user.id,
         ip=get_client_ip(request),
         meta={"provider": provider_slug},
+    )
+
+
+@me_router.post("/password", status_code=204)
+async def change_password(
+    request: Request,
+    session: SessionDep,
+    redis: RedisDep,
+    response: RawResponse,
+    body: PasswordChangeRequest,
+    user: CurrentUserDep,
+):
+    """Verify the current password, replace it, and log out other sessions."""
+    if not user.hashed_password or not verify_password(
+        body.current_password, user.hashed_password
+    ):
+        raise InvalidCredentialsError()
+    session_version = user.session_version + 1
+    await crud.UserCrud.update(
+        session=session,
+        filters=[User.id == user.id],
+        obj=UserPasswordUpdate(
+            id=user.id,
+            hashed_password=hash_password(body.new_password),
+            session_version=session_version,
+        ),
+    )
+    cookie_auth.set_cookie(response, f"{user.id}:{session_version}")
+    await emit(
+        session,
+        redis,
+        event_type="user.password_changed",
+        actor_id=user.id,
+        ip=get_client_ip(request),
     )
 
 

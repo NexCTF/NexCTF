@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
-import { ExternalLink, Settings, Shield } from "lucide-react";
+import { ExternalLink, LogIn, LogOut, Settings, Shield } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { NotificationPopover } from "@/components/notification-popover";
@@ -121,12 +121,14 @@ function TopNav({ navPages }: { navPages: PublicPageSummary[] }) {
                 navigate({ to: "/login" });
               }}
             >
+              <LogOut className="h-4 w-4 mr-1.5" />
               {t("common.sign_out")}
             </Button>
           )}
 
           {!user && (
             <Link to="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+              <LogIn className="h-4 w-4 mr-1.5" />
               {t("nav.login")}
             </Link>
           )}
