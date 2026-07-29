@@ -36,7 +36,7 @@ function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { name } = useBranding();
+  const { name, logoUrl } = useBranding();
 
   const { data: publicInfo } = useQuery({
     queryKey: ["info", "public"],
@@ -154,7 +154,13 @@ function LoginPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold">{name}</CardTitle>
+          <CardTitle className="text-3xl font-bold">
+            {logoUrl ? (
+              <img src={logoUrl} alt={name} className="mx-auto h-16 max-w-full object-contain" />
+            ) : (
+              name
+            )}
+          </CardTitle>
           <CardDescription>
             {totpRequired ? t("login.totp_subtitle") : t("login.subtitle")}
           </CardDescription>
