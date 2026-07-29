@@ -22,8 +22,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.core.appconfig import (
-    ConfigDef,
     REDIS_HASH,
+    ConfigDef,
     define,
     get,
     get_uncached_keys,

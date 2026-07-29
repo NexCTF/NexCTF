@@ -11,13 +11,13 @@ _config = Config(signature_version="s3v4", s3={"addressing_style": "path"})
 
 
 def _client_kwargs(endpoint_url: str) -> dict:
-    return dict(
-        endpoint_url=endpoint_url,
-        aws_access_key_id=settings.S3_ACCESS_KEY,
-        aws_secret_access_key=settings.S3_SECRET_KEY,
-        region_name=settings.S3_REGION,
-        config=_config,
-    )
+    return {
+        "endpoint_url": endpoint_url,
+        "aws_access_key_id": settings.S3_ACCESS_KEY,
+        "aws_secret_access_key": settings.S3_SECRET_KEY,
+        "region_name": settings.S3_REGION,
+        "config": _config,
+    }
 
 
 @asynccontextmanager

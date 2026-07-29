@@ -7,11 +7,11 @@ from .compute import (
 )
 
 __all__ = [
-    "get_detail_structure",
-    "get_list_structure",
-    "invalidate",
     "ChallengeDetailStructure",
     "ChallengeListItem",
     "HintStructure",
     "QuestionStructure",
+    "get_detail_structure",
+    "get_list_structure",
+    "invalidate",
 ]

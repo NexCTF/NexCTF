@@ -37,7 +37,7 @@ class CustomFieldDefinition(Base):
     is_required: Mapped[bool] = mapped_column(default=False)
     is_public: Mapped[bool] = mapped_column(default=True)
 
-    values: Mapped[list["CustomFieldValue"]] = relationship(
+    values: Mapped[list[CustomFieldValue]] = relationship(
         back_populates="definition", cascade="all, delete-orphan"
     )
 
@@ -57,6 +57,6 @@ class CustomFieldValue(Base):
         ForeignKey("teams.id", ondelete="CASCADE"), nullable=True, index=True
     )
 
-    definition: Mapped["CustomFieldDefinition"] = relationship(back_populates="values")
-    user: Mapped["User | None"] = relationship(back_populates="custom_field_values")
-    team: Mapped["Team | None"] = relationship(back_populates="custom_field_values")
+    definition: Mapped[CustomFieldDefinition] = relationship(back_populates="values")
+    user: Mapped[User | None] = relationship(back_populates="custom_field_values")
+    team: Mapped[Team | None] = relationship(back_populates="custom_field_values")

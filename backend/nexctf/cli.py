@@ -9,7 +9,7 @@ from fastapi_toolsets.cli.utils import async_command
 from rich.console import Console
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import nexctf.crud as crud
+from nexctf import crud
 from nexctf.api.security import TOKEN_PREFIX, _hash_token, hash_password
 from nexctf.core.config import settings
 from nexctf.core.db import get_db_context

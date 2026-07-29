@@ -36,12 +36,12 @@ class Team(Base):
         String(16), unique=True, index=True, nullable=True
     )
 
-    users: Mapped[list["User"]] = relationship(back_populates="team")
-    submissions: Mapped[list["Submission"]] = relationship(back_populates="team")
-    score_adjustments: Mapped[list["ScoreAdjustment"]] = relationship(
+    users: Mapped[list[User]] = relationship(back_populates="team")
+    submissions: Mapped[list[Submission]] = relationship(back_populates="team")
+    score_adjustments: Mapped[list[ScoreAdjustment]] = relationship(
         back_populates="team"
     )
-    custom_field_values: Mapped[list["CustomFieldValue"]] = relationship(
+    custom_field_values: Mapped[list[CustomFieldValue]] = relationship(
         back_populates="team", cascade="all, delete-orphan"
     )
 
@@ -71,13 +71,13 @@ class User(Base):
     def has_password(self) -> bool:
         return self.hashed_password is not None
 
-    oauth_accounts: Mapped[list["OAuthAccount"]] = relationship(back_populates="user")
-    tokens: Mapped[list["UserToken"]] = relationship(back_populates="user")
-    custom_field_values: Mapped[list["CustomFieldValue"]] = relationship(
+    oauth_accounts: Mapped[list[OAuthAccount]] = relationship(back_populates="user")
+    tokens: Mapped[list[UserToken]] = relationship(back_populates="user")
+    custom_field_values: Mapped[list[CustomFieldValue]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 
-    team: Mapped["Team | None"] = relationship(back_populates="users")
+    team: Mapped[Team | None] = relationship(back_populates="users")
     team_id: Mapped[UUID | None] = mapped_column(ForeignKey("teams.id"), nullable=True)
 
     @property
@@ -94,5 +94,5 @@ class UserToken(Base):
     token_hash: Mapped[str] = mapped_column(unique=True, index=True)
     expires_at: Mapped[datetime | None]
 
-    user: Mapped["User"] = relationship(back_populates="tokens")
+    user: Mapped[User] = relationship(back_populates="tokens")
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))

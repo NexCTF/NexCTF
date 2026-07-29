@@ -22,7 +22,7 @@ class Solution(Base):
 
     solve_type: Mapped[str] = mapped_column(index=True)
 
-    question: Mapped["Question"] = relationship(back_populates="solutions")
+    question: Mapped[Question] = relationship(back_populates="solutions")
     question_id: Mapped[UUID] = mapped_column(ForeignKey("questions.id"))
 
     @property

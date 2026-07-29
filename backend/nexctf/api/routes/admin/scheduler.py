@@ -7,12 +7,11 @@ from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 from sqlalchemy.orm import joinedload, selectinload
 
-import nexctf.crud as crud
+from nexctf import crud
 from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
 from nexctf.model.scheduler import SchedulerJob
 from nexctf.module.scheduler import force_run_job
 from nexctf.plugins.registry import SchedulerEntry, scheduler_registry
-from nexctf.util.pydantic import resolve_dynamic_defaults
 from nexctf.schema.scheduler import (
     AdminSchedulerJobCreate,
     AdminSchedulerJobCreateInternal,
@@ -22,6 +21,7 @@ from nexctf.schema.scheduler import (
     AdminSchedulerJobUpdate,
     AdminSchedulerTaskRead,
 )
+from nexctf.util.pydantic import resolve_dynamic_defaults
 
 scheduler_router = APIRouter(prefix="/scheduler", tags=["Scheduler"])
 

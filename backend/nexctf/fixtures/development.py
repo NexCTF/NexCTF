@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi_toolsets.fixtures import FixtureRegistry
@@ -20,7 +20,7 @@ from nexctf.model import (
 from nexctf.plugins.builtin.challenge import StandardChallenge
 from nexctf.plugins.builtin.solution.match.model import MatchSolution
 
-_CTF_START = datetime.now() - timedelta(hours=1)
+_CTF_START = datetime.now(UTC) - timedelta(hours=1)
 
 
 def _t(minutes: int) -> datetime:

@@ -1,6 +1,7 @@
 """Tests for the auth endpoints: register, token login/logout, /me/tokens, TOTP, and OAuth."""
 
 import hashlib
+from datetime import UTC
 from unittest.mock import AsyncMock, patch
 from urllib.parse import parse_qs, urlparse
 
@@ -8,9 +9,10 @@ import pyotp
 import pytest
 from fastapi_multiauth.oauth import OIDCEndpoints
 from httpx import AsyncClient
-import nexctf.core.appconfig as appconfig
-import nexctf.crud as crud
+
+from nexctf import crud
 from nexctf.api.security import hash_password, verify_password
+from nexctf.core import appconfig
 from nexctf.exceptions import CaptchaInvalidError, CaptchaRequiredError
 from nexctf.model import OAuthAccount, OAuthProvider, User, UserToken
 from nexctf.schema import UserCreate
@@ -365,7 +367,7 @@ class TestTotp:
         assert resp.status_code == 409
 
     async def test_enable_totp(self, user_client, mock_redis):
-        c, user = user_client
+        c, _user = user_client
         secret = pyotp.random_base32()
         # Simulate the secret stored server-side by the setup endpoint
         mock_redis.get = AsyncMock(return_value=secret.encode())
@@ -424,7 +426,7 @@ class TestTotp:
 
     async def test_totp_required_on_auth(self, user_client, mock_redis):
         """Cookie session remains valid even after TOTP is enabled (re-login is not forced)."""
-        c, user = user_client
+        c, _user = user_client
         secret = pyotp.random_base32()
         # Simulate the server-side secret stored by setup
         mock_redis.get = AsyncMock(return_value=secret.encode())
@@ -886,7 +888,7 @@ class TestBearerTokenExpiry:
     async def test_expired_token_is_rejected(
         self, http_client, db_session, override_db_context
     ) -> None:
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         user = User(username="expiry_user", hashed_password=hash_password("pass"))
         db_session.add(user)
@@ -895,7 +897,7 @@ class TestBearerTokenExpiry:
         expired_token = UserToken(
             user_id=user.id,
             token_hash=hashlib.sha256(b"nexctf_expiredtoken").hexdigest(),
-            expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            expires_at=datetime.now(UTC) - timedelta(hours=1),
         )
         db_session.add(expired_token)
         await db_session.flush()

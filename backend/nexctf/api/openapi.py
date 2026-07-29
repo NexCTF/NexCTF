@@ -6,14 +6,14 @@ from typing import TYPE_CHECKING
 
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
-from fastapi.routing import iter_route_contexts
 from fastapi.responses import JSONResponse
+from fastapi.routing import iter_route_contexts
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
 
-def setup_docs(app: "FastAPI", admin_prefix: str) -> None:
+def setup_docs(app: FastAPI, admin_prefix: str) -> None:
     """Register filtered OpenAPI schemas and Swagger UI endpoints on *app*."""
 
     def _schema(title: str, prefix_filter: str, exclude: bool) -> dict:

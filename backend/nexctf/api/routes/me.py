@@ -8,15 +8,22 @@ from uuid import UUID
 import pyotp
 from fastapi import APIRouter, Request
 from fastapi.responses import Response as RawResponse
+from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, PaginationType, Response
 from sqlalchemy.orm import selectinload
 
-import nexctf.core.appconfig as appconfig
-import nexctf.crud as crud
-from fastapi_toolsets.exceptions import ConflictError, NotFoundError
+from nexctf import crud
+from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
+from nexctf.api.security import (
+    cookie_auth,
+    create_api_token,
+    hash_password,
+    verify_password,
+)
+from nexctf.core import appconfig
 from nexctf.exceptions import (
-    CannotUnlinkLastOAuthError,
     AlreadyInTeamError,
+    CannotUnlinkLastOAuthError,
     InvalidCredentialsError,
     InvalidInviteCodeError,
     InvalidOtpError,
@@ -26,17 +33,9 @@ from nexctf.exceptions import (
     TotpAlreadyEnabledError,
     TotpNotEnabledError,
 )
-from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
-from nexctf.api.security import (
-    cookie_auth,
-    create_api_token,
-    hash_password,
-    verify_password,
-)
-from nexctf.util.ip import get_client_ip
+from nexctf.model import OAuthAccount, Team, User, UserToken
 from nexctf.module.events import emit
 from nexctf.module.stats import get_team_challenge_stats
-from nexctf.model import OAuthAccount, Team, User, UserToken
 from nexctf.schema import (
     PublicApiTokenCreate,
     PublicApiTokenRead,
@@ -44,14 +43,14 @@ from nexctf.schema import (
     UserTeamUpdate,
     UserTotpUpdate,
 )
+from nexctf.schema.stats import TeamChallengeStats
 from nexctf.schema.team import (
-    TeamCreate,
     PublicTeamMember,
     PublicTeamRead,
+    TeamCreate,
     TeamCreateRequest,
     TeamJoinRequest,
 )
-from nexctf.schema.stats import TeamChallengeStats
 from nexctf.schema.user import (
     PasswordChangeRequest,
     TotpDisableRequest,
@@ -59,6 +58,7 @@ from nexctf.schema.user import (
     TotpSetupResponse,
     UserPasswordUpdate,
 )
+from nexctf.util.ip import get_client_ip
 
 me_router = APIRouter(prefix="/me", tags=["me"])
 

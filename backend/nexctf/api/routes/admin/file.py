@@ -3,12 +3,12 @@ from typing import Annotated, Any
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Form, UploadFile
-from nexctf.exceptions import FileNotFoundApiError, NothingToUpdateError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 
-import nexctf.crud as crud
+from nexctf import crud
 from nexctf.api.dep import SessionDep
 from nexctf.core import s3
+from nexctf.exceptions import FileNotFoundApiError, NothingToUpdateError
 from nexctf.model.file import File
 from nexctf.schema.file import (
     AdminFileCreate,

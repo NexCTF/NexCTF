@@ -25,7 +25,7 @@ class MCQSolution(Solution):
 
             try:
                 selected = {s.strip() for s in json.loads(submission)}
-            except Exception:
+            except Exception:  # noqa: BLE001
                 return False
             return selected == {a.strip() for a in self.correct_answers}
         return submission.strip() in [a.strip() for a in self.correct_answers]

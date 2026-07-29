@@ -2,10 +2,10 @@ import asyncio
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 
-import nexctf.crud as crud
+from nexctf import crud
 from nexctf.api.dep import (
     RedisDep,
     SessionDep,
@@ -24,7 +24,7 @@ solution_router = APIRouter(prefix="/solution", tags=["Solution"])
 
 @solution_router.get("/types")
 async def get_solution_types(
-    input_type: InputType | None = Query(default=None),
+    input_type: InputType | None = None,
 ) -> Response[list[AdminSolutionTypeInfo]]:
     async def _resolve(name: str, e: RegistryEntry) -> AdminSolutionTypeInfo:
         create, update, read = await asyncio.gather(

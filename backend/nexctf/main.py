@@ -10,7 +10,8 @@ from fastapi_multiauth.exceptions import UnauthorizedError as MultiAuthUnauthori
 from fastapi_toolsets.exceptions import UnauthorizedError, init_exceptions_handlers
 from fastapi_toolsets.schemas import ErrorResponse
 
-import nexctf.settings as _  # noqa: F401 — register config definitions
+# Imported for its side effect: registers the config definitions.
+import nexctf.settings as _  # noqa: F401
 from nexctf.api.openapi import setup_docs
 from nexctf.api.routes import router
 from nexctf.core.appconfig import load_from_db

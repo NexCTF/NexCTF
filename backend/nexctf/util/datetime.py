@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-import nexctf.core.appconfig as appconfig
+from nexctf.core import appconfig
 
 
 def parse_config_dt(key: str) -> datetime | None:
@@ -14,11 +14,11 @@ def parse_config_dt(key: str) -> datetime | None:
         return None
     dt = datetime.fromisoformat(raw)
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt
 
 
 def is_config_dt_past(key: str) -> bool:
     """Return True if the given appconfig datetime key is set and in the past."""
     dt = parse_config_dt(key)
-    return dt is not None and datetime.now(timezone.utc) > dt
+    return dt is not None and datetime.now(UTC) > dt

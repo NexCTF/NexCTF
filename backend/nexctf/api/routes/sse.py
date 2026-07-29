@@ -2,11 +2,10 @@ import asyncio
 import contextlib
 from collections.abc import AsyncIterable, Callable
 
-from fastapi import APIRouter, Security
+from fastapi import APIRouter
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 
-from nexctf.api.dep import RedisDep
-from nexctf.api.security import auth
+from nexctf.api.dep import CurrentUserDep, RedisDep
 from nexctf.model import User, UserRole
 
 sse_router = APIRouter(prefix="/stream", tags=["SSE"])
@@ -57,7 +56,7 @@ async def _sse_listener(
 @sse_router.get("", response_class=EventSourceResponse)
 async def event_stream(
     redis: RedisDep,
-    user: User = Security(auth),
+    user: CurrentUserDep,
 ) -> AsyncIterable[ServerSentEvent]:
     """Authenticated SSE stream.
 

@@ -1,12 +1,11 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, cast
 
-from fastapi import APIRouter, Security
+from fastapi import APIRouter
 from fastapi_toolsets.schemas import Response
 from sqlalchemy import ColumnElement, or_, select
 
-from nexctf.api.dep import RedisDep, SessionDep
-from nexctf.api.security import auth
+from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
 from nexctf.crud import NotificationCrud
 from nexctf.model import Notification, User
 from nexctf.model.notification import notification_team_table
@@ -36,7 +35,7 @@ def _user_visibility_filter(user: User) -> ColumnElement[bool]:
 async def get_my_notifications(
     session: SessionDep,
     redis: RedisDep,
-    user: User = Security(auth),
+    user: CurrentUserDep,
 ) -> Response[PublicNotificationListResponse]:
     rows = await NotificationCrud.get_multi(
         session=session,
@@ -58,8 +57,8 @@ async def get_my_notifications(
 @notification_router.post("/read", status_code=204)
 async def mark_notifications_read(
     redis: RedisDep,
-    user: User = Security(auth),
+    user: CurrentUserDep,
 ):
     """Record that the user has read all notifications up to now."""
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     await redis.set(f"notification:last_read:{user.id}", now)

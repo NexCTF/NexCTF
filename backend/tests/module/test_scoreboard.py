@@ -1,6 +1,6 @@
 """Unit tests for nexctf.module.scoreboard.compute functions."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -16,7 +16,7 @@ from nexctf.module.scoreboard.compute import (
 )
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 
-_NOW = datetime.now(timezone.utc)
+_NOW = datetime.now(UTC)
 
 
 async def _challenge(session: AsyncSession) -> StandardChallenge:
@@ -112,7 +112,7 @@ async def test_compute_scoreboard_tiebreaker_by_solve_time(db_session):
     q2 = await _question(db_session, ch.id)
     t_early = await _team(db_session, "Early")
     t_late = await _team(db_session, "Late")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     await _submission(db_session, t_early.id, q1.id, points_earned=100, created_at=now)
     await _submission(
         db_session,

@@ -36,7 +36,7 @@ _loaded: dict[str, ModuleType] = {}
 _BUILTIN_DIR = Path(__file__).parent / "builtin"
 _STORE_DIR = Path(__file__).parent.parent.parent / "plugins_store"
 _plugin_tables: set[str] = set()
-_plugin_metadata: dict[str, "PluginMeta"] = {}
+_plugin_metadata: dict[str, PluginMeta] = {}
 
 
 @dataclass
@@ -283,7 +283,7 @@ def _patch_crud_classes() -> None:
     solution_registry.apply(SolutionCrud)
 
 
-async def _reconcile_configs(session: "AsyncSession") -> None:
+async def _reconcile_configs(session: AsyncSession) -> None:
     """Warm the Redis/DB cache for plugin config keys registered late.
 
     Args:
@@ -295,7 +295,7 @@ async def _reconcile_configs(session: "AsyncSession") -> None:
     await reconcile_plugin_configs(session, get_redis_client())
 
 
-def mount_plugin_routes(app: "FastAPI") -> None:
+def mount_plugin_routes(app: FastAPI) -> None:
     """Mount plugin-registered routers onto the FastAPI app.
 
     Call after all plugins are loaded so every registered route is included.
@@ -325,7 +325,7 @@ def mount_plugin_routes(app: "FastAPI") -> None:
     app.include_router(_public)
 
 
-async def init_plugins(app: "FastAPI", session: "AsyncSession") -> None:
+async def init_plugins(app: FastAPI, session: AsyncSession) -> None:
     """Load all plugins, patch CRUD classes, reconcile configs, and mount routes.
 
     Calls :func:`load_plugin_registries` then performs the API-specific steps

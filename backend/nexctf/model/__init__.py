@@ -1,7 +1,6 @@
 from .base import Base
 from .challenge import Challenge, ChallengeCategory
 from .config import ConfigEntry
-from .page import CustomPage
 from .custom_field import (
     CustomFieldDefinition,
     CustomFieldTarget,
@@ -15,6 +14,7 @@ from .link import Link
 from .notification import Notification
 from .oauth import OAuthAccount, OAuthProvider
 from .oauth_server import OAuthServerClient
+from .page import CustomPage
 from .question import Hint, Question
 from .scheduler import SchedulerJob, SchedulerTask
 from .solution import Solution
@@ -27,11 +27,11 @@ __all__ = [
     "Challenge",
     "ChallengeCategory",
     "ConfigEntry",
-    "CustomPage",
     "CustomFieldDefinition",
     "CustomFieldTarget",
     "CustomFieldType",
     "CustomFieldValue",
+    "CustomPage",
     "Event",
     "File",
     "Hint",

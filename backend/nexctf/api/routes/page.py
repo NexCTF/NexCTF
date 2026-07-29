@@ -1,7 +1,7 @@
-import nexctf.crud as crud
 from fastapi import APIRouter
 from fastapi_toolsets.schemas import Response
 
+from nexctf import crud
 from nexctf.api.dep import SessionDep
 from nexctf.model.page import CustomPage
 from nexctf.schema.page import PublicPageDetail, PublicPageRead

@@ -42,7 +42,7 @@ async def test_verification_email_carries_brand_and_link():
 
 
 async def test_password_reset_email_carries_brand_and_link():
-    subject, text, html = await build_password_reset_email(
+    subject, _text, html = await build_password_reset_email(
         BRANDING, "https://app/reset-password?token=tok"
     )
     assert "MyCTF" in subject

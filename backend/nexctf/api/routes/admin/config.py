@@ -1,11 +1,11 @@
 from typing import cast
 
 from fastapi import APIRouter
-from nexctf.exceptions import ConfigValidationError
 from fastapi_toolsets.schemas import Response
 
 from nexctf.api.dep import RedisDep, SessionDep
 from nexctf.core import appconfig
+from nexctf.exceptions import ConfigValidationError
 from nexctf.module.audit import audit_actor, redact
 from nexctf.module.events import emit
 from nexctf.module.scoreboard import invalidate as invalidate_scoreboard

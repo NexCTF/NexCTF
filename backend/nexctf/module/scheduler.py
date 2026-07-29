@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import sqlalchemy as sa
 from redis.asyncio import Redis
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 async def handle_send_notification(
     job: SchedulerJob, session: AsyncSession, redis: Redis
 ) -> None:
-    import nexctf.crud as crud
+    from nexctf import crud
     from nexctf.schema.notification import (
         AdminNotificationCreate,
         AdminNotificationReadDetail,
@@ -77,12 +77,12 @@ async def _execute_job_task(
     try:
         await call_maybe_async(entry.handler, job, session, redis)
         task.status = TaskStatus.SUCCESS
-        task.completed_at = datetime.now(timezone.utc)
+        task.completed_at = datetime.now(UTC)
     except Exception as exc:
         task.status = TaskStatus.FAILED
-        task.completed_at = datetime.now(timezone.utc)
+        task.completed_at = datetime.now(UTC)
         task.error = str(exc)[:500]
-        logger.exception("Job %s failed: %s", job.id, exc)
+        logger.exception("Job %s failed", job.id)
     session.add(task)
     await session.flush()
     return task
@@ -92,7 +92,7 @@ async def force_run_job(
     job: SchedulerJob, session: AsyncSession, redis: Redis
 ) -> SchedulerTask:
     """Execute a job immediately without modifying its scheduled state."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     try:
         entry = scheduler_registry.get(job.job_type)
@@ -116,7 +116,7 @@ async def force_run_job(
 
 async def process_scheduled_jobs(session: AsyncSession, redis: Redis) -> None:
     """Execute all one-shot jobs that are due. Called every 60 s by the worker."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     result = await session.execute(
         select(SchedulerJob).where(

@@ -22,7 +22,7 @@ from .user import (
     UserTotpUpdate,
 )
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     # user
     "PublicRegisterRequest",
     "PublicUserRead",

@@ -40,11 +40,10 @@ async def me_info(
     return Response(data=PublicUserRead.model_validate(user))
 
 
-@info_router.get("/admin")
+@info_router.get("/admin", dependencies=[Security(auth.require(role=UserRole.admin))])
 async def admin_info(
     session: SessionDep,
     redis: RedisDep,
-    _: User = Security(auth.require(role=UserRole.admin)),
 ) -> Response[AdminStats]:
     r_users, r_teams, r_challenges, r_subs, r_correct, r_hints = await asyncio.gather(
         session.execute(select(func.count()).select_from(User)),

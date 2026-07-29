@@ -42,7 +42,7 @@ This project uses uv. Do not use pip, pip-tools, poetry, or conda.
   - `uv run ruff check .` / `uv run ruff check --fix .`
   - `uv run ruff format .` / `uv run ruff format --check .`
   - `uv run ty check`
-- Ruff has no explicit config in `pyproject.toml` (runs on defaults). ty config lives under `[tool.ty.src]`.
+- Ruff runs on its defaults plus `[tool.ruff.lint]` in `pyproject.toml`: `extend-select = ["E402"]`, `ignore = ["RUF012"]`. ty config lives under `[tool.ty.src]`.
 
 ## Code style
 - Follow the Google python style guide

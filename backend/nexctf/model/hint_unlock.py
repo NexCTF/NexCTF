@@ -21,5 +21,5 @@ class HintUnlock(Base):
     hint_id: Mapped[UUID] = mapped_column(ForeignKey("hints.id"))
     cost_paid: Mapped[int]
 
-    user: Mapped["User"] = relationship()
-    hint: Mapped["Hint"] = relationship()
+    user: Mapped[User] = relationship()
+    hint: Mapped[Hint] = relationship()

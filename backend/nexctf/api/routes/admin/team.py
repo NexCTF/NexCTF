@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 
-import nexctf.crud as crud
+from nexctf import crud
 from nexctf.api.dep import RedisDep, SessionDep
 from nexctf.model import CustomFieldValue, Submission, Team
 from nexctf.module.scoreboard.cache import invalidate as invalidate_scoreboard
