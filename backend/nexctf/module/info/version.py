@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 CURRENT_VERSION = pkg_version("nexctf")
 
 _REPO = "NexCTF/NexCTF"
-_KEY = "info:latest_release"
+_KEY = f"info:latest_release:{CURRENT_VERSION}"
 _TTL = timedelta(hours=6)
 _adapter: TypeAdapter[VersionInfo] = TypeAdapter(VersionInfo)
 
