@@ -13,7 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -29,8 +29,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { OtpFieldInput, OtpFieldRoot } from "@/components/ui/otp-field";
 import {
+  ApiError,
   type ApiToken,
   apiErrorMessage,
+  changePassword,
   createMyToken,
   deleteMyOAuthAccount,
   deleteMyToken,
@@ -542,6 +544,92 @@ function OAuthSection() {
   );
 }
 
+// ── Password Section ──────────────────────────────────────────────────────────
+
+function PasswordSection() {
+  const { t } = useTranslation();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: () => changePassword(current, next),
+    onSuccess: () => {
+      toast.success(t("settings.password.changed"));
+      setCurrent("");
+      setNext("");
+      setConfirm("");
+    },
+    onError: (err) => {
+      const wrong = err instanceof ApiError && err.errCode === "AUTH-401";
+      toast.error(
+        wrong
+          ? t("settings.password.wrong_current")
+          : apiErrorMessage(err, t("settings.password.error")),
+      );
+    },
+  });
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (next !== confirm) {
+      toast.error(t("settings.password.mismatch"));
+      return;
+    }
+    mutation.mutate();
+  }
+
+  return (
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-base font-semibold">{t("settings.password.section_title")}</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {t("settings.password.section_hint")}
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border px-4 py-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="current-password">{t("settings.password.current")}</Label>
+          <Input
+            id="current-password"
+            type="password"
+            required
+            autoComplete="current-password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="new-password">{t("settings.password.new")}</Label>
+          <Input
+            id="new-password"
+            type="password"
+            required
+            autoComplete="new-password"
+            value={next}
+            onChange={(e) => setNext(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="confirm-password">{t("settings.password.confirm")}</Label>
+          <Input
+            id="confirm-password"
+            type="password"
+            required
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+          />
+        </div>
+        <Button type="submit" size="sm" disabled={mutation.isPending}>
+          {mutation.isPending ? t("common.saving") : t("settings.password.submit")}
+        </Button>
+      </form>
+    </section>
+  );
+}
+
 // ── TOTP Section ──────────────────────────────────────────────────────────────
 
 function TotpSection({ totpEnabled, onChanged }: { totpEnabled: boolean; onChanged: () => void }) {
@@ -614,6 +702,8 @@ function SettingsPage() {
         <h1 className="text-2xl font-bold">{t("settings.title")}</h1>
         <p className="text-muted-foreground text-sm mt-1">{t("settings.subtitle")}</p>
       </div>
+
+      {user.has_password && <PasswordSection />}
 
       {/* Two-Factor Authentication */}
       <TotpSection totpEnabled={user.totp_enabled} onChanged={invalidateUser} />

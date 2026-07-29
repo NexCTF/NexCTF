@@ -19,6 +19,7 @@ EVENT_CATEGORIES: dict[str, str] = {
     "user.logout": "account",
     "user.login_failed": "security",
     "user.password_reset": "account",
+    "user.password_changed": "account",
     "user.password_reset_requested": "security",
     "user.email_verified": "account",
     "user.verification_resent": "account",

@@ -657,6 +657,18 @@
   "settings": {
     "title": "Settings",
     "subtitle": "Manage your account settings.",
+    "password": {
+      "section_title": "Password",
+      "section_hint": "Change your password. Other active sessions will be signed out.",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Confirm new password",
+      "submit": "Change password",
+      "changed": "Password changed",
+      "mismatch": "Passwords do not match",
+      "wrong_current": "Current password is incorrect",
+      "error": "Could not change password"
+    },
     "totp": {
       "section_title": "Two-Factor Authentication",
       "section_hint": "Add an extra layer of security with an authenticator app.",
