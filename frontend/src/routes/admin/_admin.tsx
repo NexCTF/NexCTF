@@ -197,7 +197,7 @@ function AdminLayout() {
           </Link>
 
           <a
-            href="/api/v1/docs"
+            href="/api/admin/docs"
             target="_blank"
             rel="noopener noreferrer"
             className={`${BASE_CLS} ${INACTIVE_CLS}`}

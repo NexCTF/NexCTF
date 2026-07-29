@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
+from fastapi.routing import iter_route_contexts
 from fastapi.responses import JSONResponse
 
 if TYPE_CHECKING:
@@ -17,14 +18,9 @@ def setup_docs(app: "FastAPI", admin_prefix: str) -> None:
 
     def _schema(title: str, prefix_filter: str, exclude: bool) -> dict:
         routes = [
-            r
-            for r in app.routes
-            if not hasattr(r, "path")
-            or (
-                not getattr(r, "path", "").startswith(prefix_filter)
-                if exclude
-                else getattr(r, "path", "").startswith(prefix_filter)
-            )
+            ctx
+            for ctx in iter_route_contexts(app.routes)
+            if (ctx.path or "").startswith(prefix_filter) != exclude
         ]
         return get_openapi(title=title, version="1.0.0", routes=routes)
 

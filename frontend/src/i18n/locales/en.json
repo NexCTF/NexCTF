@@ -683,6 +683,7 @@
     "token": {
       "section_title": "API Tokens",
       "section_hint": "Tokens allow API access without your password.",
+      "docs": "API Docs",
       "new": "New Token",
       "new_title": "New API token",
       "created_title": "Token created",
