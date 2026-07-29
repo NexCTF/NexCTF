@@ -155,8 +155,11 @@ function AdminLayout() {
       <aside className="flex w-56 shrink-0 flex-col border-r bg-muted/40 sticky top-0 h-screen overflow-hidden">
         {/* Brand */}
         <div className="flex h-14 items-center border-b px-4 gap-2">
-          {logoUrl && <img src={logoUrl} alt="" className="h-6 w-6 object-contain shrink-0" />}
-          <span className="font-bold tracking-tight truncate">{name}</span>
+          {logoUrl ? (
+            <img src={logoUrl} alt={name} className="h-6 max-w-28 object-contain shrink-0" />
+          ) : (
+            <span className="font-bold tracking-tight truncate">{name}</span>
+          )}
           <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary uppercase tracking-wider shrink-0">
             Admin
           </span>

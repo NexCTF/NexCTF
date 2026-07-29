@@ -52,8 +52,11 @@ function Home() {
 
   return (
     <div className="flex flex-col items-center justify-center py-32 gap-4">
-      {logoUrl && <img src={logoUrl} alt={name} className="h-16 w-16 object-contain" />}
-      <h1 className="text-4xl font-bold">{name}</h1>
+      {logoUrl ? (
+        <img src={logoUrl} alt={name} className="h-16 max-w-80 object-contain" />
+      ) : (
+        <h1 className="text-4xl font-bold">{name}</h1>
+      )}
       {description && <p className="text-muted-foreground text-center max-w-md">{description}</p>}
       <p className="text-muted-foreground">{t("home.welcome", { username: user.username })}</p>
     </div>

@@ -56,8 +56,11 @@ function TopNav({ navPages }: { navPages: PublicPageSummary[] }) {
       <div className="mx-auto flex h-14 max-w-screen-xl items-center gap-6 px-4">
         {/* Brand */}
         <Link to="/" className="flex items-center gap-2 font-bold text-lg tracking-tight">
-          {logoUrl && <img src={logoUrl} alt="" className="h-7 w-7 object-contain" />}
-          {name}
+          {logoUrl ? (
+            <img src={logoUrl} alt={name} className="h-7 max-w-40 object-contain" />
+          ) : (
+            name
+          )}
         </Link>
 
         {/* Nav links */}
