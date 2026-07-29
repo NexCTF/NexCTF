@@ -1,5 +1,5 @@
 from collections.abc import AsyncGenerator, Awaitable, Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -34,7 +34,7 @@ _WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 def invalidate_on_write(
     *invalidators: Callable[[Redis], Awaitable[None]],
-) -> Callable[[Request, Redis], AsyncGenerator[None, None]]:
+) -> Callable[[Request, Redis], AsyncGenerator[None]]:
     """Build a router dependency that invalidates caches after a mutating request.
 
     The returned dependency lets the endpoint run, then runs every invalidator
@@ -46,7 +46,7 @@ def invalidate_on_write(
         invalidators: Async callables taking a Redis client and clearing a cache.
     """
 
-    async def _dep(request: Request, redis: RedisDep) -> AsyncGenerator[None, None]:
+    async def _dep(request: Request, redis: RedisDep) -> AsyncGenerator[None]:
         try:
             yield
         finally:
@@ -69,7 +69,7 @@ async def _optional_auth(request: Request) -> User | None:
         if credential is not None:
             try:
                 return await source.authenticate(credential)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 return None
     return None
 
@@ -91,7 +91,7 @@ async def _event_started(user: OptionalCurrentUserDep = None) -> None:
     if not bool(appconfig.get("ctf.hide_challenges_before_start")):
         return
     start_time = parse_config_dt("ctf.start_time")
-    if start_time is not None and datetime.now(timezone.utc) < start_time:
+    if start_time is not None and datetime.now(UTC) < start_time:
         raise EventNotStartedError()
 
 

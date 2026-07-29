@@ -1,9 +1,9 @@
 from uuid import UUID
 
-import nexctf.crud as crud
 from fastapi import APIRouter
 from fastapi.responses import RedirectResponse
 
+from nexctf import crud
 from nexctf.api.dep import SessionDep
 from nexctf.core import s3
 from nexctf.model.file import File

@@ -1,17 +1,17 @@
 import hashlib
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from fastapi_toolsets.exceptions import ForbiddenError, UnauthorizedError
 from fastapi_multiauth import APIKeyCookieAuth, HTTPBearerAuth, MultiAuth
+from fastapi_toolsets.exceptions import ForbiddenError, UnauthorizedError
 from redis.asyncio import Redis
 from sqlalchemy.orm import selectinload
 
-import nexctf.crud as crud
+from nexctf import crud
 from nexctf.core.config import settings
 from nexctf.core.db import get_db_context
 from nexctf.model import User, UserRole, UserToken
@@ -86,7 +86,7 @@ async def _verify_token(token: str, role: UserRole | None = None) -> User:
         if user_token is None or not user_token.user.is_active:
             raise UnauthorizedError()
 
-        if user_token.expires_at and user_token.expires_at < datetime.now(timezone.utc):
+        if user_token.expires_at and user_token.expires_at < datetime.now(UTC):
             raise UnauthorizedError()
 
         user = user_token.user

@@ -4,14 +4,11 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import timedelta
-from typing import TypeVar
 
 from pydantic import TypeAdapter
 from redis.asyncio import Redis
 
 from nexctf.core.config import settings
-
-T = TypeVar("T")
 
 DEFAULT_TTL = timedelta(seconds=30)
 
@@ -29,11 +26,11 @@ def get_client() -> Redis:
     return _client
 
 
-async def get_redis() -> AsyncGenerator[Redis, None]:
+async def get_redis() -> AsyncGenerator[Redis]:
     yield get_client()
 
 
-async def get_or_compute(
+async def get_or_compute[T](
     redis: Redis,
     key: str,
     adapter: TypeAdapter[T],

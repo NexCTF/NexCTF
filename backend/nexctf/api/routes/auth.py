@@ -25,8 +25,7 @@ from sqlalchemy import update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-import nexctf.core.appconfig as appconfig
-import nexctf.crud as crud
+from nexctf import crud
 from nexctf.api.dep import ProviderDep, RedisDep, SessionDep
 from nexctf.api.security import (
     EMAIL_VERIFY_KEY_PREFIX,
@@ -40,6 +39,7 @@ from nexctf.api.security import (
     issue_single_use_token,
     verify_password,
 )
+from nexctf.core import appconfig
 from nexctf.core.captcha import verify_captcha
 from nexctf.core.config import settings
 from nexctf.core.email import dispatch_email
@@ -456,8 +456,11 @@ async def _optional_cookie_user(request: Request) -> User | None:
         return None
     try:
         return await cookie_auth.authenticate(credential)
-    except Exception:
+    except Exception:  # noqa: BLE001
         return None
+
+
+OptionalCookieUserDep = Annotated[User | None, Depends(_optional_cookie_user)]
 
 
 @auth_router.post("/logout", status_code=204)
@@ -466,7 +469,7 @@ async def logout(
     session: SessionDep,
     redis: RedisDep,
     response: RawResponse,
-    user: User | None = Depends(_optional_cookie_user),
+    user: OptionalCookieUserDep,
 ):
     cookie_auth.delete_cookie(response)
     if user is not None:
@@ -602,9 +605,9 @@ async def oauth_callback(
     redis: RedisDep,
     slug: str,
     code: str,
+    current_user: OptionalCookieUserDep,
     provider: OAuthProvider = ProviderDep,
     state: str | None = None,
-    current_user: User | None = Depends(_optional_cookie_user),
 ) -> RedirectResponse:
     if not provider.is_active:
         raise NotFoundError()

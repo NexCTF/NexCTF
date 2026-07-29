@@ -8,8 +8,8 @@ from pydantic import TypeAdapter
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import nexctf.core.appconfig as appconfig
-import nexctf.crud as crud
+from nexctf import crud
+from nexctf.core import appconfig
 from nexctf.core.cache import get_or_compute
 from nexctf.model import Link, OAuthProvider
 from nexctf.model.link import Visibility

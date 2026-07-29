@@ -3,11 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Column, Enum as SAEnum, ForeignKey, Table
+from sqlalchemy import Column, ForeignKey, Table
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from nexctf.enums import InputType
+
 from .base import Base
 
 if TYPE_CHECKING:
@@ -59,12 +61,12 @@ class Question(Base):
         default=InputType.INPUT,
     )
 
-    hints: Mapped[list["Hint"]] = relationship(back_populates="question")
-    solutions: Mapped[list["Solution"]] = relationship(back_populates="question")
-    files: Mapped[list["File"]] = relationship(secondary=question_files_table)
-    tags: Mapped[list["Tag"]] = relationship(secondary=question_tags_table)
+    hints: Mapped[list[Hint]] = relationship(back_populates="question")
+    solutions: Mapped[list[Solution]] = relationship(back_populates="question")
+    files: Mapped[list[File]] = relationship(secondary=question_files_table)
+    tags: Mapped[list[Tag]] = relationship(secondary=question_tags_table)
 
-    challenge: Mapped["Challenge"] = relationship(back_populates="questions")
+    challenge: Mapped[Challenge] = relationship(back_populates="questions")
     challenge_id: Mapped[UUID] = mapped_column(ForeignKey("challenges.id"))
 
     @property
@@ -92,7 +94,7 @@ class Hint(Base):
     cost: Mapped[int] = mapped_column(default=0)
     order: Mapped[int] = mapped_column(default=0)
 
-    question: Mapped["Question"] = relationship(back_populates="hints")
+    question: Mapped[Question] = relationship(back_populates="hints")
     question_id: Mapped[UUID] = mapped_column(ForeignKey("questions.id"))
 
     @property

@@ -97,6 +97,7 @@ def build_plugin_frontend(plugin_dir: Path, plugin_name: str) -> None:
         cwd=str(frontend_dir),
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode != 0:
         logger.warning(
@@ -110,6 +111,7 @@ def build_plugin_frontend(plugin_dir: Path, plugin_name: str) -> None:
             cwd=str(frontend_dir),
             capture_output=True,
             text=True,
+            check=False,
         )
     if result.returncode != 0:
         logger.error(
@@ -125,6 +127,7 @@ def build_plugin_frontend(plugin_dir: Path, plugin_name: str) -> None:
         cwd=str(frontend_dir),
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode != 0:
         logger.error(

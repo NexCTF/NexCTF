@@ -26,7 +26,7 @@ class OAuthProvider(Base):
     icon_url: Mapped[str | None]
     is_active: Mapped[bool] = mapped_column(default=True)
 
-    accounts: Mapped[list["OAuthAccount"]] = relationship(back_populates="provider")
+    accounts: Mapped[list[OAuthAccount]] = relationship(back_populates="provider")
 
 
 class OAuthAccount(Base):
@@ -39,8 +39,8 @@ class OAuthAccount(Base):
 
     subject: Mapped[str]
 
-    user: Mapped["User"] = relationship(back_populates="oauth_accounts")
+    user: Mapped[User] = relationship(back_populates="oauth_accounts")
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
 
     provider_id: Mapped[UUID] = mapped_column(ForeignKey("oauth_providers.id"))
-    provider: Mapped["OAuthProvider"] = relationship(back_populates="accounts")
+    provider: Mapped[OAuthProvider] = relationship(back_populates="accounts")

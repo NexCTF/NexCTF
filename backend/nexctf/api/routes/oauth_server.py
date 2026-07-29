@@ -13,7 +13,7 @@ from fastapi.responses import RedirectResponse
 from fastapi_toolsets.schemas import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import nexctf.crud as crud
+from nexctf import crud
 from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
 from nexctf.core.config import settings
 from nexctf.model import User

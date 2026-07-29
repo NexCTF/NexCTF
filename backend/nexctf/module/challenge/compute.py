@@ -127,7 +127,7 @@ async def _question_structure(q: Question) -> QuestionStructure:
     async def _presign(key: str) -> str:
         try:
             return await s3.presigned_view_url(key)  # type: ignore[attr-defined]
-        except Exception:
+        except Exception:  # noqa: BLE001
             return ""
 
     urls = await asyncio.gather(*[_presign(f.s3_key) for f in q.files])

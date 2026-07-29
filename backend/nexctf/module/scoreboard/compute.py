@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -62,7 +62,7 @@ def _build_ranked_entries(
     teams: list[Team],
 ) -> tuple[list[AdminScoreboardEntry], datetime]:
     """Build ranked scoreboard entries from pre-fetched data."""
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
 
     subs_by_team: dict[UUID, list[Submission]] = {}
     for sub in submissions:
@@ -96,7 +96,7 @@ def _build_ranked_entries(
     entries.sort(
         key=lambda e: (
             -e.total,
-            e.last_solve_at or datetime.max.replace(tzinfo=timezone.utc),
+            e.last_solve_at or datetime.max.replace(tzinfo=UTC),
         )
     )
     for rank, entry in enumerate(entries, start=1):
@@ -126,7 +126,7 @@ async def compute_team_score(
         adjustment_points=adjustment_points,
         solves=solves,
         adjustments=adjustments,
-        computed_at=datetime.now(tz=timezone.utc),
+        computed_at=datetime.now(tz=UTC),
     )
 
 
@@ -191,7 +191,7 @@ async def compute_scoreboard_history(
     rankings from that same data, then builds the history series — avoiding
     the double-fetch that would result from calling compute_scoreboard first.
     """
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
 
     all_submissions, all_adjustments, teams_r = await asyncio.gather(
         _fetch_all_submissions(session, before=freeze_time),
@@ -228,7 +228,7 @@ async def compute_scoreboard_history(
         team_totals,
         key=lambda tid: (
             -team_totals[tid],
-            team_last_solve.get(tid) or datetime.max.replace(tzinfo=timezone.utc),
+            team_last_solve.get(tid) or datetime.max.replace(tzinfo=UTC),
         ),
     )
     top_ids = set(sorted_ids[:limit])

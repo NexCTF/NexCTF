@@ -1,5 +1,7 @@
 """Integration tests for nexctf.core.s3 (real S3-compatible backend)."""
 
+import contextlib
+
 import pytest
 from botocore.config import Config
 from botocore.exceptions import ClientError, EndpointConnectionError
@@ -10,13 +12,13 @@ from nexctf.core.s3 import _safe_filename
 
 
 def _s3_client_kwargs() -> dict:
-    return dict(
-        endpoint_url=settings.S3_URL,
-        aws_access_key_id=settings.S3_ACCESS_KEY,
-        aws_secret_access_key=settings.S3_SECRET_KEY,
-        region_name=settings.S3_REGION,
-        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
-    )
+    return {
+        "endpoint_url": settings.S3_URL,
+        "aws_access_key_id": settings.S3_ACCESS_KEY,
+        "aws_secret_access_key": settings.S3_SECRET_KEY,
+        "region_name": settings.S3_REGION,
+        "config": Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+    }
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -45,10 +47,8 @@ def ensure_s3_bucket():
 async def _cleanup(s3_key):
     """Delete the per-test S3 object after each test, ignoring failures."""
     yield
-    try:
+    with contextlib.suppress(Exception):
         await s3.delete(s3_key)
-    except Exception:
-        pass
 
 
 async def test_upload_object_is_reachable_via_presigned_url(s3_key):

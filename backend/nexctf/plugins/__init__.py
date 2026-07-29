@@ -27,7 +27,7 @@ from nexctf.plugins.registry import (
 )
 from nexctf.plugins.routes import route_registry
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     # loader
     "init_plugins",
     "load_plugin_registries",

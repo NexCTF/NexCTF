@@ -36,7 +36,7 @@ class ChallengeCategory(Base):
     slug: Mapped[str] = mapped_column(unique=True, index=True)
     name: Mapped[str]
 
-    challenges: Mapped[list["Challenge"]] = relationship(back_populates="category")
+    challenges: Mapped[list[Challenge]] = relationship(back_populates="category")
 
 
 class Challenge(Base):
@@ -50,11 +50,11 @@ class Challenge(Base):
     is_active: Mapped[bool] = mapped_column(default=False)
     sequential: Mapped[bool] = mapped_column(default=False)
 
-    questions: Mapped[list["Question"]] = relationship(
+    questions: Mapped[list[Question]] = relationship(
         back_populates="challenge", order_by="Question.index"
     )
 
-    category: Mapped["ChallengeCategory | None"] = relationship(
+    category: Mapped[ChallengeCategory | None] = relationship(
         back_populates="challenges"
     )
     category_id: Mapped[UUID | None] = mapped_column(
@@ -69,9 +69,9 @@ class Challenge(Base):
     def question_count(self) -> int:
         return len(self.questions)
 
-    tags: Mapped[list["Tag"]] = relationship(secondary=challenge_tags_table)
+    tags: Mapped[list[Tag]] = relationship(secondary=challenge_tags_table)
 
-    author: Mapped["User | None"] = relationship()
+    author: Mapped[User | None] = relationship()
     author_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id"), nullable=True
     )

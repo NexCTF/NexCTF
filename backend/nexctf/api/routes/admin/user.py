@@ -6,14 +6,13 @@ from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 from sqlalchemy import select
 
-import nexctf.crud as crud
+from nexctf import crud
 from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
 from nexctf.api.security import (
     PWD_RESET_KEY_PREFIX,
     PWD_RESET_TTL,
     issue_single_use_token,
 )
-from nexctf.util.ip import get_client_ip
 from nexctf.model import CustomFieldValue, User
 from nexctf.model.event import Event
 from nexctf.module.events import emit
@@ -26,6 +25,7 @@ from nexctf.schema.user import (
     UserEmailVerifiedUpdate,
     UserTotpUpdate,
 )
+from nexctf.util.ip import get_client_ip
 
 user_router = APIRouter(prefix="/user", tags=["User"])
 

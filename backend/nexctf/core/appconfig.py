@@ -72,7 +72,7 @@ _DEFAULT_CATEGORY = CategoryMeta(
 )
 
 
-def _infer_type(default: str | int | float | bool) -> ConfigType:
+def _infer_type(default: str | float | bool) -> ConfigType:
     if isinstance(default, bool):
         return ConfigType.BOOL
     if isinstance(default, int):
@@ -84,7 +84,7 @@ def _infer_type(default: str | int | float | bool) -> ConfigType:
     )
 
 
-def _serialize_default(default: str | int | float | bool) -> str:
+def _serialize_default(default: str | float | bool) -> str:
     if isinstance(default, bool):
         return "true" if default else "false"
     return str(default)

@@ -5,10 +5,9 @@ from uuid import UUID
 
 from fastapi_toolsets.db import LockMode
 from redis.asyncio import Redis
-from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectin_polymorphic, selectinload
+from sqlalchemy.orm import class_mapper, selectin_polymorphic, selectinload
 
 from nexctf.core.db import db
 from nexctf.exceptions import SolutionTimeoutError
@@ -107,7 +106,9 @@ async def recalculate_question(
 
 def _subclasses(base: type) -> list[type]:
     return [
-        d.class_ for d in sa_inspect(base).self_and_descendants if d.class_ is not base
+        d.class_
+        for d in class_mapper(base).self_and_descendants
+        if d.class_ is not base
     ]
 
 
@@ -116,7 +117,7 @@ async def _load_question(session: AsyncSession, question_id: UUID) -> Question |
     question_subtypes = _subclasses(Question)
 
     choices_opts = [
-        selectinload(getattr(sub, "choices"))
+        selectinload(getattr(sub, "choices"))  # noqa: B009
         for sub in question_subtypes
         if hasattr(sub, "choices")
     ]

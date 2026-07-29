@@ -23,6 +23,7 @@ class SendNotificationParams(PydanticBase):
 
 async def _get_challenge_options() -> list[SelectOption]:
     from sqlalchemy import select as sa_select
+
     from nexctf.core.db import get_db_context
     from nexctf.model.challenge import Challenge
 

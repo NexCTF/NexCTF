@@ -17,8 +17,8 @@ from fastapi_toolsets.crud import AsyncCrud
 from fastapi_toolsets.schemas import Response
 from fastapi_toolsets.types import ModelType
 from pydantic import BaseModel
-from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import class_mapper
 
 from nexctf.module.events import emit
 
@@ -92,7 +92,7 @@ def redact(key: str, value: Any) -> Any:
 
 def _snapshot(instance: object) -> dict[str, Any]:
     """Capture the mapped column values of an instance (no relationships)."""
-    mapper = inspect(type(instance))
+    mapper = class_mapper(type(instance))
     return {attr.key: getattr(instance, attr.key) for attr in mapper.column_attrs}
 
 

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from uuid import UUID
 
-import nexctf.core.appconfig as appconfig
 import pytest
 from httpx import AsyncClient
 
 from nexctf.api.routes.challenge import _writeup_visible
+from nexctf.core import appconfig
 from nexctf.model import Team, User
 
 NULL_UUID = "00000000-0000-0000-0000-000000000000"

@@ -6,7 +6,7 @@ from fastapi_toolsets.exceptions import ConflictError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 from sqlalchemy.exc import IntegrityError
 
-import nexctf.crud as crud
+from nexctf import crud
 from nexctf.api.dep import SessionDep
 from nexctf.model.page import CustomPage
 from nexctf.schema.page import AdminPageCreate, AdminPageRead, AdminPageUpdate

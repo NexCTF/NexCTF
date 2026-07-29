@@ -28,7 +28,9 @@ def _resolve_flags(flags: list[str] | None) -> int:
     for flag in flags or ():
         value = getattr(regex, flag, None)
         if not isinstance(value, regex.RegexFlag):
-            raise ValueError(f"Unknown regex flag: {flag!r}")
+            raise ValueError(  # noqa: TRY004
+                f"Unknown regex flag: {flag!r}"
+            )
         re_flags |= value
     return re_flags
 

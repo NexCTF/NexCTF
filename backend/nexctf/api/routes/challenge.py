@@ -8,7 +8,6 @@ from uuid import UUID
 from fastapi import APIRouter, Request
 from fastapi_toolsets.exceptions import ForbiddenError, NotFoundError, UnauthorizedError
 from fastapi_toolsets.schemas import Response
-from nexctf.exceptions import SequentialChallengeError, SolutionTimeoutError
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -21,16 +20,16 @@ from nexctf.api.dep import (
     RequireTeamDep,
     SessionDep,
 )
+from nexctf.core import appconfig
+from nexctf.core.rate_limit import check_rate_limit
+from nexctf.exceptions import SequentialChallengeError, SolutionTimeoutError
+from nexctf.model import Challenge, HintUnlock, Question, Submission, User, UserRole
 from nexctf.module.challenge import get_detail_structure, get_list_structure
 from nexctf.module.challenge.compute import QuestionStructure, solution_load_option
 from nexctf.module.events import emit as emit_event
 from nexctf.module.scoreboard import invalidate as invalidate_scoreboard
 from nexctf.module.stats import invalidate as invalidate_stats
 from nexctf.module.stats import invalidate_team
-from nexctf.core import appconfig
-from nexctf.util.ip import get_client_ip
-from nexctf.core.rate_limit import check_rate_limit
-from nexctf.model import Challenge, HintUnlock, Question, Submission, User, UserRole
 from nexctf.schema.challenge import (
     PublicChallengeDetail,
     PublicChallengeRead,
@@ -41,6 +40,7 @@ from nexctf.schema.file import PublicFileRead
 from nexctf.schema.hint import PublicHintRead
 from nexctf.schema.question import PublicQuestionRead
 from nexctf.util.datetime import is_config_dt_past
+from nexctf.util.ip import get_client_ip
 
 challenge_router = APIRouter(prefix="/challenges", tags=["Challenges"])
 

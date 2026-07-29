@@ -57,7 +57,7 @@ async def verify_captcha(redis: Redis, token: str | None) -> None:
 
     try:
         data = resp.json()
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.error(
             "CAP siteverify returned non-JSON response (status %s)", resp.status_code
         )

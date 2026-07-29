@@ -1,10 +1,10 @@
 """Tests for /admin/user endpoints (list, get, update, delete — no create)."""
 
 import hashlib
+from unittest.mock import AsyncMock
 
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from unittest.mock import AsyncMock
 
 from nexctf.model import Team, User
 

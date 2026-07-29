@@ -5,9 +5,8 @@ from fastapi import APIRouter, Depends, Request
 from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 
-import nexctf.crud as crud
+from nexctf import crud
 from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
-from nexctf.util.ip import get_client_ip
 from nexctf.model import ScoreAdjustment
 from nexctf.module.events import emit
 from nexctf.module.scoreboard.cache import invalidate as invalidate_scoreboard
@@ -17,6 +16,7 @@ from nexctf.schema.score_adjustment import (
     AdminScoreAdjustmentRead,
     AdminScoreAdjustmentUpdate,
 )
+from nexctf.util.ip import get_client_ip
 
 score_adjustment_router = APIRouter(
     prefix="/score-adjustment", tags=["Score Adjustment"]

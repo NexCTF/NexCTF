@@ -4,8 +4,8 @@ from fastapi import APIRouter, Query
 from fastapi_toolsets.exceptions import ForbiddenError, UnauthorizedError
 from fastapi_toolsets.schemas import Response
 
-import nexctf.core.appconfig as appconfig
 from nexctf.api.dep import OptionalCurrentUserDep, RedisDep, SessionDep
+from nexctf.core import appconfig
 from nexctf.model import User, UserRole
 from nexctf.module.scoreboard.cache import (
     get_scoreboard,

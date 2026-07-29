@@ -5,14 +5,14 @@ from fastapi import APIRouter, Depends, Request
 from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 
-import nexctf.crud as crud
+from nexctf import crud
 from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
-from nexctf.util.ip import get_client_ip
 from nexctf.model import Submission
 from nexctf.module.events import emit
 from nexctf.module.scoreboard.cache import invalidate as invalidate_scoreboard
 from nexctf.module.stats import invalidate_team
 from nexctf.schema.submission import AdminSubmissionRead
+from nexctf.util.ip import get_client_ip
 
 submission_router = APIRouter(prefix="/submission", tags=["Submission"])
 

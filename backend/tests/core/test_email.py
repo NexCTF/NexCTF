@@ -40,9 +40,11 @@ def _patch_smtp():
 
 async def test_send_email_disabled_raises():
     """A send is refused when email.enabled is false rather than silently dropped."""
-    with _patch_overrides({"email.enabled": "false"}):
-        with pytest.raises(EmailDisabledError):
-            await send_email(AsyncMock(), "to@example.com", "Hi", text="body")
+    with (
+        _patch_overrides({"email.enabled": "false"}),
+        pytest.raises(EmailDisabledError),
+    ):
+        await send_email(AsyncMock(), "to@example.com", "Hi", text="body")
 
 
 @pytest.mark.parametrize(
@@ -56,9 +58,12 @@ async def test_send_email_disabled_raises():
 )
 async def test_send_email_missing_required_raises(missing):
     """Enabled-but-incomplete config is a misconfiguration, not a send attempt."""
-    with _patch_overrides(missing), _patch_smtp() as mock_send:
-        with pytest.raises(EmailMisconfiguredError):
-            await send_email(AsyncMock(), "to@example.com", "Hi", text="body")
+    with (
+        _patch_overrides(missing),
+        _patch_smtp() as mock_send,
+        pytest.raises(EmailMisconfiguredError),
+    ):
+        await send_email(AsyncMock(), "to@example.com", "Hi", text="body")
     mock_send.assert_not_called()
 
 

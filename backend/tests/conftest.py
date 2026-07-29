@@ -17,9 +17,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 os.environ["NEXCTF_TEST_MODE"] = "1"
 
+from nexctf.core.cache import get_redis
 from nexctf.core.config import settings
 from nexctf.core.db import db
-from nexctf.core.cache import get_redis
 from nexctf.fixtures import test_fixture_registry
 from nexctf.main import app
 from nexctf.model import Base, User, UserRole
@@ -92,7 +92,7 @@ def client_factory(db_session: AsyncSession, mock_redis):
 
 
 @pytest.fixture
-async def http_client(client_factory) -> AsyncGenerator[AsyncClient, None]:
+async def http_client(client_factory) -> AsyncGenerator[AsyncClient]:
     """Unauthenticated test client."""
     async with client_factory() as c:
         yield c
@@ -150,7 +150,7 @@ async def admin_client(
     client_factory,
     db_session: AsyncSession,
     override_db_context,
-) -> AsyncGenerator[tuple[AsyncClient, User], None]:
+) -> AsyncGenerator[tuple[AsyncClient, User]]:
     """Authenticated client logged in as an admin user."""
     async with _role_client(
         client_factory, db_session, "test_admin", "adminpass", UserRole.admin
@@ -163,7 +163,7 @@ async def moderator_client(
     client_factory,
     db_session: AsyncSession,
     override_db_context,
-) -> AsyncGenerator[tuple[AsyncClient, User], None]:
+) -> AsyncGenerator[tuple[AsyncClient, User]]:
     """Authenticated client logged in as a moderator user."""
     async with _role_client(
         client_factory,
@@ -180,7 +180,7 @@ async def user_client(
     client_factory,
     db_session: AsyncSession,
     override_db_context,
-) -> AsyncGenerator[tuple[AsyncClient, User], None]:
+) -> AsyncGenerator[tuple[AsyncClient, User]]:
     """Authenticated client logged in as a regular user."""
     async with _role_client(
         client_factory, db_session, "test_user", "userpass", UserRole.user
@@ -194,7 +194,7 @@ async def role_client(
     client_factory,
     db_session: AsyncSession,
     override_db_context,
-) -> AsyncGenerator[tuple[AsyncClient, User], None]:
+) -> AsyncGenerator[tuple[AsyncClient, User]]:
     """Parametrized fixture that runs tests once per role (admin, moderator, user)."""
     role_map = {
         "admin": UserRole.admin,

@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from fastapi_toolsets.schemas import PaginatedResponse
 
-import nexctf.crud as crud
+from nexctf import crud
 from nexctf.api.dep import SessionDep
 from nexctf.schema.event import AdminEventRead
 

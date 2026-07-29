@@ -4,9 +4,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 
-import nexctf.crud as crud
-from nexctf.exceptions import InternalServerError
+from nexctf import crud
 from nexctf.api.dep import RedisDep, SessionDep
+from nexctf.exceptions import InternalServerError
 from nexctf.model import Notification
 from nexctf.module.notification import publish_notification
 from nexctf.schema.notification import (

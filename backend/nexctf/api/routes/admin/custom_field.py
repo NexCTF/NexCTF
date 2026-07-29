@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 
-import nexctf.crud as crud
+from nexctf import crud
 from nexctf.api.dep import SessionDep
 from nexctf.model import CustomFieldDefinition, CustomFieldValue
 from nexctf.schema.custom_field import (
