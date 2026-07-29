@@ -101,7 +101,7 @@ function CreateTokenDialog({ onCreated }: { onCreated: () => void }) {
       <DialogTrigger
         render={
           <Button size="sm">
-            <Plus className="size-4" />
+            <Plus />
             {t("settings.token.new")}
           </Button>
         }
@@ -269,7 +269,7 @@ function TotpSetupDialog({ onEnabled }: { onEnabled: () => void }) {
       <DialogTrigger
         render={
           <Button variant="outline" size="sm">
-            <ShieldCheck className="size-4" />
+            <ShieldCheck />
             {t("settings.totp.enable_btn")}
           </Button>
         }
@@ -398,7 +398,7 @@ function TotpDisableDialog({ onDisabled }: { onDisabled: () => void }) {
             size="sm"
             className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
           >
-            <ShieldOff className="size-4" />
+            <ShieldOff />
             {t("settings.totp.disable_btn")}
           </Button>
         }
@@ -727,7 +727,7 @@ function SettingsPage() {
               rel="noopener noreferrer"
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              <BookOpen className="size-4" />
+              <BookOpen />
               {t("settings.token.docs")}
             </a>
             <CreateTokenDialog onCreated={invalidate} />

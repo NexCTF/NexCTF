@@ -62,7 +62,7 @@ function ScoreboardSection() {
             onClick={() => invalidate()}
             disabled={isInvalidating}
           >
-            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isInvalidating ? "animate-spin" : ""}`} />
+            <RefreshCw className={isInvalidating ? "animate-spin" : ""} />
             {t("admin.scoreboard.invalidate_cache")}
           </Button>
         </div>

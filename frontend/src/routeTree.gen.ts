@@ -9,65 +9,49 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VerifyEmailRouteImport } from './routes/verify-email'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as RegisterRouteImport } from './routes/register'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as UserRouteImport } from './routes/_user'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as UserIndexRouteImport } from './routes/_user/index'
-import { Route as OauthConsentRouteImport } from './routes/oauth.consent'
-import { Route as AdminAdminRouteImport } from './routes/admin/_admin'
-import { Route as UserTeamRouteImport } from './routes/_user/team'
-import { Route as UserSettingsRouteImport } from './routes/_user/settings'
-import { Route as UserScoreboardRouteImport } from './routes/_user/scoreboard'
 import { Route as UserChallengesRouteImport } from './routes/_user/challenges'
-import { Route as AdminAdminIndexRouteImport } from './routes/admin/_admin/index'
-import { Route as AdminAdminUsersRouteImport } from './routes/admin/_admin/users'
-import { Route as AdminAdminTeamsRouteImport } from './routes/admin/_admin/teams'
-import { Route as AdminAdminTagsRouteImport } from './routes/admin/_admin/tags'
-import { Route as AdminAdminSubmissionsRouteImport } from './routes/admin/_admin/submissions'
-import { Route as AdminAdminSettingsRouteImport } from './routes/admin/_admin/settings'
-import { Route as AdminAdminScoreboardRouteImport } from './routes/admin/_admin/scoreboard'
-import { Route as AdminAdminScoreAdjustmentsRouteImport } from './routes/admin/_admin/score-adjustments'
-import { Route as AdminAdminSchedulerRouteImport } from './routes/admin/_admin/scheduler'
-import { Route as AdminAdminPluginsRouteImport } from './routes/admin/_admin/plugins'
-import { Route as AdminAdminPagesRouteImport } from './routes/admin/_admin/pages'
-import { Route as AdminAdminOauthProvidersRouteImport } from './routes/admin/_admin/oauth-providers'
-import { Route as AdminAdminOauthClientsRouteImport } from './routes/admin/_admin/oauth-clients'
-import { Route as AdminAdminNotificationsRouteImport } from './routes/admin/_admin/notifications'
-import { Route as AdminAdminLinksRouteImport } from './routes/admin/_admin/links'
-import { Route as AdminAdminFilesRouteImport } from './routes/admin/_admin/files'
-import { Route as AdminAdminEventsRouteImport } from './routes/admin/_admin/events'
-import { Route as AdminAdminCustomFieldsRouteImport } from './routes/admin/_admin/custom-fields'
-import { Route as AdminAdminChallengesRouteImport } from './routes/admin/_admin/challenges'
-import { Route as AdminAdminCategoriesRouteImport } from './routes/admin/_admin/categories'
-import { Route as UserPSlugRouteImport } from './routes/_user/p.$slug'
+import { Route as UserScoreboardRouteImport } from './routes/_user/scoreboard'
+import { Route as UserSettingsRouteImport } from './routes/_user/settings'
+import { Route as UserTeamRouteImport } from './routes/_user/team'
+import { Route as AdminAdminRouteImport } from './routes/admin/_admin'
+import { Route as OauthConsentRouteImport } from './routes/oauth.consent'
 import { Route as UserChallengesChallengeIdRouteImport } from './routes/_user/challenges_.$challengeId'
-import { Route as AdminAdminUsersUserIdRouteImport } from './routes/admin/_admin/users_.$userId'
-import { Route as AdminAdminTeamsTeamIdRouteImport } from './routes/admin/_admin/teams_.$teamId'
-import { Route as AdminAdminSchedulerJobIdRouteImport } from './routes/admin/_admin/scheduler_.$jobId'
-import { Route as AdminAdminPagesPageIdRouteImport } from './routes/admin/_admin/pages_.$pageId'
+import { Route as UserPSlugRouteImport } from './routes/_user/p.$slug'
+import { Route as AdminAdminIndexRouteImport } from './routes/admin/_admin/index'
+import { Route as AdminAdminCategoriesRouteImport } from './routes/admin/_admin/categories'
+import { Route as AdminAdminChallengesRouteImport } from './routes/admin/_admin/challenges'
+import { Route as AdminAdminCustomFieldsRouteImport } from './routes/admin/_admin/custom-fields'
+import { Route as AdminAdminEventsRouteImport } from './routes/admin/_admin/events'
+import { Route as AdminAdminFilesRouteImport } from './routes/admin/_admin/files'
+import { Route as AdminAdminLinksRouteImport } from './routes/admin/_admin/links'
+import { Route as AdminAdminNotificationsRouteImport } from './routes/admin/_admin/notifications'
+import { Route as AdminAdminOauthClientsRouteImport } from './routes/admin/_admin/oauth-clients'
+import { Route as AdminAdminOauthProvidersRouteImport } from './routes/admin/_admin/oauth-providers'
+import { Route as AdminAdminPagesRouteImport } from './routes/admin/_admin/pages'
+import { Route as AdminAdminPluginsRouteImport } from './routes/admin/_admin/plugins'
+import { Route as AdminAdminSchedulerRouteImport } from './routes/admin/_admin/scheduler'
+import { Route as AdminAdminScoreAdjustmentsRouteImport } from './routes/admin/_admin/score-adjustments'
+import { Route as AdminAdminScoreboardRouteImport } from './routes/admin/_admin/scoreboard'
+import { Route as AdminAdminSettingsRouteImport } from './routes/admin/_admin/settings'
+import { Route as AdminAdminSubmissionsRouteImport } from './routes/admin/_admin/submissions'
+import { Route as AdminAdminTagsRouteImport } from './routes/admin/_admin/tags'
+import { Route as AdminAdminTeamsRouteImport } from './routes/admin/_admin/teams'
+import { Route as AdminAdminUsersRouteImport } from './routes/admin/_admin/users'
 import { Route as AdminAdminChallengesChallengeIdRouteImport } from './routes/admin/_admin/challenges_.$challengeId'
+import { Route as AdminAdminPagesPageIdRouteImport } from './routes/admin/_admin/pages_.$pageId'
+import { Route as AdminAdminSchedulerJobIdRouteImport } from './routes/admin/_admin/scheduler_.$jobId'
+import { Route as AdminAdminTeamsTeamIdRouteImport } from './routes/admin/_admin/teams_.$teamId'
+import { Route as AdminAdminUsersUserIdRouteImport } from './routes/admin/_admin/users_.$userId'
 
-const VerifyEmailRoute = VerifyEmailRouteImport.update({
-  id: '/verify-email',
-  path: '/verify-email',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegisterRoute = RegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const UserRoute = UserRouteImport.update({
+  id: '/_user',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -75,8 +59,24 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const UserRoute = UserRouteImport.update({
-  id: '/_user',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UserIndexRoute = UserIndexRouteImport.update({
@@ -84,24 +84,9 @@ const UserIndexRoute = UserIndexRouteImport.update({
   path: '/',
   getParentRoute: () => UserRoute,
 } as any)
-const OauthConsentRoute = OauthConsentRouteImport.update({
-  id: '/oauth/consent',
-  path: '/oauth/consent',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminAdminRoute = AdminAdminRouteImport.update({
-  id: '/admin/_admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const UserTeamRoute = UserTeamRouteImport.update({
-  id: '/team',
-  path: '/team',
-  getParentRoute: () => UserRoute,
-} as any)
-const UserSettingsRoute = UserSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const UserChallengesRoute = UserChallengesRouteImport.update({
+  id: '/challenges',
+  path: '/challenges',
   getParentRoute: () => UserRoute,
 } as any)
 const UserScoreboardRoute = UserScoreboardRouteImport.update({
@@ -109,9 +94,35 @@ const UserScoreboardRoute = UserScoreboardRouteImport.update({
   path: '/scoreboard',
   getParentRoute: () => UserRoute,
 } as any)
-const UserChallengesRoute = UserChallengesRouteImport.update({
-  id: '/challenges',
-  path: '/challenges',
+const UserSettingsRoute = UserSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => UserRoute,
+} as any)
+const UserTeamRoute = UserTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => UserRoute,
+} as any)
+const AdminAdminRoute = AdminAdminRouteImport.update({
+  id: '/admin/_admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthConsentRoute = OauthConsentRouteImport.update({
+  id: '/oauth/consent',
+  path: '/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UserChallengesChallengeIdRoute =
+  UserChallengesChallengeIdRouteImport.update({
+    id: '/challenges_/$challengeId',
+    path: '/challenges/$challengeId',
+    getParentRoute: () => UserRoute,
+  } as any)
+const UserPSlugRoute = UserPSlugRouteImport.update({
+  id: '/p/$slug',
+  path: '/p/$slug',
   getParentRoute: () => UserRoute,
 } as any)
 const AdminAdminIndexRoute = AdminAdminIndexRouteImport.update({
@@ -119,55 +130,44 @@ const AdminAdminIndexRoute = AdminAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminAdminRoute,
 } as any)
-const AdminAdminUsersRoute = AdminAdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
+const AdminAdminCategoriesRoute = AdminAdminCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
   getParentRoute: () => AdminAdminRoute,
 } as any)
-const AdminAdminTeamsRoute = AdminAdminTeamsRouteImport.update({
-  id: '/teams',
-  path: '/teams',
+const AdminAdminChallengesRoute = AdminAdminChallengesRouteImport.update({
+  id: '/challenges',
+  path: '/challenges',
   getParentRoute: () => AdminAdminRoute,
 } as any)
-const AdminAdminTagsRoute = AdminAdminTagsRouteImport.update({
-  id: '/tags',
-  path: '/tags',
+const AdminAdminCustomFieldsRoute = AdminAdminCustomFieldsRouteImport.update({
+  id: '/custom-fields',
+  path: '/custom-fields',
   getParentRoute: () => AdminAdminRoute,
 } as any)
-const AdminAdminSubmissionsRoute = AdminAdminSubmissionsRouteImport.update({
-  id: '/submissions',
-  path: '/submissions',
+const AdminAdminEventsRoute = AdminAdminEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
   getParentRoute: () => AdminAdminRoute,
 } as any)
-const AdminAdminSettingsRoute = AdminAdminSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const AdminAdminFilesRoute = AdminAdminFilesRouteImport.update({
+  id: '/files',
+  path: '/files',
   getParentRoute: () => AdminAdminRoute,
 } as any)
-const AdminAdminScoreboardRoute = AdminAdminScoreboardRouteImport.update({
-  id: '/scoreboard',
-  path: '/scoreboard',
+const AdminAdminLinksRoute = AdminAdminLinksRouteImport.update({
+  id: '/links',
+  path: '/links',
   getParentRoute: () => AdminAdminRoute,
 } as any)
-const AdminAdminScoreAdjustmentsRoute =
-  AdminAdminScoreAdjustmentsRouteImport.update({
-    id: '/score-adjustments',
-    path: '/score-adjustments',
-    getParentRoute: () => AdminAdminRoute,
-  } as any)
-const AdminAdminSchedulerRoute = AdminAdminSchedulerRouteImport.update({
-  id: '/scheduler',
-  path: '/scheduler',
+const AdminAdminNotificationsRoute = AdminAdminNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => AdminAdminRoute,
 } as any)
-const AdminAdminPluginsRoute = AdminAdminPluginsRouteImport.update({
-  id: '/plugins',
-  path: '/plugins',
-  getParentRoute: () => AdminAdminRoute,
-} as any)
-const AdminAdminPagesRoute = AdminAdminPagesRouteImport.update({
-  id: '/pages',
-  path: '/pages',
+const AdminAdminOauthClientsRoute = AdminAdminOauthClientsRouteImport.update({
+  id: '/oauth-clients',
+  path: '/oauth-clients',
   getParentRoute: () => AdminAdminRoute,
 } as any)
 const AdminAdminOauthProvidersRoute =
@@ -176,76 +176,55 @@ const AdminAdminOauthProvidersRoute =
     path: '/oauth-providers',
     getParentRoute: () => AdminAdminRoute,
   } as any)
-const AdminAdminOauthClientsRoute = AdminAdminOauthClientsRouteImport.update({
-  id: '/oauth-clients',
-  path: '/oauth-clients',
+const AdminAdminPagesRoute = AdminAdminPagesRouteImport.update({
+  id: '/pages',
+  path: '/pages',
   getParentRoute: () => AdminAdminRoute,
 } as any)
-const AdminAdminNotificationsRoute = AdminAdminNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
+const AdminAdminPluginsRoute = AdminAdminPluginsRouteImport.update({
+  id: '/plugins',
+  path: '/plugins',
   getParentRoute: () => AdminAdminRoute,
 } as any)
-const AdminAdminLinksRoute = AdminAdminLinksRouteImport.update({
-  id: '/links',
-  path: '/links',
+const AdminAdminSchedulerRoute = AdminAdminSchedulerRouteImport.update({
+  id: '/scheduler',
+  path: '/scheduler',
   getParentRoute: () => AdminAdminRoute,
 } as any)
-const AdminAdminFilesRoute = AdminAdminFilesRouteImport.update({
-  id: '/files',
-  path: '/files',
-  getParentRoute: () => AdminAdminRoute,
-} as any)
-const AdminAdminEventsRoute = AdminAdminEventsRouteImport.update({
-  id: '/events',
-  path: '/events',
-  getParentRoute: () => AdminAdminRoute,
-} as any)
-const AdminAdminCustomFieldsRoute = AdminAdminCustomFieldsRouteImport.update({
-  id: '/custom-fields',
-  path: '/custom-fields',
-  getParentRoute: () => AdminAdminRoute,
-} as any)
-const AdminAdminChallengesRoute = AdminAdminChallengesRouteImport.update({
-  id: '/challenges',
-  path: '/challenges',
-  getParentRoute: () => AdminAdminRoute,
-} as any)
-const AdminAdminCategoriesRoute = AdminAdminCategoriesRouteImport.update({
-  id: '/categories',
-  path: '/categories',
-  getParentRoute: () => AdminAdminRoute,
-} as any)
-const UserPSlugRoute = UserPSlugRouteImport.update({
-  id: '/p/$slug',
-  path: '/p/$slug',
-  getParentRoute: () => UserRoute,
-} as any)
-const UserChallengesChallengeIdRoute =
-  UserChallengesChallengeIdRouteImport.update({
-    id: '/challenges_/$challengeId',
-    path: '/challenges/$challengeId',
-    getParentRoute: () => UserRoute,
-  } as any)
-const AdminAdminUsersUserIdRoute = AdminAdminUsersUserIdRouteImport.update({
-  id: '/users_/$userId',
-  path: '/users/$userId',
-  getParentRoute: () => AdminAdminRoute,
-} as any)
-const AdminAdminTeamsTeamIdRoute = AdminAdminTeamsTeamIdRouteImport.update({
-  id: '/teams_/$teamId',
-  path: '/teams/$teamId',
-  getParentRoute: () => AdminAdminRoute,
-} as any)
-const AdminAdminSchedulerJobIdRoute =
-  AdminAdminSchedulerJobIdRouteImport.update({
-    id: '/scheduler_/$jobId',
-    path: '/scheduler/$jobId',
+const AdminAdminScoreAdjustmentsRoute =
+  AdminAdminScoreAdjustmentsRouteImport.update({
+    id: '/score-adjustments',
+    path: '/score-adjustments',
     getParentRoute: () => AdminAdminRoute,
   } as any)
-const AdminAdminPagesPageIdRoute = AdminAdminPagesPageIdRouteImport.update({
-  id: '/pages_/$pageId',
-  path: '/pages/$pageId',
+const AdminAdminScoreboardRoute = AdminAdminScoreboardRouteImport.update({
+  id: '/scoreboard',
+  path: '/scoreboard',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
+const AdminAdminSettingsRoute = AdminAdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
+const AdminAdminSubmissionsRoute = AdminAdminSubmissionsRouteImport.update({
+  id: '/submissions',
+  path: '/submissions',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
+const AdminAdminTagsRoute = AdminAdminTagsRouteImport.update({
+  id: '/tags',
+  path: '/tags',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
+const AdminAdminTeamsRoute = AdminAdminTeamsRouteImport.update({
+  id: '/teams',
+  path: '/teams',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
+const AdminAdminUsersRoute = AdminAdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
   getParentRoute: () => AdminAdminRoute,
 } as any)
 const AdminAdminChallengesChallengeIdRoute =
@@ -254,6 +233,27 @@ const AdminAdminChallengesChallengeIdRoute =
     path: '/challenges/$challengeId',
     getParentRoute: () => AdminAdminRoute,
   } as any)
+const AdminAdminPagesPageIdRoute = AdminAdminPagesPageIdRouteImport.update({
+  id: '/pages_/$pageId',
+  path: '/pages/$pageId',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
+const AdminAdminSchedulerJobIdRoute =
+  AdminAdminSchedulerJobIdRouteImport.update({
+    id: '/scheduler_/$jobId',
+    path: '/scheduler/$jobId',
+    getParentRoute: () => AdminAdminRoute,
+  } as any)
+const AdminAdminTeamsTeamIdRoute = AdminAdminTeamsTeamIdRouteImport.update({
+  id: '/teams_/$teamId',
+  path: '/teams/$teamId',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
+const AdminAdminUsersUserIdRoute = AdminAdminUsersUserIdRouteImport.update({
+  id: '/users_/$userId',
+  path: '/users/$userId',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof UserIndexRoute
@@ -518,32 +518,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/verify-email': {
-      id: '/verify-email'
-      path: '/verify-email'
-      fullPath: '/verify-email'
-      preLoaderRoute: typeof VerifyEmailRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/register': {
-      id: '/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof RegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/_user': {
+      id: '/_user'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof UserRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -553,11 +532,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_user': {
-      id: '/_user'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof UserRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_user/': {
@@ -567,32 +567,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UserIndexRouteImport
       parentRoute: typeof UserRoute
     }
-    '/oauth/consent': {
-      id: '/oauth/consent'
-      path: '/oauth/consent'
-      fullPath: '/oauth/consent'
-      preLoaderRoute: typeof OauthConsentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/_admin': {
-      id: '/admin/_admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminAdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_user/team': {
-      id: '/_user/team'
-      path: '/team'
-      fullPath: '/team'
-      preLoaderRoute: typeof UserTeamRouteImport
-      parentRoute: typeof UserRoute
-    }
-    '/_user/settings': {
-      id: '/_user/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof UserSettingsRouteImport
+    '/_user/challenges': {
+      id: '/_user/challenges'
+      path: '/challenges'
+      fullPath: '/challenges'
+      preLoaderRoute: typeof UserChallengesRouteImport
       parentRoute: typeof UserRoute
     }
     '/_user/scoreboard': {
@@ -602,11 +581,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UserScoreboardRouteImport
       parentRoute: typeof UserRoute
     }
-    '/_user/challenges': {
-      id: '/_user/challenges'
-      path: '/challenges'
-      fullPath: '/challenges'
-      preLoaderRoute: typeof UserChallengesRouteImport
+    '/_user/settings': {
+      id: '/_user/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof UserSettingsRouteImport
+      parentRoute: typeof UserRoute
+    }
+    '/_user/team': {
+      id: '/_user/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof UserTeamRouteImport
+      parentRoute: typeof UserRoute
+    }
+    '/admin/_admin': {
+      id: '/admin/_admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth/consent': {
+      id: '/oauth/consent'
+      path: '/oauth/consent'
+      fullPath: '/oauth/consent'
+      preLoaderRoute: typeof OauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_user/challenges_/$challengeId': {
+      id: '/_user/challenges_/$challengeId'
+      path: '/challenges/$challengeId'
+      fullPath: '/challenges/$challengeId'
+      preLoaderRoute: typeof UserChallengesChallengeIdRouteImport
+      parentRoute: typeof UserRoute
+    }
+    '/_user/p/$slug': {
+      id: '/_user/p/$slug'
+      path: '/p/$slug'
+      fullPath: '/p/$slug'
+      preLoaderRoute: typeof UserPSlugRouteImport
       parentRoute: typeof UserRoute
     }
     '/admin/_admin/': {
@@ -616,123 +630,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAdminIndexRouteImport
       parentRoute: typeof AdminAdminRoute
     }
-    '/admin/_admin/users': {
-      id: '/admin/_admin/users'
-      path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminAdminUsersRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/teams': {
-      id: '/admin/_admin/teams'
-      path: '/teams'
-      fullPath: '/admin/teams'
-      preLoaderRoute: typeof AdminAdminTeamsRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/tags': {
-      id: '/admin/_admin/tags'
-      path: '/tags'
-      fullPath: '/admin/tags'
-      preLoaderRoute: typeof AdminAdminTagsRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/submissions': {
-      id: '/admin/_admin/submissions'
-      path: '/submissions'
-      fullPath: '/admin/submissions'
-      preLoaderRoute: typeof AdminAdminSubmissionsRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/settings': {
-      id: '/admin/_admin/settings'
-      path: '/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AdminAdminSettingsRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/scoreboard': {
-      id: '/admin/_admin/scoreboard'
-      path: '/scoreboard'
-      fullPath: '/admin/scoreboard'
-      preLoaderRoute: typeof AdminAdminScoreboardRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/score-adjustments': {
-      id: '/admin/_admin/score-adjustments'
-      path: '/score-adjustments'
-      fullPath: '/admin/score-adjustments'
-      preLoaderRoute: typeof AdminAdminScoreAdjustmentsRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/scheduler': {
-      id: '/admin/_admin/scheduler'
-      path: '/scheduler'
-      fullPath: '/admin/scheduler'
-      preLoaderRoute: typeof AdminAdminSchedulerRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/plugins': {
-      id: '/admin/_admin/plugins'
-      path: '/plugins'
-      fullPath: '/admin/plugins'
-      preLoaderRoute: typeof AdminAdminPluginsRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/pages': {
-      id: '/admin/_admin/pages'
-      path: '/pages'
-      fullPath: '/admin/pages'
-      preLoaderRoute: typeof AdminAdminPagesRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/oauth-providers': {
-      id: '/admin/_admin/oauth-providers'
-      path: '/oauth-providers'
-      fullPath: '/admin/oauth-providers'
-      preLoaderRoute: typeof AdminAdminOauthProvidersRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/oauth-clients': {
-      id: '/admin/_admin/oauth-clients'
-      path: '/oauth-clients'
-      fullPath: '/admin/oauth-clients'
-      preLoaderRoute: typeof AdminAdminOauthClientsRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/notifications': {
-      id: '/admin/_admin/notifications'
-      path: '/notifications'
-      fullPath: '/admin/notifications'
-      preLoaderRoute: typeof AdminAdminNotificationsRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/links': {
-      id: '/admin/_admin/links'
-      path: '/links'
-      fullPath: '/admin/links'
-      preLoaderRoute: typeof AdminAdminLinksRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/files': {
-      id: '/admin/_admin/files'
-      path: '/files'
-      fullPath: '/admin/files'
-      preLoaderRoute: typeof AdminAdminFilesRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/events': {
-      id: '/admin/_admin/events'
-      path: '/events'
-      fullPath: '/admin/events'
-      preLoaderRoute: typeof AdminAdminEventsRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/custom-fields': {
-      id: '/admin/_admin/custom-fields'
-      path: '/custom-fields'
-      fullPath: '/admin/custom-fields'
-      preLoaderRoute: typeof AdminAdminCustomFieldsRouteImport
+    '/admin/_admin/categories': {
+      id: '/admin/_admin/categories'
+      path: '/categories'
+      fullPath: '/admin/categories'
+      preLoaderRoute: typeof AdminAdminCategoriesRouteImport
       parentRoute: typeof AdminAdminRoute
     }
     '/admin/_admin/challenges': {
@@ -742,46 +644,130 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAdminChallengesRouteImport
       parentRoute: typeof AdminAdminRoute
     }
-    '/admin/_admin/categories': {
-      id: '/admin/_admin/categories'
-      path: '/categories'
-      fullPath: '/admin/categories'
-      preLoaderRoute: typeof AdminAdminCategoriesRouteImport
+    '/admin/_admin/custom-fields': {
+      id: '/admin/_admin/custom-fields'
+      path: '/custom-fields'
+      fullPath: '/admin/custom-fields'
+      preLoaderRoute: typeof AdminAdminCustomFieldsRouteImport
       parentRoute: typeof AdminAdminRoute
     }
-    '/_user/p/$slug': {
-      id: '/_user/p/$slug'
-      path: '/p/$slug'
-      fullPath: '/p/$slug'
-      preLoaderRoute: typeof UserPSlugRouteImport
-      parentRoute: typeof UserRoute
+    '/admin/_admin/events': {
+      id: '/admin/_admin/events'
+      path: '/events'
+      fullPath: '/admin/events'
+      preLoaderRoute: typeof AdminAdminEventsRouteImport
+      parentRoute: typeof AdminAdminRoute
     }
-    '/_user/challenges_/$challengeId': {
-      id: '/_user/challenges_/$challengeId'
+    '/admin/_admin/files': {
+      id: '/admin/_admin/files'
+      path: '/files'
+      fullPath: '/admin/files'
+      preLoaderRoute: typeof AdminAdminFilesRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/links': {
+      id: '/admin/_admin/links'
+      path: '/links'
+      fullPath: '/admin/links'
+      preLoaderRoute: typeof AdminAdminLinksRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/notifications': {
+      id: '/admin/_admin/notifications'
+      path: '/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AdminAdminNotificationsRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/oauth-clients': {
+      id: '/admin/_admin/oauth-clients'
+      path: '/oauth-clients'
+      fullPath: '/admin/oauth-clients'
+      preLoaderRoute: typeof AdminAdminOauthClientsRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/oauth-providers': {
+      id: '/admin/_admin/oauth-providers'
+      path: '/oauth-providers'
+      fullPath: '/admin/oauth-providers'
+      preLoaderRoute: typeof AdminAdminOauthProvidersRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/pages': {
+      id: '/admin/_admin/pages'
+      path: '/pages'
+      fullPath: '/admin/pages'
+      preLoaderRoute: typeof AdminAdminPagesRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/plugins': {
+      id: '/admin/_admin/plugins'
+      path: '/plugins'
+      fullPath: '/admin/plugins'
+      preLoaderRoute: typeof AdminAdminPluginsRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/scheduler': {
+      id: '/admin/_admin/scheduler'
+      path: '/scheduler'
+      fullPath: '/admin/scheduler'
+      preLoaderRoute: typeof AdminAdminSchedulerRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/score-adjustments': {
+      id: '/admin/_admin/score-adjustments'
+      path: '/score-adjustments'
+      fullPath: '/admin/score-adjustments'
+      preLoaderRoute: typeof AdminAdminScoreAdjustmentsRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/scoreboard': {
+      id: '/admin/_admin/scoreboard'
+      path: '/scoreboard'
+      fullPath: '/admin/scoreboard'
+      preLoaderRoute: typeof AdminAdminScoreboardRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/settings': {
+      id: '/admin/_admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminAdminSettingsRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/submissions': {
+      id: '/admin/_admin/submissions'
+      path: '/submissions'
+      fullPath: '/admin/submissions'
+      preLoaderRoute: typeof AdminAdminSubmissionsRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/tags': {
+      id: '/admin/_admin/tags'
+      path: '/tags'
+      fullPath: '/admin/tags'
+      preLoaderRoute: typeof AdminAdminTagsRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/teams': {
+      id: '/admin/_admin/teams'
+      path: '/teams'
+      fullPath: '/admin/teams'
+      preLoaderRoute: typeof AdminAdminTeamsRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/users': {
+      id: '/admin/_admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminAdminUsersRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/challenges_/$challengeId': {
+      id: '/admin/_admin/challenges_/$challengeId'
       path: '/challenges/$challengeId'
-      fullPath: '/challenges/$challengeId'
-      preLoaderRoute: typeof UserChallengesChallengeIdRouteImport
-      parentRoute: typeof UserRoute
-    }
-    '/admin/_admin/users_/$userId': {
-      id: '/admin/_admin/users_/$userId'
-      path: '/users/$userId'
-      fullPath: '/admin/users/$userId'
-      preLoaderRoute: typeof AdminAdminUsersUserIdRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/teams_/$teamId': {
-      id: '/admin/_admin/teams_/$teamId'
-      path: '/teams/$teamId'
-      fullPath: '/admin/teams/$teamId'
-      preLoaderRoute: typeof AdminAdminTeamsTeamIdRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
-    '/admin/_admin/scheduler_/$jobId': {
-      id: '/admin/_admin/scheduler_/$jobId'
-      path: '/scheduler/$jobId'
-      fullPath: '/admin/scheduler/$jobId'
-      preLoaderRoute: typeof AdminAdminSchedulerJobIdRouteImport
+      fullPath: '/admin/challenges/$challengeId'
+      preLoaderRoute: typeof AdminAdminChallengesChallengeIdRouteImport
       parentRoute: typeof AdminAdminRoute
     }
     '/admin/_admin/pages_/$pageId': {
@@ -791,11 +777,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAdminPagesPageIdRouteImport
       parentRoute: typeof AdminAdminRoute
     }
-    '/admin/_admin/challenges_/$challengeId': {
-      id: '/admin/_admin/challenges_/$challengeId'
-      path: '/challenges/$challengeId'
-      fullPath: '/admin/challenges/$challengeId'
-      preLoaderRoute: typeof AdminAdminChallengesChallengeIdRouteImport
+    '/admin/_admin/scheduler_/$jobId': {
+      id: '/admin/_admin/scheduler_/$jobId'
+      path: '/scheduler/$jobId'
+      fullPath: '/admin/scheduler/$jobId'
+      preLoaderRoute: typeof AdminAdminSchedulerJobIdRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/teams_/$teamId': {
+      id: '/admin/_admin/teams_/$teamId'
+      path: '/teams/$teamId'
+      fullPath: '/admin/teams/$teamId'
+      preLoaderRoute: typeof AdminAdminTeamsTeamIdRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/users_/$userId': {
+      id: '/admin/_admin/users_/$userId'
+      path: '/users/$userId'
+      fullPath: '/admin/users/$userId'
+      preLoaderRoute: typeof AdminAdminUsersUserIdRouteImport
       parentRoute: typeof AdminAdminRoute
     }
   }

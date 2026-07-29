@@ -368,12 +368,12 @@ function UserDetailPage() {
           >
             {user.is_active ? (
               <>
-                <Ban className="size-4 mr-1.5" />
+                <Ban />
                 {t("admin.users.disable_btn")}
               </>
             ) : (
               <>
-                <ShieldCheck className="size-4 mr-1.5" />
+                <ShieldCheck />
                 {t("admin.users.enable_btn")}
               </>
             )}

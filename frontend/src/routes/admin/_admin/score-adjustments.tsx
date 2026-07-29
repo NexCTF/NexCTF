@@ -278,18 +278,18 @@ function ScoreAdjustmentsPage() {
       sortable: false,
       cell: (adj) => (
         <div className="flex items-center gap-1 justify-end">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(adj)}>
-            <Pencil className="h-3.5 w-3.5" />
+          <Button variant="ghost" size="icon" className="size-7" onClick={() => setEditing(adj)}>
+            <Pencil className="size-3.5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-destructive hover:text-destructive"
+            className="size-7 text-destructive hover:text-destructive"
             onClick={() => {
               if (confirm(t("admin.scoreboard.adjustment_delete_confirm"))) remove(adj.id);
             }}
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="size-3.5" />
           </Button>
         </div>
       ),
@@ -307,7 +307,7 @@ function ScoreAdjustmentsPage() {
           </h1>
         </div>
         <Button size="sm" onClick={() => setAddOpen(true)}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" />
+          <Plus />
           {t("admin.scoreboard.add_adjustment")}
         </Button>
       </div>

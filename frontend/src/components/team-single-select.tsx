@@ -27,8 +27,8 @@ export function TeamSingleSelect({ value, onChange }: TeamSingleSelectProps) {
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger
         className={cn(
-          "flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 text-sm transition-colors outline-none",
-          "hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
+          "flex h-8 w-full items-center justify-between rounded-lg border border-input bg-transparent px-2.5 text-sm transition-colors outline-none",
+          "hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
           !selectedName && "text-muted-foreground",
         )}
       >

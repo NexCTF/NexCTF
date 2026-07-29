@@ -104,13 +104,13 @@ function TopNav({ navPages }: { navPages: PublicPageSummary[] }) {
 
           {user && (
             <Link to="/settings" className={buttonVariants({ variant: "ghost", size: "icon" })}>
-              <Settings className="h-4 w-4" />
+              <Settings />
             </Link>
           )}
 
           {user?.role === "admin" && (
             <Link to="/admin" className={buttonVariants({ variant: "ghost", size: "sm" })}>
-              <Shield className="h-4 w-4 mr-1.5" />
+              <Shield />
               {t("nav.admin")}
             </Link>
           )}
@@ -124,14 +124,14 @@ function TopNav({ navPages }: { navPages: PublicPageSummary[] }) {
                 navigate({ to: "/login" });
               }}
             >
-              <LogOut className="h-4 w-4 mr-1.5" />
+              <LogOut />
               {t("common.sign_out")}
             </Button>
           )}
 
           {!user && (
             <Link to="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
-              <LogIn className="h-4 w-4 mr-1.5" />
+              <LogIn />
               {t("nav.login")}
             </Link>
           )}
