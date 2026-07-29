@@ -99,16 +99,16 @@ function TopNav({ navPages }: { navPages: PublicPageSummary[] }) {
           {user && <NotificationPopover />}
           {user && <NotificationToastListener />}
 
+          {user && (
+            <Link to="/settings" className={buttonVariants({ variant: "ghost", size: "icon" })}>
+              <Settings className="h-4 w-4" />
+            </Link>
+          )}
+
           {user?.role === "admin" && (
             <Link to="/admin" className={buttonVariants({ variant: "ghost", size: "sm" })}>
               <Shield className="h-4 w-4 mr-1.5" />
               {t("nav.admin")}
-            </Link>
-          )}
-
-          {user && (
-            <Link to="/settings" className={buttonVariants({ variant: "ghost", size: "icon" })}>
-              <Settings className="h-4 w-4" />
             </Link>
           )}
 

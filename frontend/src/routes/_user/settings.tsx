@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import {
+  BookOpen,
   Check,
   Copy,
   KeyRound,
@@ -97,7 +98,7 @@ function CreateTokenDialog({ onCreated }: { onCreated: () => void }) {
     <Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : handleClose())}>
       <DialogTrigger
         render={
-          <Button>
+          <Button size="sm">
             <Plus className="size-4" />
             {t("settings.token.new")}
           </Button>
@@ -629,7 +630,18 @@ function SettingsPage() {
               {t("settings.token.section_hint")}
             </p>
           </div>
-          <CreateTokenDialog onCreated={invalidate} />
+          <div className="flex items-center gap-2">
+            <a
+              href="/api/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              <BookOpen className="size-4" />
+              {t("settings.token.docs")}
+            </a>
+            <CreateTokenDialog onCreated={invalidate} />
+          </div>
         </div>
 
         {isLoading ? (
