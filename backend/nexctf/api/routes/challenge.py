@@ -486,6 +486,7 @@ async def unlock_hint(
         )
         await session.commit()
         await invalidate_stats(redis)
+        await invalidate_team(redis, user.team_id)
 
     return Response(
         data=PublicHintRead(

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { Clock, Snowflake, Trophy } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { ChevronRight, Clock, Snowflake, Trophy } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -71,13 +71,18 @@ function ScoreboardRow({
   entry,
   showBracket,
   fields,
+  onOpen,
 }: {
   entry: ScoreboardEntry;
   showBracket: boolean;
   fields: Scoreboard["custom_fields"];
+  onOpen: (teamId: string) => void;
 }) {
   return (
-    <tr className="transition-colors hover:bg-muted/30">
+    <tr
+      className="group transition-colors hover:bg-muted/30 cursor-pointer"
+      onClick={() => onOpen(entry.team_id)}
+    >
       <td className="px-4 py-3">
         <RankBadge rank={entry.rank} />
       </td>
@@ -91,6 +96,9 @@ function ScoreboardRow({
         </td>
       ))}
       <td className="px-4 py-3 text-right font-semibold tabular-nums">{entry.total}</td>
+      <td className="px-3 py-3 w-8 text-muted-foreground/30 group-hover:text-primary transition-colors">
+        <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+      </td>
     </tr>
   );
 }
@@ -206,6 +214,7 @@ function ScoreEvolutionChart({ series }: { series: TeamScoreSeries[] }) {
 
 function ScoreboardPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [bracket, setBracket] = useState<string | undefined>(undefined);
 
   const { data: publicInfo } = useQuery({
@@ -320,13 +329,14 @@ function ScoreboardPage() {
                   <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">
                     {t("scoreboard.col_total")}
                   </th>
+                  <th className="w-8" />
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {data.entries.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={3 + (data.brackets.length > 0 ? 1 : 0) + data.custom_fields.length}
+                      colSpan={4 + (data.brackets.length > 0 ? 1 : 0) + data.custom_fields.length}
                       className="px-4 py-8 text-center text-muted-foreground"
                     >
                       {t("scoreboard.empty")}
@@ -339,6 +349,9 @@ function ScoreboardPage() {
                       entry={entry}
                       showBracket={data.brackets.length > 0}
                       fields={data.custom_fields}
+                      onOpen={(teamId) =>
+                        void navigate({ to: "/teams/$teamId", params: { teamId } })
+                      }
                     />
                   ))
                 )}

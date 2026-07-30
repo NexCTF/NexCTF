@@ -34,6 +34,13 @@ class ChallengeStats(PydanticBase):
     questions: list[QuestionStats] = []
 
 
+class TeamQuestionStats(PydanticBase):
+    question_id: UUID
+    question_label: str
+    is_solved: bool
+    hint_unlock_count: int = 0
+
+
 class TeamChallengeStats(PydanticBase):
     challenge_id: UUID
     challenge_title: str
@@ -44,6 +51,7 @@ class TeamChallengeStats(PydanticBase):
     points_earned: int
     first_solve_at: datetime | None
     last_solve_at: datetime | None
+    questions: list[TeamQuestionStats] = []
 
 
 class AdminTeamChallengeStats(TeamChallengeStats):

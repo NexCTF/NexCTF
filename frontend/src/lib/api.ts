@@ -345,6 +345,14 @@ export interface TeamChallengeStats {
   points_earned: number;
   first_solve_at: string | null;
   last_solve_at: string | null;
+  questions: TeamQuestionStats[];
+}
+
+export interface TeamQuestionStats {
+  question_id: string;
+  question_label: string;
+  is_solved: boolean;
+  hint_unlock_count: number;
 }
 
 export interface MyTeamMember {
@@ -359,19 +367,26 @@ export interface PublicCustomField {
   value: string | null;
 }
 
-export interface MyTeam {
+export interface PublicTeam {
   id: string;
   name: string;
   country: string | null;
   bracket: string | null;
   members: MyTeamMember[];
   challenge_stats: TeamChallengeStats[];
-  invite_code: string | null;
   custom_fields: PublicCustomField[];
+}
+
+export interface MyTeam extends PublicTeam {
+  invite_code: string | null;
 }
 
 export async function getMyTeam(): Promise<MyTeam | null> {
   return request<MyTeam | null>("/me/team");
+}
+
+export async function getTeamProfile(teamId: string): Promise<PublicTeam> {
+  return request<PublicTeam>(`/team/${teamId}`);
 }
 
 export async function createTeam(name: string): Promise<MyTeam> {

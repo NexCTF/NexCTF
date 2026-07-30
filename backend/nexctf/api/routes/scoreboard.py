@@ -1,12 +1,14 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Query
-from fastapi_toolsets.exceptions import ForbiddenError, UnauthorizedError
 from fastapi_toolsets.schemas import Response
 
-from nexctf.api.dep import OptionalCurrentUserDep, RedisDep, SessionDep
-from nexctf.core import appconfig
-from nexctf.model import User, UserRole
+from nexctf.api.dep import (
+    OptionalCurrentUserDep,
+    RedisDep,
+    SessionDep,
+    check_scoreboard_visibility,
+)
 from nexctf.module.scoreboard.cache import (
     get_scoreboard,
     get_scoreboard_history,
@@ -17,17 +19,6 @@ from nexctf.schema import PublicScoreboard, PublicTeamScoreDetail, ScoreboardHis
 scoreboard_router = APIRouter(prefix="/scoreboard", tags=["Scoreboard"])
 
 
-def _check_scoreboard_visibility(user: "User | None") -> None:
-    """Raise if the current user cannot view the scoreboard."""
-    visibility = str(appconfig.get("visibility.scoreboard"))
-    if user is not None and user.role in (UserRole.admin, UserRole.moderator):
-        return
-    if visibility == "hidden":
-        raise ForbiddenError()
-    if visibility == "authenticated" and user is None:
-        raise UnauthorizedError()
-
-
 @scoreboard_router.get("")
 async def get_scoreboard_endpoint(
     session: SessionDep,
@@ -35,7 +26,7 @@ async def get_scoreboard_endpoint(
     user: OptionalCurrentUserDep = None,
     bracket: str | None = Query(default=None),
 ) -> Response[PublicScoreboard]:
-    _check_scoreboard_visibility(user)
+    check_scoreboard_visibility(user)
     result = await get_scoreboard(session, redis, bracket=bracket)
     return Response(data=result)
 
@@ -48,7 +39,7 @@ async def get_scoreboard_history_endpoint(
     limit: int = Query(default=10, ge=1, le=25),
     bracket: str | None = Query(default=None),
 ) -> Response[ScoreboardHistory]:
-    _check_scoreboard_visibility(user)
+    check_scoreboard_visibility(user)
     result = await get_scoreboard_history(session, redis, limit=limit, bracket=bracket)
     return Response(data=result)
 
@@ -60,6 +51,6 @@ async def get_team_score_endpoint(
     team_id: UUID,
     user: OptionalCurrentUserDep = None,
 ) -> Response[PublicTeamScoreDetail]:
-    _check_scoreboard_visibility(user)
+    check_scoreboard_visibility(user)
     result = await get_team_score(session, redis, team_id)
     return Response(data=result)

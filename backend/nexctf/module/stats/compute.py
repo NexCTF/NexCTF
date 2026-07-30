@@ -13,17 +13,21 @@ from nexctf.schema.stats import (
     ChallengeStats,
     QuestionStats,
     TeamChallengeStats,
+    TeamQuestionStats,
 )
 
 
 async def compute_team_challenge_stats(
     session: AsyncSession, team_id: UUID
 ) -> list[TeamChallengeStats]:
-    """Compute per-challenge progress for a team (public schema, no hint details)."""
+    """Compute per-challenge progress for a team (public schema, no hint costs)."""
     admin_stats = await compute_admin_team_challenge_stats(session, team_id)
     return [
         TeamChallengeStats(
-            **s.model_dump(exclude={"hint_unlock_count", "hint_cost_spent"})
+            **s.model_dump(
+                exclude={"hint_unlock_count", "hint_cost_spent", "questions"}
+            ),
+            questions=s.questions,
         )
         for s in admin_stats
     ]
@@ -106,7 +110,7 @@ async def compute_admin_team_challenge_stats(
         .all()
     )
 
-    hint_unlock_by_challenge: dict[UUID, int] = {}
+    hint_unlock_by_question: dict[UUID, int] = {}
     hint_cost_by_challenge: dict[UUID, int] = {}
     if team_user_ids and hint_id_to_question_id:
         hint_unlocks = (
@@ -128,7 +132,7 @@ async def compute_admin_team_challenge_stats(
             cid = question_id_to_challenge_id.get(qid)
             if cid is None:
                 continue
-            hint_unlock_by_challenge[cid] = hint_unlock_by_challenge.get(cid, 0) + 1
+            hint_unlock_by_question[qid] = hint_unlock_by_question.get(qid, 0) + 1
             hint_cost_by_challenge[cid] = (
                 hint_cost_by_challenge.get(cid, 0) + hu.cost_paid
             )
@@ -153,6 +157,16 @@ async def compute_admin_team_challenge_stats(
         first_solve_at = min((s.created_at for s in correct_subs), default=None)
         last_solve_at = max((s.created_at for s in correct_subs), default=None)
 
+        question_stats = [
+            TeamQuestionStats(
+                question_id=q.id,
+                question_label=q.label,
+                is_solved=q.id in solved_q_ids,
+                hint_unlock_count=hint_unlock_by_question.get(q.id, 0),
+            )
+            for q in challenge.questions
+        ]
+
         result.append(
             AdminTeamChallengeStats(
                 challenge_id=challenge.id,
@@ -162,10 +176,11 @@ async def compute_admin_team_challenge_stats(
                 is_solved=is_solved,
                 attempt_count=len(c_subs),
                 points_earned=points_earned,
-                hint_unlock_count=hint_unlock_by_challenge.get(challenge.id, 0),
+                hint_unlock_count=sum(q.hint_unlock_count for q in question_stats),
                 hint_cost_spent=hint_cost_by_challenge.get(challenge.id, 0),
                 first_solve_at=first_solve_at,
                 last_solve_at=last_solve_at,
+                questions=question_stats,
             )
         )
 
