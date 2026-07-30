@@ -37,12 +37,18 @@ class PublicTeamScoreDetail(PydanticBase):
     computed_at: datetime
 
 
+class ScoreboardCustomField(PydanticBase):
+    name: str
+    label: str
+
+
 class PublicScoreboardEntry(PydanticBase):
     rank: int
     team_id: UUID
     team_name: str
     team_bracket: str | None
     total: int
+    custom_fields: dict[str, str | None] = {}
 
 
 class AdminScoreboardEntry(PydanticBase):
@@ -61,6 +67,7 @@ class PublicScoreboard(PydanticBase):
     entries: list[PublicScoreboardEntry]
     computed_at: datetime
     brackets: list[str] = []
+    custom_fields: list[ScoreboardCustomField] = []
 
 
 class AdminScoreboard(PydanticBase):

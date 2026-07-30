@@ -4,7 +4,10 @@ from uuid import UUID
 from fastapi_toolsets.schemas import PydanticBase
 from pydantic import Field
 
-from nexctf.schema.custom_field import AdminCustomFieldValueRead
+from nexctf.schema.custom_field import (
+    AdminCustomFieldValueRead,
+    PublicCustomFieldValue,
+)
 from nexctf.schema.stats import TeamChallengeStats
 
 # ISO 3166-1 alpha-2: exactly two uppercase letters
@@ -70,6 +73,7 @@ class PublicTeamRead(PydanticBase):
     members: list[PublicTeamMember]
     challenge_stats: list[TeamChallengeStats]
     invite_code: str | None
+    custom_fields: list[PublicCustomFieldValue] = []
 
 
 class TeamCreateRequest(PydanticBase):

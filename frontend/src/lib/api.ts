@@ -352,6 +352,13 @@ export interface MyTeamMember {
   username: string;
 }
 
+export interface PublicCustomField {
+  name: string;
+  label: string;
+  field_type: CustomFieldDefinition["field_type"];
+  value: string | null;
+}
+
 export interface MyTeam {
   id: string;
   name: string;
@@ -360,6 +367,7 @@ export interface MyTeam {
   members: MyTeamMember[];
   challenge_stats: TeamChallengeStats[];
   invite_code: string | null;
+  custom_fields: PublicCustomField[];
 }
 
 export async function getMyTeam(): Promise<MyTeam | null> {
@@ -434,6 +442,7 @@ export interface CustomFieldDefinition {
   target: "user" | "team";
   is_required: boolean;
   is_public: boolean;
+  show_in_scoreboard: boolean;
 }
 
 export interface CustomFieldValue {
@@ -1440,12 +1449,14 @@ export interface ScoreboardEntry {
   team_name: string;
   team_bracket: string | null;
   total: number;
+  custom_fields: Record<string, string | null>;
 }
 
 export interface Scoreboard {
   entries: ScoreboardEntry[];
   computed_at: string;
   brackets: string[];
+  custom_fields: { name: string; label: string }[];
 }
 
 export interface SolveDetail {

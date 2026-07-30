@@ -397,6 +397,7 @@
       "col_target": "Cible",
       "col_type": "Type",
       "col_public": "Public",
+      "col_scoreboard": "Classement",
       "col_required": "Requis",
       "field_name": "Clé",
       "field_label": "Libellé",
@@ -404,6 +405,7 @@
       "field_target": "Cible",
       "field_required": "Requis",
       "field_public": "Public",
+      "field_scoreboard": "Afficher sur le classement",
       "name_hint": "Clé lisible par machine, ex: school",
       "values_title": "Champs personnalisés",
       "value_label": "Valeur",
@@ -757,7 +759,9 @@
     "leave_confirm": "Quitter l'équipe « {{name}} » ? Vous aurez besoin d'un code d'invitation pour la rejoindre à nouveau.",
     "leave_error": "Échec de la sortie de l'équipe",
     "solved": "Résolu",
-    "partial": "{{solved}}/{{total}}"
+    "partial": "{{solved}}/{{total}}",
+    "country_label": "Pays",
+    "bracket_label": "Catégorie"
   },
   "oauth_consent": {
     "title": "Demande d'autorisation",

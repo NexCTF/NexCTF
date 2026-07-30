@@ -18,6 +18,7 @@ import {
   getPublicInfo,
   getScoreboard,
   getScoreboardHistory,
+  type Scoreboard,
   type ScoreboardEntry,
   type TeamScoreSeries,
 } from "@/lib/api";
@@ -66,7 +67,15 @@ function RankBadge({ rank }: { rank: number }) {
   );
 }
 
-function ScoreboardRow({ entry, showBracket }: { entry: ScoreboardEntry; showBracket: boolean }) {
+function ScoreboardRow({
+  entry,
+  showBracket,
+  fields,
+}: {
+  entry: ScoreboardEntry;
+  showBracket: boolean;
+  fields: Scoreboard["custom_fields"];
+}) {
   return (
     <tr className="transition-colors hover:bg-muted/30">
       <td className="px-4 py-3">
@@ -76,6 +85,11 @@ function ScoreboardRow({ entry, showBracket }: { entry: ScoreboardEntry; showBra
       {showBracket && (
         <td className="px-4 py-3 text-muted-foreground capitalize">{entry.team_bracket ?? "—"}</td>
       )}
+      {fields.map((f) => (
+        <td key={f.name} className="px-4 py-3 text-muted-foreground">
+          {entry.custom_fields[f.name] ?? "—"}
+        </td>
+      ))}
       <td className="px-4 py-3 text-right font-semibold tabular-nums">{entry.total}</td>
     </tr>
   );
@@ -295,6 +309,14 @@ function ScoreboardPage() {
                       {t("scoreboard.bracket_label")}
                     </th>
                   )}
+                  {data.custom_fields.map((f) => (
+                    <th
+                      key={f.name}
+                      className="px-4 py-2.5 text-left text-muted-foreground font-medium"
+                    >
+                      {f.label}
+                    </th>
+                  ))}
                   <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">
                     {t("scoreboard.col_total")}
                   </th>
@@ -304,7 +326,7 @@ function ScoreboardPage() {
                 {data.entries.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={data.brackets.length > 0 ? 4 : 3}
+                      colSpan={3 + (data.brackets.length > 0 ? 1 : 0) + data.custom_fields.length}
                       className="px-4 py-8 text-center text-muted-foreground"
                     >
                       {t("scoreboard.empty")}
@@ -316,6 +338,7 @@ function ScoreboardPage() {
                       key={entry.team_id}
                       entry={entry}
                       showBracket={data.brackets.length > 0}
+                      fields={data.custom_fields}
                     />
                   ))
                 )}

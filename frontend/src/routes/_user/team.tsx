@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { Check, Copy, RefreshCw, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   joinTeam,
   leaveTeam,
   type MyTeam,
+  type PublicCustomField,
   rotateInviteCode,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -133,6 +134,50 @@ function NoTeamView({ allowCreation, onJoined }: { allowCreation: boolean; onJoi
 
 // ── Team view ─────────────────────────────────────────────────────────────────
 
+function TeamBadge({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-0.5 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium">{children}</span>
+    </span>
+  );
+}
+
+function TeamBadges({ team }: { team: MyTeam }) {
+  const { t } = useTranslation();
+  const fields = team.custom_fields.filter((f): f is PublicCustomField & { value: string } =>
+    Boolean(f.value),
+  );
+  if (!team.country && !team.bracket && fields.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-3">
+      {team.country && <TeamBadge label={t("team.country_label")}>{team.country}</TeamBadge>}
+      {team.bracket && (
+        <TeamBadge label={t("team.bracket_label")}>
+          <span className="capitalize">{team.bracket}</span>
+        </TeamBadge>
+      )}
+      {fields.map((f) => (
+        <TeamBadge key={f.name} label={f.label}>
+          {f.field_type === "url" && /^https?:\/\//i.test(f.value) ? (
+            <a
+              href={f.value}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline underline-offset-2"
+            >
+              {f.value}
+            </a>
+          ) : (
+            f.value
+          )}
+        </TeamBadge>
+      ))}
+    </div>
+  );
+}
+
 function TeamView({
   team,
   allowCreation,
@@ -177,6 +222,7 @@ function TeamView({
           <p className="text-muted-foreground text-sm mt-1">
             {t("team.member_count", { count: team.members.length, max: teamSize })}
           </p>
+          <TeamBadges team={team} />
         </div>
         <Button
           variant="outline"

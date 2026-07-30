@@ -397,6 +397,7 @@
       "col_target": "Target",
       "col_type": "Type",
       "col_public": "Public",
+      "col_scoreboard": "Scoreboard",
       "col_required": "Required",
       "field_name": "Key",
       "field_label": "Label",
@@ -404,6 +405,7 @@
       "field_target": "Target",
       "field_required": "Required",
       "field_public": "Public",
+      "field_scoreboard": "Show on scoreboard",
       "name_hint": "Machine-readable key, e.g. school",
       "values_title": "Custom Fields",
       "value_label": "Value",
@@ -757,7 +759,9 @@
     "leave_confirm": "Leave team \"{{name}}\"? You will need an invite code to rejoin.",
     "leave_error": "Failed to leave team",
     "solved": "Solved",
-    "partial": "{{solved}}/{{total}}"
+    "partial": "{{solved}}/{{total}}",
+    "country_label": "Country",
+    "bracket_label": "Bracket"
   },
   "oauth_consent": {
     "title": "Authorization Request",

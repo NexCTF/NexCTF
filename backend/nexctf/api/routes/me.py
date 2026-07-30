@@ -10,6 +10,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import Response as RawResponse
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, PaginationType, Response
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from nexctf import crud
@@ -34,6 +35,7 @@ from nexctf.exceptions import (
     TotpNotEnabledError,
 )
 from nexctf.model import OAuthAccount, Team, User, UserToken
+from nexctf.model.custom_field import CustomFieldDefinition, CustomFieldValue
 from nexctf.module.events import emit
 from nexctf.module.stats import get_team_challenge_stats
 from nexctf.schema import (
@@ -43,6 +45,7 @@ from nexctf.schema import (
     UserTeamUpdate,
     UserTotpUpdate,
 )
+from nexctf.schema.custom_field import PublicCustomFieldValue
 from nexctf.schema.stats import TeamChallengeStats
 from nexctf.schema.team import (
     PublicTeamMember,
@@ -321,10 +324,40 @@ def _gen_invite_code() -> str:
     return "".join(secrets.choice(alphabet) for _ in range(8))
 
 
+async def _fetch_public_team_fields(
+    session: AsyncSession, team_id: UUID
+) -> list[PublicCustomFieldValue]:
+    """Return a team's public custom-field values."""
+    rows = await crud.CustomFieldValueCrud.get_multi(
+        session=session,
+        filters=[
+            CustomFieldValue.team_id == team_id,
+            CustomFieldDefinition.is_public.is_(True),
+        ],
+        joins=[
+            (
+                CustomFieldDefinition,
+                CustomFieldValue.definition_id == CustomFieldDefinition.id,
+            )
+        ],
+        order_by=CustomFieldDefinition.name,
+    )
+    return [
+        PublicCustomFieldValue(
+            name=v.definition.name,
+            label=v.definition.label,
+            field_type=v.definition.field_type,
+            value=v.value,
+        )
+        for v in rows
+    ]
+
+
 def _build_team_read(
     team: Team,
     members: list[PublicTeamMember],
     stats: list[TeamChallengeStats],
+    custom_fields: list[PublicCustomFieldValue] | None = None,
 ) -> PublicTeamRead:
     return PublicTeamRead(
         id=team.id,
@@ -334,6 +367,7 @@ def _build_team_read(
         members=members,
         challenge_stats=stats,
         invite_code=team.invite_code,
+        custom_fields=custom_fields or [],
     )
 
 
@@ -345,16 +379,17 @@ async def get_my_team(
 ) -> Response[PublicTeamRead | None]:
     if user.team_id is None:
         return Response(data=None)
-    team, stats = await asyncio.gather(
+    team, stats, custom_fields = await asyncio.gather(
         crud.TeamCrud.first(
             session, [Team.id == user.team_id], load_options=[selectinload(Team.users)]
         ),
         get_team_challenge_stats(session, redis, user.team_id),
+        _fetch_public_team_fields(session, user.team_id),
     )
     if team is None:
         raise NotFoundError()
     members = [PublicTeamMember(id=u.id, username=u.username) for u in team.users]
-    return Response(data=_build_team_read(team, members, stats))
+    return Response(data=_build_team_read(team, members, stats, custom_fields))
 
 
 @me_router.post("/team", status_code=201)

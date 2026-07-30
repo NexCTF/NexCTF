@@ -5,6 +5,7 @@ from nexctf.api.security import auth
 from nexctf.model import UserRole
 from nexctf.module.challenge import invalidate as invalidate_challenges
 from nexctf.module.info import invalidate as invalidate_info
+from nexctf.module.scoreboard import invalidate as invalidate_scoreboard
 
 from .category import category_router
 from .challenge import challenge_router
@@ -40,9 +41,11 @@ admin_router = APIRouter(
 )
 
 # Writes to challenge-shaping data must drop the cached player challenge
-# structures; writes to config / OAuth providers must drop the cached public info.
+# structures; writes to config / OAuth providers must drop the cached public info;
+# writes to custom fields must drop the cached scoreboard (scoreboard columns).
 _invalidate_challenges = [Depends(invalidate_on_write(invalidate_challenges))]
 _invalidate_info = [Depends(invalidate_on_write(invalidate_info))]
+_invalidate_scoreboard = [Depends(invalidate_on_write(invalidate_scoreboard))]
 
 admin_router.include_router(router=category_router, dependencies=_invalidate_challenges)
 admin_router.include_router(
@@ -50,8 +53,12 @@ admin_router.include_router(
 )
 admin_router.include_router(router=admin_page_router)
 admin_router.include_router(router=config_router, dependencies=_invalidate_info)
-admin_router.include_router(router=custom_field_router)
-admin_router.include_router(router=custom_field_value_router)
+admin_router.include_router(
+    router=custom_field_router, dependencies=_invalidate_scoreboard
+)
+admin_router.include_router(
+    router=custom_field_value_router, dependencies=_invalidate_scoreboard
+)
 admin_router.include_router(router=email_router)
 admin_router.include_router(router=event_router)
 admin_router.include_router(router=file_router, dependencies=_invalidate_challenges)
