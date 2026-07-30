@@ -12,6 +12,7 @@ from .page import page_router
 from .plugin import plugin_router
 from .scoreboard import scoreboard_router
 from .sse import sse_router
+from .team import team_router
 
 router = APIRouter(prefix="")
 
@@ -27,4 +28,5 @@ router.include_router(router=page_router)
 router.include_router(router=plugin_router)
 router.include_router(router=scoreboard_router)
 router.include_router(router=sse_router)
+router.include_router(router=team_router)
 router.include_router(router=oauth_router)

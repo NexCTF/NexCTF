@@ -1,6 +1,5 @@
 """Current-user self-management endpoints."""
 
-import asyncio
 import secrets
 import string
 from uuid import UUID
@@ -10,11 +9,15 @@ from fastapi import APIRouter, Request
 from fastapi.responses import Response as RawResponse
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, PaginationType, Response
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from nexctf import crud
-from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
+from nexctf.api.dep import (
+    CurrentUserDep,
+    RedisDep,
+    SessionDep,
+    can_view_scoreboard,
+)
 from nexctf.api.security import (
     cookie_auth,
     create_api_token,
@@ -35,9 +38,8 @@ from nexctf.exceptions import (
     TotpNotEnabledError,
 )
 from nexctf.model import OAuthAccount, Team, User, UserToken
-from nexctf.model.custom_field import CustomFieldDefinition, CustomFieldValue
 from nexctf.module.events import emit
-from nexctf.module.stats import get_team_challenge_stats
+from nexctf.module.team import load_team_read
 from nexctf.schema import (
     PublicApiTokenCreate,
     PublicApiTokenRead,
@@ -45,11 +47,8 @@ from nexctf.schema import (
     UserTeamUpdate,
     UserTotpUpdate,
 )
-from nexctf.schema.custom_field import PublicCustomFieldValue
-from nexctf.schema.stats import TeamChallengeStats
 from nexctf.schema.team import (
-    PublicTeamMember,
-    PublicTeamRead,
+    MyTeamRead,
     TeamCreate,
     TeamCreateRequest,
     TeamJoinRequest,
@@ -324,72 +323,20 @@ def _gen_invite_code() -> str:
     return "".join(secrets.choice(alphabet) for _ in range(8))
 
 
-async def _fetch_public_team_fields(
-    session: AsyncSession, team_id: UUID
-) -> list[PublicCustomFieldValue]:
-    """Return a team's public custom-field values."""
-    rows = await crud.CustomFieldValueCrud.get_multi(
-        session=session,
-        filters=[
-            CustomFieldValue.team_id == team_id,
-            CustomFieldDefinition.is_public.is_(True),
-        ],
-        joins=[
-            (
-                CustomFieldDefinition,
-                CustomFieldValue.definition_id == CustomFieldDefinition.id,
-            )
-        ],
-        order_by=CustomFieldDefinition.name,
-    )
-    return [
-        PublicCustomFieldValue(
-            name=v.definition.name,
-            label=v.definition.label,
-            field_type=v.definition.field_type,
-            value=v.value,
-        )
-        for v in rows
-    ]
-
-
-def _build_team_read(
-    team: Team,
-    members: list[PublicTeamMember],
-    stats: list[TeamChallengeStats],
-    custom_fields: list[PublicCustomFieldValue] | None = None,
-) -> PublicTeamRead:
-    return PublicTeamRead(
-        id=team.id,
-        name=team.name,
-        country=team.country,
-        bracket=team.bracket,
-        members=members,
-        challenge_stats=stats,
-        invite_code=team.invite_code,
-        custom_fields=custom_fields or [],
-    )
-
-
 @me_router.get("/team")
 async def get_my_team(
     session: SessionDep,
     redis: RedisDep,
     user: CurrentUserDep,
-) -> Response[PublicTeamRead | None]:
+) -> Response[MyTeamRead | None]:
     if user.team_id is None:
         return Response(data=None)
-    team, stats, custom_fields = await asyncio.gather(
-        crud.TeamCrud.first(
-            session, [Team.id == user.team_id], load_options=[selectinload(Team.users)]
-        ),
-        get_team_challenge_stats(session, redis, user.team_id),
-        _fetch_public_team_fields(session, user.team_id),
+    team = await load_team_read(
+        session, redis, user.team_id, include_rank=can_view_scoreboard(user)
     )
     if team is None:
         raise NotFoundError()
-    members = [PublicTeamMember(id=u.id, username=u.username) for u in team.users]
-    return Response(data=_build_team_read(team, members, stats, custom_fields))
+    return Response(data=team)
 
 
 @me_router.post("/team", status_code=201)
@@ -398,7 +345,7 @@ async def create_team(
     redis: RedisDep,
     body: TeamCreateRequest,
     user: CurrentUserDep,
-) -> Response[PublicTeamRead]:
+) -> Response[MyTeamRead]:
     if not appconfig.get("ctf.allow_team_creation"):
         raise TeamCreationDisabledError()
     if user.team_id is not None:
@@ -420,13 +367,12 @@ async def create_team(
         meta={"team_name": team.name},
     )
 
-    return Response(
-        data=_build_team_read(
-            team,
-            [PublicTeamMember(id=user.id, username=user.username)],
-            [],
-        )
+    data = await load_team_read(
+        session, redis, team.id, include_rank=can_view_scoreboard(user)
     )
+    if data is None:
+        raise NotFoundError()
+    return Response(data=data)
 
 
 @me_router.post("/team/join")
@@ -435,7 +381,7 @@ async def join_team(
     redis: RedisDep,
     body: TeamJoinRequest,
     user: CurrentUserDep,
-) -> Response[PublicTeamRead]:
+) -> Response[MyTeamRead]:
     if user.team_id is not None:
         raise AlreadyInTeamError()
 
@@ -460,11 +406,12 @@ async def join_team(
         meta={"team_name": team.name},
     )
 
-    members = [
-        *[PublicTeamMember(id=u.id, username=u.username) for u in team.users],
-        PublicTeamMember(id=user.id, username=user.username),
-    ]
-    return Response(data=_build_team_read(team, members, []))
+    data = await load_team_read(
+        session, redis, team.id, include_rank=can_view_scoreboard(user)
+    )
+    if data is None:
+        raise NotFoundError()
+    return Response(data=data)
 
 
 @me_router.post("/team/leave", status_code=204)

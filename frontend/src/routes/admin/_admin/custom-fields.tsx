@@ -56,6 +56,10 @@ const EMPTY_FORM: FieldForm = {
   show_in_scoreboard: false,
 };
 
+function BoolCell({ value, trueClass = "text-green-500" }: { value: boolean; trueClass?: string }) {
+  return <span className={value ? trueClass : "text-muted-foreground"}>{value ? "✓" : "✗"}</span>;
+}
+
 function FieldFormFields({
   form,
   onChange,
@@ -350,29 +354,17 @@ function CustomFieldsPage() {
     {
       key: "is_public",
       header: t("admin.custom_fields.col_public"),
-      cell: (f) => (
-        <span className={f.is_public ? "text-green-500" : "text-muted-foreground"}>
-          {f.is_public ? "✓" : "✗"}
-        </span>
-      ),
+      cell: (f) => <BoolCell value={f.is_public} />,
     },
     {
       key: "show_in_scoreboard",
       header: t("admin.custom_fields.col_scoreboard"),
-      cell: (f) => (
-        <span className={f.show_in_scoreboard ? "text-green-500" : "text-muted-foreground"}>
-          {f.show_in_scoreboard ? "✓" : "✗"}
-        </span>
-      ),
+      cell: (f) => <BoolCell value={f.show_in_scoreboard} />,
     },
     {
       key: "is_required",
       header: t("admin.custom_fields.col_required"),
-      cell: (f) => (
-        <span className={f.is_required ? "text-amber-500" : "text-muted-foreground"}>
-          {f.is_required ? "✓" : "✗"}
-        </span>
-      ),
+      cell: (f) => <BoolCell value={f.is_required} trueClass="text-amber-500" />,
     },
     {
       key: "_actions",

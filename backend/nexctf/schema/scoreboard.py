@@ -48,7 +48,7 @@ class PublicScoreboardEntry(PydanticBase):
     team_name: str
     team_bracket: str | None
     total: int
-    custom_fields: dict[str, str | None] = {}
+    custom_fields: dict[str, str] = {}
 
 
 class AdminScoreboardEntry(PydanticBase):

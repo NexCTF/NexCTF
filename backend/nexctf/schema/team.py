@@ -72,8 +72,13 @@ class PublicTeamRead(PydanticBase):
     bracket: str | None
     members: list[PublicTeamMember]
     challenge_stats: list[TeamChallengeStats]
-    invite_code: str | None
     custom_fields: list[PublicCustomFieldValue] = []
+    rank: int | None = None
+    team_count: int = 0
+
+
+class MyTeamRead(PublicTeamRead):
+    invite_code: str | None
 
 
 class TeamCreateRequest(PydanticBase):
