@@ -8,7 +8,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from nexctf import crud
 from nexctf.model import Question, ScoreAdjustment, Submission, Team
+from nexctf.model.custom_field import (
+    CustomFieldDefinition,
+    CustomFieldTarget,
+    CustomFieldValue,
+)
 from nexctf.schema import (
     AdminScoreboard,
     AdminScoreboardEntry,
@@ -17,6 +23,7 @@ from nexctf.schema import (
     PublicScoreboardEntry,
     PublicSolveDetail,
     PublicTeamScoreDetail,
+    ScoreboardCustomField,
     ScoreboardHistory,
     ScoreEvent,
     TeamScoreSeries,
@@ -45,6 +52,37 @@ async def _fetch_all_adjustments(
     if before is not None:
         stmt = stmt.where(ScoreAdjustment.created_at <= before)
     return list((await session.execute(stmt)).scalars().all())
+
+
+async def _fetch_scoreboard_fields(
+    session: AsyncSession,
+) -> tuple[list[ScoreboardCustomField], dict[UUID, dict[str, str | None]]]:
+    """Return scoreboard custom-field columns and per-team values keyed by name."""
+    defs = await crud.CustomFieldDefinitionCrud.get_multi(
+        session=session,
+        filters=[
+            CustomFieldDefinition.target == CustomFieldTarget.team,
+            CustomFieldDefinition.show_in_scoreboard.is_(True),
+        ],
+        order_by=CustomFieldDefinition.name,
+    )
+    if not defs:
+        return [], {}
+
+    names = {d.id: d.name for d in defs}
+    values = await crud.CustomFieldValueCrud.get_multi(
+        session=session,
+        filters=[CustomFieldValue.definition_id.in_(names)],
+        load_options=[],
+    )
+
+    values_by_team: dict[UUID, dict[str, str | None]] = {}
+    for v in values:
+        if v.team_id is not None:
+            values_by_team.setdefault(v.team_id, {})[names[v.definition_id]] = v.value
+
+    fields = [ScoreboardCustomField(name=d.name, label=d.label) for d in defs]
+    return fields, values_by_team
 
 
 def _filter_teams_by_bracket(
@@ -155,10 +193,16 @@ async def compute_scoreboard(
     If *bracket* is given, only teams in that bracket are ranked (re-ranked
     from 1, not just filtered from the global ranking).
     """
-    submissions, adjustments, teams_r = await asyncio.gather(
+    (
+        submissions,
+        adjustments,
+        teams_r,
+        (fields, field_values),
+    ) = await asyncio.gather(
         _fetch_all_submissions(session, before=freeze_time),
         _fetch_all_adjustments(session, before=freeze_time),
         session.execute(select(Team)),
+        _fetch_scoreboard_fields(session),
     )
     teams, brackets = _filter_teams_by_bracket(list(teams_r.scalars().all()), bracket)
 
@@ -171,11 +215,13 @@ async def compute_scoreboard(
                 team_name=e.team_name,
                 team_bracket=e.team_bracket,
                 total=e.total,
+                custom_fields=field_values.get(e.team_id, {}),
             )
             for e in entries
         ],
         computed_at=now,
         brackets=brackets,
+        custom_fields=fields,
     )
 
 

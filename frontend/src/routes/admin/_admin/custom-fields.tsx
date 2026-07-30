@@ -43,6 +43,7 @@ interface FieldForm {
   target: FieldTarget;
   is_required: boolean;
   is_public: boolean;
+  show_in_scoreboard: boolean;
 }
 
 const EMPTY_FORM: FieldForm = {
@@ -52,6 +53,7 @@ const EMPTY_FORM: FieldForm = {
   target: "user",
   is_required: false,
   is_public: true,
+  show_in_scoreboard: false,
 };
 
 function FieldFormFields({
@@ -139,6 +141,17 @@ function FieldFormFields({
           />
           {t("admin.custom_fields.field_public")}
         </label>
+        {form.target === "team" && (
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.show_in_scoreboard}
+              onChange={(e) => onChange({ show_in_scoreboard: e.target.checked })}
+              className="rounded border-input"
+            />
+            {t("admin.custom_fields.field_scoreboard")}
+          </label>
+        )}
       </div>
     </div>
   );
@@ -212,6 +225,7 @@ function EditFieldDialog({
     target: field.target,
     is_required: field.is_required,
     is_public: field.is_public,
+    show_in_scoreboard: field.show_in_scoreboard,
   });
 
   const mutation = useMutation({
@@ -222,6 +236,7 @@ function EditFieldDialog({
         field_type: form.field_type,
         is_required: form.is_required,
         is_public: form.is_public,
+        show_in_scoreboard: form.show_in_scoreboard,
       }),
     onSuccess: () => {
       toast.success(t("admin.custom_fields.saved"));
@@ -338,6 +353,15 @@ function CustomFieldsPage() {
       cell: (f) => (
         <span className={f.is_public ? "text-green-500" : "text-muted-foreground"}>
           {f.is_public ? "✓" : "✗"}
+        </span>
+      ),
+    },
+    {
+      key: "show_in_scoreboard",
+      header: t("admin.custom_fields.col_scoreboard"),
+      cell: (f) => (
+        <span className={f.show_in_scoreboard ? "text-green-500" : "text-muted-foreground"}>
+          {f.show_in_scoreboard ? "✓" : "✗"}
         </span>
       ),
     },
