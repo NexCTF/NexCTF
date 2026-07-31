@@ -763,6 +763,7 @@
     "hints_used_other": "{{count}} indices utilisés",
     "attempts_failed_one": "{{count}} tentative échouée",
     "attempts_failed_other": "{{count}} tentatives échouées",
+    "adjustments_title": "Ajustements de score",
     "country_label": "Pays",
     "bracket_label": "Catégorie",
     "profile_back": "Retour au classement",

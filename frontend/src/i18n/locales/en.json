@@ -763,6 +763,7 @@
     "hints_used_other": "{{count}} hints used",
     "attempts_failed_one": "{{count}} failed attempt",
     "attempts_failed_other": "{{count}} failed attempts",
+    "adjustments_title": "Score adjustments",
     "country_label": "Country",
     "bracket_label": "Bracket",
     "profile_back": "Back to Scoreboard",

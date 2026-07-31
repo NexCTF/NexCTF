@@ -1,7 +1,12 @@
 import { Check, ChevronRight, Lightbulb, Users, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { PublicCustomField, PublicTeam, TeamChallengeStats } from "@/lib/api";
+import type {
+  AdjustmentDetail,
+  PublicCustomField,
+  PublicTeam,
+  TeamChallengeStats,
+} from "@/lib/api";
 
 // ── Badges ────────────────────────────────────────────────────────────────────
 
@@ -89,6 +94,43 @@ export function TeamStatsSummary({ team }: { team: PublicTeam }) {
       <StatBox value={`${completion}%`} label={t("team.progress_col_progress")} />
       <StatBox value={team.score ?? totalPoints} label={t("team.progress_col_points")} />
     </div>
+  );
+}
+
+// ── Score adjustments ─────────────────────────────────────────────────────────
+
+export function AdjustmentsList({ adjustments }: { adjustments: AdjustmentDetail[] }) {
+  const { t } = useTranslation();
+  if (adjustments.length === 0) return null;
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-base font-semibold">{t("team.adjustments_title")}</h2>
+      <div className="rounded-lg border divide-y">
+        {adjustments.map((adj) => (
+          <div key={adj.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+            <span>
+              {adj.reason}
+              {adj.challenge_title && (
+                <span className="text-muted-foreground"> — {adj.challenge_title}</span>
+              )}
+            </span>
+            <span
+              className={`font-medium tabular-nums ${
+                adj.amount !== 0
+                  ? adj.amount > 0
+                    ? "text-green-500"
+                    : "text-red-500"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {adj.amount > 0 ? "+" : ""}
+              {adj.amount}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
