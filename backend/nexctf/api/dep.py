@@ -5,7 +5,11 @@ from uuid import UUID
 
 from fastapi import Depends, Request, Security
 from fastapi_toolsets.dependencies import PathDependency
-from fastapi_toolsets.exceptions import NotFoundError
+from fastapi_toolsets.exceptions import (
+    ForbiddenError,
+    NotFoundError,
+    UnauthorizedError,
+)
 from pydantic import BaseModel
 from redis.asyncio import Redis
 from sqlalchemy import select
@@ -30,6 +34,26 @@ RedisDep = Annotated[Redis, Depends(get_redis)]
 CurrentUserDep = Annotated[User, Security(auth)]
 
 _WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+def check_scoreboard_visibility(user: User | None) -> None:
+    """Raise if the current user cannot view the scoreboard or team profiles."""
+    visibility = str(appconfig.get("visibility.scoreboard"))
+    if user is not None and user.role in (UserRole.admin, UserRole.moderator):
+        return
+    if visibility == "hidden":
+        raise ForbiddenError()
+    if visibility == "authenticated" and user is None:
+        raise UnauthorizedError()
+
+
+def can_view_scoreboard(user: User | None) -> bool:
+    """Non-raising variant of check_scoreboard_visibility."""
+    try:
+        check_scoreboard_visibility(user)
+    except (ForbiddenError, UnauthorizedError):
+        return False
+    return True
 
 
 def invalidate_on_write(

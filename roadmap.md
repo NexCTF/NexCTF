@@ -15,6 +15,9 @@
 - [x] Challenge writeup
 - [x] Brackets
 
+## 0.6.0
+- [x] Public team details
+
 ## Before v1.0 release
 - [ ] Challenge feedback
 - [ ] Event import/export/sync

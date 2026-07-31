@@ -24,6 +24,7 @@ import { Route as AdminAdminRouteImport } from './routes/admin/_admin'
 import { Route as OauthConsentRouteImport } from './routes/oauth.consent'
 import { Route as UserChallengesChallengeIdRouteImport } from './routes/_user/challenges_.$challengeId'
 import { Route as UserPSlugRouteImport } from './routes/_user/p.$slug'
+import { Route as UserTeamsTeamIdRouteImport } from './routes/_user/teams_.$teamId'
 import { Route as AdminAdminIndexRouteImport } from './routes/admin/_admin/index'
 import { Route as AdminAdminCategoriesRouteImport } from './routes/admin/_admin/categories'
 import { Route as AdminAdminChallengesRouteImport } from './routes/admin/_admin/challenges'
@@ -123,6 +124,11 @@ const UserChallengesChallengeIdRoute =
 const UserPSlugRoute = UserPSlugRouteImport.update({
   id: '/p/$slug',
   path: '/p/$slug',
+  getParentRoute: () => UserRoute,
+} as any)
+const UserTeamsTeamIdRoute = UserTeamsTeamIdRouteImport.update({
+  id: '/teams_/$teamId',
+  path: '/teams/$teamId',
   getParentRoute: () => UserRoute,
 } as any)
 const AdminAdminIndexRoute = AdminAdminIndexRouteImport.update({
@@ -270,6 +276,7 @@ export interface FileRoutesByFullPath {
   '/oauth/consent': typeof OauthConsentRoute
   '/challenges/$challengeId': typeof UserChallengesChallengeIdRoute
   '/p/$slug': typeof UserPSlugRoute
+  '/teams/$teamId': typeof UserTeamsTeamIdRoute
   '/admin/categories': typeof AdminAdminCategoriesRoute
   '/admin/challenges': typeof AdminAdminChallengesRoute
   '/admin/custom-fields': typeof AdminAdminCustomFieldsRoute
@@ -310,6 +317,7 @@ export interface FileRoutesByTo {
   '/': typeof UserIndexRoute
   '/challenges/$challengeId': typeof UserChallengesChallengeIdRoute
   '/p/$slug': typeof UserPSlugRoute
+  '/teams/$teamId': typeof UserTeamsTeamIdRoute
   '/admin/categories': typeof AdminAdminCategoriesRoute
   '/admin/challenges': typeof AdminAdminChallengesRoute
   '/admin/custom-fields': typeof AdminAdminCustomFieldsRoute
@@ -353,6 +361,7 @@ export interface FileRoutesById {
   '/_user/': typeof UserIndexRoute
   '/_user/challenges_/$challengeId': typeof UserChallengesChallengeIdRoute
   '/_user/p/$slug': typeof UserPSlugRoute
+  '/_user/teams_/$teamId': typeof UserTeamsTeamIdRoute
   '/admin/_admin/categories': typeof AdminAdminCategoriesRoute
   '/admin/_admin/challenges': typeof AdminAdminChallengesRoute
   '/admin/_admin/custom-fields': typeof AdminAdminCustomFieldsRoute
@@ -396,6 +405,7 @@ export interface FileRouteTypes {
     | '/oauth/consent'
     | '/challenges/$challengeId'
     | '/p/$slug'
+    | '/teams/$teamId'
     | '/admin/categories'
     | '/admin/challenges'
     | '/admin/custom-fields'
@@ -436,6 +446,7 @@ export interface FileRouteTypes {
     | '/'
     | '/challenges/$challengeId'
     | '/p/$slug'
+    | '/teams/$teamId'
     | '/admin/categories'
     | '/admin/challenges'
     | '/admin/custom-fields'
@@ -478,6 +489,7 @@ export interface FileRouteTypes {
     | '/_user/'
     | '/_user/challenges_/$challengeId'
     | '/_user/p/$slug'
+    | '/_user/teams_/$teamId'
     | '/admin/_admin/categories'
     | '/admin/_admin/challenges'
     | '/admin/_admin/custom-fields'
@@ -621,6 +633,13 @@ declare module '@tanstack/react-router' {
       path: '/p/$slug'
       fullPath: '/p/$slug'
       preLoaderRoute: typeof UserPSlugRouteImport
+      parentRoute: typeof UserRoute
+    }
+    '/_user/teams_/$teamId': {
+      id: '/_user/teams_/$teamId'
+      path: '/teams/$teamId'
+      fullPath: '/teams/$teamId'
+      preLoaderRoute: typeof UserTeamsTeamIdRouteImport
       parentRoute: typeof UserRoute
     }
     '/admin/_admin/': {
@@ -809,6 +828,7 @@ interface UserRouteChildren {
   UserIndexRoute: typeof UserIndexRoute
   UserChallengesChallengeIdRoute: typeof UserChallengesChallengeIdRoute
   UserPSlugRoute: typeof UserPSlugRoute
+  UserTeamsTeamIdRoute: typeof UserTeamsTeamIdRoute
 }
 
 const UserRouteChildren: UserRouteChildren = {
@@ -819,6 +839,7 @@ const UserRouteChildren: UserRouteChildren = {
   UserIndexRoute: UserIndexRoute,
   UserChallengesChallengeIdRoute: UserChallengesChallengeIdRoute,
   UserPSlugRoute: UserPSlugRoute,
+  UserTeamsTeamIdRoute: UserTeamsTeamIdRoute,
 }
 
 const UserRouteWithChildren = UserRoute._addFileChildren(UserRouteChildren)

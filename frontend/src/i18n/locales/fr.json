@@ -749,7 +749,6 @@
     "progress_col_challenge": "Challenge",
     "progress_col_progress": "Progression",
     "progress_col_points": "Points",
-    "progress_col_solved_at": "Résolu le",
     "progress_empty": "Aucun challenge tenté pour l'instant.",
     "invite_section": "Code d'invitation",
     "invite_hint": "Partagez ce code avec vos coéquipiers pour les inviter.",
@@ -758,10 +757,14 @@
     "leave_btn": "Quitter l'équipe",
     "leave_confirm": "Quitter l'équipe « {{name}} » ? Vous aurez besoin d'un code d'invitation pour la rejoindre à nouveau.",
     "leave_error": "Échec de la sortie de l'équipe",
-    "solved": "Résolu",
     "partial": "{{solved}}/{{total}}",
+    "hints_used_one": "{{count}} indice utilisé",
+    "hints_used_other": "{{count}} indices utilisés",
     "country_label": "Pays",
-    "bracket_label": "Catégorie"
+    "bracket_label": "Catégorie",
+    "profile_back": "Retour au classement",
+    "profile_load_error": "Échec du chargement de l'équipe",
+    "rank_label": "Rang"
   },
   "oauth_consent": {
     "title": "Demande d'autorisation",

@@ -56,13 +56,14 @@ async def _fetch_all_adjustments(
 
 async def _fetch_scoreboard_fields(
     session: AsyncSession,
-) -> tuple[list[ScoreboardCustomField], dict[UUID, dict[str, str | None]]]:
+) -> tuple[list[ScoreboardCustomField], dict[UUID, dict[str, str]]]:
     """Return scoreboard custom-field columns and per-team values keyed by name."""
     defs = await crud.CustomFieldDefinitionCrud.get_multi(
         session=session,
         filters=[
             CustomFieldDefinition.target == CustomFieldTarget.team,
             CustomFieldDefinition.show_in_scoreboard.is_(True),
+            CustomFieldDefinition.is_public.is_(True),
         ],
         order_by=CustomFieldDefinition.name,
     )
@@ -76,9 +77,9 @@ async def _fetch_scoreboard_fields(
         load_options=[],
     )
 
-    values_by_team: dict[UUID, dict[str, str | None]] = {}
+    values_by_team: dict[UUID, dict[str, str]] = {}
     for v in values:
-        if v.team_id is not None:
+        if v.team_id is not None and v.value:
             values_by_team.setdefault(v.team_id, {})[names[v.definition_id]] = v.value
 
     fields = [ScoreboardCustomField(name=d.name, label=d.label) for d in defs]

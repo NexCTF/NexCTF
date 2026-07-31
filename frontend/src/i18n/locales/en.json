@@ -749,7 +749,6 @@
     "progress_col_challenge": "Challenge",
     "progress_col_progress": "Progress",
     "progress_col_points": "Points",
-    "progress_col_solved_at": "Solved at",
     "progress_empty": "No challenges attempted yet.",
     "invite_section": "Invite Code",
     "invite_hint": "Share this code with teammates to let them join.",
@@ -758,10 +757,14 @@
     "leave_btn": "Leave team",
     "leave_confirm": "Leave team \"{{name}}\"? You will need an invite code to rejoin.",
     "leave_error": "Failed to leave team",
-    "solved": "Solved",
     "partial": "{{solved}}/{{total}}",
+    "hints_used_one": "{{count}} hint used",
+    "hints_used_other": "{{count}} hints used",
     "country_label": "Country",
-    "bracket_label": "Bracket"
+    "bracket_label": "Bracket",
+    "profile_back": "Back to Scoreboard",
+    "profile_load_error": "Failed to load team",
+    "rank_label": "Rank"
   },
   "oauth_consent": {
     "title": "Authorization Request",
