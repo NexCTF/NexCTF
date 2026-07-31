@@ -1,4 +1,4 @@
-import { Check, ChevronRight, Lightbulb, Users } from "lucide-react";
+import { Check, ChevronRight, Lightbulb, Users, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { PublicCustomField, PublicTeam, TeamChallengeStats } from "@/lib/api";
@@ -87,7 +87,7 @@ export function TeamStatsSummary({ team }: { team: PublicTeam }) {
       />
       <StatBox value={team.members.length} label={t("team.members_title")} />
       <StatBox value={`${completion}%`} label={t("team.progress_col_progress")} />
-      <StatBox value={totalPoints} label={t("team.progress_col_points")} />
+      <StatBox value={team.score ?? totalPoints} label={t("team.progress_col_points")} />
     </div>
   );
 }
@@ -166,6 +166,12 @@ function ChallengeStatsRow({ stats }: { stats: TeamChallengeStats }) {
                 >
                   <span>{q.question_label}</span>
                   <span className="flex items-center gap-4 text-muted-foreground">
+                    {q.wrong_attempt_count > 0 && (
+                      <span className="flex items-center gap-1">
+                        <X className="size-3 text-red-500" />
+                        {t("team.attempts_failed", { count: q.wrong_attempt_count })}
+                      </span>
+                    )}
                     {q.hint_unlock_count > 0 && (
                       <span className="flex items-center gap-1">
                         <Lightbulb className="size-3" />

@@ -63,11 +63,13 @@ async def load_team_read(
         fetch_public_team_fields(session, team_id),
     )
     rank: int | None = None
+    score: int | None = None
     team_count = 0
     if include_rank:
         scoreboard = await get_scoreboard(session, redis)
         entry = next((e for e in scoreboard.entries if e.team_id == team_id), None)
         rank = entry.rank if entry else None
+        score = entry.total if entry else None
         team_count = len(scoreboard.entries)
     return MyTeamRead(
         id=team.id,
@@ -79,5 +81,6 @@ async def load_team_read(
         invite_code=team.invite_code,
         custom_fields=custom_fields,
         rank=rank,
+        score=score,
         team_count=team_count,
     )

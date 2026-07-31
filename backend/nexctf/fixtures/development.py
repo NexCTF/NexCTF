@@ -909,24 +909,28 @@ def hint_unlock() -> list[HintUnlock]:
             user_id=UUID("1cd3b6dd-cd32-4984-aa25-fc2de4dd5544"),  # user1
             hint_id=_hid("Magic characters"),
             cost_paid=20,
+            created_at=_t(160),
         ),
         HintUnlock(
             id=UUID("f1000000-0000-4000-8000-000000000002"),
             user_id=UUID("83a86856-67d0-4603-9399-4bb58846944c"),  # user2
             hint_id=_hid("strings command"),
             cost_paid=25,
+            created_at=_t(250),
         ),
         HintUnlock(
             id=UUID("f1000000-0000-4000-8000-000000000003"),
             user_id=UUID("f9a973c4-aecb-4b20-8529-ff8c7ec10303"),  # user5
             hint_id=_hid("Magic characters"),
             cost_paid=20,
+            created_at=_t(350),
         ),
         HintUnlock(
             id=UUID("f1000000-0000-4000-8000-000000000004"),
             user_id=UUID("f9a973c4-aecb-4b20-8529-ff8c7ec10303"),  # user5
             hint_id=_hid("Shift amount"),
             cost_paid=10,
+            created_at=_t(310),
         ),
     ]
 

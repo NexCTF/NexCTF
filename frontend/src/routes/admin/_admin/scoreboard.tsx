@@ -97,6 +97,9 @@ function ScoreboardSection() {
                     {t("scoreboard.col_adjustments")}
                   </th>
                   <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">
+                    {t("scoreboard.col_hints")}
+                  </th>
+                  <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">
                     {t("scoreboard.col_solves")}
                   </th>
                   <th className="w-8" />
@@ -106,7 +109,7 @@ function ScoreboardSection() {
                 {data.entries.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={data.brackets.length > 0 ? 8 : 7}
+                      colSpan={data.brackets.length > 0 ? 9 : 8}
                       className="px-4 py-8 text-center text-muted-foreground"
                     >
                       {t("scoreboard.empty")}
@@ -151,6 +154,15 @@ function ScoreboardSection() {
                         >
                           {entry.adjustment_points > 0 ? "+" : ""}
                           {entry.adjustment_points}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        <span
+                          className={
+                            entry.hint_points !== 0 ? "text-red-500" : "text-muted-foreground"
+                          }
+                        >
+                          {entry.hint_points}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">

@@ -39,6 +39,7 @@ class TeamQuestionStats(PydanticBase):
     question_label: str
     is_solved: bool
     hint_unlock_count: int = 0
+    wrong_attempt_count: int = 0
 
 
 class TeamChallengeStats(PydanticBase):

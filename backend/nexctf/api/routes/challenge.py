@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import random
 from uuid import UUID
 
@@ -485,8 +486,11 @@ async def unlock_hint(
             },
         )
         await session.commit()
-        await invalidate_stats(redis)
-        await invalidate_team(redis, user.team_id)
+        await asyncio.gather(
+            invalidate_stats(redis),
+            invalidate_team(redis, user.team_id),
+            invalidate_scoreboard(redis, user.team_id),
+        )
 
     return Response(
         data=PublicHintRead(

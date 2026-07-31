@@ -74,6 +74,7 @@ class PublicTeamRead(PydanticBase):
     challenge_stats: list[TeamChallengeStats]
     custom_fields: list[PublicCustomFieldValue] = []
     rank: int | None = None
+    score: int | None = None
     team_count: int = 0
 
 

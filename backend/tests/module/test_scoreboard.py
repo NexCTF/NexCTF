@@ -6,10 +6,11 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.model import Team, User, UserRole
-from nexctf.model.question import Question
+from nexctf.model import HintUnlock, Team, User, UserRole
+from nexctf.model.question import Hint, Question
 from nexctf.model.submission import ScoreAdjustment, Submission
 from nexctf.module.scoreboard.compute import (
+    compute_admin_scoreboard,
     compute_scoreboard,
     compute_scoreboard_history,
     compute_team_score,
@@ -17,6 +18,9 @@ from nexctf.module.scoreboard.compute import (
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 
 _NOW = datetime.now(UTC)
+_FREEZE = _NOW - timedelta(hours=1)
+_BEFORE_FREEZE = _FREEZE - timedelta(minutes=30)
+_AFTER_FREEZE = _FREEZE + timedelta(minutes=30)
 
 
 async def _challenge(session: AsyncSession) -> StandardChallenge:
@@ -76,6 +80,29 @@ async def _adjustment(session, team_id, user_id, amount, reason="bonus"):
     session.add(adj)
     await session.flush()
     return adj
+
+
+async def _hint_unlock(
+    session,
+    team_id,
+    question_id,
+    cost,
+    *,
+    created_at: datetime | None = None,
+):
+    u = User(username=f"hint_{uuid4().hex[:8]}", hashed_password="x", team_id=team_id)
+    session.add(u)
+    await session.flush()
+    h = Hint(title="Hint", content="secret", cost=cost, question_id=question_id)
+    session.add(h)
+    await session.flush()
+    hu = HintUnlock(user_id=u.id, hint_id=h.id, cost_paid=cost)
+    session.add(hu)
+    await session.flush()
+    if created_at is not None:
+        hu.created_at = created_at
+        await session.flush()
+    return hu
 
 
 async def test_compute_scoreboard_empty(db_session):
@@ -169,8 +196,6 @@ async def test_compute_scoreboard_history_bracket_filters_series(db_session):
 
 
 async def test_compute_admin_scoreboard_bracket_reranks_and_lists_brackets(db_session):
-    from nexctf.module.scoreboard.compute import compute_admin_scoreboard
-
     ch = await _challenge(db_session)
     q = await _question(db_session, ch.id)
     student = await _team(db_session, "StudentAdmin", bracket="student")
@@ -183,6 +208,108 @@ async def test_compute_admin_scoreboard_bracket_reranks_and_lists_brackets(db_se
     assert [e.team_name for e in result.entries] == ["StudentAdmin"]
     assert result.entries[0].rank == 1
     assert result.entries[0].team_bracket == "student"
+
+
+async def test_scoreboard_subtracts_hint_cost(db_session):
+    ch = await _challenge(db_session)
+    q = await _question(db_session, ch.id)
+    t = await _team(db_session, "HintTeam")
+    await _submission(db_session, t.id, q.id, points_earned=100)
+    await _hint_unlock(db_session, t.id, q.id, cost=25)
+
+    admin = await compute_admin_scoreboard(db_session)
+    entry = next(e for e in admin.entries if e.team_name == "HintTeam")
+    assert entry.hint_points == -25
+    assert entry.total == 75
+
+    public = await compute_scoreboard(db_session)
+    assert next(e for e in public.entries if e.team_name == "HintTeam").total == 75
+
+
+async def test_compute_team_score_with_hint_unlock(db_session):
+    ch = await _challenge(db_session)
+    q = await _question(db_session, ch.id)
+    t = await _team(db_session, "HintDetail")
+    await _submission(db_session, t.id, q.id, points_earned=100)
+    await _hint_unlock(db_session, t.id, q.id, cost=15)
+
+    result = await compute_team_score(db_session, t.id)
+    assert result.hint_points == -15
+    assert result.total == 85
+
+
+async def test_compute_scoreboard_history_includes_hint_events(db_session):
+    ch = await _challenge(db_session)
+    q = await _question(db_session, ch.id)
+    t = await _team(db_session, "HintHist")
+    now = datetime.now(UTC)
+    await _submission(db_session, t.id, q.id, points_earned=100, created_at=now)
+    await _hint_unlock(
+        db_session,
+        t.id,
+        q.id,
+        cost=20,
+        created_at=now + timedelta(seconds=10),
+    )
+
+    result = await compute_scoreboard_history(db_session, limit=10)
+    series = next(s for s in result.series if s.team_name == "HintHist")
+    assert [e.cumulative for e in series.events] == [100, 80]
+
+
+async def test_compute_scoreboard_freeze_excludes_post_freeze_hint_unlocks(db_session):
+    ch = await _challenge(db_session)
+    q = await _question(db_session, ch.id)
+    t = await _team(db_session, "HintFreeze")
+    await _submission(
+        db_session, t.id, q.id, points_earned=100, created_at=_BEFORE_FREEZE
+    )
+    await _hint_unlock(
+        db_session,
+        t.id,
+        q.id,
+        cost=40,
+        created_at=_AFTER_FREEZE,
+    )
+
+    result = await compute_scoreboard(db_session, freeze_time=_FREEZE)
+    entry = next(e for e in result.entries if e.team_name == "HintFreeze")
+    assert entry.total == 100
+
+
+async def test_compute_scoreboard_ignores_hint_on_unsolved_question(db_session):
+    ch = await _challenge(db_session)
+    q_solved = await _question(db_session, ch.id)
+    q_unsolved = await _question(db_session, ch.id)
+    t = await _team(db_session, "HintUnsolved")
+    await _submission(db_session, t.id, q_solved.id, points_earned=100)
+    await _hint_unlock(db_session, t.id, q_unsolved.id, cost=30)
+
+    result = await compute_scoreboard(db_session)
+    entry = next(e for e in result.entries if e.team_name == "HintUnsolved")
+    assert entry.total == 100
+
+    detail = await compute_team_score(db_session, t.id)
+    assert detail.hint_points == 0
+    assert detail.total == 100
+
+
+async def test_zero_point_solve_triggers_hint_cost_and_shows_in_details(db_session):
+    ch = await _challenge(db_session)
+    q = await _question(db_session, ch.id)
+    t = await _team(db_session, "ZeroSolve")
+    await _submission(db_session, t.id, q.id, points_earned=0, wrong_count_before=10)
+    await _hint_unlock(db_session, t.id, q.id, cost=30)
+
+    detail = await compute_team_score(db_session, t.id)
+    assert len(detail.solves) == 1
+    assert detail.solves[0].points_earned == 0
+    assert detail.hint_points == -30
+    assert detail.total == -30
+
+    result = await compute_scoreboard(db_session)
+    entry = next(e for e in result.entries if e.team_name == "ZeroSolve")
+    assert entry.total == -30
 
 
 async def test_compute_team_score_not_found(db_session):
@@ -280,11 +407,6 @@ async def test_compute_scoreboard_history_limit(db_session):
     assert result.series[0].rank == 1
 
 
-_FREEZE = _NOW - timedelta(hours=1)
-_BEFORE_FREEZE = _FREEZE - timedelta(minutes=30)
-_AFTER_FREEZE = _FREEZE + timedelta(minutes=30)
-
-
 async def test_compute_scoreboard_freeze_excludes_post_freeze_submissions(db_session):
     ch = await _challenge(db_session)
     q1 = await _question(db_session, ch.id, points=100)
@@ -303,8 +425,6 @@ async def test_compute_scoreboard_freeze_excludes_post_freeze_submissions(db_ses
 
 
 async def test_compute_scoreboard_freeze_admin_sees_full_data(db_session):
-    from nexctf.module.scoreboard.compute import compute_admin_scoreboard
-
     ch = await _challenge(db_session)
     q1 = await _question(db_session, ch.id, points=100)
     q2 = await _question(db_session, ch.id, points=50)
