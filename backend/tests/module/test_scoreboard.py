@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.model import HintUnlock, Team, User, UserRole
@@ -90,13 +91,10 @@ async def _hint_unlock(
     *,
     created_at: datetime | None = None,
 ):
-    u = User(username=f"hint_{uuid4().hex[:8]}", hashed_password="x", team_id=team_id)
-    session.add(u)
-    await session.flush()
     h = Hint(title="Hint", content="secret", cost=cost, question_id=question_id)
     session.add(h)
     await session.flush()
-    hu = HintUnlock(user_id=u.id, hint_id=h.id, cost_paid=cost)
+    hu = HintUnlock(team_id=team_id, hint_id=h.id, cost_paid=cost)
     session.add(hu)
     await session.flush()
     if created_at is not None:
@@ -275,6 +273,18 @@ async def test_compute_scoreboard_freeze_excludes_post_freeze_hint_unlocks(db_se
     result = await compute_scoreboard(db_session, freeze_time=_FREEZE)
     entry = next(e for e in result.entries if e.team_name == "HintFreeze")
     assert entry.total == 100
+
+
+async def test_team_cannot_unlock_the_same_hint_twice(db_session):
+    ch = await _challenge(db_session)
+    q = await _question(db_session, ch.id)
+    t = await _team(db_session, "HintOnce")
+    hu = await _hint_unlock(db_session, t.id, q.id, cost=30)
+
+    with pytest.raises(IntegrityError):
+        db_session.add(HintUnlock(team_id=t.id, hint_id=hu.hint_id, cost_paid=30))
+        await db_session.flush()
+    await db_session.rollback()
 
 
 async def test_compute_scoreboard_ignores_hint_on_unsolved_question(db_session):

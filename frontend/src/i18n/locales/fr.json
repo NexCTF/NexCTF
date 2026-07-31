@@ -766,6 +766,7 @@
     "score_breakdown_title": "Détail du score",
     "solve_points_label": "Points des questions",
     "adjustments_label": "Ajustements de score",
+    "adjustments_empty": "Aucun ajustement.",
     "total_label": "Total",
     "country_label": "Pays",
     "bracket_label": "Catégorie",

@@ -10,10 +10,10 @@ from fastapi import APIRouter, Request
 from fastapi_toolsets.exceptions import ForbiddenError, NotFoundError, UnauthorizedError
 from fastapi_toolsets.schemas import Response
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
 from nexctf.api.dep import (
-    CurrentUserDep,
     EventActiveDep,
     EventStartedDep,
     OptionalCurrentUserDep,
@@ -110,11 +110,12 @@ def _writeup_visible(*, challenge_completed: bool) -> bool:
 async def _unlocked_ids(
     session: SessionDep, user: User | None, hint_ids: list[UUID]
 ) -> set[UUID]:
-    if not hint_ids or user is None:
+    """Return the hints among *hint_ids* the caller's team has unlocked."""
+    if not hint_ids or user is None or user.team_id is None:
         return set()
     rows = await session.execute(
         select(HintUnlock.hint_id).where(
-            HintUnlock.user_id == user.id,
+            HintUnlock.team_id == user.team_id,
             HintUnlock.hint_id.in_(hint_ids),
         )
     )
@@ -446,7 +447,7 @@ async def unlock_hint(
     challenge_id: UUID,
     question_id: UUID,
     hint_id: UUID,
-    user: CurrentUserDep,
+    user: RequireTeamDep,
     _: EventActiveDep,
 ) -> Response[PublicHintRead]:
     _check_challenge_visibility(user)
@@ -460,15 +461,15 @@ async def unlock_hint(
     if hint is None:
         raise NotFoundError(detail="Hint not found")
 
-    existing = await session.execute(
-        select(HintUnlock).where(
-            HintUnlock.user_id == user.id,
-            HintUnlock.hint_id == hint_id,
-        )
+    # A hint is bought once per team; teammates unlocking concurrently race on
+    # uq_hint_unlock, so let the database settle who pays.
+    inserted = await session.execute(
+        insert(HintUnlock)
+        .values(team_id=user.team_id, hint_id=hint_id, cost_paid=hint.cost)
+        .on_conflict_do_nothing(constraint="uq_hint_unlock")
+        .returning(HintUnlock.id)
     )
-    if existing.scalar_one_or_none() is None:
-        session.add(HintUnlock(user_id=user.id, hint_id=hint_id, cost_paid=hint.cost))
-        await session.flush()
+    if inserted.scalar_one_or_none() is not None:
         await challenge.on_hint_unlock(user, hint)
         await emit_event(
             session,

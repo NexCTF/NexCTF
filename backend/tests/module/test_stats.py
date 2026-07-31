@@ -2,7 +2,7 @@
 
 from uuid import uuid4
 
-from nexctf.model import Hint, HintUnlock, Question, Submission, Team, User
+from nexctf.model import Hint, HintUnlock, Question, Submission, Team
 from nexctf.module.scoreboard.compute import compute_team_score
 from nexctf.module.stats.compute import compute_team_challenge_stats
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
@@ -20,11 +20,6 @@ async def test_question_net_points_deduct_hints_only_when_solved(db_session):
     team = Team(name=f"stats_{uuid4().hex[:8]}")
     db_session.add(team)
     await db_session.flush()
-    user = User(
-        username=f"stats_{uuid4().hex[:8]}", hashed_password="x", team_id=team.id
-    )
-    db_session.add(user)
-    await db_session.flush()
 
     h1 = Hint(title="H1", content="c", cost=25, question_id=q_solved.id)
     h2 = Hint(title="H2", content="c", cost=10, question_id=q_unsolved.id)
@@ -32,8 +27,8 @@ async def test_question_net_points_deduct_hints_only_when_solved(db_session):
     await db_session.flush()
     db_session.add_all(
         [
-            HintUnlock(user_id=user.id, hint_id=h1.id, cost_paid=25),
-            HintUnlock(user_id=user.id, hint_id=h2.id, cost_paid=10),
+            HintUnlock(team_id=team.id, hint_id=h1.id, cost_paid=25),
+            HintUnlock(team_id=team.id, hint_id=h2.id, cost_paid=10),
             Submission(
                 answer="a",
                 is_correct=True,

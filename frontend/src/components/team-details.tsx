@@ -107,7 +107,6 @@ function SignedAmount({ amount }: { amount: number }) {
 
 export function ScoreBreakdown({ score }: { score: TeamScoreDetail }) {
   const { t } = useTranslation();
-  if (score.adjustments.length === 0) return null;
 
   return (
     <section className="space-y-3">
@@ -126,6 +125,11 @@ export function ScoreBreakdown({ score }: { score: TeamScoreDetail }) {
             <SignedAmount amount={score.adjustment_points} />
           </summary>
           <div className="divide-y bg-muted/10 px-4 py-1">
+            {score.adjustments.length === 0 && (
+              <p className="py-2 pl-6 text-xs text-muted-foreground">
+                {t("team.adjustments_empty")}
+              </p>
+            )}
             {score.adjustments.map((adj) => (
               <div
                 key={adj.id}

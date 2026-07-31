@@ -6,10 +6,14 @@ from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.api.routes.challenge import _writeup_visible
 from nexctf.core import appconfig
-from nexctf.model import Team, User
+from nexctf.model import HintUnlock, Team, User
+from nexctf.model.question import Hint, Question
+from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 
 NULL_UUID = "00000000-0000-0000-0000-000000000000"
 
@@ -190,12 +194,71 @@ class TestHintUnlockAfterEnd:
     async def test_user_blocked_when_ctf_ended(
         self,
         user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Regular users cannot unlock hints after the CTF ends."""
         monkeypatch.setitem(appconfig._CACHE, "ctf.end_time", PAST)
+        c, user = user_client
+        # Without a team the request would 403 on the team guard instead.
+        team = Team(name="ended_team")
+        db_session.add(team)
+        await db_session.flush()
+        user.team_id = team.id
+        await db_session.flush()
+
+        resp = await c.post(
+            f"/challenges/{NULL_UUID}/{NULL_UUID}/hints/{NULL_UUID}/unlock"
+        )
+        assert resp.status_code == 403
+        assert resp.json()["error_code"] != "SUB-403-TEAM"
+
+    async def test_teamless_user_blocked(
+        self,
+        user_client: tuple[AsyncClient, User],
+    ) -> None:
+        """A hint is bought by a team, so a teamless user cannot unlock one."""
         c, _ = user_client
         resp = await c.post(
             f"/challenges/{NULL_UUID}/{NULL_UUID}/hints/{NULL_UUID}/unlock"
         )
         assert resp.status_code == 403
+        assert resp.json()["error_code"] == "SUB-403-TEAM"
+
+
+class TestHintUnlockChargesOnce:
+    async def test_second_unlock_is_free(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        """Re-unlocking returns the hint without charging the team twice."""
+        c, user = user_client
+        team = Team(name="unlock_team")
+        db_session.add(team)
+        await db_session.flush()
+        user.team_id = team.id
+
+        challenge = StandardChallenge(title="Unlock Test", is_active=True)
+        db_session.add(challenge)
+        await db_session.flush()
+        question = Question(label="Q", points=100, challenge_id=challenge.id)
+        db_session.add(question)
+        await db_session.flush()
+        hint = Hint(title="H", content="secret", cost=30, question_id=question.id)
+        db_session.add(hint)
+        await db_session.flush()
+
+        url = f"/challenges/{challenge.id}/{question.id}/hints/{hint.id}/unlock"
+        first = await c.post(url)
+        second = await c.post(url)
+
+        assert first.status_code == 200
+        assert second.status_code == 200
+        assert second.json()["data"]["content"] == "secret"
+        count = await db_session.scalar(
+            select(func.count())
+            .select_from(HintUnlock)
+            .where(HintUnlock.team_id == team.id)
+        )
+        assert count == 1

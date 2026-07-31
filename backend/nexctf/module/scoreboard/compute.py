@@ -16,7 +16,6 @@ from nexctf.model import (
     ScoreAdjustment,
     Submission,
     Team,
-    User,
 )
 from nexctf.model.custom_field import (
     CustomFieldDefinition,
@@ -70,17 +69,19 @@ async def _fetch_all_hint_unlocks(
     """Fetch (team_id, question_id, cost_paid, created_at) hint-unlock rows."""
     stmt = (
         select(
-            User.team_id, Hint.question_id, HintUnlock.cost_paid, HintUnlock.created_at
+            HintUnlock.team_id,
+            Hint.question_id,
+            HintUnlock.cost_paid,
+            HintUnlock.created_at,
         )
-        .join(User, HintUnlock.user_id == User.id)
         .join(Hint, HintUnlock.hint_id == Hint.id)
-        .where(User.team_id.is_not(None), HintUnlock.cost_paid > 0)
+        .where(HintUnlock.cost_paid > 0)
     )
     if before is not None:
         stmt = stmt.where(HintUnlock.created_at <= before)
     if team_id is not None:
-        stmt = stmt.where(User.team_id == team_id)
-    return [(r[0], r[1], r[2], r[3]) for r in (await session.execute(stmt)).all()]
+        stmt = stmt.where(HintUnlock.team_id == team_id)
+    return list((await session.execute(stmt)).tuples().all())
 
 
 def _first_solve_times(

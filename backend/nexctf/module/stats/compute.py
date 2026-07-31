@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from nexctf.model import Challenge, Hint, HintUnlock, Submission, Team, User
+from nexctf.model import Challenge, Hint, HintUnlock, Submission, Team
 from nexctf.schema.stats import (
     AdminTeamChallengeStats,
     ChallengeStats,
@@ -20,11 +20,7 @@ from nexctf.schema.stats import (
 async def compute_team_challenge_stats(
     session: AsyncSession, team_id: UUID
 ) -> list[TeamChallengeStats]:
-    """Compute per-challenge progress for a team (public schema).
-
-    Unlike the admin schema, challenge-level points_earned is the net gain
-    (hint costs deducted), matching the per-question values.
-    """
+    """Compute per-challenge progress for a team (public schema)."""
     admin_stats = await compute_admin_team_challenge_stats(session, team_id)
     return [
         TeamChallengeStats(
@@ -107,22 +103,15 @@ async def compute_admin_team_challenge_stats(
         for q in c.questions:
             question_id_to_challenge_id[q.id] = c.id
 
-    # Get all user IDs in this team, then load their hint unlocks
-    team_user_ids = (
-        (await session.execute(select(User.id).where(User.team_id == team_id)))
-        .scalars()
-        .all()
-    )
-
     hint_unlock_by_question: dict[UUID, int] = {}
     hint_cost_by_question: dict[UUID, int] = {}
     hint_cost_by_challenge: dict[UUID, int] = {}
-    if team_user_ids and hint_id_to_question_id:
+    if hint_id_to_question_id:
         hint_unlocks = (
             (
                 await session.execute(
                     select(HintUnlock).where(
-                        HintUnlock.user_id.in_(team_user_ids),
+                        HintUnlock.team_id == team_id,
                         HintUnlock.hint_id.in_(hint_id_to_question_id.keys()),
                     )
                 )

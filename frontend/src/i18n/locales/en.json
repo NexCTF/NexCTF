@@ -766,6 +766,7 @@
     "score_breakdown_title": "Score breakdown",
     "solve_points_label": "Question points",
     "adjustments_label": "Score adjustments",
+    "adjustments_empty": "No adjustments.",
     "total_label": "Total",
     "country_label": "Country",
     "bracket_label": "Bracket",
