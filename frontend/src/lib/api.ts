@@ -352,7 +352,9 @@ export interface TeamQuestionStats {
   question_id: string;
   question_label: string;
   is_solved: boolean;
+  points_earned: number;
   hint_unlock_count: number;
+  wrong_attempt_count: number;
 }
 
 export interface TeamMember {
@@ -376,6 +378,7 @@ export interface PublicTeam {
   challenge_stats: TeamChallengeStats[];
   custom_fields: PublicCustomField[];
   rank: number | null;
+  score: number | null;
   team_count: number;
 }
 
@@ -1502,6 +1505,7 @@ export interface TeamScoreDetail {
   total: number;
   solve_points: number;
   adjustment_points: number;
+  hint_points: number;
   solves: SolveDetail[];
   adjustments: AdjustmentDetail[];
   computed_at: string;
@@ -1539,6 +1543,7 @@ export interface AdminScoreboardEntry {
   total: number;
   solve_points: number;
   adjustment_points: number;
+  hint_points: number;
   solve_count: number;
   last_solve_at: string | null;
 }

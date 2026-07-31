@@ -9,7 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from nexctf import crud
-from nexctf.model import Question, ScoreAdjustment, Submission, Team
+from nexctf.model import (
+    Hint,
+    HintUnlock,
+    Question,
+    ScoreAdjustment,
+    Submission,
+    Team,
+)
 from nexctf.model.custom_field import (
     CustomFieldDefinition,
     CustomFieldTarget,
@@ -33,10 +40,10 @@ from nexctf.schema import (
 async def _fetch_all_submissions(
     session: AsyncSession, before: datetime | None = None
 ) -> list[Submission]:
-    """Fetch all correct, scored submissions ordered by creation time."""
+    """Fetch all correct submissions ordered by creation time."""
     stmt = (
         select(Submission)
-        .where(Submission.is_correct.is_(True), Submission.points_earned > 0)
+        .where(Submission.is_correct.is_(True))
         .order_by(Submission.created_at)
     )
     if before is not None:
@@ -52,6 +59,54 @@ async def _fetch_all_adjustments(
     if before is not None:
         stmt = stmt.where(ScoreAdjustment.created_at <= before)
     return list((await session.execute(stmt)).scalars().all())
+
+
+async def _fetch_all_hint_unlocks(
+    session: AsyncSession,
+    before: datetime | None = None,
+    team_id: UUID | None = None,
+) -> list[tuple[UUID, UUID, int, datetime]]:
+    """Fetch (team_id, question_id, cost_paid, created_at) hint-unlock rows."""
+    stmt = (
+        select(
+            HintUnlock.team_id,
+            Hint.question_id,
+            HintUnlock.cost_paid,
+            HintUnlock.created_at,
+        )
+        .join(Hint, HintUnlock.hint_id == Hint.id)
+        .where(HintUnlock.cost_paid > 0)
+    )
+    if before is not None:
+        stmt = stmt.where(HintUnlock.created_at <= before)
+    if team_id is not None:
+        stmt = stmt.where(HintUnlock.team_id == team_id)
+    return list((await session.execute(stmt)).tuples().all())
+
+
+def _first_solve_times(
+    submissions: list[Submission],
+) -> dict[tuple[UUID, UUID], datetime]:
+    """Map (team_id, question_id) to the team's first correct-submission time."""
+    first: dict[tuple[UUID, UUID], datetime] = {}
+    for sub in submissions:
+        first.setdefault((sub.team_id, sub.question_id), sub.created_at)
+    return first
+
+
+def _charged_hint_unlocks(
+    hint_unlocks: list[tuple[UUID, UUID, int, datetime]],
+    first_solve_at: dict[tuple[UUID, UUID], datetime],
+) -> list[tuple[UUID, int, datetime]]:
+    """Return (team_id, cost, charged_at) for hints whose question the team solved.
+
+    Charged at max(unlock time, solve time).
+    """
+    return [
+        (team_id, cost, max(unlocked_at, first_solve_at[(team_id, question_id)]))
+        for team_id, question_id, cost, unlocked_at in hint_unlocks
+        if (team_id, question_id) in first_solve_at
+    ]
 
 
 async def _fetch_scoreboard_fields(
@@ -98,6 +153,7 @@ def _filter_teams_by_bracket(
 def _build_ranked_entries(
     submissions: list[Submission],
     adjustments: list[ScoreAdjustment],
+    hint_unlocks: list[tuple[UUID, UUID, int, datetime]],
     teams: list[Team],
 ) -> tuple[list[AdminScoreboardEntry], datetime]:
     """Build ranked scoreboard entries from pre-fetched data."""
@@ -112,21 +168,29 @@ def _build_ranked_entries(
     for adj in adjustments:
         adj_by_team.setdefault(adj.team_id, []).append(adj)
 
+    hint_cost_by_team: dict[UUID, int] = {}
+    for team_id, cost, _ in _charged_hint_unlocks(
+        hint_unlocks, _first_solve_times(submissions)
+    ):
+        hint_cost_by_team[team_id] = hint_cost_by_team.get(team_id, 0) + cost
+
     entries: list[AdminScoreboardEntry] = []
     for team in teams:
         subs = subs_by_team.get(team.id, [])
         adjs = adj_by_team.get(team.id, [])
         solve_points = sum(s.points_earned for s in subs)
         adjustment_points = sum(a.amount for a in adjs)
+        hint_points = -hint_cost_by_team.get(team.id, 0)
         entries.append(
             AdminScoreboardEntry(
                 rank=0,
                 team_id=team.id,
                 team_name=team.name,
                 team_bracket=team.bracket,
-                total=solve_points + adjustment_points,
+                total=solve_points + adjustment_points + hint_points,
                 solve_points=solve_points,
                 adjustment_points=adjustment_points,
+                hint_points=hint_points,
                 solve_count=len(subs),
                 last_solve_at=subs[-1].created_at if subs else None,
             )
@@ -152,17 +216,29 @@ async def compute_team_score(
     if team is None:
         raise ValueError(f"Team {team_id} not found")
 
-    solves, solve_points = await _fetch_solves(session, team_id, before=freeze_time)
-    adjustments, adjustment_points = await _fetch_adjustments(
-        session, team_id, before=freeze_time
+    (
+        (solves, solve_points),
+        (adjustments, adjustment_points),
+        hint_unlocks,
+    ) = await asyncio.gather(
+        _fetch_solves(session, team_id, before=freeze_time),
+        _fetch_adjustments(session, team_id, before=freeze_time),
+        _fetch_all_hint_unlocks(session, before=freeze_time, team_id=team_id),
+    )
+    first_solve_at: dict[tuple[UUID, UUID], datetime] = {}
+    for s in solves:
+        first_solve_at.setdefault((team_id, s.question_id), s.solved_at)
+    hint_points = -sum(
+        cost for _, cost, _ in _charged_hint_unlocks(hint_unlocks, first_solve_at)
     )
 
     return PublicTeamScoreDetail(
         team_id=team.id,
         team_name=team.name,
-        total=solve_points + adjustment_points,
+        total=solve_points + adjustment_points + hint_points,
         solve_points=solve_points,
         adjustment_points=adjustment_points,
+        hint_points=hint_points,
         solves=solves,
         adjustments=adjustments,
         computed_at=datetime.now(tz=UTC),
@@ -173,14 +249,15 @@ async def compute_admin_scoreboard(
     session: AsyncSession, bracket: str | None = None
 ) -> AdminScoreboard:
     """Compute the full ranked scoreboard with detailed breakdown for all teams."""
-    submissions, adjustments, teams_r = await asyncio.gather(
+    submissions, adjustments, hint_unlocks, teams_r = await asyncio.gather(
         _fetch_all_submissions(session),
         _fetch_all_adjustments(session),
+        _fetch_all_hint_unlocks(session),
         session.execute(select(Team)),
     )
     teams, brackets = _filter_teams_by_bracket(list(teams_r.scalars().all()), bracket)
 
-    entries, now = _build_ranked_entries(submissions, adjustments, teams)
+    entries, now = _build_ranked_entries(submissions, adjustments, hint_unlocks, teams)
     return AdminScoreboard(entries=entries, computed_at=now, brackets=brackets)
 
 
@@ -197,17 +274,19 @@ async def compute_scoreboard(
     (
         submissions,
         adjustments,
+        hint_unlocks,
         teams_r,
         (fields, field_values),
     ) = await asyncio.gather(
         _fetch_all_submissions(session, before=freeze_time),
         _fetch_all_adjustments(session, before=freeze_time),
+        _fetch_all_hint_unlocks(session, before=freeze_time),
         session.execute(select(Team)),
         _fetch_scoreboard_fields(session),
     )
     teams, brackets = _filter_teams_by_bracket(list(teams_r.scalars().all()), bracket)
 
-    entries, now = _build_ranked_entries(submissions, adjustments, teams)
+    entries, now = _build_ranked_entries(submissions, adjustments, hint_unlocks, teams)
     return PublicScoreboard(
         entries=[
             PublicScoreboardEntry(
@@ -240,9 +319,10 @@ async def compute_scoreboard_history(
     """
     now = datetime.now(tz=UTC)
 
-    all_submissions, all_adjustments, teams_r = await asyncio.gather(
+    all_submissions, all_adjustments, all_hint_unlocks, teams_r = await asyncio.gather(
         _fetch_all_submissions(session, before=freeze_time),
         _fetch_all_adjustments(session, before=freeze_time),
+        _fetch_all_hint_unlocks(session, before=freeze_time),
         session.execute(select(Team)),
     )
     teams_by_id = {t.id: t for t in teams_r.scalars()}
@@ -259,6 +339,12 @@ async def compute_scoreboard_history(
     for adj in all_adjustments:
         if adj.team_id is not None:
             team_totals[adj.team_id] = team_totals.get(adj.team_id, 0) + adj.amount
+
+    charged_unlocks = _charged_hint_unlocks(
+        all_hint_unlocks, _first_solve_times(all_submissions)
+    )
+    for hu_team_id, cost, _ in charged_unlocks:
+        team_totals[hu_team_id] = team_totals.get(hu_team_id, 0) - cost
 
     if bracket is not None:
         team_totals = {
@@ -290,6 +376,9 @@ async def compute_scoreboard_history(
     for adj in all_adjustments:
         if adj.team_id in events_by_team:
             events_by_team[adj.team_id].append((adj.created_at, adj.amount))
+    for hu_team_id, cost, charged_at in charged_unlocks:
+        if hu_team_id in events_by_team:
+            events_by_team[hu_team_id].append((charged_at, -cost))
 
     series: list[TeamScoreSeries] = []
     for rank, team_id in enumerate(sorted_ids[:limit], start=1):
@@ -317,13 +406,12 @@ async def compute_scoreboard_history(
 async def _fetch_solves(
     session: AsyncSession, team_id: UUID, before: datetime | None = None
 ) -> tuple[list[PublicSolveDetail], int]:
-    """Return scored solves and their total for a team."""
+    """Return solves and their total for a team."""
     stmt = (
         select(Submission)
         .where(
             Submission.team_id == team_id,
             Submission.is_correct.is_(True),
-            Submission.points_earned > 0,
         )
         .options(joinedload(Submission.question).joinedload(Question.challenge))
         .order_by(Submission.created_at)

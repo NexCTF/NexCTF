@@ -5,10 +5,11 @@ import { useTranslation } from "react-i18next";
 import {
   ChallengeProgressTable,
   MembersList,
+  ScoreBreakdown,
   TeamBadges,
   TeamStatsSummary,
 } from "@/components/team-details";
-import { getTeamProfile } from "@/lib/api";
+import { getTeamProfile, getTeamScore } from "@/lib/api";
 
 export const Route = createFileRoute("/_user/teams_/$teamId")({
   component: TeamProfilePage,
@@ -25,6 +26,12 @@ function TeamProfilePage() {
   } = useQuery({
     queryKey: ["team-profile", teamId],
     queryFn: () => getTeamProfile(teamId),
+    staleTime: 60_000,
+  });
+
+  const { data: score } = useQuery({
+    queryKey: ["team-score", teamId],
+    queryFn: () => getTeamScore(teamId),
     staleTime: 60_000,
   });
 
@@ -53,6 +60,8 @@ function TeamProfilePage() {
           <MembersList members={team.members} />
 
           <ChallengeProgressTable stats={team.challenge_stats} />
+
+          {score && <ScoreBreakdown score={score} />}
         </>
       )}
     </div>

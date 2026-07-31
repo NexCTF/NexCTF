@@ -130,7 +130,7 @@ class NoTeamError(TeamError):
     api_error = ApiError(
         code=403,
         msg="Team required",
-        desc="You must be in a team to submit answers.",
+        desc="You must be in a team to submit answers or unlock hints.",
         err_code="SUB-403-TEAM",
     )
 

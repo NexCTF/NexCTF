@@ -1,7 +1,7 @@
-import { Check, ChevronRight, Lightbulb, Users } from "lucide-react";
+import { Check, ChevronRight, Lightbulb, Users, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { PublicCustomField, PublicTeam, TeamChallengeStats } from "@/lib/api";
+import type { PublicCustomField, PublicTeam, TeamChallengeStats, TeamScoreDetail } from "@/lib/api";
 
 // ── Badges ────────────────────────────────────────────────────────────────────
 
@@ -87,8 +87,71 @@ export function TeamStatsSummary({ team }: { team: PublicTeam }) {
       />
       <StatBox value={team.members.length} label={t("team.members_title")} />
       <StatBox value={`${completion}%`} label={t("team.progress_col_progress")} />
-      <StatBox value={totalPoints} label={t("team.progress_col_points")} />
+      <StatBox value={team.score ?? totalPoints} label={t("team.progress_col_points")} />
     </div>
+  );
+}
+
+// ── Score breakdown ───────────────────────────────────────────────────────────
+
+function SignedAmount({ amount }: { amount: number }) {
+  const color =
+    amount !== 0 ? (amount > 0 ? "text-green-500" : "text-red-500") : "text-muted-foreground";
+  return (
+    <span className={`font-medium tabular-nums ${color}`}>
+      {amount > 0 ? "+" : ""}
+      {amount}
+    </span>
+  );
+}
+
+export function ScoreBreakdown({ score }: { score: TeamScoreDetail }) {
+  const { t } = useTranslation();
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-base font-semibold">{t("team.score_breakdown_title")}</h2>
+      <div className="rounded-lg border divide-y">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+          <span>{t("team.solve_points_label")}</span>
+          <span className="font-medium tabular-nums">{score.solve_points + score.hint_points}</span>
+        </div>
+        <details className="group">
+          <summary className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm cursor-pointer hover:bg-muted/20 transition-colors list-none [&::-webkit-details-marker]:hidden">
+            <span className="flex items-center gap-2">
+              <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+              {t("team.adjustments_label")}
+            </span>
+            <SignedAmount amount={score.adjustment_points} />
+          </summary>
+          <div className="divide-y bg-muted/10 px-4 py-1">
+            {score.adjustments.length === 0 && (
+              <p className="py-2 pl-6 text-xs text-muted-foreground">
+                {t("team.adjustments_empty")}
+              </p>
+            )}
+            {score.adjustments.map((adj) => (
+              <div
+                key={adj.id}
+                className="flex items-center justify-between gap-3 py-2 pl-6 text-xs"
+              >
+                <span>
+                  {adj.reason}
+                  {adj.challenge_title && (
+                    <span className="text-muted-foreground"> — {adj.challenge_title}</span>
+                  )}
+                </span>
+                <SignedAmount amount={adj.amount} />
+              </div>
+            ))}
+          </div>
+        </details>
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+          <span className="font-semibold">{t("team.total_label")}</span>
+          <span className="font-semibold tabular-nums">{score.total}</span>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -166,12 +229,19 @@ function ChallengeStatsRow({ stats }: { stats: TeamChallengeStats }) {
                 >
                   <span>{q.question_label}</span>
                   <span className="flex items-center gap-4 text-muted-foreground">
+                    {q.wrong_attempt_count > 0 && (
+                      <span className="flex items-center gap-1">
+                        <X className="size-3 text-red-500" />
+                        {t("team.attempts_failed", { count: q.wrong_attempt_count })}
+                      </span>
+                    )}
                     {q.hint_unlock_count > 0 && (
                       <span className="flex items-center gap-1">
                         <Lightbulb className="size-3" />
                         {t("team.hints_used", { count: q.hint_unlock_count })}
                       </span>
                     )}
+                    {q.is_solved && <SignedAmount amount={q.points_earned} />}
                     {q.is_solved ? <Check className="size-3.5 text-green-500" /> : <span>—</span>}
                   </span>
                 </div>

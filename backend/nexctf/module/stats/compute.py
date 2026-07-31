@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from nexctf.model import Challenge, Hint, HintUnlock, Submission, Team, User
+from nexctf.model import Challenge, Hint, HintUnlock, Submission, Team
 from nexctf.schema.stats import (
     AdminTeamChallengeStats,
     ChallengeStats,
@@ -20,11 +20,14 @@ from nexctf.schema.stats import (
 async def compute_team_challenge_stats(
     session: AsyncSession, team_id: UUID
 ) -> list[TeamChallengeStats]:
-    """Compute per-challenge progress for a team (public schema, no hint costs)."""
+    """Compute per-challenge progress for a team (public schema)."""
     admin_stats = await compute_admin_team_challenge_stats(session, team_id)
     return [
         TeamChallengeStats(
-            **s.model_dump(exclude={"hint_unlock_count", "hint_cost_spent"})
+            **s.model_dump(
+                exclude={"hint_unlock_count", "hint_cost_spent", "points_earned"}
+            ),
+            points_earned=sum(q.points_earned for q in s.questions),
         )
         for s in admin_stats
     ]
@@ -100,21 +103,15 @@ async def compute_admin_team_challenge_stats(
         for q in c.questions:
             question_id_to_challenge_id[q.id] = c.id
 
-    # Get all user IDs in this team, then load their hint unlocks
-    team_user_ids = (
-        (await session.execute(select(User.id).where(User.team_id == team_id)))
-        .scalars()
-        .all()
-    )
-
     hint_unlock_by_question: dict[UUID, int] = {}
+    hint_cost_by_question: dict[UUID, int] = {}
     hint_cost_by_challenge: dict[UUID, int] = {}
-    if team_user_ids and hint_id_to_question_id:
+    if hint_id_to_question_id:
         hint_unlocks = (
             (
                 await session.execute(
                     select(HintUnlock).where(
-                        HintUnlock.user_id.in_(team_user_ids),
+                        HintUnlock.team_id == team_id,
                         HintUnlock.hint_id.in_(hint_id_to_question_id.keys()),
                     )
                 )
@@ -130,6 +127,9 @@ async def compute_admin_team_challenge_stats(
             if cid is None:
                 continue
             hint_unlock_by_question[qid] = hint_unlock_by_question.get(qid, 0) + 1
+            hint_cost_by_question[qid] = (
+                hint_cost_by_question.get(qid, 0) + hu.cost_paid
+            )
             hint_cost_by_challenge[cid] = (
                 hint_cost_by_challenge.get(cid, 0) + hu.cost_paid
             )
@@ -149,20 +149,36 @@ async def compute_admin_team_challenge_stats(
         solved_q_ids = {s.question_id for s in correct_subs}
         solved_q_count = len(solved_q_ids & q_ids)
         is_solved = q_count > 0 and solved_q_count == q_count
-        points_earned = sum(s.points_earned for s in correct_subs)
 
         first_solve_at = min((s.created_at for s in correct_subs), default=None)
         last_solve_at = max((s.created_at for s in correct_subs), default=None)
 
+        solve_points_by_q: dict[UUID, int] = {}
+        for s in correct_subs:
+            solve_points_by_q[s.question_id] = (
+                solve_points_by_q.get(s.question_id, 0) + s.points_earned
+            )
+
+        # Per-question points_earned is the net gain: solve points minus hint
+        # costs, hints being charged only once the question is solved.
         question_stats = [
             TeamQuestionStats(
                 question_id=q.id,
                 question_label=q.label,
                 is_solved=q.id in solved_q_ids,
+                points_earned=(
+                    solve_points_by_q.get(q.id, 0) - hint_cost_by_question.get(q.id, 0)
+                    if q.id in solved_q_ids
+                    else 0
+                ),
                 hint_unlock_count=hint_unlock_by_question.get(q.id, 0),
+                wrong_attempt_count=sum(
+                    1 for s in subs_by_question.get(q.id, []) if not s.is_correct
+                ),
             )
             for q in challenge.questions
         ]
+        points_earned = sum(s.points_earned for s in correct_subs)
 
         result.append(
             AdminTeamChallengeStats(

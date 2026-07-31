@@ -10,16 +10,18 @@ from .base import Base
 
 if TYPE_CHECKING:
     from .question import Hint
-    from .user import User
+    from .user import Team
 
 
 class HintUnlock(Base):
-    __tablename__ = "hint_unlocks"
-    __table_args__ = (UniqueConstraint("user_id", "hint_id", name="uq_hint_unlock"),)
+    """A hint bought by a team; the whole team shares it and pays once."""
 
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    __tablename__ = "hint_unlocks"
+    __table_args__ = (UniqueConstraint("team_id", "hint_id", name="uq_hint_unlock"),)
+
+    team_id: Mapped[UUID] = mapped_column(ForeignKey("teams.id"))
     hint_id: Mapped[UUID] = mapped_column(ForeignKey("hints.id"))
     cost_paid: Mapped[int]
 
-    user: Mapped[User] = relationship()
+    team: Mapped[Team] = relationship()
     hint: Mapped[Hint] = relationship()

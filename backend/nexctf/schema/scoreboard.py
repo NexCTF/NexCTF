@@ -32,6 +32,7 @@ class PublicTeamScoreDetail(PydanticBase):
     total: int
     solve_points: int
     adjustment_points: int
+    hint_points: int
     solves: list[PublicSolveDetail]
     adjustments: list[PublicAdjustmentDetail]
     computed_at: datetime
@@ -59,6 +60,7 @@ class AdminScoreboardEntry(PydanticBase):
     total: int
     solve_points: int
     adjustment_points: int
+    hint_points: int
     solve_count: int
     last_solve_at: datetime | None
 
