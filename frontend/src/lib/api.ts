@@ -352,6 +352,7 @@ export interface TeamQuestionStats {
   question_id: string;
   question_label: string;
   is_solved: boolean;
+  points_earned: number;
   hint_unlock_count: number;
   wrong_attempt_count: number;
 }

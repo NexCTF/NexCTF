@@ -3,9 +3,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
-  AdjustmentsList,
   ChallengeProgressTable,
   MembersList,
+  ScoreBreakdown,
   TeamBadges,
   TeamStatsSummary,
 } from "@/components/team-details";
@@ -61,7 +61,7 @@ function TeamProfilePage() {
 
           <ChallengeProgressTable stats={team.challenge_stats} />
 
-          <AdjustmentsList adjustments={score?.adjustments ?? []} />
+          {score && <ScoreBreakdown score={score} />}
         </>
       )}
     </div>

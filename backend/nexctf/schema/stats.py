@@ -38,6 +38,7 @@ class TeamQuestionStats(PydanticBase):
     question_id: UUID
     question_label: str
     is_solved: bool
+    points_earned: int = 0
     hint_unlock_count: int = 0
     wrong_attempt_count: int = 0
 
