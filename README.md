@@ -14,6 +14,7 @@ A self-hosted, extensible Capture The Flag platform with multi-question challeng
     <td align="center"><img src="img/challenges.png" alt="Challenges"/><br/><sub>Challenges</sub></td>
     <td align="center"><img src="img/challenge_details.png" alt="Challenge details"/><br/><sub>Challenge details</sub></td>
     <td align="center"><img src="img/scoreboard.png" alt="Scoreboard"/><br/><sub>Scoreboard</sub></td>
+    <td align="center"><img src="img/settings.png" alt="Settings"/><br/><sub>Settings</sub></td>
   </tr>
 </table>
 
@@ -52,23 +53,28 @@ The app is available at **https://localhost:8443** (`admin`/`admin` by default).
 - Team-based scoring with configurable max team size
 - Per-question points and wrong-answer penalties
 - Manual score adjustments (bonuses/penalties) with reason tracking
-- Live scoreboard with caching and SSE
+- Challenge writeups
+- Live scoreboard with caching and SSE, freezable at a configurable time
+- Brackets — separate standings for sub-groups (students, pros, …)
+- First-blood tracking per question
 
 ### 👥 Users & Teams
 - Roles: admin, moderator, user
 - Custom fields on users and teams (string, integer, boolean, URL)
+- Public team profiles with per-challenge progress and score breakdown
 - Registration and team creation can be enabled/disabled, optional CAPTCHA
 - **Security** — TOTP 2FA, multiple API tokens per user
+  - Email verification and password reset over SMTP
   - OAuth2 / OpenID Connect login with configurable providers
   - Built-in OAuth2/OIDC server
 
 ### 🛠️ Administration
 - Dashboard with audit log and statistics
-- Competition settings (name, logo, colors, start/end times, rate limits)
+- Competition settings (name, logo, colors, start/end/freeze times, rate limits)
 - Full CRUD for challenges, questions, categories, hints, solutions, and tags
 - File manager and notification broadcast (global or per-team)
 - Scheduler — one-shot or cron-based jobs
-- Custom Markdown pages
+- Custom Markdown pages and external navigation links
 - **Plugins** — register custom challenge types, solution strategies, scheduler jobs, and frontend components
   - Plugins own their DB tables with Alembic migrations
   - Plugin-scoped config keys auto-prefixed and merged with core config
