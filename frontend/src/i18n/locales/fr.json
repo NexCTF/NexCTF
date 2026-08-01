@@ -823,6 +823,10 @@
         "label": "Heure de gel",
         "description": "Le classement public cesse d'être mis à jour après cette heure (le classement admin n'est pas affecté)"
       },
+      "hide_challenges_before_start": {
+        "label": "Masquer les épreuves avant le début",
+        "description": "Masquer la liste des épreuves jusqu'à l'heure de début du CTF"
+      },
       "team_size": {
         "label": "Taille max. d'équipe",
         "description": "Nombre maximum de membres par équipe"

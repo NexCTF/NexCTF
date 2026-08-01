@@ -823,6 +823,10 @@
         "label": "Freeze Time",
         "description": "Public scoreboard stops updating after this time (admin scoreboard is unaffected)"
       },
+      "hide_challenges_before_start": {
+        "label": "Hide Challenges Before Start",
+        "description": "Hide the challenge list until the CTF start time"
+      },
       "team_size": {
         "label": "Max Team Size",
         "description": "Maximum number of members per team"
