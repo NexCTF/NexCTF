@@ -374,7 +374,8 @@ export interface PublicTeam {
   name: string;
   country: string | null;
   bracket: string | null;
-  members: TeamMember[];
+  members: TeamMember[] | null;
+  member_count: number;
   challenge_stats: TeamChallengeStats[];
   custom_fields: PublicCustomField[];
   rank: number | null;

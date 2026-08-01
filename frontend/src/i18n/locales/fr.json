@@ -867,6 +867,10 @@
         "label": "Visibilité des challenges",
         "description": "Qui peut voir les challenges"
       },
+      "show_team_members": {
+        "label": "Afficher les membres d'équipe",
+        "description": "Afficher la liste des membres sur les profils publics d'équipe"
+      },
       "choices": {
         "public": "Public",
         "authenticated": "Utilisateurs connectés",

@@ -46,12 +46,18 @@ async def fetch_public_team_fields(
 
 
 async def load_team_read(
-    session: AsyncSession, redis: Redis, team_id: UUID, *, include_rank: bool = True
+    session: AsyncSession,
+    redis: Redis,
+    team_id: UUID,
+    *,
+    include_rank: bool = True,
+    include_members: bool = True,
 ) -> MyTeamRead | None:
     """Load a team with members, stats, public custom fields and global standing.
 
     Rank/team_count come from the global scoreboard; pass include_rank=False when
-    the caller may not view ranking data (hidden scoreboard).
+    the caller may not view ranking data (hidden scoreboard). Pass
+    include_members=False to omit the member list (members are None).
     """
     team = await crud.TeamCrud.first(
         session, [Team.id == team_id], load_options=[selectinload(Team.users)]
@@ -76,7 +82,10 @@ async def load_team_read(
         name=team.name,
         country=team.country,
         bracket=team.bracket,
-        members=[PublicTeamMember(id=u.id, username=u.username) for u in team.users],
+        members=[PublicTeamMember(id=u.id, username=u.username) for u in team.users]
+        if include_members
+        else None,
+        member_count=len(team.users),
         challenge_stats=stats,
         invite_code=team.invite_code,
         custom_fields=custom_fields,

@@ -85,7 +85,7 @@ export function TeamStatsSummary({ team }: { team: PublicTeam }) {
         }
         label={t("team.rank_label")}
       />
-      <StatBox value={team.members.length} label={t("team.members_title")} />
+      <StatBox value={team.member_count} label={t("team.members_title")} />
       <StatBox value={`${completion}%`} label={t("team.progress_col_progress")} />
       <StatBox value={team.score ?? totalPoints} label={t("team.progress_col_points")} />
     </div>
@@ -159,6 +159,7 @@ export function ScoreBreakdown({ score }: { score: TeamScoreDetail }) {
 
 export function MembersList({ members }: { members: PublicTeam["members"] }) {
   const { t } = useTranslation();
+  if (!members) return null;
   return (
     <section className="space-y-3">
       <h2 className="text-base font-semibold flex items-center gap-2">

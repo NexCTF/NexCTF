@@ -70,7 +70,8 @@ class PublicTeamRead(PydanticBase):
     name: str
     country: str | None
     bracket: str | None
-    members: list[PublicTeamMember]
+    members: list[PublicTeamMember] | None
+    member_count: int
     challenge_stats: list[TeamChallengeStats]
     custom_fields: list[PublicCustomFieldValue] = []
     rank: int | None = None

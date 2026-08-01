@@ -229,6 +229,12 @@ def _visibility():
             type=ConfigType.CHOICE,
             choices=["public", "authenticated", "hidden"],
         ),
+        ConfigDef(
+            key="visibility.show_team_members",
+            label="config.visibility.show_team_members.label",
+            default=True,
+            description="config.visibility.show_team_members.description",
+        ),
     ]
 
 

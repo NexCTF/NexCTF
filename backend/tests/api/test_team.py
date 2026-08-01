@@ -1,5 +1,6 @@
 """Tests for the public team profile endpoint."""
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,6 +36,25 @@ class TestGetTeamProfile:
         assert [m["username"] for m in data["members"]] == ["alice"]
         assert data["rank"] == 1
         assert data["team_count"] == 1
+
+    async def test_members_hidden(
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("NEXCTF_VISIBILITY_SHOW_TEAM_MEMBERS", "false")
+        team = Team(name="HiddenMembers")
+        db_session.add(team)
+        await db_session.flush()
+        db_session.add(User(username="bob", team_id=team.id))
+        await db_session.flush()
+
+        resp = await http_client.get(f"{self.PREFIX}/{team.id}")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["members"] is None
+        assert data["member_count"] == 1
 
     async def test_invite_code_hidden(
         self,

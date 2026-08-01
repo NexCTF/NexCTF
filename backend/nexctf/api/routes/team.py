@@ -12,6 +12,7 @@ from nexctf.api.dep import (
     SessionDep,
     check_scoreboard_visibility,
 )
+from nexctf.core import appconfig
 from nexctf.module.team import load_team_read
 from nexctf.schema.team import PublicTeamRead
 
@@ -27,7 +28,15 @@ async def get_team_profile(
 ) -> Response[PublicTeamRead]:
     """Public team profile: fields, members and challenge progress."""
     check_scoreboard_visibility(user)
-    team = await load_team_read(session, redis, team_id)
+    overrides = await appconfig.fetch_overrides(redis)
+    team = await load_team_read(
+        session,
+        redis,
+        team_id,
+        include_members=bool(
+            appconfig.get_with_overrides("visibility.show_team_members", overrides)
+        ),
+    )
     if team is None:
         raise NotFoundError()
     return Response(data=team)

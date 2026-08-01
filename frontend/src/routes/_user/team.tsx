@@ -172,7 +172,7 @@ function TeamView({
         <div>
           <h1 className="text-2xl font-bold">{team.name}</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {t("team.member_count", { count: team.members.length, max: teamSize })}
+            {t("team.member_count", { count: team.member_count, max: teamSize })}
           </p>
           <TeamBadges team={team} />
         </div>
