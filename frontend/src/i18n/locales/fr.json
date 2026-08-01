@@ -744,6 +744,7 @@
     "code_label": "Code d'invitation",
     "code_placeholder": "ex. ABC12345",
     "creation_disabled": "La création d'équipe est actuellement désactivée.",
+    "changes_disabled": "Les changements d'équipe sont actuellement désactivés.",
     "members_title": "Membres",
     "member_count": "{{count}} / {{max}}",
     "progress_title": "Progression des challenges",
@@ -838,6 +839,10 @@
       "allow_team_creation": {
         "label": "Autoriser la création d'équipe",
         "description": "Permettre aux joueurs de créer des équipes et générer des codes d'invitation"
+      },
+      "allow_team_changes": {
+        "label": "Autoriser les changements d'équipe",
+        "description": "Permettre aux joueurs de rejoindre ou quitter une équipe"
       },
       "release_writeups_after_end": {
         "label": "Publier les writeups après la fin",

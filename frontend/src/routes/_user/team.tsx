@@ -50,7 +50,15 @@ function CopyButton({ value }: { value: string }) {
 
 // ── No team view ──────────────────────────────────────────────────────────────
 
-function NoTeamView({ allowCreation, onJoined }: { allowCreation: boolean; onJoined: () => void }) {
+function NoTeamView({
+  allowCreation,
+  allowChanges,
+  onJoined,
+}: {
+  allowCreation: boolean;
+  allowChanges: boolean;
+  onJoined: () => void;
+}) {
   const { t } = useTranslation();
   const [teamName, setTeamName] = useState("");
   const [code, setCode] = useState("");
@@ -74,65 +82,73 @@ function NoTeamView({ allowCreation, onJoined }: { allowCreation: boolean; onJoi
         <p className="text-muted-foreground text-sm mt-1">{t("team.no_team_hint")}</p>
       </div>
 
-      {allowCreation ? (
-        <section className="space-y-4 rounded-lg border p-6">
-          <h2 className="text-base font-semibold">{t("team.create_section")}</h2>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              createMutation.mutate();
-            }}
-            className="flex gap-2"
-          >
-            <div className="flex-1 space-y-1.5">
-              <Label htmlFor="team-name">{t("team.name_label")}</Label>
-              <Input
-                id="team-name"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                placeholder={t("team.name_placeholder")}
-                required
-              />
-            </div>
-            <div className="flex items-end">
-              <Button type="submit" disabled={createMutation.isPending || !teamName.trim()}>
-                {createMutation.isPending ? t("team.creating") : t("team.create_btn")}
-              </Button>
-            </div>
-          </form>
-        </section>
-      ) : (
+      {!allowChanges ? (
         <div className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-          {t("team.creation_disabled")}
+          {t("team.changes_disabled")}
         </div>
-      )}
+      ) : (
+        <>
+          {allowCreation ? (
+            <section className="space-y-4 rounded-lg border p-6">
+              <h2 className="text-base font-semibold">{t("team.create_section")}</h2>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  createMutation.mutate();
+                }}
+                className="flex gap-2"
+              >
+                <div className="flex-1 space-y-1.5">
+                  <Label htmlFor="team-name">{t("team.name_label")}</Label>
+                  <Input
+                    id="team-name"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    placeholder={t("team.name_placeholder")}
+                    required
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button type="submit" disabled={createMutation.isPending || !teamName.trim()}>
+                    {createMutation.isPending ? t("team.creating") : t("team.create_btn")}
+                  </Button>
+                </div>
+              </form>
+            </section>
+          ) : (
+            <div className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+              {t("team.creation_disabled")}
+            </div>
+          )}
 
-      <section className="space-y-4 rounded-lg border p-6">
-        <h2 className="text-base font-semibold">{t("team.join_section")}</h2>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            joinMutation.mutate();
-          }}
-          className="flex gap-2"
-        >
-          <div className="flex-1 space-y-1.5">
-            <Label htmlFor="invite-code">{t("team.code_label")}</Label>
-            <Input
-              id="invite-code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder={t("team.code_placeholder")}
-              required
-            />
-          </div>
-          <div className="flex items-end">
-            <Button type="submit" disabled={joinMutation.isPending || !code.trim()}>
-              {joinMutation.isPending ? t("team.joining") : t("team.join_btn")}
-            </Button>
-          </div>
-        </form>
-      </section>
+          <section className="space-y-4 rounded-lg border p-6">
+            <h2 className="text-base font-semibold">{t("team.join_section")}</h2>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                joinMutation.mutate();
+              }}
+              className="flex gap-2"
+            >
+              <div className="flex-1 space-y-1.5">
+                <Label htmlFor="invite-code">{t("team.code_label")}</Label>
+                <Input
+                  id="invite-code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder={t("team.code_placeholder")}
+                  required
+                />
+              </div>
+              <div className="flex items-end">
+                <Button type="submit" disabled={joinMutation.isPending || !code.trim()}>
+                  {joinMutation.isPending ? t("team.joining") : t("team.join_btn")}
+                </Button>
+              </div>
+            </form>
+          </section>
+        </>
+      )}
     </div>
   );
 }
@@ -142,12 +158,14 @@ function NoTeamView({ allowCreation, onJoined }: { allowCreation: boolean; onJoi
 function TeamView({
   team,
   allowCreation,
+  allowChanges,
   teamSize,
   onLeft,
   onCodeRotated,
 }: {
   team: MyTeam;
   allowCreation: boolean;
+  allowChanges: boolean;
   teamSize: number;
   onLeft: () => void;
   onCodeRotated: (code: string) => void;
@@ -176,19 +194,25 @@ function TeamView({
           </p>
           <TeamBadges team={team} />
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-          onClick={() => {
-            if (confirm(t("team.leave_confirm", { name: team.name }))) {
-              leaveMutation.mutate();
-            }
-          }}
-          disabled={leaveMutation.isPending}
-        >
-          {t("team.leave_btn")}
-        </Button>
+        {allowChanges ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => {
+              if (confirm(t("team.leave_confirm", { name: team.name }))) {
+                leaveMutation.mutate();
+              }
+            }}
+            disabled={leaveMutation.isPending}
+          >
+            {t("team.leave_btn")}
+          </Button>
+        ) : (
+          <p className="text-xs text-muted-foreground max-w-40 text-right">
+            {t("team.changes_disabled")}
+          </p>
+        )}
       </div>
 
       <TeamStatsSummary team={team} />
@@ -254,6 +278,7 @@ function TeamPage() {
   }
 
   const allowCreation = publicInfo?.competition.allow_team_creation ?? true;
+  const allowChanges = publicInfo?.competition.allow_team_changes ?? true;
   const teamSize = publicInfo?.competition.team_size ?? 4;
 
   function invalidate() {
@@ -268,13 +293,16 @@ function TeamPage() {
   }
 
   if (!team) {
-    return <NoTeamView allowCreation={allowCreation} onJoined={invalidate} />;
+    return (
+      <NoTeamView allowCreation={allowCreation} allowChanges={allowChanges} onJoined={invalidate} />
+    );
   }
 
   return (
     <TeamView
       team={team}
       allowCreation={allowCreation}
+      allowChanges={allowChanges}
       teamSize={teamSize}
       onLeft={invalidate}
       onCodeRotated={handleCodeRotated}

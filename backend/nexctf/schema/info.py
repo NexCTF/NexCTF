@@ -21,6 +21,7 @@ class CompetitionInfo(PydanticBase):
     # Defaulted so an `info:public` payload cached before this field existed still
     # deserializes during a rolling deploy instead of 500-ing the landing page.
     require_email: bool = False
+    allow_team_changes: bool = True
     team_size: int
 
 

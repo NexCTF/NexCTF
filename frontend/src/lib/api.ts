@@ -208,6 +208,7 @@ export interface CompetitionInfo {
   allow_registration: boolean;
   allow_team_creation: boolean;
   require_email: boolean;
+  allow_team_changes: boolean;
   team_size: number;
 }
 

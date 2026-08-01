@@ -32,6 +32,7 @@ from nexctf.exceptions import (
     InvalidInviteCodeError,
     InvalidOtpError,
     NotInTeamError,
+    TeamChangesDisabledError,
     TeamCreationDisabledError,
     TeamFullError,
     TotpAlreadyEnabledError,
@@ -346,6 +347,8 @@ async def create_team(
     body: TeamCreateRequest,
     user: CurrentUserDep,
 ) -> Response[MyTeamRead]:
+    if not appconfig.get("ctf.allow_team_changes"):
+        raise TeamChangesDisabledError()
     if not appconfig.get("ctf.allow_team_creation"):
         raise TeamCreationDisabledError()
     if user.team_id is not None:
@@ -382,6 +385,8 @@ async def join_team(
     body: TeamJoinRequest,
     user: CurrentUserDep,
 ) -> Response[MyTeamRead]:
+    if not appconfig.get("ctf.allow_team_changes"):
+        raise TeamChangesDisabledError()
     if user.team_id is not None:
         raise AlreadyInTeamError()
 
@@ -420,6 +425,8 @@ async def leave_team(
     redis: RedisDep,
     user: CurrentUserDep,
 ):
+    if not appconfig.get("ctf.allow_team_changes"):
+        raise TeamChangesDisabledError()
     if user.team_id is None:
         raise NotInTeamError()
     team = await crud.TeamCrud.first(

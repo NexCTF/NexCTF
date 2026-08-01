@@ -744,6 +744,7 @@
     "code_label": "Invite code",
     "code_placeholder": "e.g. ABC12345",
     "creation_disabled": "Team creation is currently disabled.",
+    "changes_disabled": "Team changes are currently disabled.",
     "members_title": "Members",
     "member_count": "{{count}} / {{max}}",
     "progress_title": "Challenge Progress",
@@ -838,6 +839,10 @@
       "allow_team_creation": {
         "label": "Allow Team Creation",
         "description": "Allow players to create teams and generate invite codes"
+      },
+      "allow_team_changes": {
+        "label": "Allow Team Changes",
+        "description": "Let players join or leave a team"
       },
       "release_writeups_after_end": {
         "label": "Release Writeups After End",

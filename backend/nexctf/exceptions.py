@@ -139,8 +139,17 @@ class TeamCreationDisabledError(TeamError):
     api_error = ApiError(
         code=403,
         msg="Team creation disabled",
-        desc="Creating or joining teams is currently disabled.",
+        desc="Creating a team is currently disabled.",
         err_code="TEAM-403-DISABLED",
+    )
+
+
+class TeamChangesDisabledError(TeamError):
+    api_error = ApiError(
+        code=403,
+        msg="Team changes disabled",
+        desc="Joining, creating or leaving a team is currently disabled.",
+        err_code="TEAM-403-CHANGES-DISABLED",
     )
 
 
