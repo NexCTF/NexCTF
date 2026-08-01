@@ -157,14 +157,12 @@ function NoTeamView({
 
 function TeamView({
   team,
-  allowCreation,
   allowChanges,
   teamSize,
   onLeft,
   onCodeRotated,
 }: {
   team: MyTeam;
-  allowCreation: boolean;
   allowChanges: boolean;
   teamSize: number;
   onLeft: () => void;
@@ -220,7 +218,7 @@ function TeamView({
       <MembersList members={team.members} />
 
       {/* Invite code */}
-      {allowCreation && team.invite_code && (
+      {allowChanges && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold">{t("team.invite_section")}</h2>
@@ -301,7 +299,6 @@ function TeamPage() {
   return (
     <TeamView
       team={team}
-      allowCreation={allowCreation}
       allowChanges={allowChanges}
       teamSize={teamSize}
       onLeft={invalidate}

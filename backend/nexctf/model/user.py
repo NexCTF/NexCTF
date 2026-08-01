@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import enum
+import secrets
+import string
 from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
@@ -23,6 +25,11 @@ class UserRole(enum.Enum):
     user = "user"
 
 
+def gen_invite_code() -> str:
+    alphabet = string.ascii_uppercase + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(8))
+
+
 class Team(Base):
     __tablename__ = "teams"
 
@@ -32,8 +39,8 @@ class Team(Base):
     links: Mapped[list] = mapped_column(
         JSONB, default=list, server_default=text("'[]'::jsonb")
     )
-    invite_code: Mapped[str | None] = mapped_column(
-        String(16), unique=True, index=True, nullable=True
+    invite_code: Mapped[str] = mapped_column(
+        String(16), unique=True, index=True, default=gen_invite_code
     )
 
     users: Mapped[list[User]] = relationship(back_populates="team")

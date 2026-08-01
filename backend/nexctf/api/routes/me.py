@@ -1,7 +1,5 @@
 """Current-user self-management endpoints."""
 
-import secrets
-import string
 from uuid import UUID
 
 import pyotp
@@ -39,6 +37,7 @@ from nexctf.exceptions import (
     TotpNotEnabledError,
 )
 from nexctf.model import OAuthAccount, Team, User, UserToken
+from nexctf.model.user import gen_invite_code
 from nexctf.module.events import emit
 from nexctf.module.team import load_team_read
 from nexctf.schema import (
@@ -48,12 +47,7 @@ from nexctf.schema import (
     UserTeamUpdate,
     UserTotpUpdate,
 )
-from nexctf.schema.team import (
-    MyTeamRead,
-    TeamCreate,
-    TeamCreateRequest,
-    TeamJoinRequest,
-)
+from nexctf.schema.team import MyTeamRead, TeamCreate, TeamJoinRequest
 from nexctf.schema.user import (
     PasswordChangeRequest,
     TotpDisableRequest,
@@ -319,11 +313,6 @@ async def totp_disable(
     )
 
 
-def _gen_invite_code() -> str:
-    alphabet = string.ascii_uppercase + string.digits
-    return "".join(secrets.choice(alphabet) for _ in range(8))
-
-
 @me_router.get("/team")
 async def get_my_team(
     session: SessionDep,
@@ -344,7 +333,7 @@ async def get_my_team(
 async def create_team(
     session: SessionDep,
     redis: RedisDep,
-    body: TeamCreateRequest,
+    body: TeamCreate,
     user: CurrentUserDep,
 ) -> Response[MyTeamRead]:
     if not appconfig.get("ctf.allow_team_changes"):
@@ -356,9 +345,7 @@ async def create_team(
     if await crud.TeamCrud.first(session=session, filters=[Team.name == body.name]):
         raise ConflictError(detail="Team name already taken")
 
-    team = await crud.TeamCrud.create(
-        session, TeamCreate(name=body.name, invite_code=_gen_invite_code())
-    )
+    team = await crud.TeamCrud.create(session, body)
     await crud.UserCrud.update(
         session, UserTeamUpdate(team_id=team.id), [User.id == user.id]
     )
@@ -450,8 +437,8 @@ async def rotate_invite_code(
     session: SessionDep,
     user: CurrentUserDep,
 ) -> Response[str]:
-    if not appconfig.get("ctf.allow_team_creation"):
-        raise TeamCreationDisabledError()
+    if not appconfig.get("ctf.allow_team_changes"):
+        raise TeamChangesDisabledError()
     if user.team_id is None:
         raise NotInTeamError()
     team = await crud.TeamCrud.first(
@@ -459,5 +446,5 @@ async def rotate_invite_code(
     )
     if team is None:
         raise NotFoundError()
-    team.invite_code = _gen_invite_code()
+    team.invite_code = gen_invite_code()
     return Response(data=team.invite_code)

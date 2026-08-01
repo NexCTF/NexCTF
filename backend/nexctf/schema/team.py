@@ -21,7 +21,6 @@ class Link(PydanticBase):
 
 class TeamCreate(PydanticBase):
     name: str
-    invite_code: str
 
 
 class AdminTeamCreate(PydanticBase):
@@ -80,11 +79,7 @@ class PublicTeamRead(PydanticBase):
 
 
 class MyTeamRead(PublicTeamRead):
-    invite_code: str | None
-
-
-class TeamCreateRequest(PydanticBase):
-    name: str
+    invite_code: str
 
 
 class TeamJoinRequest(PydanticBase):

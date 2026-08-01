@@ -63,6 +63,20 @@ class TestTeamChanges:
         assert resp.status_code == 403
         assert user.team_id is None
 
+    async def test_rotate_invite_code_locked(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        client, user = user_client
+        team = await _put_in_team(db_session, user)
+        _lock(monkeypatch)
+
+        resp = await client.post("/me/team/invite-code")
+        assert resp.status_code == 403
+        assert team.invite_code == "MYTEAM01"
+
     async def test_create_locked(
         self,
         user_client: tuple[AsyncClient, User],
@@ -74,3 +88,29 @@ class TestTeamChanges:
         resp = await client.post("/me/team", json={"name": "NewTeam"})
         assert resp.status_code == 403
         assert user.team_id is None
+
+    async def test_create_generates_invite_code(
+        self,
+        user_client: tuple[AsyncClient, User],
+    ) -> None:
+        client, _ = user_client
+
+        resp = await client.post("/me/team", json={"name": "NewTeam"})
+        assert resp.status_code == 201
+        assert len(resp.json()["data"]["invite_code"]) == 8
+
+    async def test_create_ignores_client_supplied_fields(
+        self,
+        user_client: tuple[AsyncClient, User],
+    ) -> None:
+        """Server-managed fields in the body must not reach the ORM."""
+        client, _ = user_client
+
+        resp = await client.post(
+            "/me/team",
+            json={"name": "NewTeam", "invite_code": "PWNED123", "bracket": "elite"},
+        )
+        assert resp.status_code == 201
+        data = resp.json()["data"]
+        assert data["invite_code"] != "PWNED123"
+        assert data["bracket"] is None

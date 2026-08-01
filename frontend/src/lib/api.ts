@@ -385,7 +385,7 @@ export interface PublicTeam {
 }
 
 export interface MyTeam extends PublicTeam {
-  invite_code: string | null;
+  invite_code: string;
 }
 
 export async function getMyTeam(): Promise<MyTeam | null> {
