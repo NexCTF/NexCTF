@@ -28,12 +28,20 @@ register_fixtures(test_fixture_registry, globals())
 
 
 @pytest.fixture
-def mock_redis():
+def config_overrides() -> dict[str, str]:
+    """Config overrides the app reads for this test, as Redis would serve them."""
+    return {}
+
+
+@pytest.fixture
+def mock_redis(config_overrides: dict[str, str]):
     """Mock Redis client with async publish support."""
     redis_mock = AsyncMock()
     redis_mock.publish = AsyncMock(return_value=1)
     redis_mock.get = AsyncMock(return_value=None)
     redis_mock.getdel = AsyncMock(return_value=None)
+
+    redis_mock.hgetall = AsyncMock(return_value=config_overrides)
 
     # pipeline() is a synchronous call returning a pipeline object whose
     # execute() is async.  results[2] is the zcard count; return 0 so the

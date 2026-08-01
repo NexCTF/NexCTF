@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from nexctf.core.appconfig import load_from_db
+from nexctf.core.appconfig import sync_to_redis
 from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.db import get_db_context
 from nexctf.module.scheduler import process_scheduled_jobs
@@ -29,7 +29,7 @@ async def main() -> None:
     redis = get_redis_client()
 
     async with get_db_context() as session:
-        await load_from_db(session, redis)
+        await sync_to_redis(session, redis)
         load_plugin_registries()
 
     logger.info("Scheduler worker started (tick every %ds)", _TICK_INTERVAL)

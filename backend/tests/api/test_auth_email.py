@@ -10,11 +10,6 @@ from nexctf.api.security import hash_password
 from nexctf.model import Event, User
 
 
-def _enable_email(mock_redis) -> None:
-    """Make the email.enabled config read (via get_with_overrides) resolve true."""
-    mock_redis.hgetall = AsyncMock(return_value={"email.enabled": "true"})
-
-
 async def _event_count(db_session, event_type: str) -> int:
     rows = await db_session.scalars(select(Event).where(Event.event_type == event_type))
     return len(rows.all())
@@ -27,10 +22,10 @@ def _patch_dispatch():
 
 class TestRegisterVerification:
     async def test_email_enabled_creates_unverified_and_sends(
-        self, http_client, db_session, mock_redis, override_db_context
+        self, http_client, db_session, mock_redis, config_overrides, override_db_context
     ):
         """With SMTP on, a registered email is unverified and gets a verify mail."""
-        _enable_email(mock_redis)
+        config_overrides["email.enabled"] = "true"
         with _patch_dispatch() as dispatch:
             resp = await http_client.post(
                 "/auth/register",
@@ -54,9 +49,7 @@ class TestRegisterVerification:
         )
         dispatch.assert_awaited_once()
 
-    async def test_email_disabled_creates_verified_no_send(
-        self, http_client, mock_redis
-    ):
+    async def test_email_disabled_creates_verified_no_send(self, http_client):
         """With SMTP off there is no way to verify, so the account is usable."""
         with _patch_dispatch() as dispatch:
             resp = await http_client.post(
@@ -71,9 +64,9 @@ class TestRegisterVerification:
         assert resp.json()["data"]["email_verified"] is True
         dispatch.assert_not_awaited()
 
-    async def test_email_required_when_enabled(self, http_client, mock_redis):
+    async def test_email_required_when_enabled(self, http_client, config_overrides):
         """With SMTP on, registering without an email is rejected."""
-        _enable_email(mock_redis)
+        config_overrides["email.enabled"] = "true"
         with _patch_dispatch() as dispatch:
             resp = await http_client.post(
                 "/auth/register",
@@ -108,9 +101,9 @@ class TestLoginGate:
         return user
 
     async def test_unverified_blocked_when_email_enabled(
-        self, http_client, db_session, mock_redis, override_db_context
+        self, http_client, db_session, config_overrides, override_db_context
     ):
-        _enable_email(mock_redis)
+        config_overrides["email.enabled"] = "true"
         await self._make_user(db_session, email="gate@test.com", verified=False)
         resp = await http_client.post(
             "/auth/token", data={"username": "gateuser", "password": "pass123"}
@@ -129,9 +122,9 @@ class TestLoginGate:
         assert resp.status_code == 204
 
     async def test_verified_allowed(
-        self, http_client, db_session, mock_redis, override_db_context
+        self, http_client, db_session, config_overrides, override_db_context
     ):
-        _enable_email(mock_redis)
+        config_overrides["email.enabled"] = "true"
         await self._make_user(db_session, email="gate@test.com", verified=True)
         resp = await http_client.post(
             "/auth/token", data={"username": "gateuser", "password": "pass123"}
@@ -139,9 +132,9 @@ class TestLoginGate:
         assert resp.status_code == 204
 
     async def test_no_email_allowed(
-        self, http_client, db_session, mock_redis, override_db_context
+        self, http_client, db_session, config_overrides, override_db_context
     ):
-        _enable_email(mock_redis)
+        config_overrides["email.enabled"] = "true"
         await self._make_user(db_session, email=None, verified=False)
         resp = await http_client.post(
             "/auth/token", data={"username": "gateuser", "password": "pass123"}
@@ -184,9 +177,9 @@ class TestVerifyEmail:
 
 class TestForgotPassword:
     async def test_known_email_sends_reset(
-        self, http_client, db_session, mock_redis, override_db_context
+        self, http_client, db_session, mock_redis, config_overrides, override_db_context
     ):
-        _enable_email(mock_redis)
+        config_overrides["email.enabled"] = "true"
         user = User(
             username="forgetme",
             email="fp@test.com",
@@ -209,10 +202,10 @@ class TestForgotPassword:
         assert await _event_count(db_session, "user.password_reset_requested") == 1
 
     async def test_known_email_case_insensitive(
-        self, http_client, db_session, mock_redis, override_db_context
+        self, http_client, db_session, config_overrides, override_db_context
     ):
         """A reset request must match regardless of the stored email's casing."""
-        _enable_email(mock_redis)
+        config_overrides["email.enabled"] = "true"
         user = User(
             username="caseme",
             email="Case@Test.com",
@@ -229,9 +222,11 @@ class TestForgotPassword:
         assert resp.status_code == 204
         dispatch.assert_awaited_once()
 
-    async def test_unknown_email_is_silent(self, http_client, mock_redis):
+    async def test_unknown_email_is_silent(
+        self, http_client, mock_redis, config_overrides
+    ):
         """No account enumeration: unknown email still returns 204, sends nothing."""
-        _enable_email(mock_redis)
+        config_overrides["email.enabled"] = "true"
         with _patch_dispatch() as dispatch:
             resp = await http_client.post(
                 "/auth/forgot-password", json={"email": "nobody@test.com"}
@@ -247,9 +242,14 @@ class TestForgotPassword:
 class TestResendVerification:
     @pytest.mark.parametrize("verified", [False, True])
     async def test_resend_respects_verified_state(
-        self, http_client, db_session, mock_redis, override_db_context, verified
+        self,
+        http_client,
+        db_session,
+        config_overrides,
+        override_db_context,
+        verified,
     ):
-        _enable_email(mock_redis)
+        config_overrides["email.enabled"] = "true"
         user = User(
             username="resendme",
             email="rs@test.com",

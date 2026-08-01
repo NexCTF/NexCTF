@@ -11,7 +11,7 @@ Store (user-provided) plugins
     builds the frontend and imports the entry point.
 
 Call ``init_plugins(app, session)`` from the FastAPI lifespan after
-``nexctf.core.appconfig.load_from_db``.
+``nexctf.core.appconfig.sync_to_redis``.
 """
 
 from __future__ import annotations
@@ -283,18 +283,6 @@ def _patch_crud_classes() -> None:
     solution_registry.apply(SolutionCrud)
 
 
-async def _reconcile_configs(session: AsyncSession) -> None:
-    """Warm the Redis/DB cache for plugin config keys registered late.
-
-    Args:
-        session: An open async database session.
-    """
-    from nexctf.core.cache import get_client as get_redis_client
-    from nexctf.plugins.config import reconcile_plugin_configs
-
-    await reconcile_plugin_configs(session, get_redis_client())
-
-
 def mount_plugin_routes(app: FastAPI) -> None:
     """Mount plugin-registered routers onto the FastAPI app.
 
@@ -332,13 +320,16 @@ async def init_plugins(app: FastAPI, session: AsyncSession) -> None:
     (CRUD patching, config reconciliation, route mounting). Idempotent — safe to
     call multiple times (e.g. in tests).
 
-    Call from the FastAPI lifespan after ``nexctf.core.appconfig.load_from_db``.
+    Call from the FastAPI lifespan after ``nexctf.core.appconfig.sync_to_redis``.
 
     Args:
         app: The FastAPI application to wire plugin routes into.
         session: An open async database session.
     """
+    from nexctf.core.appconfig import sync_to_redis
+    from nexctf.core.cache import get_client as get_redis_client
+
     load_plugin_registries()
     _patch_crud_classes()
-    await _reconcile_configs(session)
+    await sync_to_redis(session, get_redis_client())
     mount_plugin_routes(app)

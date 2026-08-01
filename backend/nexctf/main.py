@@ -14,7 +14,7 @@ from fastapi_toolsets.schemas import ErrorResponse
 import nexctf.settings as _  # noqa: F401
 from nexctf.api.openapi import setup_docs
 from nexctf.api.routes import router
-from nexctf.core.appconfig import load_from_db
+from nexctf.core.appconfig import sync_to_redis
 from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.config import settings
 from nexctf.core.db import db, get_db_context
@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI):
         return
 
     async with get_db_context() as session:
-        await load_from_db(session, get_redis_client())
+        await sync_to_redis(session, get_redis_client())
         await init_plugins(app, session)
     yield
 

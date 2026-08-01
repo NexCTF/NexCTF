@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from nexctf import crud
-from nexctf.api.dep import ProviderDep, RedisDep, SessionDep
+from nexctf.api.dep import ConfigDep, ProviderDep, RedisDep, SessionDep
 from nexctf.api.security import (
     EMAIL_VERIFY_KEY_PREFIX,
     EMAIL_VERIFY_TTL,
@@ -47,7 +47,7 @@ from nexctf.core.email_render import (
     build_password_reset_email,
     build_verification_email,
 )
-from nexctf.core.rate_limit import check_rate_limit
+from nexctf.core.rate_limit import check_config_rate_limit, check_rate_limit
 from nexctf.exceptions import (
     AccountDisabledError,
     EmailNotVerifiedError,
@@ -85,9 +85,8 @@ logger = logging.getLogger(__name__)
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-async def _email_enabled(redis: Redis) -> bool:
-    """Read email.enabled from a fresh Redis snapshot so all workers agree."""
-    overrides = await appconfig.fetch_overrides(redis)
+def _email_enabled(overrides: dict[str, str]) -> bool:
+    """Read email.enabled from the given config snapshot."""
     return bool(appconfig.get_with_overrides("email.enabled", overrides))
 
 
@@ -134,11 +133,12 @@ async def register(
     session: SessionDep,
     redis: RedisDep,
     background_tasks: BackgroundTasks,
+    overrides: ConfigDep,
     obj: PublicRegisterRequest,
 ):
-    if not appconfig.get("ctf.allow_registration"):
+    if not appconfig.get_with_overrides("ctf.allow_registration", overrides):
         raise RegistrationDisabledError()
-    await verify_captcha(redis, obj.cap_token)
+    await verify_captcha(overrides, obj.cap_token)
     client_ip = get_client_ip(request) or "unknown"
     await check_rate_limit(
         redis, f"rl:register:{client_ip}", window_seconds=60, max_requests=5
@@ -150,7 +150,7 @@ async def register(
         raise ConflictError(detail="Username already taken")
     # When SMTP is enabled an email is mandatory: it is the verification channel
     # and the login gate keys off it. With SMTP off, email stays optional.
-    email_enabled = await _email_enabled(redis)
+    email_enabled = _email_enabled(overrides)
     if email_enabled and not obj.email:
         raise EmailRequiredError()
     result = await crud.UserCrud.create(
@@ -210,20 +210,17 @@ async def login(
     session: SessionDep,
     redis: RedisDep,
     response: RawResponse,
+    overrides: ConfigDep,
     username: Annotated[str, Form()],
     password: Annotated[str, Form()],
     totp_code: Annotated[str | None, Form()] = None,
     cap_token: Annotated[str | None, Form()] = None,
 ):
-    await verify_captcha(redis, cap_token)
+    await verify_captcha(overrides, cap_token)
     client_ip = get_client_ip(request) or "unknown"
-    if appconfig.get("rate_limit.login.enabled"):
-        await check_rate_limit(
-            redis,
-            f"rl:login:{client_ip}",
-            window_seconds=int(appconfig.get("rate_limit.login.window_seconds")),
-            max_requests=int(appconfig.get("rate_limit.login.max_requests")),
-        )
+    await check_config_rate_limit(
+        redis, overrides, name="login", key=f"rl:login:{client_ip}"
+    )
     user = await crud.UserCrud.first(
         session=session, filters=[User.username == username]
     )
@@ -266,7 +263,7 @@ async def login(
             raise InvalidOtpError()
     # Gate login on email verification, but only while SMTP is enabled — otherwise
     # users could never receive the verification email and would be locked out.
-    if user.email and not user.email_verified and await _email_enabled(redis):
+    if user.email and not user.email_verified and _email_enabled(overrides):
         await _record_login_failure(
             session,
             redis,
@@ -375,6 +372,7 @@ async def _email_action_recipient(
     redis: Redis,
     email: str,
     *,
+    overrides: dict[str, str],
     rate_limit_action: str,
 ) -> tuple[User | None, str]:
     """Rate-limit, gate on email.enabled, and look up the user case-insensitively."""
@@ -385,7 +383,7 @@ async def _email_action_recipient(
         window_seconds=60,
         max_requests=3,
     )
-    if not await _email_enabled(redis):
+    if not _email_enabled(overrides):
         return None, client_ip
     user = await crud.UserCrud.first(
         session=session, filters=[func.lower(User.email) == email.lower()]
@@ -399,11 +397,17 @@ async def resend_verification(
     session: SessionDep,
     redis: RedisDep,
     background_tasks: BackgroundTasks,
+    overrides: ConfigDep,
     body: ResendVerificationRequest,
 ):
     """Re-send the verification email. Always 204 to avoid account enumeration."""
     user, client_ip = await _email_action_recipient(
-        request, session, redis, body.email, rate_limit_action="resend_verify"
+        request,
+        session,
+        redis,
+        body.email,
+        overrides=overrides,
+        rate_limit_action="resend_verify",
     )
     if user and user.email and not user.email_verified:
         await _send_verification_email(
@@ -425,11 +429,17 @@ async def forgot_password(
     session: SessionDep,
     redis: RedisDep,
     background_tasks: BackgroundTasks,
+    overrides: ConfigDep,
     body: ForgotPasswordRequest,
 ):
     """Email a single-use password reset link. Always 204 to avoid enumeration."""
     user, client_ip = await _email_action_recipient(
-        request, session, redis, body.email, rate_limit_action="forgot_password"
+        request,
+        session,
+        redis,
+        body.email,
+        overrides=overrides,
+        rate_limit_action="forgot_password",
     )
     if not user or not user.email:
         return

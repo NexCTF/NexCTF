@@ -1,10 +1,8 @@
 """Tests for the team membership endpoints and the team-changes lock."""
 
-import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.core import appconfig
 from nexctf.model import Team, User
 
 
@@ -17,8 +15,46 @@ async def _put_in_team(db_session: AsyncSession, user: User) -> Team:
     return team
 
 
-def _lock(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setitem(appconfig._CACHE, "ctf.allow_team_changes", "false")
+class TestTeamSize:
+    async def test_join_honours_team_size_override(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        config_overrides: dict[str, str],
+    ) -> None:
+        """A raised ctf.team_size lets a member join past the code default of 4."""
+        client, user = user_client
+        team = Team(name="FullTeam", invite_code="FULLTEAM")
+        db_session.add(team)
+        await db_session.flush()
+        for i in range(4):
+            db_session.add(
+                User(username=f"member{i}", hashed_password="x", team_id=team.id)
+            )
+        await db_session.flush()
+        config_overrides["ctf.team_size"] = "5"
+
+        resp = await client.post("/me/team/join", json={"code": "FULLTEAM"})
+        assert resp.status_code == 200
+        assert user.team_id == team.id
+
+    async def test_join_rejected_when_team_size_reached(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        config_overrides: dict[str, str],
+    ) -> None:
+        client, user = user_client
+        team = Team(name="FullTeam", invite_code="FULLTEAM")
+        db_session.add(team)
+        await db_session.flush()
+        db_session.add(User(username="member0", hashed_password="x", team_id=team.id))
+        await db_session.flush()
+        config_overrides["ctf.team_size"] = "1"
+
+        resp = await client.post("/me/team/join", json={"code": "FULLTEAM"})
+        assert resp.status_code == 409
+        assert user.team_id is None
 
 
 class TestTeamChanges:
@@ -38,11 +74,11 @@ class TestTeamChanges:
         self,
         user_client: tuple[AsyncClient, User],
         db_session: AsyncSession,
-        monkeypatch: pytest.MonkeyPatch,
+        config_overrides: dict[str, str],
     ) -> None:
         client, user = user_client
         team = await _put_in_team(db_session, user)
-        _lock(monkeypatch)
+        config_overrides["ctf.allow_team_changes"] = "false"
 
         resp = await client.post("/me/team/leave")
         assert resp.status_code == 403
@@ -52,12 +88,12 @@ class TestTeamChanges:
         self,
         user_client: tuple[AsyncClient, User],
         db_session: AsyncSession,
-        monkeypatch: pytest.MonkeyPatch,
+        config_overrides: dict[str, str],
     ) -> None:
         client, user = user_client
         db_session.add(Team(name="LockedTeam", invite_code="LOCKED12"))
         await db_session.flush()
-        _lock(monkeypatch)
+        config_overrides["ctf.allow_team_changes"] = "false"
 
         resp = await client.post("/me/team/join", json={"code": "LOCKED12"})
         assert resp.status_code == 403
@@ -67,11 +103,11 @@ class TestTeamChanges:
         self,
         user_client: tuple[AsyncClient, User],
         db_session: AsyncSession,
-        monkeypatch: pytest.MonkeyPatch,
+        config_overrides: dict[str, str],
     ) -> None:
         client, user = user_client
         team = await _put_in_team(db_session, user)
-        _lock(monkeypatch)
+        config_overrides["ctf.allow_team_changes"] = "false"
 
         resp = await client.post("/me/team/invite-code")
         assert resp.status_code == 403
@@ -80,10 +116,10 @@ class TestTeamChanges:
     async def test_create_locked(
         self,
         user_client: tuple[AsyncClient, User],
-        monkeypatch: pytest.MonkeyPatch,
+        config_overrides: dict[str, str],
     ) -> None:
         client, user = user_client
-        _lock(monkeypatch)
+        config_overrides["ctf.allow_team_changes"] = "false"
 
         resp = await client.post("/me/team", json={"name": "NewTeam"})
         assert resp.status_code == 403

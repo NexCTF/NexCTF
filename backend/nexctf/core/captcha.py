@@ -8,7 +8,6 @@ from __future__ import annotations
 import logging
 
 import httpx
-from redis.asyncio import Redis
 
 from nexctf.core import appconfig
 from nexctf.exceptions import (
@@ -20,13 +19,15 @@ from nexctf.exceptions import (
 logger = logging.getLogger(__name__)
 
 
-async def verify_captcha(redis: Redis, token: str | None) -> None:
+async def verify_captcha(overrides: dict[str, str], token: str | None) -> None:
     """Verify a CAP captcha token against the configured CAP backend.
 
     No-ops when captcha.enabled is false.
-    """
-    overrides = await appconfig.fetch_overrides(redis)
 
+    Args:
+        overrides: Per-request config snapshot shared across workers.
+        token: The CAP token supplied by the client, if any.
+    """
     if not appconfig.get_with_overrides("captcha.enabled", overrides):
         return
 

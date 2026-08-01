@@ -54,7 +54,6 @@ class ConfigDef:
 
 
 _DEFS: dict[str, ConfigDef] = {}
-_CACHE: dict[str, str] = {}  # in-process mirror of the Redis hash
 
 
 @dataclass(frozen=True)
@@ -179,16 +178,6 @@ def all_defs() -> dict[str, ConfigDef]:
     return _DEFS
 
 
-def get_uncached_keys() -> set[str]:
-    """Return keys that are registered but not yet in the in-process cache."""
-    return {k for k in _DEFS if k not in _CACHE}
-
-
-def update_cache(mapping: dict[str, str]) -> None:
-    """Merge *mapping* into the in-process config cache."""
-    _CACHE.update(mapping)
-
-
 _ENV_PREFIX = "NEXCTF_"
 
 
@@ -206,37 +195,8 @@ def _cast(value: str, type_: ConfigType | None) -> str | int | float | bool:
     return value
 
 
-def get(key: str) -> str | int | float | bool:
-    """Resolved value for in-app use: local cache > ENV > code default.
-
-    The local cache (_CACHE) is populated at startup and after writes on
-    the same worker. For API responses use ``get_with_overrides`` with a
-    fresh Redis snapshot so all workers see the same data.
-    """
-    def_ = _DEFS[key]
-    if key in _CACHE:
-        return _cast(_CACHE[key], def_.type)
-    env_val = os.environ.get(_env_key(key))
-    if env_val is not None:
-        return _cast(env_val, def_.type)
-    return _cast(cast(str, def_.default), def_.type)
-
-
-def get_raw(key: str) -> str:
-    def_ = _DEFS[key]
-    if key in _CACHE:
-        return _CACHE[key]
-    env_val = os.environ.get(_env_key(key))
-    if env_val is not None:
-        return env_val
-    return cast(str, def_.default)
-
-
 def get_with_overrides(key: str, overrides: dict[str, str]) -> str | int | float | bool:
-    """Resolve value using a caller-supplied overrides dict (e.g. from Redis).
-
-    Use this in API endpoints to get consistent reads across all workers.
-    """
+    """Resolve a value: Redis snapshot > ENV > code default."""
     def_ = _DEFS[key]
     if key in overrides:
         return _cast(overrides[key], def_.type)
@@ -251,35 +211,16 @@ async def fetch_overrides(redis: Redis) -> dict[str, str]:
     return await cast(Any, redis.hgetall(REDIS_HASH))
 
 
-async def load_from_db(session: AsyncSession, redis: Redis) -> None:
-    """Populate in-process cache on startup.
+async def sync_to_redis(session: AsyncSession, redis: Redis) -> None:
+    """Mirror every stored config value from the database into Redis.
 
-    Checks Redis first (survives backend restarts). Falls back to DB and
-    warms Redis so subsequent restarts skip the DB query.
+    Idempotent — call at startup and again once plugins register their keys.
     """
-    cached: dict[str, str] = await cast(Any, redis.hgetall(REDIS_HASH))
-    if cached:
-        _CACHE.clear()
-        for key, value in cached.items():
-            if key in _DEFS:
-                _CACHE[key] = value
-        logger.info("config loaded from Redis (%d entries)", len(_CACHE))
-        return
-
-    result = await session.execute(select(ConfigEntry))
-    _CACHE.clear()
-    mapping: dict[str, str] = {}
-    for entry in result.scalars():
-        if entry.key in _DEFS:
-            _CACHE[entry.key] = entry.value
-            mapping[entry.key] = entry.value
-        else:
-            logger.warning("config.unknown_key key=%s", entry.key)
-
-    if mapping:
-        await cast(Any, redis).hset(REDIS_HASH, mapping=mapping)
-
-    logger.info("config loaded from DB (%d entries)", len(_CACHE))
+    result = await session.execute(select(ConfigEntry.key, ConfigEntry.value))
+    stored = {key: value for key, value in result.all() if key in _DEFS}
+    if stored:
+        await cast(Any, redis).hset(REDIS_HASH, mapping=stored)
+    logger.info("config synced to Redis (%d keys)", len(stored))
 
 
 def _validate(key: str, value: str) -> None:
@@ -324,7 +265,7 @@ def _validate(key: str, value: str) -> None:
 async def stage(session: AsyncSession, key: str, value: str) -> None:
     """Validate and queue the DB upsert. Does NOT touch the cache.
 
-    Call ``commit_and_cache`` after all keys are staged to atomically
+    Call ``commit_and_store`` after all keys are staged to atomically
     commit and update both caches.
     """
     _validate(key, value)
@@ -337,20 +278,13 @@ async def stage(session: AsyncSession, key: str, value: str) -> None:
         session.add(ConfigEntry(key=key, value=value))
 
 
-async def commit_and_cache(
+async def commit_and_store(
     session: AsyncSession, redis: Redis, updates: dict[str, str]
 ) -> None:
-    """Commit all staged changes, then update Redis and in-process cache.
-
-    Caches are only written after a successful commit, so they always
-    reflect committed DB state.
-    """
+    """Commit all staged changes, then publish them to Redis."""
     await session.commit()
 
     pipe = redis.pipeline()
     for key, value in updates.items():
         cast(Any, pipe.hset(REDIS_HASH, key, value))
     await cast(Any, pipe.execute())
-
-    for key, value in updates.items():
-        _CACHE[key] = value

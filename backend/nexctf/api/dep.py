@@ -33,24 +33,37 @@ SessionDep = Annotated[AsyncSession, Depends(db)]
 RedisDep = Annotated[Redis, Depends(get_redis)]
 CurrentUserDep = Annotated[User, Security(auth)]
 
+
+async def _config_overrides(redis: RedisDep) -> dict[str, str]:
+    """Per-request snapshot of the config overrides."""
+    return await appconfig.fetch_overrides(redis)
+
+
+ConfigDep = Annotated[dict[str, str], Depends(_config_overrides)]
+
 _WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 
-def check_scoreboard_visibility(user: User | None) -> None:
-    """Raise if the current user cannot view the scoreboard or team profiles."""
-    visibility = str(appconfig.get("visibility.scoreboard"))
+def check_visibility(user: User | None, overrides: dict[str, str], key: str) -> None:
+    """Raise unless *user* may see the surface gated by the *key* config."""
     if user is not None and user.role in (UserRole.admin, UserRole.moderator):
         return
+    visibility = str(appconfig.get_with_overrides(key, overrides))
     if visibility == "hidden":
         raise ForbiddenError()
     if visibility == "authenticated" and user is None:
         raise UnauthorizedError()
 
 
-def can_view_scoreboard(user: User | None) -> bool:
+def check_scoreboard_visibility(user: User | None, overrides: dict[str, str]) -> None:
+    """Raise if the current user cannot view the scoreboard or team profiles."""
+    check_visibility(user, overrides, "visibility.scoreboard")
+
+
+def can_view_scoreboard(user: User | None, overrides: dict[str, str]) -> bool:
     """Non-raising variant of check_scoreboard_visibility."""
     try:
-        check_scoreboard_visibility(user)
+        check_scoreboard_visibility(user, overrides)
     except (ForbiddenError, UnauthorizedError):
         return False
     return True
@@ -108,29 +121,37 @@ def _is_staff(user: User | None) -> bool:
     return user is not None and user.role in _STAFF
 
 
-async def _event_started(user: OptionalCurrentUserDep = None) -> None:
+async def _event_started(
+    overrides: ConfigDep, user: OptionalCurrentUserDep = None
+) -> None:
     """Raise EventNotStartedError before the CTF starts. Admins/mods bypass."""
     if _is_staff(user):
         return
-    if not bool(appconfig.get("ctf.hide_challenges_before_start")):
+    if not bool(
+        appconfig.get_with_overrides("ctf.hide_challenges_before_start", overrides)
+    ):
         return
-    start_time = parse_config_dt("ctf.start_time")
+    start_time = parse_config_dt("ctf.start_time", overrides)
     if start_time is not None and datetime.now(UTC) < start_time:
         raise EventNotStartedError()
 
 
-async def _event_ended(user: OptionalCurrentUserDep = None) -> None:
+async def _event_ended(
+    overrides: ConfigDep, user: OptionalCurrentUserDep = None
+) -> None:
     """Raise EventEndedError after the CTF ends. Admins/mods bypass."""
     if _is_staff(user):
         return
-    if is_config_dt_past("ctf.end_time"):
+    if is_config_dt_past("ctf.end_time", overrides):
         raise EventEndedError()
 
 
-async def _event_active(user: OptionalCurrentUserDep = None) -> None:
+async def _event_active(
+    overrides: ConfigDep, user: OptionalCurrentUserDep = None
+) -> None:
     """Raise if the CTF has not started or has already ended. Admins/mods bypass."""
-    await _event_started(user)
-    await _event_ended(user)
+    await _event_started(overrides, user)
+    await _event_ended(overrides, user)
 
 
 EventStartedDep = Annotated[None, Depends(_event_started)]
