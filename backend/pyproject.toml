@@ -1,11 +1,11 @@
 [project]
 name = "nexctf"
 version = "0.6.0"
-description = "Add your description here"
+description = "Next generation of capture the flag platform"
 authors = [
-    { name = "d3vyce", email = "nicolas.sudres@proton.me" }
+    { name = "NexCTF", email = "contact@nexctf.dev" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.18.5",
     "argon2-cffi>=23.1.0",

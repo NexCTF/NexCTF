@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     DEFAULT_ADMIN_TOKEN: str | None = None
 
     @model_validator(mode="after")
-    def require_secret_key_in_production(self) -> "Settings":
+    def require_secret_key_in_production(self) -> Settings:
         if self.ENVIRONMENT != "development" and "SECRET_KEY" not in os.environ:
             raise ValueError(
                 "SECRET_KEY must be explicitly set via the SECRET_KEY environment "

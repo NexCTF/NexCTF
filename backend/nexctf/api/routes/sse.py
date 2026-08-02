@@ -24,8 +24,8 @@ def _user_channels(user: User) -> list[str]:
 async def _sse_listener(
     redis: RedisDep,
     channels: list[str],
-    event_namer: "Callable[[str], str]",
-) -> "AsyncIterable[ServerSentEvent]":
+    event_namer: Callable[[str], str],
+) -> AsyncIterable[ServerSentEvent]:
     """Generic SSE pump: subscribe to *channels*, yield typed ServerSentEvents."""
     pubsub = redis.pubsub()
     await pubsub.subscribe(*channels)

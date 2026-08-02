@@ -64,7 +64,7 @@ def can_view_scoreboard(user: User | None, overrides: dict[str, str]) -> bool:
     """Non-raising variant of check_scoreboard_visibility."""
     try:
         check_scoreboard_visibility(user, overrides)
-    except (ForbiddenError, UnauthorizedError):
+    except ForbiddenError, UnauthorizedError:
         return False
     return True
 
