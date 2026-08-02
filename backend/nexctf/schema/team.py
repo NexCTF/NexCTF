@@ -62,6 +62,7 @@ class AdminTeamDetailRead(AdminTeamRead):
 class PublicTeamMember(PydanticBase):
     id: UUID
     username: str
+    custom_fields: list[PublicCustomFieldValue] = []
 
 
 class PublicTeamRead(PydanticBase):

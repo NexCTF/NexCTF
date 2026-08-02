@@ -14,12 +14,31 @@ function TeamBadge({ label, children }: { label: string; children: ReactNode }) 
   );
 }
 
+function CustomFieldBadges({ fields }: { fields: PublicCustomField[] }) {
+  return fields
+    .filter((f): f is PublicCustomField & { value: string } => Boolean(f.value))
+    .map((f) => (
+      <TeamBadge key={f.name} label={f.label}>
+        {f.field_type === "url" && /^https?:\/\//i.test(f.value) ? (
+          <a
+            href={f.value}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline underline-offset-2"
+          >
+            {f.value}
+          </a>
+        ) : (
+          f.value
+        )}
+      </TeamBadge>
+    ));
+}
+
 export function TeamBadges({ team }: { team: PublicTeam }) {
   const { t } = useTranslation();
-  const fields = team.custom_fields.filter((f): f is PublicCustomField & { value: string } =>
-    Boolean(f.value),
-  );
-  if (!team.country && !team.bracket && fields.length === 0) return null;
+  const hasFields = team.custom_fields.some((f) => Boolean(f.value));
+  if (!team.country && !team.bracket && !hasFields) return null;
 
   return (
     <div className="flex flex-wrap gap-1.5 mt-3">
@@ -29,22 +48,7 @@ export function TeamBadges({ team }: { team: PublicTeam }) {
           <span className="capitalize">{team.bracket}</span>
         </TeamBadge>
       )}
-      {fields.map((f) => (
-        <TeamBadge key={f.name} label={f.label}>
-          {f.field_type === "url" && /^https?:\/\//i.test(f.value) ? (
-            <a
-              href={f.value}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline underline-offset-2"
-            >
-              {f.value}
-            </a>
-          ) : (
-            f.value
-          )}
-        </TeamBadge>
-      ))}
+      <CustomFieldBadges fields={team.custom_fields} />
     </div>
   );
 }
@@ -168,11 +172,15 @@ export function MembersList({ members }: { members: PublicTeam["members"] }) {
       </h2>
       <div className="space-y-2">
         {members.map((m) => (
-          <div key={m.id} className="flex items-center gap-3 rounded-lg border px-4 py-2.5">
+          <div
+            key={m.id}
+            className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border px-4 py-2.5"
+          >
             <div className="size-7 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
               {m.username[0].toUpperCase()}
             </div>
             <span className="text-sm">{m.username}</span>
+            <CustomFieldBadges fields={m.custom_fields} />
           </div>
         ))}
       </div>

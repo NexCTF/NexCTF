@@ -6,6 +6,10 @@ from fastapi_toolsets.fixtures.enum import Context
 
 from nexctf.model import (
     ChallengeCategory,
+    CustomFieldDefinition,
+    CustomFieldTarget,
+    CustomFieldType,
+    CustomFieldValue,
     Hint,
     HintUnlock,
     Question,
@@ -423,14 +427,20 @@ def team() -> list[Team]:
         Team(
             id=UUID("435127a0-f2fb-4d2b-87bd-91ab77328e71"),
             name="team1",
+            country="FR",
+            bracket="student",
         ),
         Team(
             id=UUID("43512700-f2fb-4d2b-87bd-91ab77328e72"),
             name="team2",
+            country="DE",
+            bracket="professional",
         ),
         Team(
             id=UUID("43512700-f2fb-4d2b-87bd-91ab77328e73"),
             name="team3",
+            country="FR",
+            bracket="student",
         ),
         Team(
             id=UUID("43512700-f2fb-4d2b-87bd-91ab77328e74"),
@@ -554,6 +564,104 @@ def tag() -> list[Tag]:
             name="Easy",
             description="",
             color="#33d17a",
+        ),
+    ]
+
+
+@fixtures.register()
+def custom_field_definition() -> list[CustomFieldDefinition]:
+    return [
+        CustomFieldDefinition(
+            id=UUID("a2000000-0000-4000-8000-000000000001"),
+            name="school",
+            label="School",
+            target=CustomFieldTarget.team,
+            show_in_scoreboard=True,
+        ),
+        CustomFieldDefinition(
+            id=UUID("a2000000-0000-4000-8000-000000000002"),
+            name="team_website",
+            label="Website",
+            field_type=CustomFieldType.url,
+            target=CustomFieldTarget.team,
+        ),
+        CustomFieldDefinition(
+            id=UUID("a2000000-0000-4000-8000-000000000003"),
+            name="team_contact",
+            label="Contact email",
+            target=CustomFieldTarget.team,
+            is_public=False,
+            is_required=True,
+        ),
+        CustomFieldDefinition(
+            id=UUID("a2000000-0000-4000-8000-000000000004"),
+            name="discord",
+            label="Discord",
+            target=CustomFieldTarget.user,
+        ),
+        CustomFieldDefinition(
+            id=UUID("a2000000-0000-4000-8000-000000000005"),
+            name="phone",
+            label="Phone",
+            target=CustomFieldTarget.user,
+            is_public=False,
+        ),
+    ]
+
+
+@fixtures.register(depends_on=["custom_field_definition", "team", "user"])
+def custom_field_value() -> list[CustomFieldValue]:
+    def _did(name: str) -> UUID:
+        return fixtures.field("custom_field_definition", "name", name)
+
+    def _tid(name: str) -> UUID:
+        return fixtures.field("team", "name", name)
+
+    def _uid(username: str) -> UUID:
+        return fixtures.field("user", "username", username)
+
+    return [
+        CustomFieldValue(
+            id=UUID("a3000000-0000-4000-8000-000000000001"),
+            definition_id=_did("school"),
+            team_id=_tid("team1"),
+            value="INSA Toulouse",
+        ),
+        CustomFieldValue(
+            id=UUID("a3000000-0000-4000-8000-000000000002"),
+            definition_id=_did("school"),
+            team_id=_tid("team3"),
+            value="TU München",
+        ),
+        CustomFieldValue(
+            id=UUID("a3000000-0000-4000-8000-000000000003"),
+            definition_id=_did("team_website"),
+            team_id=_tid("team1"),
+            value="https://team1.example.com",
+        ),
+        CustomFieldValue(
+            id=UUID("a3000000-0000-4000-8000-000000000004"),
+            definition_id=_did("team_contact"),
+            team_id=_tid("team1"),
+            value="captain@team1.example.com",
+        ),
+        CustomFieldValue(
+            id=UUID("a3000000-0000-4000-8000-000000000005"),
+            definition_id=_did("discord"),
+            user_id=_uid("user1"),
+            value="user1#4242",
+        ),
+        CustomFieldValue(
+            id=UUID("a3000000-0000-4000-8000-000000000006"),
+            definition_id=_did("discord"),
+            user_id=_uid("user3"),
+            value="user3#1337",
+        ),
+        CustomFieldValue(
+            id=UUID("a3000000-0000-4000-8000-000000000007"),
+            definition_id=_did("phone"),
+            user_id=_uid("user1"),
+            value="+33600000000",
         ),
     ]
 

@@ -1,9 +1,11 @@
 """Team payload assembly shared by the me and public team endpoints."""
 
 import asyncio
+from collections.abc import Sequence
 from uuid import UUID
 
 from redis.asyncio import Redis
+from sqlalchemy import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -16,16 +18,13 @@ from nexctf.schema.custom_field import PublicCustomFieldValue
 from nexctf.schema.team import MyTeamRead, PublicTeamMember
 
 
-async def fetch_public_team_fields(
-    session: AsyncSession, team_id: UUID
-) -> list[PublicCustomFieldValue]:
-    """Return a team's public custom-field values."""
-    rows = await crud.CustomFieldValueCrud.get_multi(
+async def _fetch_public_fields(
+    session: AsyncSession, owner_filter: ColumnElement[bool]
+) -> Sequence[CustomFieldValue]:
+    """Return public custom-field values matching an owner filter."""
+    return await crud.CustomFieldValueCrud.get_multi(
         session=session,
-        filters=[
-            CustomFieldValue.team_id == team_id,
-            CustomFieldDefinition.is_public.is_(True),
-        ],
+        filters=[owner_filter, CustomFieldDefinition.is_public.is_(True)],
         joins=[
             (
                 CustomFieldDefinition,
@@ -34,15 +33,37 @@ async def fetch_public_team_fields(
         ],
         order_by=CustomFieldDefinition.name,
     )
-    return [
-        PublicCustomFieldValue(
-            name=v.definition.name,
-            label=v.definition.label,
-            field_type=v.definition.field_type,
-            value=v.value,
-        )
-        for v in rows
-    ]
+
+
+def _to_public(value: CustomFieldValue) -> PublicCustomFieldValue:
+    return PublicCustomFieldValue(
+        name=value.definition.name,
+        label=value.definition.label,
+        field_type=value.definition.field_type,
+        value=value.value,
+    )
+
+
+async def fetch_public_team_fields(
+    session: AsyncSession, team_id: UUID
+) -> list[PublicCustomFieldValue]:
+    """Return a team's public custom-field values."""
+    rows = await _fetch_public_fields(session, CustomFieldValue.team_id == team_id)
+    return [_to_public(v) for v in rows]
+
+
+async def _fetch_public_user_fields(
+    session: AsyncSession, user_ids: list[UUID]
+) -> dict[UUID, list[PublicCustomFieldValue]]:
+    """Return public custom-field values per user."""
+    if not user_ids:
+        return {}
+    rows = await _fetch_public_fields(session, CustomFieldValue.user_id.in_(user_ids))
+    by_user: dict[UUID, list[PublicCustomFieldValue]] = {}
+    for row in rows:
+        if row.user_id is not None:
+            by_user.setdefault(row.user_id, []).append(_to_public(row))
+    return by_user
 
 
 async def load_team_read(
@@ -69,6 +90,17 @@ async def load_team_read(
         get_team_challenge_stats(session, redis, team_id),
         fetch_public_team_fields(session, team_id),
     )
+    members: list[PublicTeamMember] | None = None
+    if include_members:
+        member_fields = await _fetch_public_user_fields(
+            session, [u.id for u in team.users]
+        )
+        members = [
+            PublicTeamMember(
+                id=u.id, username=u.username, custom_fields=member_fields.get(u.id, [])
+            )
+            for u in team.users
+        ]
     rank: int | None = None
     score: int | None = None
     team_count = 0
@@ -83,9 +115,7 @@ async def load_team_read(
         name=team.name,
         country=team.country,
         bracket=team.bracket,
-        members=[PublicTeamMember(id=u.id, username=u.username) for u in team.users]
-        if include_members
-        else None,
+        members=members,
         member_count=len(team.users),
         challenge_stats=stats,
         invite_code=team.invite_code,

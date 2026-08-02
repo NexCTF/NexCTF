@@ -358,11 +358,6 @@ export interface TeamQuestionStats {
   wrong_attempt_count: number;
 }
 
-export interface TeamMember {
-  id: string;
-  username: string;
-}
-
 export interface PublicCustomField {
   name: string;
   label: string;
@@ -370,12 +365,18 @@ export interface PublicCustomField {
   value: string | null;
 }
 
+export interface PublicTeamMember {
+  id: string;
+  username: string;
+  custom_fields: PublicCustomField[];
+}
+
 export interface PublicTeam {
   id: string;
   name: string;
   country: string | null;
   bracket: string | null;
-  members: TeamMember[] | null;
+  members: PublicTeamMember[] | null;
   member_count: number;
   challenge_stats: TeamChallengeStats[];
   custom_fields: PublicCustomField[];
@@ -599,7 +600,7 @@ export interface Team {
   links: Link[];
 }
 
-export interface TeamMember {
+export interface AdminTeamMember {
   id: string;
   username: string;
   email: string | null;
@@ -608,7 +609,7 @@ export interface TeamMember {
 }
 
 export interface TeamDetail extends Team {
-  users: TeamMember[];
+  users: AdminTeamMember[];
   custom_field_values: CustomFieldValue[];
 }
 
