@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from nexctf import crud
 from nexctf.api.dep import (
+    ConfigDep,
     CurrentUserDep,
     RedisDep,
     SessionDep,
@@ -317,12 +318,17 @@ async def totp_disable(
 async def get_my_team(
     session: SessionDep,
     redis: RedisDep,
+    overrides: ConfigDep,
     user: CurrentUserDep,
 ) -> Response[MyTeamRead | None]:
     if user.team_id is None:
         return Response(data=None)
     team = await load_team_read(
-        session, redis, user.team_id, include_rank=can_view_scoreboard(user)
+        session,
+        redis,
+        user.team_id,
+        overrides=overrides,
+        include_rank=can_view_scoreboard(user, overrides),
     )
     if team is None:
         raise NotFoundError()
@@ -333,12 +339,13 @@ async def get_my_team(
 async def create_team(
     session: SessionDep,
     redis: RedisDep,
+    overrides: ConfigDep,
     body: TeamCreate,
     user: CurrentUserDep,
 ) -> Response[MyTeamRead]:
-    if not appconfig.get("ctf.allow_team_changes"):
+    if not appconfig.get_with_overrides("ctf.allow_team_changes", overrides):
         raise TeamChangesDisabledError()
-    if not appconfig.get("ctf.allow_team_creation"):
+    if not appconfig.get_with_overrides("ctf.allow_team_creation", overrides):
         raise TeamCreationDisabledError()
     if user.team_id is not None:
         raise AlreadyInTeamError()
@@ -358,7 +365,11 @@ async def create_team(
     )
 
     data = await load_team_read(
-        session, redis, team.id, include_rank=can_view_scoreboard(user)
+        session,
+        redis,
+        team.id,
+        overrides=overrides,
+        include_rank=can_view_scoreboard(user, overrides),
     )
     if data is None:
         raise NotFoundError()
@@ -369,10 +380,11 @@ async def create_team(
 async def join_team(
     session: SessionDep,
     redis: RedisDep,
+    overrides: ConfigDep,
     body: TeamJoinRequest,
     user: CurrentUserDep,
 ) -> Response[MyTeamRead]:
-    if not appconfig.get("ctf.allow_team_changes"):
+    if not appconfig.get_with_overrides("ctf.allow_team_changes", overrides):
         raise TeamChangesDisabledError()
     if user.team_id is not None:
         raise AlreadyInTeamError()
@@ -384,7 +396,7 @@ async def join_team(
     )
     if team is None:
         raise InvalidInviteCodeError()
-    if len(team.users) >= int(appconfig.get("ctf.team_size")):
+    if len(team.users) >= int(appconfig.get_with_overrides("ctf.team_size", overrides)):
         raise TeamFullError()
 
     await crud.UserCrud.update(
@@ -399,7 +411,11 @@ async def join_team(
     )
 
     data = await load_team_read(
-        session, redis, team.id, include_rank=can_view_scoreboard(user)
+        session,
+        redis,
+        team.id,
+        overrides=overrides,
+        include_rank=can_view_scoreboard(user, overrides),
     )
     if data is None:
         raise NotFoundError()
@@ -410,9 +426,10 @@ async def join_team(
 async def leave_team(
     session: SessionDep,
     redis: RedisDep,
+    overrides: ConfigDep,
     user: CurrentUserDep,
 ):
-    if not appconfig.get("ctf.allow_team_changes"):
+    if not appconfig.get_with_overrides("ctf.allow_team_changes", overrides):
         raise TeamChangesDisabledError()
     if user.team_id is None:
         raise NotInTeamError()
@@ -435,9 +452,10 @@ async def leave_team(
 @me_router.post("/team/invite-code")
 async def rotate_invite_code(
     session: SessionDep,
+    overrides: ConfigDep,
     user: CurrentUserDep,
 ) -> Response[str]:
-    if not appconfig.get("ctf.allow_team_changes"):
+    if not appconfig.get_with_overrides("ctf.allow_team_changes", overrides):
         raise TeamChangesDisabledError()
     if user.team_id is None:
         raise NotInTeamError()

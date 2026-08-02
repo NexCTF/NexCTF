@@ -4,6 +4,7 @@ from fastapi import APIRouter, Query
 from fastapi_toolsets.schemas import Response
 
 from nexctf.api.dep import (
+    ConfigDep,
     OptionalCurrentUserDep,
     RedisDep,
     SessionDep,
@@ -23,11 +24,12 @@ scoreboard_router = APIRouter(prefix="/scoreboard", tags=["Scoreboard"])
 async def get_scoreboard_endpoint(
     session: SessionDep,
     redis: RedisDep,
+    overrides: ConfigDep,
     user: OptionalCurrentUserDep = None,
     bracket: str | None = Query(default=None),
 ) -> Response[PublicScoreboard]:
-    check_scoreboard_visibility(user)
-    result = await get_scoreboard(session, redis, bracket=bracket)
+    check_scoreboard_visibility(user, overrides)
+    result = await get_scoreboard(session, redis, overrides=overrides, bracket=bracket)
     return Response(data=result)
 
 
@@ -35,12 +37,15 @@ async def get_scoreboard_endpoint(
 async def get_scoreboard_history_endpoint(
     session: SessionDep,
     redis: RedisDep,
+    overrides: ConfigDep,
     user: OptionalCurrentUserDep = None,
     limit: int = Query(default=10, ge=1, le=25),
     bracket: str | None = Query(default=None),
 ) -> Response[ScoreboardHistory]:
-    check_scoreboard_visibility(user)
-    result = await get_scoreboard_history(session, redis, limit=limit, bracket=bracket)
+    check_scoreboard_visibility(user, overrides)
+    result = await get_scoreboard_history(
+        session, redis, overrides=overrides, limit=limit, bracket=bracket
+    )
     return Response(data=result)
 
 
@@ -49,8 +54,9 @@ async def get_team_score_endpoint(
     session: SessionDep,
     redis: RedisDep,
     team_id: UUID,
+    overrides: ConfigDep,
     user: OptionalCurrentUserDep = None,
 ) -> Response[PublicTeamScoreDetail]:
-    check_scoreboard_visibility(user)
-    result = await get_team_score(session, redis, team_id)
+    check_scoreboard_visibility(user, overrides)
+    result = await get_team_score(session, redis, team_id, overrides=overrides)
     return Response(data=result)

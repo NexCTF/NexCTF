@@ -50,6 +50,7 @@ async def load_team_read(
     redis: Redis,
     team_id: UUID,
     *,
+    overrides: dict[str, str],
     include_rank: bool = True,
     include_members: bool = True,
 ) -> MyTeamRead | None:
@@ -72,7 +73,7 @@ async def load_team_read(
     score: int | None = None
     team_count = 0
     if include_rank:
-        scoreboard = await get_scoreboard(session, redis)
+        scoreboard = await get_scoreboard(session, redis, overrides=overrides)
         entry = next((e for e in scoreboard.entries if e.team_id == team_id), None)
         rank = entry.rank if entry else None
         score = entry.total if entry else None

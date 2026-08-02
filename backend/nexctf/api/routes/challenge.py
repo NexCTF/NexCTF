@@ -7,24 +7,26 @@ import random
 from uuid import UUID
 
 from fastapi import APIRouter, Request
-from fastapi_toolsets.exceptions import ForbiddenError, NotFoundError, UnauthorizedError
+from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import Response
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
 from nexctf.api.dep import (
+    ConfigDep,
     EventActiveDep,
     EventStartedDep,
     OptionalCurrentUserDep,
     RedisDep,
     RequireTeamDep,
     SessionDep,
+    check_visibility,
 )
 from nexctf.core import appconfig
-from nexctf.core.rate_limit import check_rate_limit
+from nexctf.core.rate_limit import check_config_rate_limit
 from nexctf.exceptions import SequentialChallengeError, SolutionTimeoutError
-from nexctf.model import Challenge, HintUnlock, Question, Submission, User, UserRole
+from nexctf.model import Challenge, HintUnlock, Question, Submission, User
 from nexctf.module.challenge import get_detail_structure, get_list_structure
 from nexctf.module.challenge.compute import QuestionStructure, solution_load_option
 from nexctf.module.events import emit as emit_event
@@ -46,15 +48,9 @@ from nexctf.util.ip import get_client_ip
 challenge_router = APIRouter(prefix="/challenges", tags=["Challenges"])
 
 
-def _check_challenge_visibility(user: User | None) -> None:
+def _check_challenge_visibility(user: User | None, overrides: dict[str, str]) -> None:
     """Raise if the current user cannot view challenges."""
-    visibility = str(appconfig.get("visibility.challenges"))
-    if user is not None and user.role in (UserRole.admin, UserRole.moderator):
-        return
-    if visibility == "hidden":
-        raise ForbiddenError()
-    if visibility == "authenticated" and user is None:
-        raise UnauthorizedError()
+    check_visibility(user, overrides, "visibility.challenges")
 
 
 async def _get_active_challenge(session: SessionDep, challenge_id: UUID) -> Challenge:
@@ -97,14 +93,14 @@ async def _solved_ids(
     return {r[0] for r in rows}
 
 
-def _writeup_visible(*, challenge_completed: bool) -> bool:
+def _writeup_visible(*, challenge_completed: bool, overrides: dict[str, str]) -> bool:
     """A writeup shows once the team completes the challenge, or once the CTF
     ends if the admin opted to release writeups after the event."""
     if challenge_completed:
         return True
-    return bool(appconfig.get("ctf.release_writeups_after_end")) and is_config_dt_past(
-        "ctf.end_time"
-    )
+    return bool(
+        appconfig.get_with_overrides("ctf.release_writeups_after_end", overrides)
+    ) and is_config_dt_past("ctf.end_time", overrides)
 
 
 async def _unlocked_ids(
@@ -175,10 +171,11 @@ def _assemble_question(
 async def list_challenges(
     session: SessionDep,
     redis: RedisDep,
+    overrides: ConfigDep,
     user: OptionalCurrentUserDep = None,
     _: EventStartedDep = None,
 ) -> Response[list[PublicChallengeRead]]:
-    _check_challenge_visibility(user)
+    _check_challenge_visibility(user, overrides)
     structure = await get_list_structure(session, redis)
 
     all_q_ids = [qid for item in structure for qid in item.question_ids]
@@ -205,10 +202,11 @@ async def get_challenge(
     session: SessionDep,
     redis: RedisDep,
     challenge_id: UUID,
+    overrides: ConfigDep,
     user: OptionalCurrentUserDep = None,
     _: EventStartedDep = None,
 ) -> Response[PublicChallengeDetail]:
-    _check_challenge_visibility(user)
+    _check_challenge_visibility(user, overrides)
     structure = await get_detail_structure(session, redis, challenge_id)
     questions = structure.questions
 
@@ -238,7 +236,9 @@ async def get_challenge(
     challenge_completed = len(questions) > 0 and len(solved) == len(questions)
     writeup = (
         structure.writeup
-        if _writeup_visible(challenge_completed=challenge_completed)
+        if _writeup_visible(
+            challenge_completed=challenge_completed, overrides=overrides
+        )
         else None
     )
 
@@ -268,17 +268,14 @@ async def submit_answer(
     challenge_id: UUID,
     question_id: UUID,
     obj: SubmitBody,
+    overrides: ConfigDep,
     user: RequireTeamDep,
     _: EventActiveDep,
 ) -> Response[SubmitResult]:
-    _check_challenge_visibility(user)
-    if appconfig.get("rate_limit.submit.enabled"):
-        await check_rate_limit(
-            redis,
-            f"rl:submit:{user.id}",
-            window_seconds=int(appconfig.get("rate_limit.submit.window_seconds")),
-            max_requests=int(appconfig.get("rate_limit.submit.max_requests")),
-        )
+    _check_challenge_visibility(user, overrides)
+    await check_config_rate_limit(
+        redis, overrides, name="submit", key=f"rl:submit:{user.id}"
+    )
 
     challenge = await _get_active_challenge(session, challenge_id)
 
@@ -447,10 +444,11 @@ async def unlock_hint(
     challenge_id: UUID,
     question_id: UUID,
     hint_id: UUID,
+    overrides: ConfigDep,
     user: RequireTeamDep,
     _: EventActiveDep,
 ) -> Response[PublicHintRead]:
-    _check_challenge_visibility(user)
+    _check_challenge_visibility(user, overrides)
     challenge = await _get_active_challenge(session, challenge_id)
 
     question = next((q for q in challenge.questions if q.id == question_id), None)

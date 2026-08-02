@@ -4,9 +4,6 @@ Plugins call:
   - register_plugin_configs() — declare config keys with a plugin prefix
   - get_plugin_config()       — resolve a config value with auto-prefix
 
-The core app calls:
-  - reconcile_plugin_configs() — warm plugin config keys after store plugins load
-
 Category infrastructure (CategoryMeta, register_category, get_category_meta)
 lives in core/appconfig.py because both core and plugin configs share it.
 """
@@ -15,23 +12,13 @@ from __future__ import annotations
 
 import sys
 from dataclasses import replace
-from typing import Any, cast
-
-from redis.asyncio import Redis
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.core.appconfig import (
-    REDIS_HASH,
     ConfigDef,
     define,
-    get,
-    get_uncached_keys,
+    get_with_overrides,
     register_category,
-    update_cache,
 )
-
-logger = __import__("logging").getLogger(__name__)
 
 
 def _caller_slug(depth: int = 2) -> str:
@@ -90,66 +77,26 @@ def register_plugin_configs(
 
 
 def get_plugin_config(
-    key: str, *, plugin_slug: str | None = None
+    key: str,
+    overrides: dict[str, str],
+    *,
+    plugin_slug: str | None = None,
 ) -> str | int | float | bool:
     """Resolve a plugin config value using the caller's package as the slug.
 
-    Equivalent to ``get(f"{caller_slug}.{key}")``.  Call from anywhere
-    inside the plugin package and the prefix is resolved automatically.
+    Call from anywhere inside the plugin package and the prefix is resolved
+    automatically.
 
     Args:
         key:         Bare config key, e.g. ``"instance_url"``.
+        overrides:   Config snapshot from ``appconfig.fetch_overrides``.
         plugin_slug: Explicit slug override. Inferred from caller package when omitted.
 
     Example (inside ``orchestrator/module/orchestrator.py``)::
 
-        host = get_plugin_config("instance_url")  # reads "orchestrator.instance_url"
+        host = get_plugin_config("instance_url", overrides)
     """
     slug = plugin_slug or _caller_slug(depth=2)
     prefix = f"{slug}."
     full_key = key if key.startswith(prefix) else f"{prefix}{key}"
-    return get(full_key)
-
-
-async def reconcile_plugin_configs(session: AsyncSession, redis: Redis) -> None:
-    """Load DB/Redis values for config keys registered after startup.
-
-    Warms the cache for keys registered after the initial
-    :func:`~nexctf.core.appconfig.load_from_db` call (i.e. keys from store
-    plugins). Call this in lifespan after plugins are imported.
-
-    Args:
-        session: An open async database session.
-        redis: The Redis client used to read and warm the config cache.
-    """
-    from nexctf.model.config import ConfigEntry
-
-    new_keys = get_uncached_keys()
-    if not new_keys:
-        return
-
-    cached: dict[str, str] = await cast(Any, redis.hgetall(REDIS_HASH))
-    found: dict[str, str] = {}
-
-    for key in new_keys:
-        if key in cached:
-            found[key] = cached[key]
-
-    db_keys = new_keys - set(found)
-    if db_keys:
-        result = await session.execute(
-            select(ConfigEntry).where(ConfigEntry.key.in_(db_keys))
-        )
-        for entry in result.scalars():
-            found[entry.key] = entry.value
-
-    if found:
-        update_cache(found)
-        pipe = redis.pipeline()
-        for key, value in found.items():
-            cast(Any, pipe.hset(REDIS_HASH, key, value))
-        await cast(Any, pipe.execute())
-
-    logger.info(
-        "plugin config reconciled (%d new keys, %d loaded)", len(new_keys), len(found)
-    )
+    return get_with_overrides(full_key, overrides)

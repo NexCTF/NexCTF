@@ -3,7 +3,7 @@ from typing import cast
 from fastapi import APIRouter
 from fastapi_toolsets.schemas import Response
 
-from nexctf.api.dep import RedisDep, SessionDep
+from nexctf.api.dep import ConfigDep, RedisDep, SessionDep
 from nexctf.core import appconfig
 from nexctf.exceptions import ConfigValidationError
 from nexctf.module.audit import audit_actor, redact
@@ -33,8 +33,7 @@ def _build_item(key: str, overrides: dict[str, str]) -> AdminConfigRead:
 
 
 @config_router.get("")
-async def list_config(redis: RedisDep) -> Response[list[AdminConfigRead]]:
-    overrides = await appconfig.fetch_overrides(redis)
+async def list_config(overrides: ConfigDep) -> Response[list[AdminConfigRead]]:
     return Response(data=[_build_item(k, overrides) for k in appconfig.all_defs()])
 
 
@@ -42,11 +41,11 @@ async def list_config(redis: RedisDep) -> Response[list[AdminConfigRead]]:
 async def bulk_update_config(
     session: SessionDep,
     redis: RedisDep,
+    old_overrides: ConfigDep,
     obj: AdminConfigBulkUpdate,
 ) -> Response[list[AdminConfigRead]]:
     errors: list[str] = []
     staged: dict[str, str] = {}
-    old_overrides = await appconfig.fetch_overrides(redis)
 
     for key, value in obj.items.items():
         if key not in appconfig.all_defs():
@@ -61,10 +60,10 @@ async def bulk_update_config(
     if errors:
         raise ConfigValidationError(errors)
 
-    await appconfig.commit_and_cache(session, redis, staged)
+    await appconfig.commit_and_store(session, redis, staged)
     await redis.publish("config:update", "1")
 
-    overrides = await appconfig.fetch_overrides(redis)
+    overrides = {**old_overrides, **staged}
 
     if staged:
         actor_id, ip = audit_actor()

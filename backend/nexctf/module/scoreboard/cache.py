@@ -36,10 +36,12 @@ _history_adapter: TypeAdapter[ScoreboardHistory] = TypeAdapter(ScoreboardHistory
 async def get_scoreboard(
     session: AsyncSession,
     redis: Redis,
+    *,
+    overrides: dict[str, str],
     bracket: str | None = None,
     ttl: timedelta = DEFAULT_TTL,
 ) -> PublicScoreboard:
-    freeze_time = parse_config_dt("ctf.freeze_time")
+    freeze_time = parse_config_dt("ctf.freeze_time", overrides)
     key = f"{_SCOREBOARD_KEY}:{bracket}" if bracket else _SCOREBOARD_KEY
     return await get_or_compute(
         redis,
@@ -70,9 +72,11 @@ async def get_team_score(
     session: AsyncSession,
     redis: Redis,
     team_id: UUID,
+    *,
+    overrides: dict[str, str],
     ttl: timedelta = DEFAULT_TTL,
 ) -> PublicTeamScoreDetail:
-    freeze_time = parse_config_dt("ctf.freeze_time")
+    freeze_time = parse_config_dt("ctf.freeze_time", overrides)
     return await get_or_compute(
         redis,
         f"{_TEAM_KEY_PREFIX}{team_id}",
@@ -85,11 +89,13 @@ async def get_team_score(
 async def get_scoreboard_history(
     session: AsyncSession,
     redis: Redis,
+    *,
+    overrides: dict[str, str],
     limit: int = 10,
     bracket: str | None = None,
     ttl: timedelta = DEFAULT_TTL,
 ) -> ScoreboardHistory:
-    freeze_time = parse_config_dt("ctf.freeze_time")
+    freeze_time = parse_config_dt("ctf.freeze_time", overrides)
     return await get_or_compute(
         redis,
         f"{_HISTORY_KEY}:{limit}:{bracket or '_all'}",

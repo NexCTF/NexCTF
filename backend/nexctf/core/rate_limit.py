@@ -1,17 +1,13 @@
 """Sliding-window rate limiter backed by Redis sorted sets.
 
-Usage in a route::
+Usage in a route — ``overrides`` is the per-request config snapshot from
+``nexctf.api.dep.ConfigDep``::
 
-    from nexctf.core import appconfig
-    from nexctf.core.rate_limit import check_rate_limit
+    from nexctf.core.rate_limit import check_config_rate_limit
 
-    if appconfig.get("rate_limit.submit.enabled"):
-        await check_rate_limit(
-            redis,
-            f"rl:submit:{user.id}",
-            window_seconds=int(appconfig.get("rate_limit.submit.window_seconds")),
-            max_requests=int(appconfig.get("rate_limit.submit.max_requests")),
-        )
+    await check_config_rate_limit(
+        redis, overrides, name="submit", key=f"rl:submit:{user.id}"
+    )
 
 Plugins can import and call ``check_rate_limit`` directly with any key.
 """
@@ -23,6 +19,8 @@ import uuid as _uuid
 
 from fastapi import HTTPException, status
 from redis.asyncio import Redis
+
+from nexctf.core import appconfig
 
 
 async def check_rate_limit(
@@ -51,3 +49,32 @@ async def check_rate_limit(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Rate limit exceeded. Please wait before submitting again.",
         )
+
+
+async def check_config_rate_limit(
+    redis: Redis,
+    overrides: dict[str, str],
+    *,
+    name: str,
+    key: str,
+) -> None:
+    """Apply the ``rate_limit.<name>.*`` config group, no-op when it is disabled.
+
+    Args:
+        redis: Redis client backing the sliding window.
+        overrides: Per-request config snapshot shared across workers.
+        name: Config group name, e.g. ``"submit"`` or ``"login"``.
+        key: Redis key identifying the caller being limited.
+    """
+    if not appconfig.get_with_overrides(f"rate_limit.{name}.enabled", overrides):
+        return
+    await check_rate_limit(
+        redis,
+        key,
+        window_seconds=int(
+            appconfig.get_with_overrides(f"rate_limit.{name}.window_seconds", overrides)
+        ),
+        max_requests=int(
+            appconfig.get_with_overrides(f"rate_limit.{name}.max_requests", overrides)
+        ),
+    )

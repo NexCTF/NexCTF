@@ -10,7 +10,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.api.routes.challenge import _writeup_visible
-from nexctf.core import appconfig
 from nexctf.model import HintUnlock, Team, User
 from nexctf.model.question import Hint, Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
@@ -28,13 +27,11 @@ class TestListChallengesBeforeStart:
     async def test_user_blocked_when_start_in_future(
         self,
         user_client: tuple[AsyncClient, User],
-        monkeypatch: pytest.MonkeyPatch,
+        config_overrides: dict[str, str],
     ) -> None:
         """Regular users cannot list challenges before the CTF starts."""
-        monkeypatch.setitem(appconfig._CACHE, "ctf.start_time", FUTURE)
-        monkeypatch.setitem(
-            appconfig._CACHE, "ctf.hide_challenges_before_start", "true"
-        )
+        config_overrides["ctf.start_time"] = FUTURE
+        config_overrides["ctf.hide_challenges_before_start"] = "true"
         c, _ = user_client
         resp = await c.get("/challenges")
         assert resp.status_code == 403
@@ -42,13 +39,11 @@ class TestListChallengesBeforeStart:
     async def test_admin_bypasses_start_check(
         self,
         admin_client: tuple[AsyncClient, User],
-        monkeypatch: pytest.MonkeyPatch,
+        config_overrides: dict[str, str],
     ) -> None:
         """Admins can list challenges before the CTF starts."""
-        monkeypatch.setitem(appconfig._CACHE, "ctf.start_time", FUTURE)
-        monkeypatch.setitem(
-            appconfig._CACHE, "ctf.hide_challenges_before_start", "true"
-        )
+        config_overrides["ctf.start_time"] = FUTURE
+        config_overrides["ctf.hide_challenges_before_start"] = "true"
         c, _ = admin_client
         resp = await c.get("/challenges")
         assert resp.status_code == 200
@@ -56,13 +51,11 @@ class TestListChallengesBeforeStart:
     async def test_moderator_bypasses_start_check(
         self,
         moderator_client: tuple[AsyncClient, User],
-        monkeypatch: pytest.MonkeyPatch,
+        config_overrides: dict[str, str],
     ) -> None:
         """Moderators can list challenges before the CTF starts."""
-        monkeypatch.setitem(appconfig._CACHE, "ctf.start_time", FUTURE)
-        monkeypatch.setitem(
-            appconfig._CACHE, "ctf.hide_challenges_before_start", "true"
-        )
+        config_overrides["ctf.start_time"] = FUTURE
+        config_overrides["ctf.hide_challenges_before_start"] = "true"
         c, _ = moderator_client
         resp = await c.get("/challenges")
         assert resp.status_code == 200
@@ -70,13 +63,11 @@ class TestListChallengesBeforeStart:
     async def test_user_allowed_when_hide_disabled(
         self,
         user_client: tuple[AsyncClient, User],
-        monkeypatch: pytest.MonkeyPatch,
+        config_overrides: dict[str, str],
     ) -> None:
         """Users can list challenges before start when hide setting is off."""
-        monkeypatch.setitem(appconfig._CACHE, "ctf.start_time", FUTURE)
-        monkeypatch.setitem(
-            appconfig._CACHE, "ctf.hide_challenges_before_start", "false"
-        )
+        config_overrides["ctf.start_time"] = FUTURE
+        config_overrides["ctf.hide_challenges_before_start"] = "false"
         c, _ = user_client
         resp = await c.get("/challenges")
         assert resp.status_code == 200
@@ -84,13 +75,11 @@ class TestListChallengesBeforeStart:
     async def test_user_allowed_when_no_start_time(
         self,
         user_client: tuple[AsyncClient, User],
-        monkeypatch: pytest.MonkeyPatch,
+        config_overrides: dict[str, str],
     ) -> None:
         """Users can list challenges when no start time is configured."""
-        monkeypatch.setitem(appconfig._CACHE, "ctf.start_time", "")
-        monkeypatch.setitem(
-            appconfig._CACHE, "ctf.hide_challenges_before_start", "true"
-        )
+        config_overrides["ctf.start_time"] = ""
+        config_overrides["ctf.hide_challenges_before_start"] = "true"
         c, _ = user_client
         resp = await c.get("/challenges")
         assert resp.status_code == 200
@@ -103,10 +92,10 @@ class TestSubmitAfterEnd:
     async def test_user_blocked_when_ctf_ended(
         self,
         user_client: tuple[AsyncClient, User],
-        monkeypatch: pytest.MonkeyPatch,
+        config_overrides: dict[str, str],
     ) -> None:
         """Regular users cannot submit answers after the CTF ends."""
-        monkeypatch.setitem(appconfig._CACHE, "ctf.end_time", PAST)
+        config_overrides["ctf.end_time"] = PAST
         c, _ = user_client
         resp = await c.post(
             f"/challenges/{NULL_UUID}/{NULL_UUID}/submit",
@@ -118,10 +107,10 @@ class TestSubmitAfterEnd:
         self,
         admin_client: tuple[AsyncClient, User],
         db_session,
-        monkeypatch: pytest.MonkeyPatch,
+        config_overrides: dict[str, str],
     ) -> None:
         """Admins can submit past the end time (timing guard is skipped, hits team check instead)."""
-        monkeypatch.setitem(appconfig._CACHE, "ctf.end_time", PAST)
+        config_overrides["ctf.end_time"] = PAST
         # Give the admin a team so it passes the team check and reaches the challenge lookup
         team = Team(id=UUID("00000000-0000-4000-9000-000000000001"), name="admin-team")
         db_session.add(team)
@@ -142,13 +131,11 @@ class TestSubmitBeforeStart:
     async def test_user_blocked_when_ctf_not_started(
         self,
         user_client: tuple[AsyncClient, User],
-        monkeypatch: pytest.MonkeyPatch,
+        config_overrides: dict[str, str],
     ) -> None:
         """Regular users cannot submit answers before the CTF starts."""
-        monkeypatch.setitem(appconfig._CACHE, "ctf.start_time", FUTURE)
-        monkeypatch.setitem(
-            appconfig._CACHE, "ctf.hide_challenges_before_start", "true"
-        )
+        config_overrides["ctf.start_time"] = FUTURE
+        config_overrides["ctf.hide_challenges_before_start"] = "true"
         c, _ = user_client
         resp = await c.post(
             f"/challenges/{NULL_UUID}/{NULL_UUID}/submit",
@@ -173,18 +160,22 @@ class TestWriteupVisible:
     )
     def test_writeup_visible(
         self,
-        monkeypatch: pytest.MonkeyPatch,
         challenge_completed: bool,
         release_after_end: str,
         end_time: str,
         expected: bool,
     ) -> None:
         """Writeup shows once completed, or once the event ends if the toggle is on."""
-        monkeypatch.setitem(
-            appconfig._CACHE, "ctf.release_writeups_after_end", release_after_end
+        overrides = {
+            "ctf.release_writeups_after_end": release_after_end,
+            "ctf.end_time": end_time,
+        }
+        assert (
+            _writeup_visible(
+                challenge_completed=challenge_completed, overrides=overrides
+            )
+            is expected
         )
-        monkeypatch.setitem(appconfig._CACHE, "ctf.end_time", end_time)
-        assert _writeup_visible(challenge_completed=challenge_completed) is expected
 
 
 # ── hint unlock ────────────────────────────────────────────────────────────────
@@ -195,10 +186,10 @@ class TestHintUnlockAfterEnd:
         self,
         user_client: tuple[AsyncClient, User],
         db_session: AsyncSession,
-        monkeypatch: pytest.MonkeyPatch,
+        config_overrides: dict[str, str],
     ) -> None:
         """Regular users cannot unlock hints after the CTF ends."""
-        monkeypatch.setitem(appconfig._CACHE, "ctf.end_time", PAST)
+        config_overrides["ctf.end_time"] = PAST
         c, user = user_client
         # Without a team the request would 403 on the team guard instead.
         team = Team(name="ended_team")

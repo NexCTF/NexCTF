@@ -7,6 +7,7 @@ from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import Response
 
 from nexctf.api.dep import (
+    ConfigDep,
     OptionalCurrentUserDep,
     RedisDep,
     SessionDep,
@@ -24,15 +25,16 @@ async def get_team_profile(
     session: SessionDep,
     redis: RedisDep,
     team_id: UUID,
+    overrides: ConfigDep,
     user: OptionalCurrentUserDep = None,
 ) -> Response[PublicTeamRead]:
     """Public team profile: fields, members and challenge progress."""
-    check_scoreboard_visibility(user)
-    overrides = await appconfig.fetch_overrides(redis)
+    check_scoreboard_visibility(user, overrides)
     team = await load_team_read(
         session,
         redis,
         team_id,
+        overrides=overrides,
         include_members=bool(
             appconfig.get_with_overrides("visibility.show_team_members", overrides)
         ),

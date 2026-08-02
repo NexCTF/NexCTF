@@ -12,7 +12,6 @@ from httpx import AsyncClient
 
 from nexctf import crud
 from nexctf.api.security import hash_password, verify_password
-from nexctf.core import appconfig
 from nexctf.exceptions import CaptchaInvalidError, CaptchaRequiredError
 from nexctf.model import OAuthAccount, OAuthProvider, User, UserToken
 from nexctf.schema import UserCreate
@@ -60,8 +59,8 @@ class TestRegister:
         )
         assert resp.status_code == 422
 
-    async def test_register_disabled(self, http_client, monkeypatch):
-        monkeypatch.setitem(appconfig._CACHE, "ctf.allow_registration", "false")
+    async def test_register_disabled(self, http_client, config_overrides):
+        config_overrides["ctf.allow_registration"] = "false"
         resp = await http_client.post(
             "/auth/register",
             json={"username": "newuser", "password": "strongpass"},
@@ -79,6 +78,21 @@ class TestRegister:
                 "/auth/register",
                 json={"username": "newuser", "password": "strongpass"},
             )
+        assert resp.status_code == 400
+        assert resp.json()["error_code"] == "AUTH-CAPTCHA-REQUIRED"
+
+    async def test_captcha_gate_reads_the_request_snapshot(
+        self, http_client, config_overrides
+    ):
+        """Enabling captcha via config makes register demand a token."""
+        config_overrides["captcha.enabled"] = "true"
+        config_overrides["captcha.cap_api_url"] = "http://cap.test"
+        config_overrides["captcha.cap_site_key"] = "site"
+        config_overrides["captcha.cap_secret_key"] = "secret"
+        resp = await http_client.post(
+            "/auth/register",
+            json={"username": "newuser", "password": "strongpass"},
+        )
         assert resp.status_code == 400
         assert resp.json()["error_code"] == "AUTH-CAPTCHA-REQUIRED"
 
@@ -115,10 +129,10 @@ class TestRegister:
         assert "NexCTF" in login_resp.cookies
 
     async def test_register_disabled_check_before_captcha(
-        self, http_client, monkeypatch
+        self, http_client, config_overrides
     ):
         """Registration-disabled 403 is returned before captcha is even checked."""
-        monkeypatch.setitem(appconfig._CACHE, "ctf.allow_registration", "false")
+        config_overrides["ctf.allow_registration"] = "false"
         with patch(
             "nexctf.api.routes.auth.verify_captcha",
             new_callable=AsyncMock,
