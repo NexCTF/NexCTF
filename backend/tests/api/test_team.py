@@ -5,6 +5,11 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.model import Team, User
+from nexctf.model.custom_field import (
+    CustomFieldDefinition,
+    CustomFieldTarget,
+    CustomFieldValue,
+)
 
 from ..base import NULL_UUID
 
@@ -55,6 +60,48 @@ class TestGetTeamProfile:
         data = resp.json()["data"]
         assert data["members"] is None
         assert data["member_count"] == 1
+
+    async def test_member_custom_fields(
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+    ) -> None:
+        team = Team(name="FieldTeam")
+        db_session.add(team)
+        await db_session.flush()
+        user = User(username="carol", team_id=team.id)
+        public = CustomFieldDefinition(
+            name="school", label="School", target=CustomFieldTarget.user
+        )
+        private = CustomFieldDefinition(
+            name="phone",
+            label="Phone",
+            target=CustomFieldTarget.user,
+            is_public=False,
+        )
+        db_session.add_all([user, public, private])
+        await db_session.flush()
+        db_session.add_all(
+            [
+                CustomFieldValue(definition_id=public.id, user_id=user.id, value="MIT"),
+                CustomFieldValue(
+                    definition_id=private.id, user_id=user.id, value="0600"
+                ),
+            ]
+        )
+        await db_session.flush()
+
+        resp = await http_client.get(f"{self.PREFIX}/{team.id}")
+        assert resp.status_code == 200
+        member = resp.json()["data"]["members"][0]
+        assert member["custom_fields"] == [
+            {
+                "name": "school",
+                "label": "School",
+                "field_type": "string",
+                "value": "MIT",
+            }
+        ]
 
     async def test_invite_code_hidden(
         self,
