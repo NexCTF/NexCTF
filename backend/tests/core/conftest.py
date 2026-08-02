@@ -22,7 +22,7 @@ async def redis():
     client = Redis.from_url(str(settings.REDIS_URL), decode_responses=True)
     try:
         await client.ping()
-    except (redis.exceptions.ConnectionError, OSError):
+    except redis.exceptions.ConnectionError, OSError:
         await client.aclose()
         pytest.skip(f"Redis not reachable at {settings.REDIS_URL}")
     yield client

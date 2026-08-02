@@ -61,7 +61,7 @@ async def send_email(
 
     try:
         port = int(appconfig.get_with_overrides("email.smtp_port", overrides))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         port = 0
 
     if not host or not from_address or port < 1:
@@ -89,7 +89,7 @@ async def send_email(
             start_tls=security == "starttls",
             timeout=30.0,
         )
-    except (aiosmtplib.SMTPException, OSError):
+    except aiosmtplib.SMTPException, OSError:
         logger.exception("SMTP send to %s failed", to)
         raise EmailSendError()
 

@@ -12,7 +12,7 @@ RUN bun run build
 
 FROM caddy:2-alpine AS caddy-bin
 
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 ARG VERSION=dev
 LABEL org.opencontainers.image.title="NexCTF" \
