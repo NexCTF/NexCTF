@@ -5,7 +5,6 @@ from fastapi_toolsets.fixtures import FixtureRegistry
 from fastapi_toolsets.fixtures.enum import Context
 
 from nexctf.model import (
-    ChallengeCategory,
     CustomFieldDefinition,
     CustomFieldTarget,
     CustomFieldType,
@@ -15,7 +14,6 @@ from nexctf.model import (
     Question,
     ScoreAdjustment,
     Submission,
-    Tag,
     Team,
     User,
     UserRole,
@@ -35,51 +33,7 @@ fixtures = FixtureRegistry(contexts=[Context.DEVELOPMENT])
 
 
 @fixtures.register()
-def challenge_category() -> list[ChallengeCategory]:
-    return [
-        ChallengeCategory(
-            id=UUID("a5091be9-ce73-4f0e-be2c-0c2c475f4953"),
-            slug="pentest",
-            name="Pentest",
-        ),
-        ChallengeCategory(
-            id=UUID("37e76635-fc50-4805-93f3-25e892185db3"),
-            slug="re",
-            name="Reverse Engineering",
-        ),
-        ChallengeCategory(
-            id=UUID("7fc0d019-6c87-485f-8bb5-d9b5c8e4d63b"),
-            slug="osint",
-            name="OSINT",
-        ),
-        ChallengeCategory(
-            id=UUID("f723e5cc-5fb4-42fb-9d56-04b043558fc7"),
-            slug="cryptography",
-            name="Cryptography",
-        ),
-        ChallengeCategory(
-            id=UUID("6e3e76f4-37fd-47e2-9b8c-7fc055c68870"),
-            slug="miscellaneous",
-            name="Miscellaneous",
-        ),
-        ChallengeCategory(
-            id=UUID("ff3c8389-eac0-42be-ba59-192b8990e62f"),
-            slug="forensics",
-            name="Forensics",
-        ),
-        ChallengeCategory(
-            id=UUID("782fda72-aca1-4bc7-8ae8-2d7b2eedf4b0"),
-            slug="networking",
-            name="Networking",
-        ),
-    ]
-
-
-@fixtures.register(depends_on=["challenge_category"])
 def challenge() -> list[StandardChallenge]:
-    def _catid(slug: str) -> UUID:
-        return fixtures.field("challenge_category", "slug", slug)
-
     return [
         StandardChallenge(
             id=UUID("a1000000-0000-4000-8000-000000000001"),
@@ -96,7 +50,8 @@ def challenge() -> list[StandardChallenge]:
                 "```\n"
             ),
             is_active=True,
-            category_id=_catid("pentest"),
+            category="pentest",
+            tags=["easy", "web"],
         ),
         StandardChallenge(
             id=UUID("a1000000-0000-4000-8000-000000000002"),
@@ -104,35 +59,40 @@ def challenge() -> list[StandardChallenge]:
             description="Classic SQL injection — three stages, escalating difficulty.",
             is_active=True,
             sequential=True,
-            category_id=_catid("pentest"),
+            category="pentest",
+            tags=["medium", "web"],
         ),
         StandardChallenge(
             id=UUID("a1000000-0000-4000-8000-000000000003"),
             title="Binary Reversing",
             description="Reverse-engineer the binary to extract secrets hidden in the code.",
             is_active=True,
-            category_id=_catid("re"),
+            category="reverse engineering",
+            tags=["hard"],
         ),
         StandardChallenge(
             id=UUID("a1000000-0000-4000-8000-000000000004"),
             title="Caesar Cipher",
             description="Decrypt the intercepted ciphertext and identify the key.",
             is_active=True,
-            category_id=_catid("cryptography"),
+            category="cryptography",
+            tags=["medium"],
         ),
         StandardChallenge(
             id=UUID("a1000000-0000-4000-8000-000000000005"),
             title="OSINT Starter",
             description="Find the target using only open-source intelligence.",
             is_active=True,
-            category_id=_catid("osint"),
+            category="osint",
+            tags=["easy"],
         ),
         StandardChallenge(
             id=UUID("a1000000-0000-4000-8000-000000000006"),
             title="Misc Warmup",
             description="Miscellaneous warmup — read carefully.",
             is_active=False,
-            category_id=_catid("miscellaneous"),
+            category="miscellaneous",
+            tags=["easy"],
         ),
     ]
 
@@ -541,30 +501,6 @@ def token() -> list[UserToken]:
             user_id=fixtures.field("user", "username", "admin"),
             token_hash="278e988e8437ac6c34fdcc9f43e43ed69d68361eb63808b97ae3befa3e989e0b",  # "nexctf_admin_token"
         )
-    ]
-
-
-@fixtures.register()
-def tag() -> list[Tag]:
-    return [
-        Tag(
-            id=UUID("95ace7e7-7afc-4bc3-b226-ab4f58649ec9"),
-            name="Hard",
-            description="",
-            color="#e01b24",
-        ),
-        Tag(
-            id=UUID("909d27a4-90d3-415c-b346-3b765d951701"),
-            name="Medium",
-            description="",
-            color="#ff7800",
-        ),
-        Tag(
-            id=UUID("bd970b07-2736-4b61-9b55-9a68a9d19a7d"),
-            name="Easy",
-            description="",
-            color="#33d17a",
-        ),
     ]
 
 

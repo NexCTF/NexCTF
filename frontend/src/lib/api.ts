@@ -89,6 +89,15 @@ async function requestPaginated<T>(
   return res.json();
 }
 
+/**
+ * Distinct values of one facet column, unfiltered — the suggestion source for
+ * free-text label fields (challenge category, tags, team bracket).
+ */
+export async function getFacetValues(path: string, key: string): Promise<string[]> {
+  const resp = await requestPaginated<unknown>(`${path}?items_per_page=1`);
+  return (resp.filter_attributes?.[key] ?? []) as string[];
+}
+
 /** Generic GET helper for dynamic defaults and other ad-hoc fetches. */
 export async function apiGet<T>(path: string): Promise<T> {
   return request<T>(path);
@@ -737,17 +746,6 @@ export async function markNotificationsRead(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Tags
-// ---------------------------------------------------------------------------
-
-export interface Tag {
-  id: string;
-  name: string;
-  description: string;
-  color: string;
-}
-
-// ---------------------------------------------------------------------------
 // Public – Challenges (player-facing)
 // ---------------------------------------------------------------------------
 
@@ -781,7 +779,7 @@ export interface PublicQuestion {
   is_solved: boolean;
   files: PublicFile[];
   hints: PublicHint[];
-  tags: Tag[];
+  tags: string[];
   options: string[] | null;
   multi_select: boolean;
 }
@@ -789,11 +787,10 @@ export interface PublicQuestion {
 export interface PublicChallenge {
   id: string;
   title: string;
-  category_id: string | null;
-  category_name: string | null;
+  category: string | null;
   question_count: number;
   solved_count: number;
-  tags: Tag[];
+  tags: string[];
 }
 
 export interface PublicChallengeDetail extends PublicChallenge {
@@ -909,10 +906,9 @@ export interface Challenge {
   title: string;
   is_active: boolean;
   sequential: boolean;
-  category_id: string | null;
-  category_name: string | null;
+  category: string | null;
   question_count: number;
-  tags: Tag[];
+  tags: string[];
 }
 
 export interface ChallengeDetail extends Challenge {
@@ -977,7 +973,7 @@ export interface Question {
   solution_count: number;
   file_count: number;
   files: StoredFile[];
-  tags: Tag[];
+  tags: string[];
   [key: string]: unknown;
 }
 
@@ -1097,41 +1093,6 @@ export async function deleteHint(id: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Admin – Categories
-// ---------------------------------------------------------------------------
-
-export interface Category {
-  id: string;
-  slug: string;
-  name: string;
-}
-
-export async function getAdminCategories(queryString = ""): Promise<PaginatedResponse<Category>> {
-  return requestPaginated<Category>(`/admin/category?${queryString}`);
-}
-
-export async function createCategory(data: { slug: string; name: string }): Promise<Category> {
-  return request<Category>("/admin/category", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
-
-export async function updateCategory(
-  id: string,
-  data: { slug: string; name: string },
-): Promise<Category> {
-  return request<Category>(`/admin/category/${id}`, {
-    method: "PUT",
-    body: JSON.stringify({ id, ...data }),
-  });
-}
-
-export async function deleteCategory(id: string): Promise<void> {
-  await rawRequest(`/admin/category/${id}`, { method: "DELETE" });
-}
-
-// ---------------------------------------------------------------------------
 // Admin – Links
 // ---------------------------------------------------------------------------
 
@@ -1233,39 +1194,6 @@ export async function updateAdminOAuthProvider(
 
 export async function deleteAdminOAuthProvider(id: string): Promise<void> {
   await rawRequest(`/admin/oauth-provider/${id}`, { method: "DELETE" });
-}
-
-// ---------------------------------------------------------------------------
-// Admin – Tags
-// ---------------------------------------------------------------------------
-
-export async function getAdminTags(queryString = ""): Promise<PaginatedResponse<Tag>> {
-  return requestPaginated<Tag>(`/admin/tag?${queryString}`);
-}
-
-export async function createAdminTag(data: {
-  name: string;
-  description: string;
-  color: string;
-}): Promise<Tag> {
-  return request<Tag>("/admin/tag", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
-
-export async function updateAdminTag(
-  id: string,
-  data: { name: string; description: string; color: string },
-): Promise<Tag> {
-  return request<Tag>(`/admin/tag/${id}`, {
-    method: "PUT",
-    body: JSON.stringify({ id, ...data }),
-  });
-}
-
-export async function deleteAdminTag(id: string): Promise<void> {
-  await rawRequest(`/admin/tag/${id}`, { method: "DELETE" });
 }
 
 // ---------------------------------------------------------------------------

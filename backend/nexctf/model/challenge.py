@@ -4,39 +4,16 @@ import logging
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Column, ForeignKey, Table
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .base import Base
+from .base import Base, LabelArray, LabelStr
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .question import Hint, Question
-    from .tag import Tag
     from .user import User
-
-challenge_tags_table = Table(
-    "challenge_tags",
-    Base.metadata,
-    Column(
-        "challenge_id",
-        PG_UUID(as_uuid=True),
-        ForeignKey("challenges.id"),
-        primary_key=True,
-    ),
-    Column("tag_id", PG_UUID(as_uuid=True), ForeignKey("tag.id"), primary_key=True),
-)
-
-
-class ChallengeCategory(Base):
-    __tablename__ = "challenge_categories"
-
-    slug: Mapped[str] = mapped_column(unique=True, index=True)
-    name: Mapped[str]
-
-    challenges: Mapped[list[Challenge]] = relationship(back_populates="category")
 
 
 class Challenge(Base):
@@ -54,22 +31,13 @@ class Challenge(Base):
         back_populates="challenge", order_by="Question.index"
     )
 
-    category: Mapped[ChallengeCategory | None] = relationship(
-        back_populates="challenges"
-    )
-    category_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("challenge_categories.id"), nullable=True
-    )
-
-    @property
-    def category_name(self) -> str | None:
-        return self.category.name if self.category is not None else None
+    category: Mapped[LabelStr]
 
     @property
     def question_count(self) -> int:
         return len(self.questions)
 
-    tags: Mapped[list[Tag]] = relationship(secondary=challenge_tags_table)
+    tags: Mapped[LabelArray]
 
     author: Mapped[User | None] = relationship()
     author_id: Mapped[UUID | None] = mapped_column(

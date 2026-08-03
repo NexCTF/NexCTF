@@ -18,8 +18,7 @@ export interface PublicChallenge {
   id: string;
   title: string;
   challenge_type: string;
-  category_id: string | null;
-  category_name: string | null;
+  category: string | null;
   question_count: number;
   solved_count: number;
 }

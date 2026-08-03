@@ -59,13 +59,10 @@ async def _get_active_challenge(session: SessionDep, challenge_id: UUID) -> Chal
         select(Challenge)
         .where(Challenge.id == challenge_id, Challenge.is_active.is_(True))
         .options(
-            selectinload(Challenge.category),
-            selectinload(Challenge.tags),
             selectinload(Challenge.questions).options(
                 solution_load_option(),
                 selectinload(Question.hints),
                 selectinload(Question.files),
-                selectinload(Question.tags),
             ),
         )
     )
@@ -186,8 +183,7 @@ async def list_challenges(
             PublicChallengeRead(
                 id=item.id,
                 title=item.title,
-                category_id=item.category_id,
-                category_name=item.category_name,
+                category=item.category,
                 question_count=len(item.question_ids),
                 solved_count=sum(1 for qid in item.question_ids if qid in solved),
                 tags=list(item.tags),
@@ -248,8 +244,7 @@ async def get_challenge(
             title=structure.title,
             description=structure.description,
             writeup=writeup,
-            category_id=structure.category_id,
-            category_name=structure.category_name,
+            category=structure.category,
             question_count=len(questions),
             solved_count=len(solved),
             challenge_type=structure.challenge_type,

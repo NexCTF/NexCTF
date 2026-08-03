@@ -63,3 +63,16 @@ async def test_complex_type_round_trips_through_cache(redis, cache_key):
 
     second = await get_or_compute(redis, cache_key, adapter, AsyncMock())
     assert second == value
+
+
+async def test_stale_payload_is_recomputed(redis, cache_key):
+    """A cached payload that no longer matches the schema must not raise."""
+    adapter = TypeAdapter(dict[str, int])
+    await redis.set(cache_key, b'{"old_field": "not-an-int"}')
+    compute = AsyncMock(return_value={"n": 1})
+
+    result = await get_or_compute(redis, cache_key, adapter, compute)
+
+    assert result == {"n": 1}
+    compute.assert_awaited_once()
+    assert adapter.validate_json(await redis.get(cache_key)) == {"n": 1}

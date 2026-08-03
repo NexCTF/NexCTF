@@ -165,8 +165,6 @@
       "teams": "Teams",
       "files": "Files",
       "pages": "Pages",
-      "tags": "Tags",
-      "categories": "Categories",
       "links": "Links",
       "oauth_providers": "OAuth Providers",
       "oauth_clients": "OAuth Clients",
@@ -540,25 +538,8 @@
       }
     },
     "tags": {
-      "title": "Tags",
-      "create": "New tag",
-      "created": "Tag created",
-      "create_error": "Failed to create tag",
-      "edit": "Edit tag",
-      "saved": "Tag saved",
-      "save_error": "Failed to save tag",
-      "deleted": "Tag deleted",
-      "delete_error": "Failed to delete tag",
-      "delete_confirm": "Delete tag \"{{name}}\"?",
-      "field_name": "Name",
-      "field_description": "Description",
-      "field_color": "Color",
-      "col_name": "Name",
-      "col_description": "Description",
-      "col_color": "Color",
-      "select_placeholder": "Select tags…",
-      "n_selected": "{{count}} tag(s) selected",
-      "no_tags": "No tags found"
+      "input_placeholder": "Add a tag…",
+      "remove": "Remove tag {{name}}"
     },
     "oauth_client": {
       "title": "OAuth Clients",
@@ -652,6 +633,12 @@
       "update_available": "Update available",
       "update_message": "NexCTF {{version}} is available.",
       "view_release": "View release notes"
+    },
+    "labels": {
+      "will_create": "Creates a new {{noun}}: \"{{value}}\"",
+      "noun_category": "category",
+      "noun_tag": "tag",
+      "noun_bracket": "bracket"
     }
   },
   "notifications": {

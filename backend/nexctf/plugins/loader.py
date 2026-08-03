@@ -251,17 +251,6 @@ def _load_store_plugins() -> None:
     _load_plugins_from_dir(_STORE_DIR, is_builtin=False, build_frontend=True)
 
 
-def _setup_registries() -> None:
-    """Configure registry defaults that require model imports.
-
-    Runs before plugins load so their ``register()`` calls inherit the defaults.
-    """
-    from nexctf.model.challenge import Challenge
-    from nexctf.plugins.registry import challenge_registry
-
-    challenge_registry.set_base_m2m_fields({"tags_ids": Challenge.tags})
-
-
 def load_plugin_registries() -> None:
     """Populate the plugin registries by importing builtin and store plugins.
 
@@ -269,7 +258,6 @@ def load_plugin_registries() -> None:
     calls it as its sole initialization step. It performs no API-specific work
     (route mounting, CRUD patching) so it is safe for background job execution.
     """
-    _setup_registries()
     load_builtin_plugins()
     _load_store_plugins()
 

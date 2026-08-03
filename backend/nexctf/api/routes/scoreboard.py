@@ -16,6 +16,7 @@ from nexctf.module.scoreboard.cache import (
     get_team_score,
 )
 from nexctf.schema import PublicScoreboard, PublicTeamScoreDetail, ScoreboardHistory
+from nexctf.util.pydantic import Label
 
 scoreboard_router = APIRouter(prefix="/scoreboard", tags=["Scoreboard"])
 
@@ -26,7 +27,7 @@ async def get_scoreboard_endpoint(
     redis: RedisDep,
     overrides: ConfigDep,
     user: OptionalCurrentUserDep = None,
-    bracket: str | None = Query(default=None),
+    bracket: Label = None,
 ) -> Response[PublicScoreboard]:
     check_scoreboard_visibility(user, overrides)
     result = await get_scoreboard(session, redis, overrides=overrides, bracket=bracket)
@@ -40,7 +41,7 @@ async def get_scoreboard_history_endpoint(
     overrides: ConfigDep,
     user: OptionalCurrentUserDep = None,
     limit: int = Query(default=10, ge=1, le=25),
-    bracket: str | None = Query(default=None),
+    bracket: Label = None,
 ) -> Response[ScoreboardHistory]:
     check_scoreboard_visibility(user, overrides)
     result = await get_scoreboard_history(

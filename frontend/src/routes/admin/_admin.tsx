@@ -9,7 +9,6 @@ import {
   Clock,
   Files,
   Flag,
-  FolderOpen,
   KeyRound,
   LayoutDashboard,
   Link2,
@@ -19,7 +18,6 @@ import {
   ScrollText,
   Settings,
   SlidersHorizontal,
-  Tag,
   Trophy,
   Users,
   UsersRound,
@@ -75,12 +73,6 @@ const NAV_SECTIONS: NavSection[] = [
     heading: "admin.nav.section.manage",
     items: [
       { to: "/admin/challenges", label: "admin.nav.challenges", icon: Flag },
-      {
-        to: "/admin/categories",
-        label: "admin.nav.categories",
-        icon: FolderOpen,
-      },
-      { to: "/admin/tags", label: "admin.nav.tags", icon: Tag },
       { to: "/admin/users", label: "admin.nav.users", icon: Users },
       { to: "/admin/teams", label: "admin.nav.teams", icon: UsersRound },
       {

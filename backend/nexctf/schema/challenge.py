@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi_toolsets.schemas import PydanticBase
 
 from nexctf.schema.question import PublicQuestionRead
-from nexctf.schema.tag import AdminTagRead, PublicTagRead
+from nexctf.util.pydantic import Label, Labels
 
 
 class AdminChallengeCreate(PydanticBase):
@@ -12,7 +12,8 @@ class AdminChallengeCreate(PydanticBase):
     writeup: str | None = None
     is_active: bool = False
     sequential: bool = False
-    category_id: UUID | None = None
+    category: Label = None
+    tags: Labels = []
     author_id: UUID | None = None
 
 
@@ -23,9 +24,9 @@ class AdminChallengeUpdate(PydanticBase):
     writeup: str | None = None
     is_active: bool | None = None
     sequential: bool | None = None
-    category_id: UUID | None = None
+    category: Label = None
+    tags: Labels | None = None
     author_id: UUID | None = None
-    tags_ids: list[UUID] | None = None
 
 
 class AdminChallengeRead(PydanticBase):
@@ -37,20 +38,18 @@ class AdminChallengeRead(PydanticBase):
     description: str | None
     writeup: str | None = None
     author_id: UUID | None
-    category_id: UUID | None
-    category_name: str | None = None
+    category: str | None = None
     question_count: int = 0
-    tags: list[AdminTagRead] = []
+    tags: list[str] = []
 
 
 class PublicChallengeRead(PydanticBase):
     id: UUID
     title: str
-    category_id: UUID | None
-    category_name: str | None
+    category: str | None
     question_count: int
     solved_count: int
-    tags: list[PublicTagRead] = []
+    tags: list[str] = []
 
 
 class PublicChallengeDetail(PublicChallengeRead):

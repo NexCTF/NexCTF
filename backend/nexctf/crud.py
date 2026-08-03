@@ -3,7 +3,6 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from nexctf.model import (
     Challenge,
-    ChallengeCategory,
     CustomFieldDefinition,
     CustomFieldValue,
     CustomPage,
@@ -21,7 +20,6 @@ from nexctf.model import (
     ScoreAdjustment,
     Solution,
     Submission,
-    Tag,
     Team,
     User,
     UserToken,
@@ -33,7 +31,7 @@ class TeamCrud(AsyncCrud[Team]):
     model = Team
     cursor_column = Team.created_at
     searchable_fields = [Team.name]
-    facet_fields = []
+    facet_fields = [Team.bracket]
     order_fields = [Team.name]
     default_load_options = [
         selectinload(Team.users),
@@ -126,39 +124,29 @@ class ChallengeCrud(AuditedCrud[Challenge]):
     searchable_fields = [
         Challenge.title,
         Challenge.challenge_type,
-        (Challenge.category, ChallengeCategory.name),
+        Challenge.category,
     ]
-    facet_fields = [Challenge.challenge_type, Challenge.is_active, Challenge.sequential]
+    facet_fields = [
+        Challenge.challenge_type,
+        Challenge.is_active,
+        Challenge.sequential,
+        Challenge.category,
+        Challenge.tags,
+    ]
     order_fields = [
         Challenge.title,
         Challenge.challenge_type,
         Challenge.is_active,
-        (Challenge.category, ChallengeCategory.name),
+        Challenge.category,
     ]
-    default_load_options = [
-        selectinload(Challenge.questions),
-        selectinload(Challenge.tags),
-        joinedload(Challenge.category),
-    ]
-    m2m_fields = {"tags_ids": Challenge.tags}
-
-
-class ChallengeCategoryCrud(AuditedCrud[ChallengeCategory]):
-    model = ChallengeCategory
-    cursor_column = ChallengeCategory.created_at
-    searchable_fields = [ChallengeCategory.name, ChallengeCategory.slug]
-    facet_fields = []
-    order_fields = [ChallengeCategory.name, ChallengeCategory.slug]
-    default_load_options = [
-        selectinload(ChallengeCategory.challenges),
-    ]
+    default_load_options = [selectinload(Challenge.questions)]
 
 
 class QuestionCrud(AuditedCrud[Question]):
     model = Question
     cursor_column = Question.created_at
     searchable_fields = [Question.label]
-    facet_fields = [Question.challenge_id]
+    facet_fields = [Question.challenge_id, Question.tags]
     order_fields = [
         Question.index,
         Question.points,
@@ -169,10 +157,9 @@ class QuestionCrud(AuditedCrud[Question]):
         selectinload(Question.hints),
         selectinload(Question.solutions),
         selectinload(Question.files),
-        selectinload(Question.tags),
         joinedload(Question.challenge),
     ]
-    m2m_fields = {"files_ids": Question.files, "tags_ids": Question.tags}
+    m2m_fields = {"files_ids": Question.files}
 
 
 class HintCrud(AuditedCrud[Hint]):
@@ -266,15 +253,6 @@ class ScoreAdjustmentCrud(AsyncCrud[ScoreAdjustment]):
         joinedload(ScoreAdjustment.challenge),
         joinedload(ScoreAdjustment.created_by),
     ]
-
-
-class TagCrud(AuditedCrud[Tag]):
-    model = Tag
-    cursor_column = Tag.created_at
-    searchable_fields = [Tag.name, Tag.color]
-    facet_fields = []
-    order_fields = [Tag.name, Tag.color]
-    default_load_options = []
 
 
 class OAuthServerClientCrud(AuditedCrud[OAuthServerClient]):

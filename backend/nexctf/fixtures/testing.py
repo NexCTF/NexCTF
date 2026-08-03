@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi_toolsets.fixtures import FixtureRegistry
 
-from nexctf.model import ChallengeCategory, OAuthProvider, Tag, Team, User, UserRole
+from nexctf.model import OAuthProvider, Team, User, UserRole
 from nexctf.model.oauth_server import OAuthServerClient
 
 fixtures = FixtureRegistry()
@@ -72,40 +72,6 @@ def user_with_totp() -> list[User]:
             username="fx_totp_user",
             hashed_password="x",
             totp_secret="JBSWY3DPEHPK3PXP",
-        ),
-    ]
-
-
-@fixtures.register()
-def tag() -> list[Tag]:
-    return [
-        Tag(
-            id=UUID("00000000-0000-4000-8003-000000000001"),
-            name="Hard",
-            description="",
-            color="#e01b24",
-        ),
-        Tag(
-            id=UUID("00000000-0000-4000-8003-000000000002"),
-            name="Easy",
-            description="",
-            color="#33d17a",
-        ),
-    ]
-
-
-@fixtures.register()
-def challenge_category() -> list[ChallengeCategory]:
-    return [
-        ChallengeCategory(
-            id=UUID("00000000-0000-4000-8004-000000000001"),
-            slug="web",
-            name="Web",
-        ),
-        ChallengeCategory(
-            id=UUID("00000000-0000-4000-8004-000000000002"),
-            slug="re",
-            name="Reverse Engineering",
         ),
     ]
 

@@ -98,9 +98,9 @@ function ChallengeView({ challenge }: { challenge: PublicChallengeDetail }) {
         <div className="space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-bold">{challenge.title}</h1>
-            {challenge.category_name && (
-              <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                {challenge.category_name}
+            {challenge.category && (
+              <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground capitalize">
+                {challenge.category}
               </span>
             )}
             {challenge.sequential && (
@@ -109,7 +109,7 @@ function ChallengeView({ challenge }: { challenge: PublicChallengeDetail }) {
               </span>
             )}
             {challenge.tags?.map((tag) => (
-              <TagBadge key={tag.id} tag={tag} />
+              <TagBadge key={tag} tag={tag} />
             ))}
           </div>
           {challenge.description && (
@@ -245,7 +245,7 @@ function QuestionCard({
           {q.tags && q.tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {q.tags.map((tag) => (
-                <TagBadge key={tag.id} tag={tag} />
+                <TagBadge key={tag} tag={tag} />
               ))}
             </div>
           )}

@@ -9,6 +9,7 @@ import { CustomFieldValuesList } from "@/components/custom-field-values-list";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
 import { DetailPageShell, DetailSection } from "@/components/detail-page";
 import { IdCell } from "@/components/id-cell";
+import { LabelInput } from "@/components/label-input";
 import { LinksFormSection } from "@/components/links-form-section";
 import { StatCard } from "@/components/stat-card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ import {
   setAdminCustomFieldValue,
   updateAdminTeam,
 } from "@/lib/api";
+import { useFacetValues } from "@/lib/use-facet-values";
 
 export const Route = createFileRoute("/admin/_admin/teams_/$teamId")({
   component: TeamDetailPage,
@@ -53,6 +55,7 @@ function EditTeamDialog({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(team.name);
   const [country, setCountry] = useState(team.country ?? "");
+  const brackets = useFacetValues("/admin/team", "bracket");
   const [bracket, setBracket] = useState(team.bracket ?? "");
   const [links, setLinks] = useState<Link[]>(team.links);
   const [cfValues, setCfValues] = useState<Record<string, string>>(
@@ -73,7 +76,7 @@ function EditTeamDialog({
       await updateAdminTeam(teamId, {
         name,
         country: country.toUpperCase() || null,
-        bracket: bracket.trim() || null,
+        bracket: bracket || null,
         links,
       });
       await Promise.all(
@@ -136,10 +139,12 @@ function EditTeamDialog({
 
           <div className="space-y-1.5">
             <Label>{t("admin.teams.field_bracket")}</Label>
-            <Input
+            <LabelInput
+              suggestions={brackets}
               value={bracket}
-              onChange={(e) => setBracket(e.target.value)}
+              onValueChange={setBracket}
               placeholder="student"
+              noun={t("admin.labels.noun_bracket")}
               className="w-44"
             />
             <p className="text-xs text-muted-foreground">{t("admin.teams.bracket_hint")}</p>
