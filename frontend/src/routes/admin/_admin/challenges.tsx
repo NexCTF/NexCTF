@@ -5,9 +5,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
 import { IdCell } from "@/components/id-cell";
+import { LabelInput } from "@/components/label-input";
 import { initFromSchema, SchemaFields } from "@/components/schema-form";
+import { TagMultiSelect } from "@/components/tag-multi-select";
 import { Button } from "@/components/ui/button";
-// Select/Switch/MarkdownEditor used in the create dialog base fields above
 import {
   Dialog,
   DialogContent,
@@ -19,23 +20,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MarkdownEditor } from "@/components/ui/markdown-editor";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   apiErrorMessage,
   type Challenge,
   type ChallengeTypeInfo,
   createChallenge,
-  getAdminCategories,
   getAdminChallenges,
   getChallengeTypes,
 } from "@/lib/api";
+import { useFacetValues, useTagSuggestions } from "@/lib/use-facet-values";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin/challenges")({
@@ -68,9 +62,9 @@ const COLUMNS: Column<Challenge>[] = [
     ),
   },
   {
-    key: "category_name",
+    key: "category",
     header: "Category",
-    cell: (c) => <span className="text-muted-foreground">{c.category_name ?? "—"}</span>,
+    cell: (c) => <span className="text-muted-foreground capitalize">{c.category ?? "—"}</span>,
   },
   {
     key: "is_active",
@@ -111,7 +105,8 @@ const BASE_CHALLENGE_FIELDS = [
   "description",
   "is_active",
   "sequential",
-  "category_id",
+  "category",
+  "tags",
   "author_id",
   "id",
 ];
@@ -125,7 +120,8 @@ const EMPTY_BASE = {
   description: "",
   is_active: false,
   sequential: false,
-  category_id: null as string | null,
+  category: null as string | null,
+  tags: [] as string[],
 };
 
 function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void }) {
@@ -140,12 +136,8 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
     staleTime: Infinity,
   });
 
-  const { data: categoriesResp } = useQuery({
-    queryKey: ["admin", "categories", "all"],
-    queryFn: () => getAdminCategories("items_per_page=100"),
-    staleTime: 30_000,
-  });
-  const categories = categoriesResp?.data ?? [];
+  const categories = useFacetValues("/admin/challenge", "category");
+  const tagSuggestions = useTagSuggestions();
 
   const mutation = useMutation({
     mutationFn: ({ type, data }: { type: string; data: Record<string, unknown> }) =>
@@ -251,25 +243,24 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
             </div>
 
             <div className="space-y-1.5">
-              <Label>Category</Label>
-              <Select
-                value={String(form.category_id ?? "__none__")}
-                onValueChange={(v) => update({ category_id: v === "__none__" ? null : v })}
-              >
-                <SelectTrigger>
-                  <SelectValue>
-                    {categories.find((c) => c.id === form.category_id)?.name ?? "No category"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No category</SelectItem>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="ch-category">Category</Label>
+              <LabelInput
+                id="ch-category"
+                placeholder="No category"
+                noun="category"
+                suggestions={categories}
+                value={String(form.category ?? "")}
+                onValueChange={(v) => update({ category: v || null })}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Tags</Label>
+              <TagMultiSelect
+                value={(form.tags as string[]) ?? []}
+                onChange={(tags) => update({ tags })}
+                suggestions={tagSuggestions}
+              />
             </div>
 
             <div className="flex gap-3">

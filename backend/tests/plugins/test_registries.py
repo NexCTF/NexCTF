@@ -15,7 +15,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from nexctf.enums import InputType
-from nexctf.model import Tag
+from nexctf.model import Link
 from nexctf.plugins.frontend import FrontendRegistry
 from nexctf.plugins.registry import PolymorphicRegistry, SchedulerRegistry
 from nexctf.plugins.routes import RouteRegistry
@@ -29,7 +29,7 @@ def _register(reg: PolymorphicRegistry, type_name: str, **kwargs) -> None:
     """Register a type on a polymorphic registry with dummy schemas."""
     reg.register(
         type_name,
-        Tag,
+        Link,
         create_schema=_Schema,
         update_schema=_Schema,
         read_schema=_Schema,
@@ -65,7 +65,7 @@ def test_polymorphic_flag_controls_subclass_registration() -> None:
     reg = PolymorphicRegistry()
     _register(reg, "poly", polymorphic=True)
     _register(reg, "flat", polymorphic=False)
-    assert reg.polymorphic_subclasses == [Tag]
+    assert reg.polymorphic_subclasses == [Link]
 
 
 def test_apply_is_idempotent() -> None:
@@ -75,7 +75,7 @@ def test_apply_is_idempotent() -> None:
     reg.register_load_option("extra-option")
 
     class _Crud:
-        model = Tag
+        model = Link
         default_load_options: list = []
 
     reg.apply(_Crud)

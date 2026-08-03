@@ -7,7 +7,6 @@ from nexctf.module.challenge import invalidate as invalidate_challenges
 from nexctf.module.info import invalidate as invalidate_info
 from nexctf.module.scoreboard import invalidate as invalidate_scoreboard
 
-from .category import category_router
 from .challenge import challenge_router
 from .config import config_router
 from .custom_field import custom_field_router, custom_field_value_router
@@ -28,7 +27,6 @@ from .scoreboard import scoreboard_router
 from .solution import solution_router
 from .stats import stats_router
 from .submission import submission_router
-from .tag import tag_router
 from .team import team_router
 from .user import user_router
 
@@ -47,7 +45,6 @@ _invalidate_challenges = [Depends(invalidate_on_write(invalidate_challenges))]
 _invalidate_info = [Depends(invalidate_on_write(invalidate_info))]
 _invalidate_scoreboard = [Depends(invalidate_on_write(invalidate_scoreboard))]
 
-admin_router.include_router(router=category_router, dependencies=_invalidate_challenges)
 admin_router.include_router(
     router=challenge_router, dependencies=_invalidate_challenges
 )
@@ -75,6 +72,5 @@ admin_router.include_router(router=scoreboard_router)
 admin_router.include_router(router=solution_router, dependencies=_invalidate_challenges)
 admin_router.include_router(router=stats_router)
 admin_router.include_router(router=submission_router)
-admin_router.include_router(router=tag_router, dependencies=_invalidate_challenges)
 admin_router.include_router(router=team_router)
 admin_router.include_router(router=user_router)

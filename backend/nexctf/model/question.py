@@ -10,13 +10,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from nexctf.enums import InputType
 
-from .base import Base
+from .base import Base, LabelArray
 
 if TYPE_CHECKING:
     from .challenge import Challenge
     from .file import File
     from .solution import Solution
-    from .tag import Tag
 
 question_files_table = Table(
     "question_files",
@@ -33,18 +32,6 @@ question_files_table = Table(
         ForeignKey("stored_files.id"),
         primary_key=True,
     ),
-)
-
-question_tags_table = Table(
-    "question_tags",
-    Base.metadata,
-    Column(
-        "question_id",
-        PG_UUID(as_uuid=True),
-        ForeignKey("questions.id"),
-        primary_key=True,
-    ),
-    Column("tag_id", PG_UUID(as_uuid=True), ForeignKey("tag.id"), primary_key=True),
 )
 
 
@@ -64,7 +51,7 @@ class Question(Base):
     hints: Mapped[list[Hint]] = relationship(back_populates="question")
     solutions: Mapped[list[Solution]] = relationship(back_populates="question")
     files: Mapped[list[File]] = relationship(secondary=question_files_table)
-    tags: Mapped[list[Tag]] = relationship(secondary=question_tags_table)
+    tags: Mapped[LabelArray]
 
     challenge: Mapped[Challenge] = relationship(back_populates="questions")
     challenge_id: Mapped[UUID] = mapped_column(ForeignKey("challenges.id"))

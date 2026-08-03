@@ -51,16 +51,7 @@ class PolymorphicRegistry:
         self._entries: dict[str, RegistryEntry] = {}
         self._extra_load_options: list[Any] = []
         self._polymorphic_subclasses: list[Any] = []
-        self._base_m2m_fields: dict[str, Any] = {}
         self._applied: bool = False
-
-    def set_base_m2m_fields(self, fields: dict[str, Any]) -> None:
-        """Set the m2m fields merged into every :meth:`register` call.
-
-        Args:
-            fields: Mapping of request field name to the m2m relationship.
-        """
-        self._base_m2m_fields = dict(fields)
 
     def register(
         self,
@@ -69,7 +60,7 @@ class PolymorphicRegistry:
         create_schema: SchemaClass,
         update_schema: SchemaClass,
         read_schema: SchemaClass,
-        extra_m2m_fields: dict[str, Any] | None = None,
+        m2m_fields: dict[str, Any] | None = None,
         compatible_input_types: list[InputType] | None = None,
         description: str | None = None,
         polymorphic: bool = True,
@@ -82,16 +73,15 @@ class PolymorphicRegistry:
             create_schema: Schema used to create instances.
             update_schema: Schema used to update instances.
             read_schema: Schema used to serialise instances.
-            extra_m2m_fields: Extra m2m fields merged with the base m2m fields.
+            m2m_fields: Many-to-many fields exposed on create/update.
             compatible_input_types: Input types this type accepts, or ``None`` for all.
             description: Human-readable description shown in the admin UI.
             polymorphic: Whether to register the model as a polymorphic subclass.
         """
-        m2m = {**self._base_m2m_fields, **(extra_m2m_fields or {})}
         crud = CrudFactory(
             model=model,
             default_load_options=_auto_load_options(model),
-            m2m_fields=m2m or None,
+            m2m_fields=m2m_fields or None,
         )
         self._entries[type_name] = RegistryEntry(
             crud=crud,

@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import timedelta
 
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 from redis.asyncio import Redis
 
 from nexctf.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_TTL = timedelta(seconds=30)
 
@@ -48,7 +51,10 @@ async def get_or_compute[T](
     """
     raw = await redis.get(key)
     if raw:
-        return adapter.validate_json(raw)
+        try:
+            return adapter.validate_json(raw)
+        except ValidationError:
+            logger.info("cache.stale_payload key=%s", key)
     result = await compute()
     await redis.setex(key, int(ttl.total_seconds()), adapter.dump_json(result))
     return result

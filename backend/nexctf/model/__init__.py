@@ -1,5 +1,5 @@
 from .base import Base
-from .challenge import Challenge, ChallengeCategory
+from .challenge import Challenge
 from .config import ConfigEntry
 from .custom_field import (
     CustomFieldDefinition,
@@ -19,13 +19,11 @@ from .question import Hint, Question
 from .scheduler import SchedulerJob, SchedulerTask
 from .solution import Solution
 from .submission import ScoreAdjustment, Submission
-from .tag import Tag
 from .user import Team, User, UserRole, UserToken
 
 __all__ = [
     "Base",
     "Challenge",
-    "ChallengeCategory",
     "ConfigEntry",
     "CustomFieldDefinition",
     "CustomFieldTarget",
@@ -47,7 +45,6 @@ __all__ = [
     "ScoreAdjustment",
     "Solution",
     "Submission",
-    "Tag",
     "Team",
     "User",
     "UserRole",

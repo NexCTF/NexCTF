@@ -26,7 +26,6 @@ import { Route as UserChallengesChallengeIdRouteImport } from './routes/_user/ch
 import { Route as UserPSlugRouteImport } from './routes/_user/p.$slug'
 import { Route as UserTeamsTeamIdRouteImport } from './routes/_user/teams_.$teamId'
 import { Route as AdminAdminIndexRouteImport } from './routes/admin/_admin/index'
-import { Route as AdminAdminCategoriesRouteImport } from './routes/admin/_admin/categories'
 import { Route as AdminAdminChallengesRouteImport } from './routes/admin/_admin/challenges'
 import { Route as AdminAdminCustomFieldsRouteImport } from './routes/admin/_admin/custom-fields'
 import { Route as AdminAdminEventsRouteImport } from './routes/admin/_admin/events'
@@ -42,7 +41,6 @@ import { Route as AdminAdminScoreAdjustmentsRouteImport } from './routes/admin/_
 import { Route as AdminAdminScoreboardRouteImport } from './routes/admin/_admin/scoreboard'
 import { Route as AdminAdminSettingsRouteImport } from './routes/admin/_admin/settings'
 import { Route as AdminAdminSubmissionsRouteImport } from './routes/admin/_admin/submissions'
-import { Route as AdminAdminTagsRouteImport } from './routes/admin/_admin/tags'
 import { Route as AdminAdminTeamsRouteImport } from './routes/admin/_admin/teams'
 import { Route as AdminAdminUsersRouteImport } from './routes/admin/_admin/users'
 import { Route as AdminAdminChallengesChallengeIdRouteImport } from './routes/admin/_admin/challenges_.$challengeId'
@@ -136,11 +134,6 @@ const AdminAdminIndexRoute = AdminAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminAdminRoute,
 } as any)
-const AdminAdminCategoriesRoute = AdminAdminCategoriesRouteImport.update({
-  id: '/categories',
-  path: '/categories',
-  getParentRoute: () => AdminAdminRoute,
-} as any)
 const AdminAdminChallengesRoute = AdminAdminChallengesRouteImport.update({
   id: '/challenges',
   path: '/challenges',
@@ -218,11 +211,6 @@ const AdminAdminSubmissionsRoute = AdminAdminSubmissionsRouteImport.update({
   path: '/submissions',
   getParentRoute: () => AdminAdminRoute,
 } as any)
-const AdminAdminTagsRoute = AdminAdminTagsRouteImport.update({
-  id: '/tags',
-  path: '/tags',
-  getParentRoute: () => AdminAdminRoute,
-} as any)
 const AdminAdminTeamsRoute = AdminAdminTeamsRouteImport.update({
   id: '/teams',
   path: '/teams',
@@ -277,7 +265,6 @@ export interface FileRoutesByFullPath {
   '/challenges/$challengeId': typeof UserChallengesChallengeIdRoute
   '/p/$slug': typeof UserPSlugRoute
   '/teams/$teamId': typeof UserTeamsTeamIdRoute
-  '/admin/categories': typeof AdminAdminCategoriesRoute
   '/admin/challenges': typeof AdminAdminChallengesRoute
   '/admin/custom-fields': typeof AdminAdminCustomFieldsRoute
   '/admin/events': typeof AdminAdminEventsRoute
@@ -293,7 +280,6 @@ export interface FileRoutesByFullPath {
   '/admin/scoreboard': typeof AdminAdminScoreboardRoute
   '/admin/settings': typeof AdminAdminSettingsRoute
   '/admin/submissions': typeof AdminAdminSubmissionsRoute
-  '/admin/tags': typeof AdminAdminTagsRoute
   '/admin/teams': typeof AdminAdminTeamsRoute
   '/admin/users': typeof AdminAdminUsersRoute
   '/admin/': typeof AdminAdminIndexRoute
@@ -318,7 +304,6 @@ export interface FileRoutesByTo {
   '/challenges/$challengeId': typeof UserChallengesChallengeIdRoute
   '/p/$slug': typeof UserPSlugRoute
   '/teams/$teamId': typeof UserTeamsTeamIdRoute
-  '/admin/categories': typeof AdminAdminCategoriesRoute
   '/admin/challenges': typeof AdminAdminChallengesRoute
   '/admin/custom-fields': typeof AdminAdminCustomFieldsRoute
   '/admin/events': typeof AdminAdminEventsRoute
@@ -334,7 +319,6 @@ export interface FileRoutesByTo {
   '/admin/scoreboard': typeof AdminAdminScoreboardRoute
   '/admin/settings': typeof AdminAdminSettingsRoute
   '/admin/submissions': typeof AdminAdminSubmissionsRoute
-  '/admin/tags': typeof AdminAdminTagsRoute
   '/admin/teams': typeof AdminAdminTeamsRoute
   '/admin/users': typeof AdminAdminUsersRoute
   '/admin': typeof AdminAdminIndexRoute
@@ -362,7 +346,6 @@ export interface FileRoutesById {
   '/_user/challenges_/$challengeId': typeof UserChallengesChallengeIdRoute
   '/_user/p/$slug': typeof UserPSlugRoute
   '/_user/teams_/$teamId': typeof UserTeamsTeamIdRoute
-  '/admin/_admin/categories': typeof AdminAdminCategoriesRoute
   '/admin/_admin/challenges': typeof AdminAdminChallengesRoute
   '/admin/_admin/custom-fields': typeof AdminAdminCustomFieldsRoute
   '/admin/_admin/events': typeof AdminAdminEventsRoute
@@ -378,7 +361,6 @@ export interface FileRoutesById {
   '/admin/_admin/scoreboard': typeof AdminAdminScoreboardRoute
   '/admin/_admin/settings': typeof AdminAdminSettingsRoute
   '/admin/_admin/submissions': typeof AdminAdminSubmissionsRoute
-  '/admin/_admin/tags': typeof AdminAdminTagsRoute
   '/admin/_admin/teams': typeof AdminAdminTeamsRoute
   '/admin/_admin/users': typeof AdminAdminUsersRoute
   '/admin/_admin/': typeof AdminAdminIndexRoute
@@ -406,7 +388,6 @@ export interface FileRouteTypes {
     | '/challenges/$challengeId'
     | '/p/$slug'
     | '/teams/$teamId'
-    | '/admin/categories'
     | '/admin/challenges'
     | '/admin/custom-fields'
     | '/admin/events'
@@ -422,7 +403,6 @@ export interface FileRouteTypes {
     | '/admin/scoreboard'
     | '/admin/settings'
     | '/admin/submissions'
-    | '/admin/tags'
     | '/admin/teams'
     | '/admin/users'
     | '/admin/'
@@ -447,7 +427,6 @@ export interface FileRouteTypes {
     | '/challenges/$challengeId'
     | '/p/$slug'
     | '/teams/$teamId'
-    | '/admin/categories'
     | '/admin/challenges'
     | '/admin/custom-fields'
     | '/admin/events'
@@ -463,7 +442,6 @@ export interface FileRouteTypes {
     | '/admin/scoreboard'
     | '/admin/settings'
     | '/admin/submissions'
-    | '/admin/tags'
     | '/admin/teams'
     | '/admin/users'
     | '/admin'
@@ -490,7 +468,6 @@ export interface FileRouteTypes {
     | '/_user/challenges_/$challengeId'
     | '/_user/p/$slug'
     | '/_user/teams_/$teamId'
-    | '/admin/_admin/categories'
     | '/admin/_admin/challenges'
     | '/admin/_admin/custom-fields'
     | '/admin/_admin/events'
@@ -506,7 +483,6 @@ export interface FileRouteTypes {
     | '/admin/_admin/scoreboard'
     | '/admin/_admin/settings'
     | '/admin/_admin/submissions'
-    | '/admin/_admin/tags'
     | '/admin/_admin/teams'
     | '/admin/_admin/users'
     | '/admin/_admin/'
@@ -649,13 +625,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAdminIndexRouteImport
       parentRoute: typeof AdminAdminRoute
     }
-    '/admin/_admin/categories': {
-      id: '/admin/_admin/categories'
-      path: '/categories'
-      fullPath: '/admin/categories'
-      preLoaderRoute: typeof AdminAdminCategoriesRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
     '/admin/_admin/challenges': {
       id: '/admin/_admin/challenges'
       path: '/challenges'
@@ -761,13 +730,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAdminSubmissionsRouteImport
       parentRoute: typeof AdminAdminRoute
     }
-    '/admin/_admin/tags': {
-      id: '/admin/_admin/tags'
-      path: '/tags'
-      fullPath: '/admin/tags'
-      preLoaderRoute: typeof AdminAdminTagsRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
     '/admin/_admin/teams': {
       id: '/admin/_admin/teams'
       path: '/teams'
@@ -845,7 +807,6 @@ const UserRouteChildren: UserRouteChildren = {
 const UserRouteWithChildren = UserRoute._addFileChildren(UserRouteChildren)
 
 interface AdminAdminRouteChildren {
-  AdminAdminCategoriesRoute: typeof AdminAdminCategoriesRoute
   AdminAdminChallengesRoute: typeof AdminAdminChallengesRoute
   AdminAdminCustomFieldsRoute: typeof AdminAdminCustomFieldsRoute
   AdminAdminEventsRoute: typeof AdminAdminEventsRoute
@@ -861,7 +822,6 @@ interface AdminAdminRouteChildren {
   AdminAdminScoreboardRoute: typeof AdminAdminScoreboardRoute
   AdminAdminSettingsRoute: typeof AdminAdminSettingsRoute
   AdminAdminSubmissionsRoute: typeof AdminAdminSubmissionsRoute
-  AdminAdminTagsRoute: typeof AdminAdminTagsRoute
   AdminAdminTeamsRoute: typeof AdminAdminTeamsRoute
   AdminAdminUsersRoute: typeof AdminAdminUsersRoute
   AdminAdminIndexRoute: typeof AdminAdminIndexRoute
@@ -873,7 +833,6 @@ interface AdminAdminRouteChildren {
 }
 
 const AdminAdminRouteChildren: AdminAdminRouteChildren = {
-  AdminAdminCategoriesRoute: AdminAdminCategoriesRoute,
   AdminAdminChallengesRoute: AdminAdminChallengesRoute,
   AdminAdminCustomFieldsRoute: AdminAdminCustomFieldsRoute,
   AdminAdminEventsRoute: AdminAdminEventsRoute,
@@ -889,7 +848,6 @@ const AdminAdminRouteChildren: AdminAdminRouteChildren = {
   AdminAdminScoreboardRoute: AdminAdminScoreboardRoute,
   AdminAdminSettingsRoute: AdminAdminSettingsRoute,
   AdminAdminSubmissionsRoute: AdminAdminSubmissionsRoute,
-  AdminAdminTagsRoute: AdminAdminTagsRoute,
   AdminAdminTeamsRoute: AdminAdminTeamsRoute,
   AdminAdminUsersRoute: AdminAdminUsersRoute,
   AdminAdminIndexRoute: AdminAdminIndexRoute,

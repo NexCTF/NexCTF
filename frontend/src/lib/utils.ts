@@ -26,3 +26,8 @@ export function copyToClipboard(text: string): void {
     document.body.removeChild(el);
   }
 }
+
+/** Lowercase and collapse whitespace — mirrors the server's normalise_label. */
+export function normaliseLabel(raw: string): string {
+  return raw.trim().replace(/\s+/g, " ").toLowerCase();
+}

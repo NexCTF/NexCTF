@@ -24,7 +24,7 @@ import dataclasses
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Annotated, Any
 
-from pydantic import GetJsonSchemaHandler
+from pydantic import AfterValidator, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema
 
@@ -148,3 +148,16 @@ async def resolve_dynamic_defaults(model: type[BaseModel]) -> dict:
 
 # A string field rendered as a monospace code editor with Tab → 4-space support.
 CodeStr = Annotated[str, _UIWidget(widget="code")]
+
+
+def normalise_label(value: str | None) -> str | None:
+    """Collapse whitespace and lowercase a free-text label; empty becomes None."""
+    return " ".join(value.split()).lower() or None if value else None
+
+
+def _normalise_labels(values: list[str]) -> list[str]:
+    return sorted({v for v in map(normalise_label, values) if v})
+
+
+Label = Annotated[str | None, AfterValidator(normalise_label)]
+Labels = Annotated[list[str], AfterValidator(_normalise_labels)]

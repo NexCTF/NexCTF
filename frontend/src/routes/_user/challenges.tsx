@@ -29,7 +29,7 @@ function ChallengesPage() {
   // Group by category
   const grouped = new Map<string, PublicChallenge[]>();
   for (const c of challenges) {
-    const key = c.category_name ?? "Uncategorized";
+    const key = c.category ?? "Uncategorized";
     if (!grouped.has(key)) grouped.set(key, []);
     // biome-ignore lint/style/noNonNullAssertion: key guaranteed by grouped.set above
     grouped.get(key)!.push(c);
@@ -87,7 +87,7 @@ function ChallengeCard({ challenge: c }: { challenge: PublicChallenge }) {
       {c.tags && c.tags.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {c.tags.map((tag) => (
-            <TagBadge key={tag.id} tag={tag} />
+            <TagBadge key={tag} tag={tag} />
           ))}
         </div>
       )}

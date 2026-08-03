@@ -9,6 +9,7 @@ from nexctf.schema.custom_field import (
     PublicCustomFieldValue,
 )
 from nexctf.schema.stats import TeamChallengeStats
+from nexctf.util.pydantic import Label
 
 # ISO 3166-1 alpha-2: exactly two uppercase letters
 CountryCode = Annotated[str, Field(pattern=r"^[A-Z]{2}$")]
@@ -26,7 +27,7 @@ class TeamCreate(PydanticBase):
 class AdminTeamCreate(PydanticBase):
     name: str
     country: CountryCode | None = None
-    bracket: str | None = None
+    bracket: Label = None
     links: list[Link] = []
 
 
@@ -34,7 +35,7 @@ class AdminTeamUpdate(PydanticBase):
     id: UUID
     name: str | None = None
     country: CountryCode | None = None
-    bracket: str | None = None
+    bracket: Label = None
     links: list[Link] | None = None
 
 

@@ -24,7 +24,6 @@ from nexctf.model import Challenge, Question
 from nexctf.model.solution import Solution
 from nexctf.plugins.registry import solution_registry
 from nexctf.schema.file import PublicFileRead
-from nexctf.schema.tag import PublicTagRead
 
 
 class HintStructure(BaseModel):
@@ -49,7 +48,7 @@ class QuestionStructure(BaseModel):
     index: int
     files: list[PublicFileRead]
     hints: list[HintStructure]
-    tags: list[PublicTagRead]
+    tags: list[str]
     options: list[str] | None
     multi_select: bool
 
@@ -59,10 +58,9 @@ class ChallengeListItem(BaseModel):
 
     id: UUID
     title: str
-    category_id: UUID | None
-    category_name: str | None
+    category: str | None
     question_ids: list[UUID]
-    tags: list[PublicTagRead]
+    tags: list[str]
 
 
 class ChallengeDetailStructure(BaseModel):
@@ -72,19 +70,11 @@ class ChallengeDetailStructure(BaseModel):
     title: str
     description: str | None
     writeup: str | None
-    category_id: UUID | None
-    category_name: str | None
+    category: str | None
     challenge_type: str
     sequential: bool
-    tags: list[PublicTagRead]
+    tags: list[str]
     questions: list[QuestionStructure]
-
-
-def _tags(obj: Challenge | Question) -> list[PublicTagRead]:
-    return [
-        PublicTagRead(id=t.id, name=t.name, description=t.description, color=t.color)
-        for t in obj.tags
-    ]
 
 
 def solution_load_option() -> Any:
@@ -102,11 +92,7 @@ async def compute_list_structure(session: AsyncSession) -> list[ChallengeListIte
     result = await session.execute(
         select(Challenge)
         .where(Challenge.is_active.is_(True))
-        .options(
-            selectinload(Challenge.questions),
-            selectinload(Challenge.category),
-            selectinload(Challenge.tags),
-        )
+        .options(selectinload(Challenge.questions))
         .order_by(Challenge.title)
     )
     challenges = result.scalars().all()
@@ -114,10 +100,9 @@ async def compute_list_structure(session: AsyncSession) -> list[ChallengeListIte
         ChallengeListItem(
             id=c.id,
             title=c.title,
-            category_id=c.category_id,
-            category_name=c.category_name,
+            category=c.category,
             question_ids=[q.id for q in c.questions],
-            tags=_tags(c),
+            tags=c.tags,
         )
         for c in challenges
     ]
@@ -172,7 +157,7 @@ async def _question_structure(q: Question) -> QuestionStructure:
         index=q.index,
         files=files,
         hints=hints,
-        tags=_tags(q),
+        tags=q.tags,
         options=options,
         multi_select=multi_select,
     )
@@ -190,13 +175,10 @@ async def compute_detail_structure(
         select(Challenge)
         .where(Challenge.id == challenge_id, Challenge.is_active.is_(True))
         .options(
-            selectinload(Challenge.category),
-            selectinload(Challenge.tags),
             selectinload(Challenge.questions).options(
                 solution_load_option(),
                 selectinload(Question.hints),
                 selectinload(Question.files),
-                selectinload(Question.tags),
             ),
         )
     )
@@ -213,10 +195,9 @@ async def compute_detail_structure(
         title=challenge.title,
         description=challenge.description,
         writeup=challenge.writeup,
-        category_id=challenge.category_id,
-        category_name=challenge.category_name,
+        category=challenge.category,
         challenge_type=challenge.challenge_type,
         sequential=challenge.sequential,
-        tags=_tags(challenge),
+        tags=challenge.tags,
         questions=question_structs,
     )

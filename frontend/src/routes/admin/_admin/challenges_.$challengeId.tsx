@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { DetailPageShell, DetailSection } from "@/components/detail-page";
+import { LabelInput } from "@/components/label-input";
 import { initFromSchema, SchemaFields } from "@/components/schema-form";
 import { TagMultiSelect } from "@/components/tag-multi-select";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,6 @@ import {
   deleteHint,
   deleteQuestion,
   deleteSolution,
-  getAdminCategories,
   getAdminChallenge,
   getAdminFiles,
   getAdminHint,
@@ -67,13 +67,13 @@ import {
   updateQuestion,
   updateSolution,
 } from "@/lib/api";
+import { useFacetValues, useTagSuggestions } from "@/lib/use-facet-values";
 export const Route = createFileRoute("/admin/_admin/challenges_/$challengeId")({
   component: ChallengePage,
 });
 
 // ── Schema helpers ────────────────────────────────────────────────────────────
 
-const NO_CATEGORY = "__none__";
 const SKIP_SOL = new Set(["id", "question_id"]);
 
 const SKIP_CHALLENGE = new Set([
@@ -83,9 +83,9 @@ const SKIP_CHALLENGE = new Set([
   "writeup",
   "is_active",
   "sequential",
-  "category_id",
+  "category",
   "author_id",
-  "tags_ids",
+  "tags",
 ]);
 
 // ── Challenge info section ─────────────────────────────────────────────────────
@@ -100,12 +100,8 @@ function ChallengeInfoSection({ challenge }: { challenge: ChallengeDetail }) {
     staleTime: Infinity,
   });
 
-  const { data: categoriesResp } = useQuery({
-    queryKey: ["admin", "categories", "all"],
-    queryFn: () => getAdminCategories("items_per_page=100"),
-    staleTime: 30_000,
-  });
-  const categories = categoriesResp?.data ?? [];
+  const categories = useFacetValues("/admin/challenge", "category");
+  const tagSuggestions = useTagSuggestions();
 
   const typeInfo = types.find((t) => t.type_name === challenge.challenge_type);
   const updateSchema = typeInfo?.update_schema ?? { properties: {} };
@@ -120,8 +116,8 @@ function ChallengeInfoSection({ challenge }: { challenge: ChallengeDetail }) {
     writeup: challenge.writeup,
     is_active: challenge.is_active,
     sequential: challenge.sequential,
-    category_id: challenge.category_id,
-    tags_ids: (challenge.tags ?? []).map((t) => t.id),
+    category: challenge.category,
+    tags: challenge.tags ?? [],
     ...initFromSchema(
       updateSchema,
       SKIP_CHALLENGE,
@@ -201,25 +197,13 @@ function ChallengeInfoSection({ challenge }: { challenge: ChallengeDetail }) {
 
       <div className="space-y-1.5">
         <Label>{t("admin.challenge.field_category")}</Label>
-        <Select
-          value={String(form.category_id ?? NO_CATEGORY)}
-          onValueChange={(v) => update({ category_id: v === NO_CATEGORY ? null : v })}
-        >
-          <SelectTrigger>
-            <SelectValue>
-              {categories.find((c) => c.id === form.category_id)?.name ??
-                t("admin.challenge.no_category")}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NO_CATEGORY}>{t("admin.challenge.no_category")}</SelectItem>
-            {categories.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <LabelInput
+          suggestions={categories}
+          value={String(form.category ?? "")}
+          placeholder={t("admin.challenge.no_category")}
+          noun={t("admin.labels.noun_category")}
+          onValueChange={(v) => update({ category: v || null })}
+        />
       </div>
 
       <div className="flex gap-3">
@@ -248,8 +232,9 @@ function ChallengeInfoSection({ challenge }: { challenge: ChallengeDetail }) {
       <div className="space-y-1.5">
         <Label>{t("admin.challenge.field_tags")}</Label>
         <TagMultiSelect
-          value={(form.tags_ids as string[]) ?? []}
-          onChange={(ids) => update({ tags_ids: ids })}
+          value={(form.tags as string[]) ?? []}
+          onChange={(tags) => update({ tags })}
+          suggestions={tagSuggestions}
         />
       </div>
 
@@ -348,6 +333,15 @@ function QuestionFormFields({
   );
 }
 
+const EMPTY_QUESTION = {
+  label: "",
+  description: null,
+  points: 100,
+  malus: null,
+  input_type: "input",
+  tags: [] as string[],
+};
+
 function AddQuestionDialog({
   challengeId,
   questionCount,
@@ -358,14 +352,9 @@ function AddQuestionDialog({
   onCreated: () => void;
 }) {
   const { t } = useTranslation();
+  const tagSuggestions = useTagSuggestions();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<Record<string, unknown>>({
-    label: "",
-    description: null,
-    points: 100,
-    malus: null,
-    input_type: "input",
-  });
+  const [form, setForm] = useState<Record<string, unknown>>({ ...EMPTY_QUESTION });
 
   const mutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -377,13 +366,7 @@ function AddQuestionDialog({
     onSuccess: () => {
       toast.success(t("admin.challenge.question.added"));
       setOpen(false);
-      setForm({
-        label: "",
-        description: null,
-        points: 100,
-        malus: null,
-        input_type: "input",
-      });
+      setForm({ ...EMPTY_QUESTION });
       onCreated();
     },
     onError: (err) => toast.error(apiErrorMessage(err, t("admin.challenge.question.add_error"))),
@@ -414,6 +397,14 @@ function AddQuestionDialog({
             form={form}
             onUpdate={(patch) => setForm((f) => ({ ...f, ...patch }))}
           />
+          <div className="space-y-1.5">
+            <Label>{t("admin.challenge.question.field_tags")}</Label>
+            <TagMultiSelect
+              value={(form.tags as string[]) ?? []}
+              onChange={(tags) => setForm((f) => ({ ...f, tags }))}
+              suggestions={tagSuggestions}
+            />
+          </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               {t("common.cancel")}
@@ -430,6 +421,7 @@ function AddQuestionDialog({
 
 function EditQuestionDialog({ question, onSaved }: { question: Question; onSaved: () => void }) {
   const { t } = useTranslation();
+  const tagSuggestions = useTagSuggestions();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Record<string, unknown>>({
     label: question.label,
@@ -438,7 +430,7 @@ function EditQuestionDialog({ question, onSaved }: { question: Question; onSaved
     malus: question.malus,
     index: question.index,
     input_type: question.input_type ?? "input",
-    tags_ids: (question.tags ?? []).map((t) => t.id),
+    tags: question.tags ?? [],
   });
 
   const mutation = useMutation({
@@ -478,8 +470,9 @@ function EditQuestionDialog({ question, onSaved }: { question: Question; onSaved
           <div className="space-y-1.5">
             <Label>{t("admin.challenge.question.field_tags")}</Label>
             <TagMultiSelect
-              value={(form.tags_ids as string[]) ?? []}
-              onChange={(ids) => setForm((f) => ({ ...f, tags_ids: ids }))}
+              value={(form.tags as string[]) ?? []}
+              onChange={(tags) => setForm((f) => ({ ...f, tags }))}
+              suggestions={tagSuggestions}
             />
           </div>
           <DialogFooter>

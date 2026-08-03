@@ -11,7 +11,7 @@ from sqlalchemy import Enum, ForeignKey, String, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .base import Base
+from .base import Base, LabelStr
 
 if TYPE_CHECKING:
     from .custom_field import CustomFieldValue
@@ -35,7 +35,7 @@ class Team(Base):
 
     name: Mapped[str] = mapped_column(unique=True, index=True)
     country: Mapped[str | None] = mapped_column(String(2), nullable=True)
-    bracket: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    bracket: Mapped[LabelStr]
     links: Mapped[list] = mapped_column(
         JSONB, default=list, server_default=text("'[]'::jsonb")
     )

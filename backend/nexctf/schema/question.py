@@ -5,7 +5,7 @@ from fastapi_toolsets.schemas import PydanticBase
 from nexctf.enums import InputType
 from nexctf.schema.file import AdminFileRead, PublicFileRead
 from nexctf.schema.hint import PublicHintRead
-from nexctf.schema.tag import AdminTagRead, PublicTagRead
+from nexctf.util.pydantic import Labels
 
 
 class AdminQuestionRead(PydanticBase):
@@ -22,7 +22,7 @@ class AdminQuestionRead(PydanticBase):
     solution_count: int = 0
     file_count: int = 0
     files: list[AdminFileRead] = []
-    tags: list[AdminTagRead] = []
+    tags: list[str] = []
 
 
 class AdminQuestionCreate(PydanticBase):
@@ -33,6 +33,7 @@ class AdminQuestionCreate(PydanticBase):
     points: int = 100
     malus: int | None = None
     input_type: InputType = InputType.INPUT
+    tags: Labels = []
 
 
 class AdminQuestionUpdate(PydanticBase):
@@ -44,7 +45,7 @@ class AdminQuestionUpdate(PydanticBase):
     malus: int | None = None
     input_type: InputType | None = None
     files_ids: list[UUID] | None = None
-    tags_ids: list[UUID] | None = None
+    tags: Labels | None = None
 
 
 class PublicQuestionRead(PydanticBase):
@@ -58,6 +59,6 @@ class PublicQuestionRead(PydanticBase):
     is_locked: bool = False
     files: list[PublicFileRead] = []
     hints: list[PublicHintRead] = []
-    tags: list[PublicTagRead] = []
+    tags: list[str] = []
     options: list[str] | None = None
     multi_select: bool = False
