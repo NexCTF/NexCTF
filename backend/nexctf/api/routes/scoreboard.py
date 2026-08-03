@@ -4,11 +4,11 @@ from fastapi import APIRouter, Query
 from fastapi_toolsets.schemas import Response
 
 from nexctf.api.dep import (
+    BracketDep,
     ConfigDep,
-    OptionalCurrentUserDep,
     RedisDep,
+    ScoreboardVisibleDep,
     SessionDep,
-    check_scoreboard_visibility,
 )
 from nexctf.module.scoreboard.cache import (
     get_scoreboard,
@@ -16,9 +16,12 @@ from nexctf.module.scoreboard.cache import (
     get_team_score,
 )
 from nexctf.schema import PublicScoreboard, PublicTeamScoreDetail, ScoreboardHistory
-from nexctf.util.pydantic import Label
 
-scoreboard_router = APIRouter(prefix="/scoreboard", tags=["Scoreboard"])
+scoreboard_router = APIRouter(
+    prefix="/scoreboard",
+    tags=["Scoreboard"],
+    dependencies=[ScoreboardVisibleDep],
+)
 
 
 @scoreboard_router.get("")
@@ -26,10 +29,8 @@ async def get_scoreboard_endpoint(
     session: SessionDep,
     redis: RedisDep,
     overrides: ConfigDep,
-    user: OptionalCurrentUserDep = None,
-    bracket: Label = None,
+    bracket: BracketDep = None,
 ) -> Response[PublicScoreboard]:
-    check_scoreboard_visibility(user, overrides)
     result = await get_scoreboard(session, redis, overrides=overrides, bracket=bracket)
     return Response(data=result)
 
@@ -39,11 +40,9 @@ async def get_scoreboard_history_endpoint(
     session: SessionDep,
     redis: RedisDep,
     overrides: ConfigDep,
-    user: OptionalCurrentUserDep = None,
+    bracket: BracketDep = None,
     limit: int = Query(default=10, ge=1, le=25),
-    bracket: Label = None,
 ) -> Response[ScoreboardHistory]:
-    check_scoreboard_visibility(user, overrides)
     result = await get_scoreboard_history(
         session, redis, overrides=overrides, limit=limit, bracket=bracket
     )
@@ -56,8 +55,6 @@ async def get_team_score_endpoint(
     redis: RedisDep,
     team_id: UUID,
     overrides: ConfigDep,
-    user: OptionalCurrentUserDep = None,
 ) -> Response[PublicTeamScoreDetail]:
-    check_scoreboard_visibility(user, overrides)
     result = await get_team_score(session, redis, team_id, overrides=overrides)
     return Response(data=result)

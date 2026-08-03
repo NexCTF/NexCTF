@@ -24,7 +24,7 @@ import dataclasses
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Annotated, Any
 
-from pydantic import AfterValidator, GetJsonSchemaHandler
+from pydantic import AfterValidator, Field, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema
 
@@ -159,5 +159,7 @@ def _normalise_labels(values: list[str]) -> list[str]:
     return sorted({v for v in map(normalise_label, values) if v})
 
 
-Label = Annotated[str | None, AfterValidator(normalise_label)]
-Labels = Annotated[list[str], AfterValidator(_normalise_labels)]
+Label = Annotated[str | None, Field(max_length=64), AfterValidator(normalise_label)]
+Labels = Annotated[
+    list[Annotated[str, Field(max_length=64)]], AfterValidator(_normalise_labels)
+]

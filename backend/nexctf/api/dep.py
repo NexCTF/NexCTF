@@ -15,12 +15,13 @@ from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nexctf import crud
 from nexctf.api.security import auth, bearer_auth, cookie_auth
 from nexctf.core import appconfig
 from nexctf.core.cache import get_redis
 from nexctf.core.db import db
 from nexctf.exceptions import EventEndedError, EventNotStartedError, NoTeamError
-from nexctf.model import Challenge, OAuthProvider, Solution, User, UserRole
+from nexctf.model import Challenge, OAuthProvider, Solution, Team, User, UserRole
 from nexctf.module.audit import AuditContext, set_audit_context
 from nexctf.plugins.registry import (
     challenge_registry,
@@ -28,6 +29,7 @@ from nexctf.plugins.registry import (
 )
 from nexctf.util.datetime import is_config_dt_past, parse_config_dt
 from nexctf.util.ip import get_client_ip
+from nexctf.util.pydantic import Label
 
 SessionDep = Annotated[AsyncSession, Depends(db)]
 RedisDep = Annotated[Redis, Depends(get_redis)]
@@ -67,6 +69,18 @@ def can_view_scoreboard(user: User | None, overrides: dict[str, str]) -> bool:
     except ForbiddenError, UnauthorizedError:
         return False
     return True
+
+
+async def _in_use_bracket(session: SessionDep, bracket: Label = None) -> str | None:
+    """Resolve the ``bracket`` query param, raising NotFoundError if no team uses it."""
+    if bracket is None:
+        return None
+    if not await crud.TeamCrud.exists(session, filters=[Team.bracket == bracket]):
+        raise NotFoundError(detail="Unknown bracket")
+    return bracket
+
+
+BracketDep = Annotated[str | None, Depends(_in_use_bracket)]
 
 
 def invalidate_on_write(
@@ -112,6 +126,20 @@ async def _optional_auth(request: Request) -> User | None:
 
 
 OptionalCurrentUserDep = Annotated[User | None, Depends(_optional_auth)]
+
+
+async def _require_scoreboard_visible(
+    overrides: ConfigDep, user: OptionalCurrentUserDep = None
+) -> None:
+    """Router-level gate: raise unless the caller may view the scoreboard.
+
+    Declared on the router so it resolves before any query-param dependency,
+    which would otherwise answer for data the gate is meant to hide.
+    """
+    check_scoreboard_visibility(user, overrides)
+
+
+ScoreboardVisibleDep = Depends(_require_scoreboard_visible)
 
 
 _STAFF = (UserRole.admin, UserRole.moderator)
