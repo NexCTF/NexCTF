@@ -22,8 +22,24 @@ def test_update_available(current: str, latest: str, expected: bool) -> None:
     assert (_parse(latest) > _parse(current)) is expected
 
 
+class _FakePipeline:
+    """Applies the queued writes on execute, like a redis pipeline."""
+
+    def __init__(self, store: dict[str, bytes]) -> None:
+        self.store = store
+
+    def setex(self, key: str, _ttl: int, value: bytes) -> None:
+        self.store[key] = value
+
+    def sadd(self, _registry: str, _key: str) -> None:
+        pass
+
+    async def execute(self) -> list[None]:
+        return []
+
+
 class _FakeRedis:
-    """Minimal dict-backed stand-in for the get/setex calls get_or_compute makes."""
+    """Minimal dict-backed stand-in for the calls get_or_compute makes."""
 
     def __init__(self, initial: dict[str, bytes]) -> None:
         self.store = initial
@@ -31,8 +47,8 @@ class _FakeRedis:
     async def get(self, key: str) -> bytes | None:
         return self.store.get(key)
 
-    async def setex(self, key: str, _ttl: int, value: bytes) -> None:
-        self.store[key] = value
+    def pipeline(self) -> _FakePipeline:
+        return _FakePipeline(self.store)
 
 
 async def test_stale_cached_version_is_ignored_after_upgrade(

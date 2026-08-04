@@ -39,6 +39,7 @@ async def get_or_compute[T](
     adapter: TypeAdapter[T],
     compute: Callable[[], Awaitable[T]],
     ttl: timedelta = DEFAULT_TTL,
+    registry: str | None = None,
 ) -> T:
     """Return a cached value, recomputing and storing it when the key is absent or expired.
 
@@ -48,6 +49,7 @@ async def get_or_compute[T](
         adapter: Pydantic TypeAdapter used for JSON serialisation / deserialisation.
         compute: Async callable that produces a fresh value when the cache is cold.
         ttl:     How long to keep the cached value.
+        registry: Set that records *key* for drop_registered.
     """
     raw = await redis.get(key)
     if raw:
@@ -56,5 +58,15 @@ async def get_or_compute[T](
         except ValidationError:
             logger.info("cache.stale_payload key=%s", key)
     result = await compute()
-    await redis.setex(key, int(ttl.total_seconds()), adapter.dump_json(result))
+    pipe = redis.pipeline()
+    pipe.setex(key, int(ttl.total_seconds()), adapter.dump_json(result))
+    if registry is not None:
+        pipe.sadd(registry, key)
+    await pipe.execute()
     return result
+
+
+async def drop_registered(redis: Redis, *registries: str) -> None:
+    """Delete every key recorded in *registries*, then the registries themselves."""
+    keys = await redis.sunion(list(registries))
+    await redis.delete(*keys, *registries)

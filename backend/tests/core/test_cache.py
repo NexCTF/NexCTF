@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 from pydantic import TypeAdapter
 
-from nexctf.core.cache import DEFAULT_TTL, get_or_compute
+from nexctf.core.cache import DEFAULT_TTL, drop_registered, get_or_compute
 
 
 async def test_cache_miss_calls_compute_and_stores(redis, cache_key):
@@ -63,6 +63,28 @@ async def test_complex_type_round_trips_through_cache(redis, cache_key):
 
     second = await get_or_compute(redis, cache_key, adapter, AsyncMock())
     assert second == value
+
+
+async def test_drop_registered_clears_the_registered_group(redis, cache_key):
+    """drop_registered deletes every registered key and the registry itself."""
+    adapter = TypeAdapter(str)
+    registry, second = f"{cache_key}:registry", f"{cache_key}:second"
+    expired = f"{cache_key}:already-gone"
+
+    await get_or_compute(
+        redis, cache_key, adapter, AsyncMock(return_value="a"), registry=registry
+    )
+    await get_or_compute(
+        redis, second, adapter, AsyncMock(return_value="b"), registry=registry
+    )
+    await redis.sadd(registry, expired)
+    assert await redis.smembers(registry) == {cache_key, second, expired}
+
+    await drop_registered(redis, registry)
+
+    assert await redis.get(cache_key) is None
+    assert await redis.get(second) is None
+    assert await redis.exists(registry) == 0
 
 
 async def test_stale_payload_is_recomputed(redis, cache_key):
