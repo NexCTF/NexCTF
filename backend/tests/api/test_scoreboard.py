@@ -1,5 +1,6 @@
 """Tests for scoreboard API endpoints."""
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -202,3 +203,41 @@ class TestInvalidateScoreboard:
         c, _ = admin_client
         resp = await c.post(self.PREFIX, params={"team_id": NULL_UUID})
         assert resp.status_code == 200
+
+
+class TestBracketParam:
+    """A bracket no team uses must 404 rather than cache an empty scoreboard."""
+
+    PATHS = ("/scoreboard", "/scoreboard/history")
+
+    @pytest.mark.parametrize(
+        ("bracket", "status"), [("student", 200), ("no-such-bracket", 404)]
+    )
+    async def test_bracket_must_be_in_use(
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+        bracket: str,
+        status: int,
+    ) -> None:
+        db_session.add(Team(name="bracketed", bracket="student"))
+        await db_session.commit()
+
+        for path in self.PATHS:
+            resp = await http_client.get(path, params={"bracket": bracket})
+            assert resp.status_code == status, path
+
+    async def test_hidden_scoreboard_does_not_leak_bracket_existence(
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+        config_overrides: dict[str, str],
+    ) -> None:
+        """The visibility gate must answer before the bracket is looked up."""
+        db_session.add(Team(name="bracketed", bracket="student"))
+        await db_session.commit()
+        config_overrides["visibility.scoreboard"] = "hidden"
+
+        for bracket in ("student", "no-such-bracket"):
+            resp = await http_client.get("/scoreboard", params={"bracket": bracket})
+            assert resp.status_code == 403, bracket
