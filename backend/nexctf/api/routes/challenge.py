@@ -90,6 +90,20 @@ async def _solved_ids(
     return {r[0] for r in rows}
 
 
+async def _check_sequential_lock(
+    session: SessionDep, user: User, challenge: Challenge, question: Question
+) -> None:
+    """Raise if *question* is still locked behind unsolved earlier questions."""
+    if not challenge.sequential:
+        return
+    prev_ids = [q.id for q in challenge.questions if q.index < question.index]
+    if not prev_ids:
+        return
+    prev_solved = await _solved_ids(session, user, prev_ids)
+    if len(prev_solved) < len(prev_ids):
+        raise SequentialChallengeError()
+
+
 def _writeup_visible(*, challenge_completed: bool, overrides: dict[str, str]) -> bool:
     """A writeup shows once the team completes the challenge, or once the CTF
     ends if the admin opted to release writeups after the event."""
@@ -289,12 +303,7 @@ async def submit_answer(
             )
         )
 
-    if challenge.sequential:
-        prev_ids = [q.id for q in challenge.questions if q.index < question.index]
-        if prev_ids:
-            prev_solved = await _solved_ids(session, user, prev_ids)
-            if len(prev_solved) < len(prev_ids):
-                raise SequentialChallengeError()
+    await _check_sequential_lock(session, user, challenge, question)
 
     # Count previous wrong attempts (for malus)
     wrong_rows = await session.execute(
@@ -453,6 +462,8 @@ async def unlock_hint(
     hint = next((h for h in question.hints if h.id == hint_id), None)
     if hint is None:
         raise NotFoundError(detail="Hint not found")
+
+    await _check_sequential_lock(session, user, challenge, question)
 
     # A hint is bought once per team; teammates unlocking concurrently race on
     # uq_hint_unlock, so let the database settle who pays.

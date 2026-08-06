@@ -217,6 +217,44 @@ class TestHintUnlockAfterEnd:
         assert resp.json()["error_code"] == "SUB-403-TEAM"
 
 
+class TestHintUnlockSequentialLock:
+    async def test_locked_question_hint_refused(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        """A hint on a question locked behind an unsolved one stays locked."""
+        c, user = user_client
+        team = Team(name="seq_team")
+        db_session.add(team)
+        await db_session.flush()
+        user.team_id = team.id
+
+        challenge = StandardChallenge(title="Seq Test", is_active=True, sequential=True)
+        db_session.add(challenge)
+        await db_session.flush()
+        first = Question(label="Q1", points=100, index=0, challenge_id=challenge.id)
+        second = Question(label="Q2", points=100, index=1, challenge_id=challenge.id)
+        db_session.add_all([first, second])
+        await db_session.flush()
+        hint = Hint(title="H", content="secret", cost=30, question_id=second.id)
+        db_session.add(hint)
+        await db_session.flush()
+
+        resp = await c.post(
+            f"/challenges/{challenge.id}/{second.id}/hints/{hint.id}/unlock"
+        )
+
+        assert resp.status_code == 403
+        assert resp.json()["error_code"] == "SUB-403-SEQ"
+        count = await db_session.scalar(
+            select(func.count())
+            .select_from(HintUnlock)
+            .where(HintUnlock.team_id == team.id)
+        )
+        assert count == 0
+
+
 class TestHintUnlockChargesOnce:
     async def test_second_unlock_is_free(
         self,
