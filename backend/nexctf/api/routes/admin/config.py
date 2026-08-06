@@ -9,6 +9,7 @@ from nexctf.exceptions import ConfigValidationError
 from nexctf.module.audit import audit_actor, redact
 from nexctf.module.events import emit
 from nexctf.module.scoreboard import invalidate as invalidate_scoreboard
+from nexctf.module.stats import invalidate_team
 from nexctf.schema.config import AdminConfigBulkUpdate, AdminConfigRead
 
 config_router = APIRouter(prefix="/config", tags=["Config"])
@@ -85,5 +86,6 @@ async def bulk_update_config(
 
     if "ctf.freeze_time" in staged:
         await invalidate_scoreboard(redis)
+        await invalidate_team(redis)
 
     return Response(data=[_build_item(k, overrides) for k in appconfig.all_defs()])

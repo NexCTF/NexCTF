@@ -329,6 +329,7 @@ async def get_my_team(
         user.team_id,
         overrides=overrides,
         include_rank=can_view_scoreboard(user, overrides),
+        live=True,
     )
     if team is None:
         raise NotFoundError()
@@ -370,6 +371,7 @@ async def create_team(
         team.id,
         overrides=overrides,
         include_rank=can_view_scoreboard(user, overrides),
+        live=True,
     )
     if data is None:
         raise NotFoundError()
@@ -416,6 +418,7 @@ async def join_team(
         team.id,
         overrides=overrides,
         include_rank=can_view_scoreboard(user, overrides),
+        live=True,
     )
     if data is None:
         raise NotFoundError()

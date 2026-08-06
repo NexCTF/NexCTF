@@ -13,6 +13,7 @@ from nexctf.module.stats.compute import (
     compute_team_challenge_stats,
 )
 from nexctf.schema.stats import ChallengeStats, TeamChallengeStats
+from nexctf.util.datetime import is_config_dt_past, parse_config_dt
 
 _KEY = "stats:challenges"
 _TEAM_KEY_PREFIX = "stats:team:"
@@ -42,14 +43,19 @@ async def get_team_challenge_stats(
     session: AsyncSession,
     redis: Redis,
     team_id: UUID,
+    *,
+    overrides: dict[str, str],
+    live: bool = False,
     ttl: timedelta = _TTL,
 ) -> list[TeamChallengeStats]:
-    """Return a team's cached per-challenge progress, recomputing when cold."""
+    """Return a team's cached per-challenge progress, frozen unless live=True."""
+    frozen = not live and is_config_dt_past("ctf.freeze_time", overrides)
+    freeze_time = parse_config_dt("ctf.freeze_time", overrides) if frozen else None
     return await get_or_compute(
         redis,
-        f"{_TEAM_KEY_PREFIX}{team_id}",
+        f"{_TEAM_KEY_PREFIX}{team_id}{':frozen' if frozen else ''}",
         _team_adapter,
-        lambda: compute_team_challenge_stats(session, team_id),
+        lambda: compute_team_challenge_stats(session, team_id, freeze_time=freeze_time),
         ttl,
     )
 
@@ -70,4 +76,6 @@ async def invalidate_team(redis: Redis, team_id: UUID | None = None) -> None:
         if keys:
             await redis.delete(*keys)
     else:
-        await redis.delete(f"{_TEAM_KEY_PREFIX}{team_id}")
+        await redis.delete(
+            f"{_TEAM_KEY_PREFIX}{team_id}", f"{_TEAM_KEY_PREFIX}{team_id}:frozen"
+        )

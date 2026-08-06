@@ -97,10 +97,7 @@ async def _check_sequential_lock(
     if not challenge.sequential:
         return
     prev_ids = [q.id for q in challenge.questions if q.index < question.index]
-    if not prev_ids:
-        return
-    prev_solved = await _solved_ids(session, user, prev_ids)
-    if len(prev_solved) < len(prev_ids):
+    if len(await _solved_ids(session, user, prev_ids)) < len(prev_ids):
         raise SequentialChallengeError()
 
 

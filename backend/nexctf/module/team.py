@@ -74,12 +74,14 @@ async def load_team_read(
     overrides: dict[str, str],
     include_rank: bool = True,
     include_members: bool = True,
+    live: bool = False,
 ) -> MyTeamRead | None:
     """Load a team with members, stats, public custom fields and global standing.
 
     Rank/team_count come from the global scoreboard; pass include_rank=False when
     the caller may not view ranking data (hidden scoreboard). Pass
-    include_members=False to omit the member list (members are None).
+    include_members=False to omit the member list (members are None). Challenge
+    stats honour the scoreboard freeze unless live=True (a team's own members).
     """
     team = await crud.TeamCrud.first(
         session, [Team.id == team_id], load_options=[selectinload(Team.users)]
@@ -87,7 +89,9 @@ async def load_team_read(
     if team is None:
         return None
     stats, custom_fields = await asyncio.gather(
-        get_team_challenge_stats(session, redis, team_id),
+        get_team_challenge_stats(
+            session, redis, team_id, overrides=overrides, live=live
+        ),
         fetch_public_team_fields(session, team_id),
     )
     members: list[PublicTeamMember] | None = None

@@ -18,10 +18,12 @@ from nexctf.schema.stats import (
 
 
 async def compute_team_challenge_stats(
-    session: AsyncSession, team_id: UUID
+    session: AsyncSession, team_id: UUID, freeze_time: datetime | None = None
 ) -> list[TeamChallengeStats]:
-    """Compute per-challenge progress for a team (public schema)."""
-    admin_stats = await compute_admin_team_challenge_stats(session, team_id)
+    """Compute per-challenge progress for a team, optionally frozen at *freeze_time*."""
+    admin_stats = await compute_admin_team_challenge_stats(
+        session, team_id, freeze_time=freeze_time
+    )
     return [
         TeamChallengeStats(
             **s.model_dump(
@@ -34,9 +36,9 @@ async def compute_team_challenge_stats(
 
 
 async def compute_admin_team_challenge_stats(
-    session: AsyncSession, team_id: UUID
+    session: AsyncSession, team_id: UUID, freeze_time: datetime | None = None
 ) -> list[AdminTeamChallengeStats]:
-    """Compute per-challenge progress for a team with hint unlock data (admin only)."""
+    """Compute a team's progress with hint data, optionally frozen (admin only)."""
     challenges = (
         (
             await session.execute(
@@ -70,20 +72,17 @@ async def compute_admin_team_challenge_stats(
             for c in challenges
         ]
 
-    submissions = (
-        (
-            await session.execute(
-                select(Submission)
-                .where(
-                    Submission.team_id == team_id,
-                    Submission.question_id.in_(all_question_ids),
-                )
-                .order_by(Submission.created_at)
-            )
+    submission_stmt = (
+        select(Submission)
+        .where(
+            Submission.team_id == team_id,
+            Submission.question_id.in_(all_question_ids),
         )
-        .scalars()
-        .all()
+        .order_by(Submission.created_at)
     )
+    if freeze_time is not None:
+        submission_stmt = submission_stmt.where(Submission.created_at <= freeze_time)
+    submissions = (await session.execute(submission_stmt)).scalars().all()
 
     # Load hints to map hint_id → question_id for this challenge set
     hint_rows = (
@@ -107,18 +106,13 @@ async def compute_admin_team_challenge_stats(
     hint_cost_by_question: dict[UUID, int] = {}
     hint_cost_by_challenge: dict[UUID, int] = {}
     if hint_id_to_question_id:
-        hint_unlocks = (
-            (
-                await session.execute(
-                    select(HintUnlock).where(
-                        HintUnlock.team_id == team_id,
-                        HintUnlock.hint_id.in_(hint_id_to_question_id.keys()),
-                    )
-                )
-            )
-            .scalars()
-            .all()
+        unlock_stmt = select(HintUnlock).where(
+            HintUnlock.team_id == team_id,
+            HintUnlock.hint_id.in_(hint_id_to_question_id.keys()),
         )
+        if freeze_time is not None:
+            unlock_stmt = unlock_stmt.where(HintUnlock.created_at <= freeze_time)
+        hint_unlocks = (await session.execute(unlock_stmt)).scalars().all()
         for hu in hint_unlocks:
             qid = hint_id_to_question_id.get(hu.hint_id)
             if qid is None:

@@ -1,9 +1,13 @@
 """Tests for the team membership endpoints and the team-changes lock."""
 
+from datetime import UTC, datetime
+
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.model import Team, User
+from nexctf.model import Submission, Team, User
+from nexctf.model.question import Question
+from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 
 
 async def _put_in_team(db_session: AsyncSession, user: User) -> Team:
@@ -150,3 +154,38 @@ class TestTeamChanges:
         data = resp.json()["data"]
         assert data["invite_code"] != "PWNED123"
         assert data["bracket"] is None
+
+
+class TestMyTeamStaysLive:
+    async def test_own_solves_visible_after_freeze(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        config_overrides: dict[str, str],
+    ) -> None:
+        """The freeze hides progress from rivals, not from a team's own members."""
+        config_overrides["ctf.freeze_time"] = "2020-06-01T00:00:00+00:00"
+        client, user = user_client
+        team = await _put_in_team(db_session, user)
+        challenge = StandardChallenge(title="Frozen", is_active=True)
+        db_session.add(challenge)
+        await db_session.flush()
+        question = Question(label="Q", points=100, challenge_id=challenge.id)
+        db_session.add(question)
+        await db_session.flush()
+        db_session.add(
+            Submission(
+                team_id=team.id,
+                question_id=question.id,
+                answer="flag",
+                is_correct=True,
+                points_earned=100,
+                created_at=datetime(2020, 12, 1, tzinfo=UTC),
+            )
+        )
+        await db_session.flush()
+
+        resp = await client.get("/me/team")
+        assert resp.status_code == 200
+        stats = resp.json()["data"]["challenge_stats"][0]
+        assert stats["solved_question_count"] == 1

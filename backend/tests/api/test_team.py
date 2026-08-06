@@ -1,15 +1,19 @@
 """Tests for the public team profile endpoint."""
 
+from datetime import UTC, datetime
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.model import Team, User
+from nexctf.model import Submission, Team, User
 from nexctf.model.custom_field import (
     CustomFieldDefinition,
     CustomFieldTarget,
     CustomFieldValue,
 )
+from nexctf.model.question import Question
+from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 
 from ..base import NULL_UUID
 
@@ -102,6 +106,53 @@ class TestGetTeamProfile:
                 "value": "MIT",
             }
         ]
+
+    async def test_solves_after_freeze_hidden(
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+        config_overrides: dict[str, str],
+    ) -> None:
+        """Post-freeze progress must not leak through the public profile."""
+        config_overrides["ctf.freeze_time"] = "2020-06-01T00:00:00+00:00"
+        team = Team(name="FrozenTeam")
+        challenge = StandardChallenge(title="Frozen", is_active=True)
+        db_session.add_all([team, challenge])
+        await db_session.flush()
+        early = Question(label="Q1", points=100, index=0, challenge_id=challenge.id)
+        late = Question(label="Q2", points=100, index=1, challenge_id=challenge.id)
+        db_session.add_all([early, late])
+        await db_session.flush()
+        db_session.add_all(
+            [
+                Submission(
+                    team_id=team.id,
+                    question_id=early.id,
+                    answer="flag",
+                    is_correct=True,
+                    points_earned=100,
+                    created_at=datetime(2020, 1, 1, tzinfo=UTC),
+                ),
+                Submission(
+                    team_id=team.id,
+                    question_id=late.id,
+                    answer="flag",
+                    is_correct=True,
+                    points_earned=100,
+                    created_at=datetime(2020, 12, 1, tzinfo=UTC),
+                ),
+            ]
+        )
+        await db_session.flush()
+
+        resp = await http_client.get(f"{self.PREFIX}/{team.id}")
+        assert resp.status_code == 200
+        stats = resp.json()["data"]["challenge_stats"][0]
+        solved = {q["question_id"]: q["is_solved"] for q in stats["questions"]}
+        assert solved == {str(early.id): True, str(late.id): False}
+        assert stats["solved_question_count"] == 1
+        assert stats["points_earned"] == 100
+        assert stats["last_solve_at"].startswith("2020-01-01")
 
     async def test_invite_code_hidden(
         self,
