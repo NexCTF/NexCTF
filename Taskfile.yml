@@ -67,6 +67,12 @@ tasks:
       - bun dev --host 0.0.0.0
     dir: frontend
 
+  dev:frontend:test:
+    desc: "Run the frontend test suite (vitest)"
+    cmds:
+      - bunx vitest run {{.CLI_ARGS}}
+    dir: frontend
+
   dev:frontend:check:
     desc: "Run tsc + biome (check-only)"
     cmds:

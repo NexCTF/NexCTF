@@ -3,7 +3,7 @@ import { createContext, type ReactNode, useCallback, useContext } from "react";
 import { login as apiLogin, logout as apiLogout, getMe, type User } from "@/lib/api";
 import { closeSSE } from "@/lib/sse";
 
-interface AuthContext {
+export interface AuthContext {
   user: User | null;
   isLoading: boolean;
   login: (
@@ -15,7 +15,8 @@ interface AuthContext {
   logout: () => Promise<void>;
 }
 
-const Ctx = createContext<AuthContext | null>(null);
+/** Exported so tests can provide a value without mounting the real provider. */
+export const AuthCtx = createContext<AuthContext | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
@@ -42,11 +43,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     qc.setQueryData(["auth", "me"], null);
   }, [qc]);
 
-  return <Ctx.Provider value={{ user, isLoading, login, logout }}>{children}</Ctx.Provider>;
+  return <AuthCtx.Provider value={{ user, isLoading, login, logout }}>{children}</AuthCtx.Provider>;
 }
 
 export function useAuth(): AuthContext {
-  const ctx = useContext(Ctx);
+  const ctx = useContext(AuthCtx);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }

@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { ShieldCheck, ShieldX } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,6 @@ const SCOPE_ICONS: Record<string, string> = {
 function ConsentPage() {
   const { t } = useTranslation();
   const { user, isLoading: authLoading } = useAuth();
-  const navigate = useNavigate();
   const { client_id, redirect_uri, scope, state } = Route.useSearch();
 
   const {
@@ -69,9 +68,8 @@ function ConsentPage() {
 
   // Redirect to login if not authenticated
   if (!authLoading && !user) {
-    const next = encodeURIComponent(window.location.pathname + window.location.search);
-    navigate({ to: "/login", search: { next } });
-    return null;
+    const next = window.location.pathname + window.location.search;
+    return <Navigate to="/login" search={{ next }} />;
   }
 
   if (authLoading || isLoading) {

@@ -9,6 +9,13 @@ interface BrandingContext {
   primaryColor: string;
 }
 
+export const DEFAULT_BRANDING: BrandingInfo = {
+  name: "NexCTF",
+  logo_url: "",
+  favicon_url: "",
+  primary_color: "",
+};
+
 const DEFAULT: BrandingContext = {
   name: "NexCTF",
   logoUrl: "",
@@ -87,12 +94,7 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     retry: false,
   });
 
-  const branding: BrandingInfo = data?.branding ?? {
-    name: DEFAULT.name,
-    logo_url: "",
-    favicon_url: "",
-    primary_color: "",
-  };
+  const branding: BrandingInfo = data?.branding ?? DEFAULT_BRANDING;
 
   const name = branding.name || DEFAULT.name;
   const logoUrl = branding.logo_url || "";
