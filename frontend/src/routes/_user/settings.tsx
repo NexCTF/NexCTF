@@ -134,8 +134,9 @@ function CreateTokenDialog({ onCreated }: { onCreated: () => void }) {
             className="space-y-4 mt-2"
           >
             <div className="space-y-1.5">
-              <Label>{t("settings.token.field_name")}</Label>
+              <Label htmlFor="token-name">{t("settings.token.field_name")}</Label>
               <Input
+                id="token-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t("settings.token.name_placeholder")}
@@ -199,6 +200,7 @@ function TokenRow({ token, onDeleted }: { token: ApiToken; onDeleted: () => void
         variant="ghost"
         size="icon"
         className="size-7 text-destructive hover:text-destructive shrink-0"
+        aria-label={t("settings.token.revoke")}
         disabled={mutation.isPending}
         onClick={() => {
           if (confirm(t("settings.token.revoke_confirm", { name: displayName }))) {

@@ -696,6 +696,7 @@
       "unnamed": "Unnamed token",
       "created_at": "Created {{date}}",
       "expires_at": "Expires {{date}}",
+      "revoke": "Revoke token",
       "revoked": "Token revoked",
       "revoke_error": "Failed to revoke token",
       "revoke_confirm": "Revoke token \"{{name}}\"?",

@@ -22,6 +22,14 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
+/**
+ * A post-login redirect target is only honoured when it is a same-origin path.
+ * `//evil.com` is protocol-relative, so a leading-slash check alone is not enough.
+ */
+function isSafeNext(next: string | undefined): next is string {
+  return !!next && next.startsWith("/") && !next.startsWith("//");
+}
+
 function LoginPage() {
   const { t } = useTranslation();
   const { user, login } = useAuth();
@@ -122,7 +130,7 @@ function LoginPage() {
         totpRequired ? totpCode : undefined,
         captchaEnabled ? (captchaToken ?? undefined) : undefined,
       );
-      if (next) {
+      if (isSafeNext(next)) {
         window.location.href = next;
       } else {
         navigate({ to: "/" });

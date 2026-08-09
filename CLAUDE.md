@@ -64,6 +64,14 @@ This project uses bun. Do not use npm or yarn.
 - Sync environment from lockfile: `bun install --frozen-lockfile`
 - Commit `bun.lock` to version control
 
+## Testing
+- Tools: vitest + @testing-library/react (jsdom)
+- Run all frontend tests: `task dev:frontend:test`
+- Run specific frontend tests: `task dev:frontend:test -- [TEST_FILE_PATH]`
+- Tests live next to the code they cover as `*.test.tsx`; shared helpers are in `src/test/`
+- Render a file route with `renderRoute(Route, { path, routePath })` from `src/test/render.tsx`
+- Build API payloads with the builders in `src/test/fixtures.ts`; browser stubs live in `src/test/setup.ts`
+
 ## Linting, formatting and type checking
 - Tools: biome (lint + format) and tsc (type checking)
 - Check everything, no changes (what CI runs): `task dev:frontend:check`
