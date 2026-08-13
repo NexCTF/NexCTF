@@ -1,8 +1,6 @@
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Depends
 
-from nexctf.api.dep import bind_audit_context, invalidate_on_write
-from nexctf.api.security import auth
-from nexctf.model import UserRole
+from nexctf.api.dep import AdminAuthDep, bind_audit_context, invalidate_on_write
 from nexctf.module.challenge import invalidate as invalidate_challenges
 from nexctf.module.info import invalidate as invalidate_info
 from nexctf.module.scoreboard import invalidate as invalidate_scoreboard
@@ -32,10 +30,7 @@ from .user import user_router
 
 admin_router = APIRouter(
     prefix="/admin",
-    dependencies=[
-        Security(auth.require(role=UserRole.admin)),
-        Depends(bind_audit_context),
-    ],
+    dependencies=[AdminAuthDep, Depends(bind_audit_context)],
 )
 
 # Writes to challenge-shaping data must drop the cached player challenge

@@ -279,16 +279,15 @@ def mount_plugin_routes(app: FastAPI) -> None:
     Args:
         app: The FastAPI application to mount the routers on.
     """
-    from fastapi import APIRouter, Security
+    from fastapi import APIRouter
 
-    from nexctf.api.security import auth
+    from nexctf.api.dep import AdminAuthDep
     from nexctf.core.config import settings
-    from nexctf.model import UserRole
     from nexctf.plugins.routes import route_registry
 
     _admin = APIRouter(
         prefix=f"{settings.API_V1_STR}/admin",
-        dependencies=[Security(auth.require(role=UserRole.admin))],
+        dependencies=[AdminAuthDep],
     )
     _public = APIRouter(prefix=settings.API_V1_STR)
 

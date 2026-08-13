@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Security
+from fastapi import APIRouter
 from fastapi_toolsets.schemas import Response
 from sqlalchemy import ColumnElement, ScalarSelect, func, select
 
-from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
-from nexctf.api.security import auth
+from nexctf.api.dep import AdminAuthDep, CurrentUserDep, RedisDep, SessionDep
 from nexctf.model import (
     Base,
     Challenge,
@@ -15,7 +14,6 @@ from nexctf.model import (
     Submission,
     Team,
     User,
-    UserRole,
 )
 from nexctf.module.info import get_public_info, get_version_info
 from nexctf.schema import PublicUserRead
@@ -44,7 +42,7 @@ async def me_info(
     return Response(data=PublicUserRead.model_validate(user))
 
 
-@info_router.get("/admin", dependencies=[Security(auth.require(role=UserRole.admin))])
+@info_router.get("/admin", dependencies=[AdminAuthDep])
 async def admin_info(
     session: SessionDep,
     redis: RedisDep,

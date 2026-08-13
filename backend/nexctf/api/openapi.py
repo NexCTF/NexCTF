@@ -9,6 +9,8 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.routing import iter_route_contexts
 
+from nexctf.api.dep import AdminAuthDep
+
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
@@ -28,7 +30,9 @@ def setup_docs(app: FastAPI, admin_prefix: str) -> None:
     def user_openapi() -> JSONResponse:
         return JSONResponse(_schema("NexCTF API", admin_prefix, exclude=True))
 
-    @app.get("/api/admin/openapi.json", include_in_schema=False)
+    @app.get(
+        "/api/admin/openapi.json", include_in_schema=False, dependencies=[AdminAuthDep]
+    )
     def admin_openapi() -> JSONResponse:
         return JSONResponse(_schema("NexCTF Admin API", admin_prefix, exclude=False))
 
@@ -38,7 +42,7 @@ def setup_docs(app: FastAPI, admin_prefix: str) -> None:
             openapi_url="/api/openapi.json", title="NexCTF – User API"
         )
 
-    @app.get("/api/admin/docs", include_in_schema=False)
+    @app.get("/api/admin/docs", include_in_schema=False, dependencies=[AdminAuthDep])
     def admin_docs():
         return get_swagger_ui_html(
             openapi_url="/api/admin/openapi.json", title="NexCTF – Admin API"

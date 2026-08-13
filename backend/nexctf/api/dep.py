@@ -34,6 +34,7 @@ from nexctf.util.pydantic import Label
 SessionDep = Annotated[AsyncSession, Depends(db)]
 RedisDep = Annotated[Redis, Depends(get_redis)]
 CurrentUserDep = Annotated[User, Security(auth)]
+AdminAuthDep = Security(auth.require(role=UserRole.admin))
 
 
 async def _config_overrides(redis: RedisDep) -> dict[str, str]:
