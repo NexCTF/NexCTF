@@ -5,7 +5,7 @@ import json
 import secrets
 from datetime import timedelta
 from typing import Annotated
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlsplit
 from uuid import UUID
 
 from fastapi import APIRouter, Form, HTTPException, Request
@@ -58,15 +58,31 @@ def _verify_pkce(verifier: str, challenge: str) -> bool:
 
 
 async def _get_active_client(
-    session: AsyncSession, client_id: str
+    session: AsyncSession,
+    client_id: str,
+    *,
+    error: tuple[int, str] = (400, "invalid_client"),
 ) -> OAuthServerClient:
+    """Load an enabled client, raising *error* if it is unknown or disabled."""
     client = await crud.OAuthServerClientCrud.first(
         session=session,
         filters=[OAuthServerClient.client_id == client_id],
     )
     if not client or not client.is_active:
-        raise HTTPException(400, "invalid_client")
+        raise HTTPException(*error)
     return client
+
+
+async def _get_active_user(
+    session: AsyncSession, user_id: str, *, error: tuple[int, str]
+) -> User:
+    """Load an enabled user, raising *error* if they are unknown or disabled."""
+    user = await crud.UserCrud.first(
+        session=session, filters=[User.id == UUID(user_id)]
+    )
+    if not user or not user.is_active:
+        raise HTTPException(*error)
+    return user
 
 
 def _ensure_role_allowed(client: OAuthServerClient, user: User) -> None:
@@ -184,9 +200,13 @@ async def approve(
     )
     await redis.setex(_CODE_PREFIX + code, int(_CODE_TTL.total_seconds()), payload)
 
-    redirect_url = f"{obj.redirect_uri}?code={code}"
+    # Append to any query string the registered redirect_uri already carries,
+    # leaving that part byte-for-byte as the client registered it.
+    params = {"code": code}
     if obj.state:
-        redirect_url += f"&state={quote(obj.state)}"
+        params["state"] = obj.state
+    sep = "&" if urlsplit(obj.redirect_uri).query else "?"
+    redirect_url = f"{obj.redirect_uri}{sep}{urlencode(params, quote_via=quote)}"
 
     return Response(data=OAuthApproveResponse(redirect_to=redirect_url))
 
@@ -227,6 +247,12 @@ async def token(
     if challenge and (not code_verifier or not _verify_pkce(code_verifier, challenge)):
         raise HTTPException(400, "invalid_grant")
 
+    # Re-check account state and role: either may have changed since consent.
+    user = await _get_active_user(
+        session, data["user_id"], error=(400, "invalid_grant")
+    )
+    _ensure_role_allowed(client, user)
+
     raw_token = secrets.token_urlsafe(32)
     token_hash = _hash(raw_token)
     token_payload = json.dumps(
@@ -266,12 +292,12 @@ async def userinfo(
 
     data = json.loads(raw_payload)
 
-    user = await crud.UserCrud.first(
-        session=session, filters=[User.id == UUID(data["user_id"])]
-    )
-
-    if not user or not user.is_active:
-        raise HTTPException(401, "invalid_token")
+    # An access token outlives the checks made at consent, so re-run them: the
+    # client may have been deactivated and the user demoted since it was issued.
+    invalid_token = (401, "invalid_token")
+    user = await _get_active_user(session, data["user_id"], error=invalid_token)
+    client = await _get_active_client(session, data["client_id"], error=invalid_token)
+    _ensure_role_allowed(client, user)
 
     scopes = set(data["scopes"].split())
 

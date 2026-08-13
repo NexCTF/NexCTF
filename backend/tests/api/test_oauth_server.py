@@ -2,6 +2,7 @@
 
 import json
 from unittest.mock import AsyncMock
+from urllib.parse import parse_qsl, urlparse
 
 from httpx import AsyncClient
 
@@ -12,6 +13,8 @@ _CLIENT_ID = "nexctf_testclientid"
 _ADMIN_CLIENT_ID = "nexctf_adminonly"  # fixture client with allowed_roles="admin"
 _CLIENT_SECRET = "test_secret"
 _REDIRECT_URI = "https://app.example.com/callback"
+_REDIRECT_URI_WITH_QUERY = "https://app.example.com/cb?tenant=acme"
+_FX_USER1_ID = "00000000-0000-4000-8001-000000000002"  # fixture user fx_user1
 
 # RFC 7636 Appendix B reference S256 verifier/challenge pair
 _PKCE_VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
@@ -21,7 +24,7 @@ _PKCE_CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
 _CODE_PAYLOAD = json.dumps(
     {
         "client_id": _CLIENT_ID,
-        "user_id": "00000000-0000-4000-8001-000000000002",  # fx_user1 UUID
+        "user_id": _FX_USER1_ID,
         "redirect_uri": _REDIRECT_URI,
         "scopes": "openid profile email",
         "state": None,
@@ -261,6 +264,34 @@ class TestOAuth2Approve:
         )
         assert resp.status_code == 400
 
+    async def test_approve_merges_into_existing_redirect_query(
+        self,
+        user_client: tuple[AsyncClient, User],
+        fixture_oauth_server_client: list[OAuthServerClient],
+        mock_redis,
+    ) -> None:
+        """A redirect_uri that already carries a query string stays well-formed."""
+        c, _ = user_client
+        mock_redis.setex = AsyncMock(return_value=True)
+
+        resp = await c.post(
+            "/oauth2/authorize/approve",
+            json={
+                "client_id": _CLIENT_ID,
+                "redirect_uri": _REDIRECT_URI_WITH_QUERY,
+                "scope": "openid",
+                "state": "st ate&x",
+            },
+        )
+        assert resp.status_code == 200
+
+        parsed = urlparse(resp.json()["data"]["redirect_to"])
+        params = dict(parse_qsl(parsed.query))
+        assert params["tenant"] == "acme"
+        assert params["state"] == "st ate&x"
+        assert params["code"]
+        assert parsed.path == urlparse(_REDIRECT_URI_WITH_QUERY).path
+
     async def test_approve_requires_auth(
         self,
         http_client: AsyncClient,
@@ -339,6 +370,41 @@ class TestOAuth2Token:
         )
         assert resp.status_code == 401
 
+    async def test_role_is_rechecked_at_exchange(
+        self,
+        http_client: AsyncClient,
+        fixture_oauth_server_client: list[OAuthServerClient],
+        fixture_user_members,
+        mock_redis,
+    ) -> None:
+        """A code for an admin-only client is refused once the user is not an admin."""
+        mock_redis.get = AsyncMock(
+            return_value=json.dumps(
+                {
+                    "client_id": _ADMIN_CLIENT_ID,
+                    "user_id": _FX_USER1_ID,
+                    "redirect_uri": _REDIRECT_URI,
+                    "scopes": "openid profile",
+                    "state": None,
+                }
+            )
+        )
+        mock_redis.delete = AsyncMock()
+        mock_redis.setex = AsyncMock(return_value=True)
+
+        resp = await http_client.post(
+            "/oauth2/token",
+            data={
+                "grant_type": "authorization_code",
+                "code": "test_code_value",
+                "redirect_uri": _REDIRECT_URI,
+                "client_id": _ADMIN_CLIENT_ID,
+                "client_secret": _CLIENT_SECRET,
+            },
+        )
+        assert resp.status_code == 403
+        mock_redis.setex.assert_not_called()
+
     async def test_unsupported_grant_type(
         self,
         http_client: AsyncClient,
@@ -363,7 +429,7 @@ class TestOAuth2PKCE:
     _CODE_PAYLOAD_PKCE = json.dumps(
         {
             "client_id": _CLIENT_ID,
-            "user_id": "00000000-0000-4000-8001-000000000002",  # fx_user1
+            "user_id": _FX_USER1_ID,
             "redirect_uri": _REDIRECT_URI,
             "scopes": "openid profile email",
             "state": None,
@@ -615,7 +681,7 @@ class TestOAuth2Userinfo:
     _TOKEN_PAYLOAD = json.dumps(
         {
             "client_id": _CLIENT_ID,
-            "user_id": "00000000-0000-4000-8001-000000000002",  # fx_user1
+            "user_id": _FX_USER1_ID,
             "scopes": "openid profile email roles",
         }
     )
@@ -623,6 +689,7 @@ class TestOAuth2Userinfo:
     async def test_returns_user_claims(
         self,
         http_client: AsyncClient,
+        fixture_oauth_server_client: list[OAuthServerClient],
         fixture_user_members,
         mock_redis,
     ) -> None:
@@ -637,6 +704,49 @@ class TestOAuth2Userinfo:
         assert "sub" in data
         assert data["username"] == "fx_user1"
         assert data["role"] == "user"
+
+    async def test_role_is_rechecked_per_request(
+        self,
+        http_client: AsyncClient,
+        fixture_oauth_server_client: list[OAuthServerClient],
+        fixture_user_members,
+        mock_redis,
+    ) -> None:
+        """A live token for an admin-only client stops serving a non-admin."""
+        mock_redis.get = AsyncMock(
+            return_value=json.dumps(
+                {
+                    "client_id": _ADMIN_CLIENT_ID,
+                    "user_id": _FX_USER1_ID,
+                    "scopes": "openid profile",
+                }
+            )
+        )
+
+        resp = await http_client.get(
+            "/oauth2/userinfo",
+            headers={"Authorization": "Bearer some_opaque_token"},
+        )
+        assert resp.status_code == 403
+
+    async def test_deactivated_client_invalidates_live_token(
+        self,
+        http_client: AsyncClient,
+        db_session,
+        fixture_oauth_server_client: list[OAuthServerClient],
+        fixture_user_members,
+        mock_redis,
+    ) -> None:
+        """Disabling a client kills its outstanding tokens, as invalid_token."""
+        fixture_oauth_server_client[0].is_active = False
+        await db_session.flush()
+        mock_redis.get = AsyncMock(return_value=self._TOKEN_PAYLOAD)
+
+        resp = await http_client.get(
+            "/oauth2/userinfo",
+            headers={"Authorization": "Bearer some_opaque_token"},
+        )
+        assert resp.status_code == 401
 
     async def test_missing_bearer(self, http_client: AsyncClient) -> None:
         resp = await http_client.get("/oauth2/userinfo")
@@ -653,13 +763,14 @@ class TestOAuth2Userinfo:
     async def test_scope_filtering_profile_only(
         self,
         http_client: AsyncClient,
+        fixture_oauth_server_client: list[OAuthServerClient],
         fixture_user_members,
         mock_redis,
     ) -> None:
         payload = json.dumps(
             {
                 "client_id": _CLIENT_ID,
-                "user_id": "00000000-0000-4000-8001-000000000002",
+                "user_id": _FX_USER1_ID,
                 "scopes": "openid profile",
             }
         )

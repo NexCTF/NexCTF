@@ -1,6 +1,7 @@
 """Authentication action endpoints: register, login, logout, OAuth flow."""
 
 import logging
+import secrets
 from collections.abc import Awaitable, Callable
 from typing import Annotated
 from urllib.parse import urlparse
@@ -493,6 +494,14 @@ async def logout(
         )
 
 
+async def _unique_username(db: SessionDep, desired: str) -> str:
+    """Return *desired*, suffixed if another local account already holds it."""
+    candidate = desired
+    while await crud.UserCrud.exists(session=db, filters=[User.username == candidate]):
+        candidate = f"{desired}-{secrets.token_hex(3)}"
+    return candidate
+
+
 async def _resolve_user_from_userinfo(
     db: SessionDep,
     provider: OAuthProvider,
@@ -542,12 +551,14 @@ async def _resolve_user_from_userinfo(
             )
             if conflict:
                 email = None
+        username = await _unique_username(
+            db,
+            userinfo.get("preferred_username") or userinfo.get("login") or subject,
+        )
         user = await crud.UserCrud.create(
             session=db,
             obj=UserCreate(
-                username=userinfo.get("preferred_username")
-                or userinfo.get("login")
-                or subject,
+                username=username,
                 email=email,
                 # The OAuth provider already verified ownership of this address.
                 email_verified=True,

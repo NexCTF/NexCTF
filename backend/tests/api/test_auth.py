@@ -645,6 +645,62 @@ class TestOAuthFlow:
         assert callback_resp.status_code == 302
         assert "NexCTF" in callback_resp.cookies
 
+    async def test_callback_suffixes_a_taken_username(
+        self, http_client, db_session, oauth_provider, override_db_context
+    ):
+        """A provider username colliding with a local account must not 500."""
+        db_session.add(
+            User(username="taken_name", hashed_password=hash_password("localpass"))
+        )
+        await db_session.flush()
+
+        with patch(
+            "nexctf.api.routes.auth.oauth_resolve_provider_urls",
+            new_callable=AsyncMock,
+            return_value=self._FAKE_URLS,
+        ):
+            auth_resp = await http_client.get(
+                "/auth/providers/test-idp/authorize",
+                follow_redirects=False,
+            )
+        state = parse_qs(urlparse(auth_resp.headers["location"]).query).get(
+            "state", [None]
+        )[0]
+
+        with (
+            patch(
+                "nexctf.api.routes.auth.oauth_resolve_provider_urls",
+                new_callable=AsyncMock,
+                return_value=self._FAKE_URLS,
+            ),
+            patch(
+                "nexctf.api.routes.auth.oauth_exchange_code",
+                new_callable=AsyncMock,
+                return_value={"access_token": "fake-access-token"},
+            ),
+            patch(
+                "nexctf.api.routes.auth.oauth_fetch_userinfo",
+                new_callable=AsyncMock,
+                return_value={
+                    "sub": "collides-001",
+                    "preferred_username": "taken_name",
+                },
+            ),
+        ):
+            callback_resp = await http_client.get(
+                "/auth/providers/test-idp/callback",
+                params={"code": "authcode123", "state": state},
+                follow_redirects=False,
+            )
+
+        assert callback_resp.status_code == 302
+        assert "NexCTF" in callback_resp.cookies
+        created = await crud.UserCrud.first(
+            session=db_session,
+            filters=[User.username.startswith("taken_name-")],
+        )
+        assert created is not None
+
     async def test_callback_logs_in_existing_oauth_account(
         self, http_client, db_session, oauth_provider, override_db_context
     ):

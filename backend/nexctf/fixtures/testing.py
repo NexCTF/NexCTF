@@ -100,7 +100,10 @@ def oauth_server_client() -> list[OAuthServerClient]:
             name="Test App",
             client_id="nexctf_testclientid",
             client_secret_hash=hashlib.sha256(b"test_secret").hexdigest(),
-            redirect_uris="https://app.example.com/callback",
+            redirect_uris=(
+                "https://app.example.com/callback\n"
+                "https://app.example.com/cb?tenant=acme"
+            ),
             allowed_scopes="openid profile email roles",
             is_active=True,
         ),
