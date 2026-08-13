@@ -7,7 +7,7 @@ from pydantic import TypeAdapter
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.core.cache import DEFAULT_TTL, get_or_compute
+from nexctf.core.cache import DEFAULT_TTL, drop_registered, get_or_compute
 from nexctf.module.scoreboard.compute import (
     compute_admin_scoreboard,
     compute_scoreboard,
@@ -26,6 +26,9 @@ _SCOREBOARD_KEY = "scoreboard:full"
 _ADMIN_SCOREBOARD_KEY = "scoreboard:admin:full"
 _TEAM_KEY_PREFIX = "scoreboard:team:"
 _HISTORY_KEY = "scoreboard:history"
+
+_BOARD_REGISTRY = "scoreboard:keys:board"
+_TEAM_REGISTRY = "scoreboard:keys:team"
 
 _scoreboard_adapter: TypeAdapter[PublicScoreboard] = TypeAdapter(PublicScoreboard)
 _admin_scoreboard_adapter: TypeAdapter[AdminScoreboard] = TypeAdapter(AdminScoreboard)
@@ -49,6 +52,7 @@ async def get_scoreboard(
         _scoreboard_adapter,
         lambda: compute_scoreboard(session, freeze_time=freeze_time, bracket=bracket),
         ttl,
+        registry=_BOARD_REGISTRY,
     )
 
 
@@ -65,6 +69,7 @@ async def get_admin_scoreboard(
         _admin_scoreboard_adapter,
         lambda: compute_admin_scoreboard(session, bracket=bracket),
         ttl,
+        registry=_BOARD_REGISTRY,
     )
 
 
@@ -83,6 +88,7 @@ async def get_team_score(
         _team_adapter,
         lambda: compute_team_score(session, team_id, freeze_time=freeze_time),
         ttl,
+        registry=_TEAM_REGISTRY,
     )
 
 
@@ -104,6 +110,7 @@ async def get_scoreboard_history(
             session, limit=limit, freeze_time=freeze_time, bracket=bracket
         ),
         ttl,
+        registry=_BOARD_REGISTRY,
     )
 
 
@@ -113,19 +120,9 @@ async def invalidate(redis: Redis, team_id: UUID | None = None) -> None:
     - team_id=None  → invalidate the full scoreboard and all team caches.
     - team_id=<id>  → invalidate the scoreboard and that team's cache only.
     """
-    keys: list[str] = []
-    for prefix in (_SCOREBOARD_KEY, _ADMIN_SCOREBOARD_KEY):
-        async for key in redis.scan_iter(f"{prefix}*"):
-            keys.append(key)
-
     if team_id is None:
-        async for key in redis.scan_iter(f"{_TEAM_KEY_PREFIX}*"):
-            keys.append(key)
-        async for key in redis.scan_iter(f"{_HISTORY_KEY}:*"):
-            keys.append(key)
-    else:
-        keys.append(f"{_TEAM_KEY_PREFIX}{team_id}")
-        async for key in redis.scan_iter(f"{_HISTORY_KEY}:*"):
-            keys.append(key)
+        await drop_registered(redis, _BOARD_REGISTRY, _TEAM_REGISTRY)
+        return
 
-    await redis.delete(*keys)
+    await drop_registered(redis, _BOARD_REGISTRY)
+    await redis.delete(f"{_TEAM_KEY_PREFIX}{team_id}")

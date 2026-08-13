@@ -1,6 +1,5 @@
 """Team payload assembly shared by the me and public team endpoints."""
 
-import asyncio
 from collections.abc import Sequence
 from uuid import UUID
 
@@ -88,12 +87,10 @@ async def load_team_read(
     )
     if team is None:
         return None
-    stats, custom_fields = await asyncio.gather(
-        get_team_challenge_stats(
-            session, redis, team_id, overrides=overrides, live=live
-        ),
-        fetch_public_team_fields(session, team_id),
+    stats = await get_team_challenge_stats(
+        session, redis, team_id, overrides=overrides, live=live
     )
+    custom_fields = await fetch_public_team_fields(session, team_id)
     members: list[PublicTeamMember] | None = None
     if include_members:
         member_fields = await _fetch_public_user_fields(

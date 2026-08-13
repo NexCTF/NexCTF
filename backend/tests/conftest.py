@@ -50,11 +50,7 @@ def mock_redis(config_overrides: dict[str, str]):
     _pipeline.execute = AsyncMock(return_value=[None, None, 0, None])
     redis_mock.pipeline = MagicMock(return_value=_pipeline)
 
-    async def _empty_scan(*args, **kwargs):
-        if False:
-            yield
-
-    redis_mock.scan_iter = _empty_scan
+    redis_mock.sunion = AsyncMock(return_value=set())
     return redis_mock
 
 

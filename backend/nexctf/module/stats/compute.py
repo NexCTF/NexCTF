@@ -54,30 +54,9 @@ async def compute_admin_team_challenge_stats(
     if not challenges:
         return []
 
-    all_question_ids = [q.id for c in challenges for q in c.questions]
-
-    if not all_question_ids:
-        return [
-            AdminTeamChallengeStats(
-                challenge_id=c.id,
-                challenge_title=c.title,
-                question_count=0,
-                solved_question_count=0,
-                is_solved=False,
-                attempt_count=0,
-                points_earned=0,
-                first_solve_at=None,
-                last_solve_at=None,
-            )
-            for c in challenges
-        ]
-
     submission_stmt = (
         select(Submission)
-        .where(
-            Submission.team_id == team_id,
-            Submission.question_id.in_(all_question_ids),
-        )
+        .where(Submission.team_id == team_id)
         .order_by(Submission.created_at)
     )
     if freeze_time is not None:
@@ -85,13 +64,7 @@ async def compute_admin_team_challenge_stats(
     submissions = (await session.execute(submission_stmt)).scalars().all()
 
     # Load hints to map hint_id → question_id for this challenge set
-    hint_rows = (
-        await session.execute(
-            select(Hint.id, Hint.question_id).where(
-                Hint.question_id.in_(all_question_ids)
-            )
-        )
-    ).all()
+    hint_rows = (await session.execute(select(Hint.id, Hint.question_id))).all()
     hint_id_to_question_id: dict[UUID, UUID] = {
         row.id: row.question_id for row in hint_rows
     }
@@ -106,10 +79,7 @@ async def compute_admin_team_challenge_stats(
     hint_cost_by_question: dict[UUID, int] = {}
     hint_cost_by_challenge: dict[UUID, int] = {}
     if hint_id_to_question_id:
-        unlock_stmt = select(HintUnlock).where(
-            HintUnlock.team_id == team_id,
-            HintUnlock.hint_id.in_(hint_id_to_question_id.keys()),
-        )
+        unlock_stmt = select(HintUnlock).where(HintUnlock.team_id == team_id)
         if freeze_time is not None:
             unlock_stmt = unlock_stmt.where(HintUnlock.created_at <= freeze_time)
         hint_unlocks = (await session.execute(unlock_stmt)).scalars().all()
@@ -217,32 +187,11 @@ async def compute_all_challenge_stats(session: AsyncSession) -> list[ChallengeSt
         for q in c.questions:
             q_to_challenge[q.id] = c
 
-    all_question_ids = list(q_to_challenge.keys())
-    if not all_question_ids:
-        return [
-            ChallengeStats(
-                challenge_id=c.id,
-                challenge_title=c.title,
-                question_count=0,
-                attempt_count=0,
-                correct_count=0,
-                teams_attempted=0,
-                teams_solved=0,
-                hint_unlock_count=0,
-                hint_cost_spent=0,
-                first_blood_team_id=None,
-                first_blood_team_name=None,
-                first_blood_at=None,
-            )
-            for c in challenges
-        ]
-
     # Single bulk query — load all relevant submissions with team eager-loaded
     submissions = (
         (
             await session.execute(
                 select(Submission)
-                .where(Submission.question_id.in_(all_question_ids))
                 .options(joinedload(Submission.team))
                 .order_by(Submission.created_at)
             )
@@ -252,13 +201,7 @@ async def compute_all_challenge_stats(session: AsyncSession) -> list[ChallengeSt
     )
 
     # Load all hints to map hint_id → question_id
-    hint_rows = (
-        await session.execute(
-            select(Hint.id, Hint.question_id).where(
-                Hint.question_id.in_(all_question_ids)
-            )
-        )
-    ).all()
+    hint_rows = (await session.execute(select(Hint.id, Hint.question_id))).all()
     hint_id_to_question_id: dict[UUID, UUID] = {
         row.id: row.question_id for row in hint_rows
     }
@@ -266,17 +209,7 @@ async def compute_all_challenge_stats(session: AsyncSession) -> list[ChallengeSt
     # Load all hint unlocks (bulk, then map via hint)
     hint_unlocks = []
     if hint_id_to_question_id:
-        hint_unlocks = (
-            (
-                await session.execute(
-                    select(HintUnlock).where(
-                        HintUnlock.hint_id.in_(hint_id_to_question_id.keys())
-                    )
-                )
-            )
-            .scalars()
-            .all()
-        )
+        hint_unlocks = (await session.execute(select(HintUnlock))).scalars().all()
 
     # Accumulate per-challenge and per-question counters in a single pass
     attempt_by_c: dict[UUID, int] = {}

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from uuid import UUID
 
 from fastapi_toolsets.db import LockMode
@@ -96,10 +95,9 @@ async def recalculate_question(
                 sub.points_earned = new_points
                 affected_teams.add(team_id)
 
-    await asyncio.gather(
-        *[invalidate(redis, tid) for tid in affected_teams],
-        *[invalidate_team(redis, tid) for tid in affected_teams],
-    )
+    await invalidate(redis)
+    for tid in affected_teams:
+        await invalidate_team(redis, tid)
 
     return affected_teams
 

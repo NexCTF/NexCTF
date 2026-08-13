@@ -7,7 +7,7 @@ from pydantic import TypeAdapter
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.core.cache import get_or_compute
+from nexctf.core.cache import drop_registered, get_or_compute
 from nexctf.module.stats.compute import (
     compute_all_challenge_stats,
     compute_team_challenge_stats,
@@ -17,12 +17,19 @@ from nexctf.util.datetime import is_config_dt_past, parse_config_dt
 
 _KEY = "stats:challenges"
 _TEAM_KEY_PREFIX = "stats:team:"
+_TEAM_REGISTRY = "stats:keys:team"
 _TTL = timedelta(seconds=60)
+
 
 _adapter: TypeAdapter[list[ChallengeStats]] = TypeAdapter(list[ChallengeStats])
 _team_adapter: TypeAdapter[list[TeamChallengeStats]] = TypeAdapter(
     list[TeamChallengeStats]
 )
+
+
+def _team_key(team_id: UUID, frozen: bool = False) -> str:
+    """Cache key for a team's stats, live or frozen."""
+    return f"{_TEAM_KEY_PREFIX}{team_id}{':frozen' if frozen else ''}"
 
 
 async def get_all_challenge_stats(
@@ -53,10 +60,11 @@ async def get_team_challenge_stats(
     freeze_time = parse_config_dt("ctf.freeze_time", overrides) if frozen else None
     return await get_or_compute(
         redis,
-        f"{_TEAM_KEY_PREFIX}{team_id}{':frozen' if frozen else ''}",
+        _team_key(team_id, frozen),
         _team_adapter,
         lambda: compute_team_challenge_stats(session, team_id, freeze_time=freeze_time),
         ttl,
+        registry=_TEAM_REGISTRY,
     )
 
 
@@ -72,10 +80,7 @@ async def invalidate_team(redis: Redis, team_id: UUID | None = None) -> None:
     - team_id=<id>  → invalidate that team's cached stats only.
     """
     if team_id is None:
-        keys = [key async for key in redis.scan_iter(f"{_TEAM_KEY_PREFIX}*")]
-        if keys:
-            await redis.delete(*keys)
-    else:
-        await redis.delete(
-            f"{_TEAM_KEY_PREFIX}{team_id}", f"{_TEAM_KEY_PREFIX}{team_id}:frozen"
-        )
+        await drop_registered(redis, _TEAM_REGISTRY)
+        return
+
+    await redis.delete(_team_key(team_id), _team_key(team_id, frozen=True))

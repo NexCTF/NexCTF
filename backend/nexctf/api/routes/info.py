@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
-
 from fastapi import APIRouter, Security
 from fastapi_toolsets.schemas import Response
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, ScalarSelect, func, select
 
 from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
 from nexctf.api.security import auth
 from nexctf.model import (
+    Base,
     Challenge,
     HintUnlock,
     Submission,
@@ -23,6 +22,11 @@ from nexctf.schema import PublicUserRead
 from nexctf.schema.info import AdminStats, PublicInfo
 
 info_router = APIRouter(prefix="/info", tags=["info"])
+
+
+def _count_of(model: type[Base], *filters: ColumnElement[bool]) -> ScalarSelect[int]:
+    """Row count for *model* as a scalar subquery, so counts share one round-trip."""
+    return select(func.count()).select_from(model).where(*filters).scalar_subquery()
 
 
 @info_router.get("")
@@ -45,29 +49,29 @@ async def admin_info(
     session: SessionDep,
     redis: RedisDep,
 ) -> Response[AdminStats]:
-    r_users, r_teams, r_challenges, r_subs, r_correct, r_hints = await asyncio.gather(
-        session.execute(select(func.count()).select_from(User)),
-        session.execute(select(func.count()).select_from(Team)),
-        session.execute(select(func.count()).select_from(Challenge)),
-        session.execute(select(func.count()).select_from(Submission)),
-        session.execute(
-            select(func.count())
-            .select_from(Submission)
-            .where(Submission.is_correct.is_(True))
-        ),
-        session.execute(
+    (
+        user_count,
+        team_count,
+        challenge_count,
+        submission_count,
+        correct_submission_count,
+        hint_unlock_count,
+        hint_cost_spent,
+    ) = (
+        await session.execute(
             select(
-                func.count(), func.coalesce(func.sum(HintUnlock.cost_paid), 0)
-            ).select_from(HintUnlock)
-        ),
-    )
-    version = await get_version_info(redis)
-    user_count: int = r_users.scalar_one()
-    team_count: int = r_teams.scalar_one()
-    challenge_count: int = r_challenges.scalar_one()
-    submission_count: int = r_subs.scalar_one()
-    correct_submission_count: int = r_correct.scalar_one()
-    hint_unlock_count, hint_cost_spent = r_hints.one()
+                _count_of(User),
+                _count_of(Team),
+                _count_of(Challenge),
+                _count_of(Submission),
+                _count_of(Submission, Submission.is_correct.is_(True)),
+                _count_of(HintUnlock),
+                select(func.coalesce(func.sum(HintUnlock.cost_paid), 0))
+                .select_from(HintUnlock)
+                .scalar_subquery(),
+            )
+        )
+    ).one()
 
     return Response(
         data=AdminStats(
@@ -78,6 +82,6 @@ async def admin_info(
             correct_submissions=correct_submission_count,
             hint_unlocks=hint_unlock_count,
             hint_cost_spent=hint_cost_spent,
-            version=version,
+            version=await get_version_info(redis),
         )
     )
