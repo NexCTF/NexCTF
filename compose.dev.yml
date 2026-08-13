@@ -49,7 +49,7 @@ services:
       $( [ -n '${REDIS_PASSWORD}' ] && echo '--requirepass ${REDIS_PASSWORD}' )"
 
   cap:
-    image: tiago2/cap:3.1.8@sha256:56d402dc15e536b4c20e341a81bb9e78a0082b833e4337b9b05b242d96e0ffe5
+    image: tiago2/cap:3.1.9@sha256:98fdaaf4ffe6bea18549484a431c601399f24dd561370e196970e6fc0e6b79d0
     restart: always
     ports:
       - "3000:3000"
