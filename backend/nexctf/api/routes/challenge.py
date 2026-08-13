@@ -9,7 +9,7 @@ from uuid import UUID
 from fastapi import APIRouter, Request
 from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import Response
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
@@ -289,6 +289,15 @@ async def submit_answer(
     if question is None:
         raise NotFoundError(detail="Question not found in this challenge")
 
+    team_id = user.team_id
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(:team_key, :question_key)"),
+        {
+            "team_key": team_id.int & 0x7FFFFFFF if team_id else 0,
+            "question_key": question_id.int & 0x7FFFFFFF,
+        },
+    )
+
     solved = await _solved_ids(session, user, [question_id])
     if question_id in solved:
         return Response(
@@ -313,7 +322,6 @@ async def submit_answer(
     wrong_count_before = len(wrong_rows.all())
 
     answer = obj.answer
-    team_id = user.team_id
     is_correct = False
     timed_out: list[SolutionTimeoutError] = []
     for sol in question.solutions:
