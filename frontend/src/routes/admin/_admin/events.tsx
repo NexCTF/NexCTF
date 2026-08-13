@@ -115,13 +115,14 @@ export const COLUMNS: Column<AdminEvent>[] = [
     cell: (e) => {
       const summary = formatMeta(e.meta).join(" · ");
       return summary ? (
-        <span className="block max-w-[28rem] truncate font-mono text-xs text-muted-foreground">
-          {summary}
-        </span>
+        <span className="block truncate font-mono text-xs text-muted-foreground">{summary}</span>
       ) : (
         <span className="text-muted-foreground">—</span>
       );
     },
+    // w-full + max-w-0 lets this column absorb the leftover width and ellipsis
+    // instead of widening the table.
+    className: "w-full max-w-0",
   },
 ];
 
@@ -147,7 +148,13 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function EventDetailsDialog({ event, onClose }: { event: AdminEvent | null; onClose: () => void }) {
+export function EventDetailsDialog({
+  event,
+  onClose,
+}: {
+  event: AdminEvent | null;
+  onClose: () => void;
+}) {
   const parts = event ? formatMeta(event.meta) : [];
   return (
     <Dialog open={!!event} onOpenChange={(o) => !o && onClose()}>

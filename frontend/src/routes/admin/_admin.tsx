@@ -238,7 +238,7 @@ function AdminLayout() {
       </aside>
 
       {/* Page content */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <Outlet />
       </div>
 

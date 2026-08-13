@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  type AdminEvent,
   type Link as ApiLink,
   adminCreatePasswordResetToken,
   adminResetUserTotp,
@@ -34,7 +35,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { cn, copyToClipboard } from "@/lib/utils";
-import { COLUMNS } from "@/routes/admin/_admin/events";
+import { COLUMNS, EventDetailsDialog } from "@/routes/admin/_admin/events";
 
 export const Route = createFileRoute("/admin/_admin/users_/$userId")({
   component: UserDetailPage,
@@ -288,6 +289,7 @@ function UserDetailPage() {
   }
 
   const eventsTable = useTableState();
+  const [selectedEvent, setSelectedEvent] = useState<AdminEvent | null>(null);
 
   const { data: user, isLoading } = useQuery({
     queryKey: ["admin", "user", userId],
@@ -547,7 +549,9 @@ function UserDetailPage() {
               isFetching={eventsFetching}
               rowKey={(e) => e.id}
               onRefresh={() => void refetchEvents()}
+              onRowClick={(e) => setSelectedEvent(e)}
             />
+            <EventDetailsDialog event={selectedEvent} onClose={() => setSelectedEvent(null)} />
           </DetailSection>
         </>
       )}
