@@ -109,7 +109,14 @@
     "submit": "Submit",
     "submitting": "Checking…",
     "submit_error": "Submission failed",
-    "writeup_title": "Writeup"
+    "writeup_title": "Writeup",
+    "feedback_title": "Feedback",
+    "feedback_placeholder": "Anything you liked or would improve? (optional)",
+    "feedback_rate": "Rate {{value}} out of 5",
+    "feedback_submit": "Send feedback",
+    "feedback_update": "Update feedback",
+    "feedback_saved": "Thanks for the feedback!",
+    "feedback_error": "Could not save your feedback"
   },
   "scoreboard": {
     "title": "Scoreboard",
@@ -174,7 +181,8 @@
       "submissions": "Submissions",
       "scheduler": "Scheduler",
       "custom_fields": "Custom Fields",
-      "back_to_site": "Back to site"
+      "back_to_site": "Back to site",
+      "feedback": "Feedback"
     },
     "users": {
       "detail_back": "Back to Users",
@@ -639,6 +647,15 @@
       "noun_category": "category",
       "noun_tag": "tag",
       "noun_bracket": "bracket"
+    },
+    "feedback": {
+      "col_challenge": "Challenge",
+      "col_team": "Team",
+      "col_rating": "Rating",
+      "col_comment": "Comment",
+      "col_date": "Date",
+      "dialog_title": "Challenge feedback",
+      "no_comment": "No comment left."
     }
   },
   "notifications": {
@@ -839,6 +856,10 @@
       "description": {
         "label": "CTF Description",
         "description": "Short description displayed on the home page"
+      },
+      "enable_challenge_feedback": {
+        "label": "Enable Challenge Feedback",
+        "description": "Let teams rate and comment on a challenge once they have solved every question"
       }
     },
     "scoring": {

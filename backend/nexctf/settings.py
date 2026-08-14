@@ -78,6 +78,12 @@ def _competition():
             description="config.ctf.allow_team_changes.description",
         ),
         ConfigDef(
+            key="ctf.enable_challenge_feedback",
+            label="config.ctf.enable_challenge_feedback.label",
+            default=True,
+            description="config.ctf.enable_challenge_feedback.description",
+        ),
+        ConfigDef(
             key="ctf.release_writeups_after_end",
             label="config.ctf.release_writeups_after_end.label",
             default=False,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import random
+from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, Request
@@ -13,6 +14,7 @@ from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
+from nexctf import crud
 from nexctf.api.dep import (
     ConfigDep,
     EventActiveDep,
@@ -25,8 +27,20 @@ from nexctf.api.dep import (
 )
 from nexctf.core import appconfig
 from nexctf.core.rate_limit import check_config_rate_limit
-from nexctf.exceptions import SequentialChallengeError, SolutionTimeoutError
-from nexctf.model import Challenge, HintUnlock, Question, Submission, User
+from nexctf.exceptions import (
+    ChallengeNotCompletedError,
+    FeedbackDisabledError,
+    SequentialChallengeError,
+    SolutionTimeoutError,
+)
+from nexctf.model import (
+    Challenge,
+    ChallengeFeedback,
+    HintUnlock,
+    Question,
+    Submission,
+    User,
+)
 from nexctf.module.challenge import get_detail_structure, get_list_structure
 from nexctf.module.challenge.compute import QuestionStructure, solution_load_option
 from nexctf.module.events import emit as emit_event
@@ -39,6 +53,7 @@ from nexctf.schema.challenge import (
     SubmitBody,
     SubmitResult,
 )
+from nexctf.schema.feedback import FeedbackBody, FeedbackUpsert, PublicFeedbackRead
 from nexctf.schema.file import PublicFileRead
 from nexctf.schema.hint import PublicHintRead
 from nexctf.schema.question import PublicQuestionRead
@@ -109,6 +124,28 @@ def _writeup_visible(*, challenge_completed: bool, overrides: dict[str, str]) ->
     return bool(
         appconfig.get_with_overrides("ctf.release_writeups_after_end", overrides)
     ) and is_config_dt_past("ctf.end_time", overrides)
+
+
+def _feedback_enabled(overrides: dict[str, str]) -> bool:
+    return bool(
+        appconfig.get_with_overrides("ctf.enable_challenge_feedback", overrides)
+    )
+
+
+async def _my_feedback(
+    session: SessionDep, user: User, challenge_id: UUID
+) -> PublicFeedbackRead | None:
+    """Return the caller's team feedback on *challenge_id*, if any."""
+    if user.team_id is None:
+        return None
+    feedback = await crud.ChallengeFeedbackCrud.first(
+        session=session,
+        filters=[
+            ChallengeFeedback.team_id == user.team_id,
+            ChallengeFeedback.challenge_id == challenge_id,
+        ],
+    )
+    return PublicFeedbackRead.model_validate(feedback) if feedback else None
 
 
 async def _unlocked_ids(
@@ -249,6 +286,14 @@ async def get_challenge(
         else None
     )
 
+    # The toggle itself is global, so it ships on /info; reading it here only
+    # skips the query when the feature is off.
+    my_feedback = (
+        await _my_feedback(session, user, structure.id)
+        if challenge_completed and user is not None and _feedback_enabled(overrides)
+        else None
+    )
+
     return Response(
         data=PublicChallengeDetail(
             id=structure.id,
@@ -262,6 +307,7 @@ async def get_challenge(
             sequential=structure.sequential,
             questions=question_reads,
             tags=list(structure.tags),
+            my_feedback=my_feedback,
         )
     )
 
@@ -511,3 +557,55 @@ async def unlock_hint(
             content=hint.content,
         )
     )
+
+
+@challenge_router.post("/{challenge_id}/feedback")
+async def submit_feedback(
+    request: Request,
+    session: SessionDep,
+    redis: RedisDep,
+    challenge_id: UUID,
+    obj: FeedbackBody,
+    overrides: ConfigDep,
+    user: RequireTeamDep,
+    _: EventStartedDep = None,
+) -> Response[PublicFeedbackRead]:
+    """Rate a challenge the caller's team has fully solved; re-posting edits it."""
+    _check_challenge_visibility(user, overrides)
+    if not _feedback_enabled(overrides):
+        raise FeedbackDisabledError()
+
+    challenge = await _get_active_challenge(session, challenge_id)
+    question_ids = [q.id for q in challenge.questions]
+    if not question_ids or len(await _solved_ids(session, user, question_ids)) < len(
+        question_ids
+    ):
+        raise ChallengeNotCompletedError()
+
+    # Teammates racing on uq_challenge_feedback settle in the database: the
+    # team owns a single row, and the latest write wins.
+    await crud.ChallengeFeedbackCrud.upsert(
+        session,
+        obj=FeedbackUpsert(
+            team_id=cast(UUID, user.team_id),  # RequireTeamDep guarantees a team
+            challenge_id=challenge_id,
+            rating=obj.rating,
+            comment=obj.comment,
+        ),
+        index_elements=["team_id", "challenge_id"],
+        set_=FeedbackBody(rating=obj.rating, comment=obj.comment),
+    )
+
+    await emit_event(
+        session,
+        redis,
+        event_type="challenge.feedback",
+        actor_id=user.id,
+        target_type="challenges",
+        target_id=challenge_id,
+        target_label=challenge.title,
+        ip=get_client_ip(request),
+        meta={"team_id": str(user.team_id), "rating": obj.rating},
+    )
+
+    return Response(data=PublicFeedbackRead(rating=obj.rating, comment=obj.comment))

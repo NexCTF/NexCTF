@@ -318,6 +318,24 @@ class SequentialChallengeError(ApiException):
     )
 
 
+class FeedbackDisabledError(ApiException):
+    api_error = ApiError(
+        code=403,
+        msg="Feedback disabled",
+        desc="Challenge feedback is currently disabled.",
+        err_code="FEEDBACK-403-DISABLED",
+    )
+
+
+class ChallengeNotCompletedError(ApiException):
+    api_error = ApiError(
+        code=403,
+        msg="Challenge not completed",
+        desc="Complete every question of this challenge before leaving feedback.",
+        err_code="FEEDBACK-403-INCOMPLETE",
+    )
+
+
 class ConfigValidationError(ApiException):
     api_error = ApiError(
         code=422,

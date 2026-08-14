@@ -12,6 +12,7 @@ import {
   FileText,
   Lightbulb,
   Lock,
+  Star,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -25,11 +26,13 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   apiErrorMessage,
   getChallenge,
+  getPublicInfo,
   type InputType,
   type PublicChallengeDetail,
   type PublicHint,
   type PublicQuestion,
   submitAnswer,
+  submitFeedback,
   unlockHint,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -75,7 +78,16 @@ function ChallengeView({ challenge }: { challenge: PublicChallengeDetail }) {
     challenge.question_count > 0
       ? Math.round((challenge.solved_count / challenge.question_count) * 100)
       : 0;
+  const completed =
+    challenge.question_count > 0 && challenge.solved_count === challenge.question_count;
   const pluginContext = useMemo(() => ({ challenge }), [challenge]);
+
+  const { data: publicInfo } = useQuery({
+    queryKey: ["info", "public"],
+    queryFn: getPublicInfo,
+    staleTime: 5 * 60 * 1000,
+  });
+  const feedbackEnabled = publicInfo?.competition.enable_challenge_feedback ?? false;
 
   const eventEnded = useEventEnded();
 
@@ -156,6 +168,72 @@ function ChallengeView({ challenge }: { challenge: PublicChallengeDetail }) {
           <Markdown className="text-sm">{challenge.writeup}</Markdown>
         </div>
       )}
+
+      {feedbackEnabled && completed && <FeedbackCard challenge={challenge} />}
+    </div>
+  );
+}
+
+function FeedbackCard({ challenge }: { challenge: PublicChallengeDetail }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const existing = challenge.my_feedback;
+  const [rating, setRating] = useState(existing?.rating ?? 0);
+  const [comment, setComment] = useState(existing?.comment ?? "");
+
+  const mutation = useMutation({
+    mutationFn: () => submitFeedback(challenge.id, { rating, comment: comment.trim() || null }),
+    onSuccess: (saved) => {
+      toast.success(t("challenge.feedback_saved"));
+      // Patch just this field; refetching the detail would reshuffle MCQ options.
+      queryClient.setQueryData<PublicChallengeDetail>(
+        ["challenge", challenge.id],
+        (old) => old && { ...old, my_feedback: saved },
+      );
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, t("challenge.feedback_error"))),
+  });
+
+  return (
+    <div className="rounded-xl border bg-card p-5 space-y-3">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        {t("challenge.feedback_title")}
+      </h2>
+
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map((value) => (
+          <button
+            key={value}
+            type="button"
+            aria-label={t("challenge.feedback_rate", { value })}
+            aria-pressed={rating === value}
+            onClick={() => setRating(value)}
+            className="rounded p-0.5 transition-colors hover:bg-muted"
+          >
+            <Star
+              className={`size-6 ${
+                value <= rating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"
+              }`}
+            />
+          </button>
+        ))}
+      </div>
+
+      <Textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder={t("challenge.feedback_placeholder")}
+        maxLength={2000}
+        rows={3}
+      />
+
+      <Button
+        onClick={() => mutation.mutate()}
+        disabled={rating === 0 || mutation.isPending}
+        className="w-full"
+      >
+        {existing ? t("challenge.feedback_update") : t("challenge.feedback_submit")}
+      </Button>
     </div>
   );
 }

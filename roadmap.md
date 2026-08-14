@@ -18,8 +18,10 @@
 ## 0.6.0
 - [x] Public team details
 
+## 0.7.0.
+- [x] Challenge feedback
+
 ## Before v1.0 release
-- [ ] Challenge feedback
 - [ ] Event import/export/sync
 - [ ] Plugins workflow
 - [ ] Documentation

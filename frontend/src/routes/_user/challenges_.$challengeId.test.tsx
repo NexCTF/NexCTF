@@ -2,9 +2,9 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, expect, it, vi } from "vitest";
-import { getChallenge, getPublicInfo, submitAnswer, unlockHint } from "@/lib/api";
+import { getChallenge, getPublicInfo, submitAnswer, submitFeedback, unlockHint } from "@/lib/api";
 import type { AuthContext } from "@/lib/auth";
-import { challengeDetail, publicInfo, question, user } from "@/test/fixtures";
+import { challengeDetail, publicInfo, publicInfoWith, question, user } from "@/test/fixtures";
 import { renderRoute } from "@/test/render";
 import { Route } from "./challenges_.$challengeId";
 
@@ -13,6 +13,7 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   getPublicInfo: vi.fn(),
   getChallenge: vi.fn(),
   submitAnswer: vi.fn(),
+  submitFeedback: vi.fn(),
   unlockHint: vi.fn(),
 }));
 
@@ -171,6 +172,96 @@ it("unlocks a free hint without confirmation and shows its content once unlocked
 
   expect(await screen.findByText("Try base64")).toBeDefined();
   expect(screen.queryByRole("button", { name: "Unlock" })).toBeNull();
+});
+
+const COMPLETED = { question_count: 1, solved_count: 1 };
+const FEEDBACK_ON = publicInfoWith({ enable_challenge_feedback: true });
+
+it("hides the feedback card while the challenge is unfinished", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(FEEDBACK_ON);
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({ question_count: 2, solved_count: 1 }),
+  );
+  renderChallenge();
+
+  expect(await screen.findByRole("heading", { name: "Baby RSA" })).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Send feedback" })).toBeNull();
+});
+
+it("hides the feedback card when the feature is disabled", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(challengeDetail(COMPLETED));
+  renderChallenge();
+
+  expect(await screen.findByRole("heading", { name: "Baby RSA" })).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Send feedback" })).toBeNull();
+});
+
+it("sends a rating and comment once the challenge is completed", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(FEEDBACK_ON);
+  vi.mocked(getChallenge).mockResolvedValue(challengeDetail(COMPLETED));
+  vi.mocked(submitFeedback).mockResolvedValue({ rating: 4, comment: "Loved it" });
+  renderChallenge();
+
+  const submit = await screen.findByRole("button", { name: "Send feedback" });
+  expect(submit).toHaveProperty("disabled", true);
+
+  await userEvent.click(screen.getByRole("button", { name: "Rate 4 out of 5" }));
+  await userEvent.type(
+    screen.getByPlaceholderText("Anything you liked or would improve? (optional)"),
+    "Loved it",
+  );
+  await userEvent.click(submit);
+
+  await waitFor(() =>
+    expect(submitFeedback).toHaveBeenCalledWith("c1", { rating: 4, comment: "Loved it" }),
+  );
+  expect(toast.success).toHaveBeenCalledWith("Thanks for the feedback!");
+  // onSuccess patches the cache, so the card flips to edit mode without a refetch.
+  expect(await screen.findByRole("button", { name: "Update feedback" })).toBeDefined();
+  expect(getChallenge).toHaveBeenCalledTimes(1);
+});
+
+it("sends a null comment when the box is left empty", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(FEEDBACK_ON);
+  vi.mocked(getChallenge).mockResolvedValue(challengeDetail(COMPLETED));
+  vi.mocked(submitFeedback).mockResolvedValue({ rating: 5, comment: null });
+  renderChallenge();
+
+  await userEvent.click(await screen.findByRole("button", { name: "Rate 5 out of 5" }));
+  await userEvent.click(screen.getByRole("button", { name: "Send feedback" }));
+
+  await waitFor(() =>
+    expect(submitFeedback).toHaveBeenCalledWith("c1", { rating: 5, comment: null }),
+  );
+});
+
+it("prefills the card from the team's existing feedback", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(FEEDBACK_ON);
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({ ...COMPLETED, my_feedback: { rating: 2, comment: "Too guessy" } }),
+  );
+  renderChallenge();
+
+  expect(await screen.findByRole("button", { name: "Update feedback" })).toBeDefined();
+  expect(
+    screen.getByPlaceholderText("Anything you liked or would improve? (optional)"),
+  ).toHaveProperty("value", "Too guessy");
+  expect(screen.getByRole("button", { name: "Rate 2 out of 5" })).toHaveProperty(
+    "ariaPressed",
+    "true",
+  );
+});
+
+it("surfaces a failed feedback save", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(FEEDBACK_ON);
+  vi.mocked(getChallenge).mockResolvedValue(challengeDetail(COMPLETED));
+  vi.mocked(submitFeedback).mockRejectedValue(new Error("nope"));
+  renderChallenge();
+
+  await userEvent.click(await screen.findByRole("button", { name: "Rate 3 out of 5" }));
+  await userEvent.click(screen.getByRole("button", { name: "Send feedback" }));
+
+  await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Could not save your feedback"));
 });
 
 it("sends an anonymous visitor to the login page", async () => {

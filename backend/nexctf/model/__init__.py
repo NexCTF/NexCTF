@@ -8,6 +8,7 @@ from .custom_field import (
     CustomFieldValue,
 )
 from .event import Event
+from .feedback import ChallengeFeedback
 from .file import File
 from .hint_unlock import HintUnlock
 from .link import Link
@@ -24,6 +25,7 @@ from .user import Team, User, UserRole, UserToken
 __all__ = [
     "Base",
     "Challenge",
+    "ChallengeFeedback",
     "ConfigEntry",
     "CustomFieldDefinition",
     "CustomFieldTarget",

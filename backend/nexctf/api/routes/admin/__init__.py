@@ -10,6 +10,7 @@ from .config import config_router
 from .custom_field import custom_field_router, custom_field_value_router
 from .email import email_router
 from .event import event_router
+from .feedback import feedback_router
 from .file import file_router
 from .hint import hint_router
 from .link import link_router
@@ -53,6 +54,7 @@ admin_router.include_router(
 )
 admin_router.include_router(router=email_router)
 admin_router.include_router(router=event_router)
+admin_router.include_router(router=feedback_router)
 admin_router.include_router(router=file_router, dependencies=_invalidate_challenges)
 admin_router.include_router(router=hint_router, dependencies=_invalidate_challenges)
 admin_router.include_router(router=link_router, dependencies=_invalidate_info)

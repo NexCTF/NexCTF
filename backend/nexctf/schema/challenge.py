@@ -2,6 +2,7 @@ from uuid import UUID
 
 from fastapi_toolsets.schemas import PydanticBase
 
+from nexctf.schema.feedback import PublicFeedbackRead
 from nexctf.schema.question import PublicQuestionRead
 from nexctf.util.pydantic import Label, Labels
 
@@ -58,6 +59,7 @@ class PublicChallengeDetail(PublicChallengeRead):
     writeup: str | None = None
     sequential: bool
     questions: list[PublicQuestionRead]
+    my_feedback: PublicFeedbackRead | None = None
 
 
 class AdminChallengeTypeInfo(PydanticBase):
