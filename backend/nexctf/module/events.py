@@ -37,6 +37,7 @@ EVENT_CATEGORIES: dict[str, str] = {
     "solution.timeout": "security",
     "hint.unlock": "gameplay",
     "challenge.complete": "gameplay",
+    "challenge.feedback": "gameplay",
     "score_adjustment.created": "admin",
     "score_adjustment.deleted": "admin",
     "admin.user_updated": "admin",

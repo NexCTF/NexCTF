@@ -22,6 +22,7 @@ class CompetitionInfo(PydanticBase):
     # deserializes during a rolling deploy instead of 500-ing the landing page.
     require_email: bool = False
     allow_team_changes: bool = True
+    enable_challenge_feedback: bool = True
     team_size: int
 
 

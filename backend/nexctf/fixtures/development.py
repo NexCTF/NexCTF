@@ -5,6 +5,7 @@ from fastapi_toolsets.fixtures import FixtureRegistry
 from fastapi_toolsets.fixtures.enum import Context
 
 from nexctf.model import (
+    ChallengeFeedback,
     CustomFieldDefinition,
     CustomFieldTarget,
     CustomFieldType,
@@ -975,6 +976,48 @@ def hint_unlock() -> list[HintUnlock]:
             hint_id=_hid("Shift amount"),
             cost_paid=10,
             created_at=_t(310),
+        ),
+    ]
+
+
+@fixtures.register(depends_on=["team", "challenge"])
+def challenge_feedback() -> list[ChallengeFeedback]:
+    """Feedback from teams that completed every question of the challenge."""
+
+    def _cid(title: str) -> UUID:
+        return fixtures.field("challenge", "title", title)
+
+    return [
+        ChallengeFeedback(
+            id=UUID("f3000000-0000-4000-8000-000000000001"),
+            team_id=_TEAM1_ID,
+            challenge_id=_cid("Caesar Cipher"),
+            rating=4,
+            comment="Nice warmup, the second question was a bit guessy though.",
+            created_at=_t(320),
+        ),
+        ChallengeFeedback(
+            id=UUID("f3000000-0000-4000-8000-000000000002"),
+            team_id=_TEAM2_ID,
+            challenge_id=_cid("Caesar Cipher"),
+            rating=2,
+            comment="Way too easy for the point value.",
+            created_at=_t(280),
+        ),
+        ChallengeFeedback(
+            id=UUID("f3000000-0000-4000-8000-000000000003"),
+            team_id=_TEAM2_ID,
+            challenge_id=_cid("Web Basics"),
+            rating=5,
+            comment="Great intro challenge, clear description and good hints.",
+            created_at=_t(200),
+        ),
+        ChallengeFeedback(
+            id=UUID("f3000000-0000-4000-8000-000000000004"),
+            team_id=_TEAM2_ID,
+            challenge_id=_cid("OSINT Starter"),
+            rating=3,
+            created_at=_t(400),
         ),
     ]
 

@@ -3,6 +3,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from nexctf.model import (
     Challenge,
+    ChallengeFeedback,
     CustomFieldDefinition,
     CustomFieldValue,
     CustomPage,
@@ -225,6 +226,30 @@ class SubmissionCrud(AsyncCrud[Submission]):
     default_load_options = [
         joinedload(Submission.team),
         joinedload(Submission.question).joinedload(Question.challenge),
+    ]
+
+
+class ChallengeFeedbackCrud(AsyncCrud[ChallengeFeedback]):
+    model = ChallengeFeedback
+    cursor_column = ChallengeFeedback.created_at
+    searchable_fields = [
+        ChallengeFeedback.comment,
+        (ChallengeFeedback.team, Team.name),
+        (ChallengeFeedback.challenge, Challenge.title),
+    ]
+    facet_fields = [
+        ChallengeFeedback.rating,
+        (ChallengeFeedback.team, Team.name),
+        (ChallengeFeedback.challenge, Challenge.title),
+    ]
+    order_fields = [
+        ChallengeFeedback.rating,
+        (ChallengeFeedback.team, Team.name),
+        (ChallengeFeedback.challenge, Challenge.title),
+    ]
+    default_load_options = [
+        joinedload(ChallengeFeedback.team),
+        joinedload(ChallengeFeedback.challenge),
     ]
 
 

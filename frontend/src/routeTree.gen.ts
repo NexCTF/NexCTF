@@ -29,6 +29,7 @@ import { Route as AdminAdminIndexRouteImport } from './routes/admin/_admin/index
 import { Route as AdminAdminChallengesRouteImport } from './routes/admin/_admin/challenges'
 import { Route as AdminAdminCustomFieldsRouteImport } from './routes/admin/_admin/custom-fields'
 import { Route as AdminAdminEventsRouteImport } from './routes/admin/_admin/events'
+import { Route as AdminAdminFeedbackRouteImport } from './routes/admin/_admin/feedback'
 import { Route as AdminAdminFilesRouteImport } from './routes/admin/_admin/files'
 import { Route as AdminAdminLinksRouteImport } from './routes/admin/_admin/links'
 import { Route as AdminAdminNotificationsRouteImport } from './routes/admin/_admin/notifications'
@@ -147,6 +148,11 @@ const AdminAdminCustomFieldsRoute = AdminAdminCustomFieldsRouteImport.update({
 const AdminAdminEventsRoute = AdminAdminEventsRouteImport.update({
   id: '/events',
   path: '/events',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
+const AdminAdminFeedbackRoute = AdminAdminFeedbackRouteImport.update({
+  id: '/feedback',
+  path: '/feedback',
   getParentRoute: () => AdminAdminRoute,
 } as any)
 const AdminAdminFilesRoute = AdminAdminFilesRouteImport.update({
@@ -268,6 +274,7 @@ export interface FileRoutesByFullPath {
   '/admin/challenges': typeof AdminAdminChallengesRoute
   '/admin/custom-fields': typeof AdminAdminCustomFieldsRoute
   '/admin/events': typeof AdminAdminEventsRoute
+  '/admin/feedback': typeof AdminAdminFeedbackRoute
   '/admin/files': typeof AdminAdminFilesRoute
   '/admin/links': typeof AdminAdminLinksRoute
   '/admin/notifications': typeof AdminAdminNotificationsRoute
@@ -307,6 +314,7 @@ export interface FileRoutesByTo {
   '/admin/challenges': typeof AdminAdminChallengesRoute
   '/admin/custom-fields': typeof AdminAdminCustomFieldsRoute
   '/admin/events': typeof AdminAdminEventsRoute
+  '/admin/feedback': typeof AdminAdminFeedbackRoute
   '/admin/files': typeof AdminAdminFilesRoute
   '/admin/links': typeof AdminAdminLinksRoute
   '/admin/notifications': typeof AdminAdminNotificationsRoute
@@ -349,6 +357,7 @@ export interface FileRoutesById {
   '/admin/_admin/challenges': typeof AdminAdminChallengesRoute
   '/admin/_admin/custom-fields': typeof AdminAdminCustomFieldsRoute
   '/admin/_admin/events': typeof AdminAdminEventsRoute
+  '/admin/_admin/feedback': typeof AdminAdminFeedbackRoute
   '/admin/_admin/files': typeof AdminAdminFilesRoute
   '/admin/_admin/links': typeof AdminAdminLinksRoute
   '/admin/_admin/notifications': typeof AdminAdminNotificationsRoute
@@ -391,6 +400,7 @@ export interface FileRouteTypes {
     | '/admin/challenges'
     | '/admin/custom-fields'
     | '/admin/events'
+    | '/admin/feedback'
     | '/admin/files'
     | '/admin/links'
     | '/admin/notifications'
@@ -430,6 +440,7 @@ export interface FileRouteTypes {
     | '/admin/challenges'
     | '/admin/custom-fields'
     | '/admin/events'
+    | '/admin/feedback'
     | '/admin/files'
     | '/admin/links'
     | '/admin/notifications'
@@ -471,6 +482,7 @@ export interface FileRouteTypes {
     | '/admin/_admin/challenges'
     | '/admin/_admin/custom-fields'
     | '/admin/_admin/events'
+    | '/admin/_admin/feedback'
     | '/admin/_admin/files'
     | '/admin/_admin/links'
     | '/admin/_admin/notifications'
@@ -646,6 +658,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAdminEventsRouteImport
       parentRoute: typeof AdminAdminRoute
     }
+    '/admin/_admin/feedback': {
+      id: '/admin/_admin/feedback'
+      path: '/feedback'
+      fullPath: '/admin/feedback'
+      preLoaderRoute: typeof AdminAdminFeedbackRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
     '/admin/_admin/files': {
       id: '/admin/_admin/files'
       path: '/files'
@@ -810,6 +829,7 @@ interface AdminAdminRouteChildren {
   AdminAdminChallengesRoute: typeof AdminAdminChallengesRoute
   AdminAdminCustomFieldsRoute: typeof AdminAdminCustomFieldsRoute
   AdminAdminEventsRoute: typeof AdminAdminEventsRoute
+  AdminAdminFeedbackRoute: typeof AdminAdminFeedbackRoute
   AdminAdminFilesRoute: typeof AdminAdminFilesRoute
   AdminAdminLinksRoute: typeof AdminAdminLinksRoute
   AdminAdminNotificationsRoute: typeof AdminAdminNotificationsRoute
@@ -836,6 +856,7 @@ const AdminAdminRouteChildren: AdminAdminRouteChildren = {
   AdminAdminChallengesRoute: AdminAdminChallengesRoute,
   AdminAdminCustomFieldsRoute: AdminAdminCustomFieldsRoute,
   AdminAdminEventsRoute: AdminAdminEventsRoute,
+  AdminAdminFeedbackRoute: AdminAdminFeedbackRoute,
   AdminAdminFilesRoute: AdminAdminFilesRoute,
   AdminAdminLinksRoute: AdminAdminLinksRoute,
   AdminAdminNotificationsRoute: AdminAdminNotificationsRoute,

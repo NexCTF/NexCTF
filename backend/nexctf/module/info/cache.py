@@ -53,6 +53,7 @@ async def _compute(session: AsyncSession, redis: Redis) -> PublicInfo:
         allow_team_creation=get_bool("ctf.allow_team_creation"),
         require_email=get_bool("email.enabled"),
         allow_team_changes=get_bool("ctf.allow_team_changes"),
+        enable_challenge_feedback=get_bool("ctf.enable_challenge_feedback"),
         team_size=int(appconfig.get_with_overrides("ctf.team_size", overrides)),
     )
 

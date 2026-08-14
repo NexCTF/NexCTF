@@ -109,7 +109,14 @@
     "submit": "Soumettre",
     "submitting": "Vérification…",
     "submit_error": "Échec de la soumission",
-    "writeup_title": "Writeup"
+    "writeup_title": "Writeup",
+    "feedback_title": "Votre retour",
+    "feedback_placeholder": "Ce qui vous a plu ou ce qui pourrait être amélioré ? (facultatif)",
+    "feedback_rate": "Noter {{value}} sur 5",
+    "feedback_submit": "Envoyer le retour",
+    "feedback_update": "Mettre à jour le retour",
+    "feedback_saved": "Merci pour votre retour !",
+    "feedback_error": "Impossible d'enregistrer votre retour"
   },
   "scoreboard": {
     "title": "Classement",
@@ -174,7 +181,8 @@
       "settings": "Paramètres",
       "submissions": "Soumissions",
       "custom_fields": "Champs personnalisés",
-      "back_to_site": "Retour au site"
+      "back_to_site": "Retour au site",
+      "feedback": "Retours"
     },
     "users": {
       "detail_back": "Retour aux utilisateurs",
@@ -639,6 +647,15 @@
       "noun_category": "catégorie",
       "noun_tag": "tag",
       "noun_bracket": "catégorie"
+    },
+    "feedback": {
+      "col_challenge": "Challenge",
+      "col_team": "Équipe",
+      "col_rating": "Note",
+      "col_comment": "Commentaire",
+      "col_date": "Date",
+      "dialog_title": "Retour sur le challenge",
+      "no_comment": "Aucun commentaire laissé."
     }
   },
   "notifications": {
@@ -839,6 +856,10 @@
       "description": {
         "label": "Description du CTF",
         "description": "Courte description affichée sur la page d'accueil"
+      },
+      "enable_challenge_feedback": {
+        "label": "Activer les retours sur les challenges",
+        "description": "Permettre aux équipes de noter et commenter un challenge une fois toutes les questions résolues"
       }
     },
     "scoring": {

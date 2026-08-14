@@ -218,6 +218,7 @@ export interface CompetitionInfo {
   allow_team_creation: boolean;
   require_email: boolean;
   allow_team_changes: boolean;
+  enable_challenge_feedback: boolean;
   team_size: number;
 }
 
@@ -654,6 +655,23 @@ export async function getAdminTeamDetail(teamId: string): Promise<TeamDetail> {
   return request<TeamDetail>(`/admin/team/${teamId}/detail`);
 }
 
+export interface AdminFeedback {
+  id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  team_id: string;
+  challenge_id: string;
+  team_name: string | null;
+  challenge_title: string | null;
+}
+
+export async function getAdminFeedbacks(
+  queryString: string,
+): Promise<PaginatedResponse<AdminFeedback>> {
+  return requestPaginated<AdminFeedback>(`/admin/feedback?${queryString}`);
+}
+
 export async function getAdminSubmissions(
   queryString: string,
 ): Promise<PaginatedResponse<AdminSubmission>> {
@@ -793,12 +811,18 @@ export interface PublicChallenge {
   tags: string[];
 }
 
+export interface PublicFeedback {
+  rating: number;
+  comment: string | null;
+}
+
 export interface PublicChallengeDetail extends PublicChallenge {
   challenge_type: string;
   description: string | null;
   writeup: string | null;
   sequential: boolean;
   questions: PublicQuestion[];
+  my_feedback: PublicFeedback | null;
 }
 
 export interface SubmitResult {
@@ -824,6 +848,16 @@ export async function submitAnswer(
   return request<SubmitResult>(`/challenges/${challengeId}/${questionId}/submit`, {
     method: "POST",
     body: JSON.stringify({ answer }),
+  });
+}
+
+export async function submitFeedback(
+  challengeId: string,
+  data: { rating: number; comment: string | null },
+): Promise<PublicFeedback> {
+  return request<PublicFeedback>(`/challenges/${challengeId}/feedback`, {
+    method: "POST",
+    body: JSON.stringify(data),
   });
 }
 

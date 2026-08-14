@@ -23,6 +23,7 @@ export function publicInfo(overrides: Partial<PublicInfo> = {}): PublicInfo {
       allow_team_creation: true,
       require_email: false,
       allow_team_changes: true,
+      enable_challenge_feedback: false,
       team_size: 4,
     },
     oauth_providers: [],
@@ -115,6 +116,7 @@ export function challengeDetail(
     sequential: false,
     question_count: 1,
     questions: [question()],
+    my_feedback: null,
     ...overrides,
   };
 }
