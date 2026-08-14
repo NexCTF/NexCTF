@@ -54,6 +54,7 @@ The app is available at **https://localhost:8443** (`admin`/`admin` by default).
 - Per-question points and wrong-answer penalties
 - Manual score adjustments (bonuses/penalties) with reason tracking
 - Challenge writeups
+- Challenge feedback
 - Live scoreboard with caching and SSE, freezable at a configurable time
 - Brackets — separate standings for sub-groups (students, pros, …)
 - First-blood tracking per question
