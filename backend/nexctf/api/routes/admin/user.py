@@ -2,26 +2,31 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
-from fastapi_toolsets.exceptions import NotFoundError
+from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from nexctf import crud
 from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
 from nexctf.api.security import (
     PWD_RESET_KEY_PREFIX,
     PWD_RESET_TTL,
+    hash_password,
     issue_single_use_token,
 )
 from nexctf.model import CustomFieldValue, User
 from nexctf.model.event import Event
+from nexctf.module.custom_field import create_custom_field_values
 from nexctf.module.events import emit
 from nexctf.schema.custom_field import AdminCustomFieldValueRead
 from nexctf.schema.event import AdminEventRead
 from nexctf.schema.user import (
+    AdminUserCreate,
     AdminUserDetailRead,
     AdminUserUpdate,
     PublicUserRead,
+    UserCreate,
     UserEmailVerifiedUpdate,
     UserTotpUpdate,
 )
@@ -40,6 +45,48 @@ async def get_users(
         **params,
         schema=PublicUserRead,
     )
+
+
+@user_router.post("", status_code=201)
+async def create_user(
+    request: Request,
+    session: SessionDep,
+    redis: RedisDep,
+    obj: AdminUserCreate,
+    admin: CurrentUserDep,
+) -> Response[PublicUserRead]:
+    """Create a user directly, bypassing registration gating and email verification."""
+    try:
+        result = await crud.UserCrud.create(
+            session=session,
+            obj=UserCreate(
+                username=obj.username,
+                email=obj.email,
+                hashed_password=hash_password(obj.password),
+                email_verified=True,
+                role=obj.role,
+                team_id=obj.team_id,
+            ),
+            schema=PublicUserRead,
+        )
+    except IntegrityError:
+        raise ConflictError(detail="Username or email already taken")
+    if result.data is not None:
+        await create_custom_field_values(
+            session, obj.custom_fields, user_id=result.data.id
+        )
+        await emit(
+            session,
+            redis,
+            event_type="admin.user_created",
+            actor_id=admin.id,
+            ip=get_client_ip(request),
+            meta={
+                "target_user_id": str(result.data.id),
+                "target_username": result.data.username,
+            },
+        )
+    return result
 
 
 @user_router.get("/{uuid}")

@@ -141,6 +141,8 @@ export interface Link {
   url: string;
 }
 
+export const USER_ROLES = ["user", "moderator", "admin"] as const;
+
 export interface User {
   id: string;
   username: string;
@@ -467,6 +469,20 @@ export async function getAdminUsers(queryString: string): Promise<PaginatedRespo
   return requestPaginated<User>(`/admin/user?${queryString}`);
 }
 
+export async function createAdminUser(data: {
+  username: string;
+  password: string;
+  email?: string | null;
+  role?: string;
+  team_id?: string | null;
+  custom_fields?: Record<string, string | null>;
+}): Promise<User> {
+  return request<User>("/admin/user", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export interface CustomFieldDefinition {
   id: string;
   name: string;
@@ -621,6 +637,18 @@ export interface AdminTeamMember {
 export interface TeamDetail extends Team {
   users: AdminTeamMember[];
   custom_field_values: CustomFieldValue[];
+}
+
+export async function createAdminTeam(data: {
+  name: string;
+  country?: string | null;
+  bracket?: string | null;
+  custom_fields?: Record<string, string | null>;
+}): Promise<Team> {
+  return request<Team>("/admin/team", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
 
 export async function updateAdminTeam(

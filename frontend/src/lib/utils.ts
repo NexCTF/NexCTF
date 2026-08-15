@@ -27,6 +27,14 @@ export function copyToClipboard(text: string): void {
   }
 }
 
+const PASSWORD_ALPHABET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*?";
+
+/** Generate a random password from a CSPRNG, ambiguous characters excluded. */
+export function generatePassword(length = 16): string {
+  const bytes = crypto.getRandomValues(new Uint32Array(length));
+  return Array.from(bytes, (b) => PASSWORD_ALPHABET[b % PASSWORD_ALPHABET.length]).join("");
+}
+
 /** Lowercase and collapse whitespace — mirrors the server's normalise_label. */
 export function normaliseLabel(raw: string): string {
   return raw.trim().replace(/\s+/g, " ").toLowerCase();

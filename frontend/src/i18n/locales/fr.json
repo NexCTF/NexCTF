@@ -13,7 +13,9 @@
     "delete": "Supprimer",
     "edit": "Modifier",
     "copy": "Copier",
-    "close": "Fermer"
+    "close": "Fermer",
+    "create": "Créer",
+    "creating": "Création..."
   },
   "login": {
     "title": "NexCTF",
@@ -224,7 +226,13 @@
       "pwd_reset_error": "Échec de la génération du token",
       "pwd_reset_copied": "Token copié dans le presse-papiers",
       "pwd_reset_dialog_title": "Token de réinitialisation du mot de passe",
-      "pwd_reset_dialog_desc": "Partagez ce token à usage unique avec l'utilisateur. Il expire dans 1 heure."
+      "pwd_reset_dialog_desc": "Partagez ce token à usage unique avec l'utilisateur. Il expire dans 1 heure.",
+      "create": "Nouvel utilisateur",
+      "created": "Utilisateur créé",
+      "create_error": "Échec de la création de l'utilisateur",
+      "field_password": "Mot de passe",
+      "password_hint": "Copiez-le avant de créer : il ne sera plus affiché.",
+      "regenerate_password": "Régénérer le mot de passe"
     },
     "dashboard": {
       "stat_users": "Utilisateurs",
@@ -385,7 +393,10 @@
       "info_save_error": "Échec de l'enregistrement des infos équipe",
       "edit_info_title": "Modifier l'équipe",
       "country_hint": "Code ISO 3166-1 alpha-2 (ex: FR, US)",
-      "bracket_hint": "Regroupe cette équipe dans un sous-classement (ex: étudiant, pro). Laisser vide pour aucun."
+      "bracket_hint": "Regroupe cette équipe dans un sous-classement (ex: étudiant, pro). Laisser vide pour aucun.",
+      "create": "Nouvelle équipe",
+      "created": "Équipe créée",
+      "create_error": "Échec de la création de l'équipe"
     },
     "custom_fields": {
       "title": "Champs personnalisés",

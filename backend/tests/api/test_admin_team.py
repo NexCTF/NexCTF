@@ -48,6 +48,38 @@ class TestCreateTeam(CreateGuardMixin):
         assert data["name"] == "alpha"
         assert "id" in data
 
+    async def test_create_duplicate_name(
+        self, admin_client: tuple[AsyncClient, User]
+    ) -> None:
+        c, _ = admin_client
+        assert (await c.post(self.PREFIX, json={"name": "dup"})).status_code == 200
+        resp = await c.post(self.PREFIX, json={"name": "dup"})
+        assert resp.status_code == 409
+
+    async def test_create_with_custom_fields(
+        self, admin_client: tuple[AsyncClient, User]
+    ) -> None:
+        """Values sent on create land in the same transaction as the team."""
+        c, _ = admin_client
+        dresp = await c.post(
+            "/admin/custom-field",
+            json={"name": "school", "label": "School", "target": "team"},
+        )
+        assert dresp.status_code == 200
+        definition_id = dresp.json()["data"]["id"]
+
+        resp = await c.post(
+            self.PREFIX,
+            json={"name": "cf-team", "custom_fields": {definition_id: "MIT"}},
+        )
+        assert resp.status_code == 200
+
+        detail = await c.get(f"{self.PREFIX}/{resp.json()['data']['id']}/detail")
+        values = detail.json()["data"]["custom_field_values"]
+        assert [(v["definition"]["id"], v["value"]) for v in values] == [
+            (definition_id, "MIT")
+        ]
+
     async def test_create_missing_name(
         self, admin_client: tuple[AsyncClient, User]
     ) -> None:

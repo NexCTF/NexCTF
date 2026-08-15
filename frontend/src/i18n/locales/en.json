@@ -13,7 +13,9 @@
     "delete": "Delete",
     "edit": "Edit",
     "copy": "Copy",
-    "close": "Close"
+    "close": "Close",
+    "create": "Create",
+    "creating": "Creating..."
   },
   "login": {
     "title": "NexCTF",
@@ -224,7 +226,13 @@
       "pwd_reset_error": "Failed to generate reset token",
       "pwd_reset_copied": "Token copied to clipboard",
       "pwd_reset_dialog_title": "Password Reset Token",
-      "pwd_reset_dialog_desc": "Share this single-use token with the user. It expires in 1 hour."
+      "pwd_reset_dialog_desc": "Share this single-use token with the user. It expires in 1 hour.",
+      "create": "New user",
+      "created": "User created",
+      "create_error": "Failed to create user",
+      "field_password": "Password",
+      "password_hint": "Copy it before creating: it is not shown again.",
+      "regenerate_password": "Regenerate password"
     },
     "dashboard": {
       "stat_users": "Users",
@@ -385,7 +393,10 @@
       "info_save_error": "Failed to save team info",
       "edit_info_title": "Edit Team",
       "country_hint": "ISO 3166-1 alpha-2 code (e.g. FR, US)",
-      "bracket_hint": "Groups this team into a sub-scoreboard (e.g. student, pro). Leave empty for none."
+      "bracket_hint": "Groups this team into a sub-scoreboard (e.g. student, pro). Leave empty for none.",
+      "create": "New team",
+      "created": "Team created",
+      "create_error": "Failed to create team"
     },
     "custom_fields": {
       "title": "Custom Fields",
