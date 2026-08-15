@@ -1179,7 +1179,7 @@ function QuestionCard({
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 {t("admin.challenge.solution.section_title", {
-                  count: solutions.length,
+                  n: solutions.length,
                 })}
               </span>
               <AddSolutionDialog
@@ -1244,7 +1244,7 @@ function QuestionCard({
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 {t("admin.challenge.hint.section_title", {
-                  count: hints.length,
+                  n: hints.length,
                 })}
               </span>
               <AddHintDialog
@@ -1294,7 +1294,7 @@ function QuestionCard({
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 {t("admin.challenge.file.section_title", {
-                  count: question.files.length,
+                  n: question.files.length,
                 })}
               </span>
               <ManageFilesDialog question={question} onSaved={onUpdated} />
@@ -1375,7 +1375,7 @@ function QuestionsSection({ challengeId }: { challengeId: string }) {
   return (
     <DetailSection
       title={t("admin.challenge.question.section_title", {
-        count: questions.length,
+        n: questions.length,
       })}
       actions={
         <AddQuestionDialog

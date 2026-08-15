@@ -73,11 +73,18 @@ tasks:
       - bunx vitest run {{.CLI_ARGS}}
     dir: frontend
 
+  dev:frontend:i18n:
+    desc: "Extract translation keys from the source into the locale catalogs"
+    cmds:
+      - bunx i18next
+    dir: frontend
+
   dev:frontend:check:
-    desc: "Run tsc + biome (check-only)"
+    desc: "Run tsc + biome + i18n key sync (check-only)"
     cmds:
       - bunx tsc -b
       - bunx biome check .
+      - bunx i18next --silent --fail-on-update
     dir: frontend
 
   dev:frontend:fix:
