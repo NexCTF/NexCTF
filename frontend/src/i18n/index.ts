@@ -14,6 +14,9 @@ i18n
       fr: { translation: fr },
     },
     fallbackLng: "en",
+    // Untranslated keys are generated as "" so they stand out in the catalog;
+    // without this they would render blank instead of falling back to English.
+    returnEmptyString: false,
     interpolation: {
       escapeValue: false,
     },

@@ -388,7 +388,7 @@ function TeamDetailPage() {
 
             <DetailSection
               title={t("admin.teams.members_title", {
-                count: team.users.length,
+                n: team.users.length,
               })}
             >
               {team.users.length === 0 ? (
