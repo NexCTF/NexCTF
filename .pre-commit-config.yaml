@@ -22,9 +22,9 @@ repos:
         pass_filenames: false
 
       - id: frontend-check
-        name: frontend check (tsc + biome)
+        name: frontend check (tsc + biome + i18n)
         entry: task dev:frontend:check
         language: system
-        files: ^frontend/.*\.(ts|tsx|js|jsx|json)$
+        files: ^frontend/.*\.(ts|tsx|js|jsx|mjs|cjs|json)$
         exclude: ^frontend/node_modules/
         pass_filenames: false
