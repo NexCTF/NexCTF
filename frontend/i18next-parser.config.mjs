@@ -4,9 +4,16 @@ export default {
   output: "src/i18n/locales/$LOCALE.json",
   defaultNamespace: "translation",
   nsSeparator: false,
-  // Runtime-built keys (admin nav, oauth scopes, question input types, config labels)
-  // are invisible to the parser; without this it would delete them.
-  keepRemoved: true,
+  // Keys built at runtime are invisible to the parser. Only these families are kept
+  // when they no longer appear in the source; everything else is deleted as dead.
+  // Add a pattern here when you introduce a new runtime-built key.
+  // Patterns are matched against the namespace-prefixed key ("translation:admin.nav.plugins").
+  keepRemoved: [
+    /(^|:)admin\.nav(\.|$)/, // routes/admin/_admin.tsx — NAV_SECTIONS heading/label
+    /(^|:)admin\.challenge\.question\.input_type_/, // challenges_.$challengeId.tsx — INPUT_TYPES
+    /(^|:)oauth_consent\.scope(\.|$)/, // routes/oauth.consent.tsx — scopes from the backend
+    /(^|:)config(\.|$)/, // routes/admin/_admin/settings.tsx — labels declared in backend/nexctf/settings.py
+  ],
   sort: true,
   createOldCatalogs: false,
   indentation: 2,

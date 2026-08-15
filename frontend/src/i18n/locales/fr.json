@@ -4,7 +4,6 @@
       "active_hint": "Visible par les joueurs",
       "active_label": "Actif",
       "back_breadcrumb": "Challenges",
-      "back_to_challenges": "← Retour aux challenges",
       "delete_btn": "Supprimer",
       "delete_confirm": "Supprimer le challenge \"{{title}}\" ? Toutes les questions, solutions et indices seront également supprimés.",
       "delete_error": "Échec de la suppression du challenge",
@@ -137,15 +136,15 @@
       "col_attempts": "Tentatives",
       "col_challenge": "Challenge",
       "col_first_blood": "Premier sang",
-      "col_hints": "",
+      "col_hints": "Indices",
       "col_question": "Question",
       "col_solve_rate": "Taux de résolution",
       "col_solved": "Résolus équipes",
       "no_challenges": "Aucun challenge pour l'instant.",
       "stat_challenges": "Challenges",
-      "stat_hint_unlocks": "",
+      "stat_hint_unlocks": "Indices débloqués",
       "stat_submissions": "Soumissions",
-      "stat_teams": "",
+      "stat_teams": "Équipes",
       "stat_users": "Utilisateurs"
     },
     "feedback": {
@@ -169,7 +168,7 @@
       "edit": "Modifier le fichier",
       "field_file": "Fichier",
       "field_name": "Nom",
-      "field_public": "",
+      "field_public": "Public (accessible depuis les pages)",
       "make_private": "Rendre privé",
       "make_public": "Rendre public",
       "name_placeholder": "Nom convivial",
@@ -265,7 +264,6 @@
       "col_scopes": "Scopes autorisés",
       "create": "Nouveau client",
       "create_error": "Échec de la création du client",
-      "created": "Client créé",
       "created_title": "Client créé",
       "delete_confirm": "Supprimer le client OAuth \"{{name}}\" ? Les tokens actifs cesseront de fonctionner.",
       "delete_error": "Échec de la suppression du client",
@@ -305,24 +303,6 @@
       "field_title": "Titre",
       "home_hint": "Utilisez le slug 'home' pour personnaliser la page d'accueil.",
       "insert_file": "Insérer un fichier",
-      "magic": {
-        "countdown_end_desc": "Compte à rebours en direct jusqu'à la fin de l'événement",
-        "countdown_end_label": "Compte à rebours jusqu'à la fin",
-        "countdown_start_desc": "Compte à rebours en direct jusqu'au début de l'événement",
-        "countdown_start_label": "Compte à rebours jusqu'au début",
-        "ended": "Terminé",
-        "event_end_desc": "Date et heure de fin formatées",
-        "event_end_label": "Fin de l'événement",
-        "event_name_desc": "Nom du CTF tel que configuré dans les paramètres",
-        "event_name_label": "Nom de l'événement",
-        "event_start_desc": "Date et heure de début formatées",
-        "event_start_label": "Début de l'événement",
-        "started": "Commencé",
-        "unit_d": "j",
-        "unit_h": "h",
-        "unit_m": "m",
-        "unit_s": "s"
-      },
       "make_public_error": "Impossible de rendre le fichier public",
       "nav_footer": "Pied de page",
       "nav_none": "Aucune",
@@ -373,7 +353,6 @@
       "saved": "Tâche enregistrée",
       "tasks_empty": "Aucune exécution pour le moment.",
       "tasks_title": "Historique d'exécution",
-      "title": "Planificateur",
       "toggle_error": "Échec de la mise à jour",
       "type_placeholder": "Sélectionner un type…"
     },
@@ -402,8 +381,7 @@
       "field_team": "Équipe",
       "invalidate_cache": "Rafraîchir le cache",
       "rankings_title": "Classement",
-      "reason_placeholder": "Raison de l'ajustement",
-      "team_search_placeholder": "Rechercher une équipe…"
+      "reason_placeholder": "Raison de l'ajustement"
     },
     "submissions": {
       "col_answer": "Réponse",
@@ -426,19 +404,17 @@
     "teams": {
       "add_link": "Ajouter un lien",
       "answer_dialog_title": "Réponse de soumission",
-      "answer_view": "Cliquer pour voir la réponse complète",
       "bracket_hint": "Regroupe cette équipe dans un sous-classement (ex: étudiant, pro). Laisser vide pour aucun.",
       "challenge_progress_title": "Progression des challenges",
       "col_active": "Actif",
       "col_answer": "Réponse",
-      "col_attempts": "Tentatives",
       "col_challenge": "Challenge",
       "col_correct": "Correct",
       "col_date": "Date",
       "col_email": "Email",
-      "col_first_solve": "",
-      "col_hint_cost": "",
-      "col_hints": "",
+      "col_first_solve": "Première résolution",
+      "col_hint_cost": "Coût des indices",
+      "col_hints": "Indices",
       "col_points": "Points",
       "col_progress": "Progression",
       "col_question": "Question",
@@ -461,11 +437,10 @@
       "link_label_placeholder": "Libellé",
       "members_empty": "Aucun membre dans cette équipe.",
       "members_title": "Membres ({{n}})",
-      "not_found": "Équipe introuvable.",
-      "stat_hint_cost": "",
-      "stat_hint_unlocks": "",
-      "stat_points": "",
-      "stat_solves": "",
+      "stat_hint_cost": "Points dépensés en indices",
+      "stat_hint_unlocks": "Indices débloqués",
+      "stat_points": "Points totaux",
+      "stat_solves": "Challenges résolus",
       "submission_delete_confirm": "Supprimer cette soumission ?",
       "submission_delete_error": "Échec de la suppression de la soumission",
       "submission_deleted": "Soumission supprimée",
@@ -495,7 +470,6 @@
       "field_totp": "Double authentification",
       "field_username": "Nom d'utilisateur",
       "info_title": "Infos utilisateur",
-      "no_events": "Aucune activité enregistrée.",
       "no_team": "Aucune équipe",
       "not_found": "Utilisateur introuvable.",
       "password_hint": "Copiez-le avant de créer : il ne sera plus affiché.",
@@ -567,7 +541,7 @@
     "save": "Enregistrer",
     "saved": "Enregistré",
     "saving": "Enregistrement...",
-    "search": "",
+    "search": "Rechercher…",
     "sign_out": "Se déconnecter"
   },
   "config": {
@@ -765,8 +739,8 @@
     }
   },
   "errors": {
-    "not_found": "",
-    "not_found_desc": ""
+    "not_found": "Page introuvable",
+    "not_found_desc": "Cette page n'existe pas ou n'est pas publiée."
   },
   "forgot_password": {
     "email_label": "Email",
@@ -791,7 +765,6 @@
     "submit": "Se connecter",
     "submitting": "Connexion...",
     "subtitle": "Connectez-vous à votre compte",
-    "title": "NexCTF",
     "totp_back": "← Retour à la connexion",
     "totp_hint": "Entrez le code à 6 chiffres de votre application d'authentification.",
     "totp_subtitle": "Authentification à deux facteurs",
@@ -830,12 +803,12 @@
   },
   "pages": {
     "magic": {
-      "ended": "",
-      "started": "",
-      "unit_d": "",
-      "unit_h": "",
-      "unit_m": "",
-      "unit_s": ""
+      "ended": "Terminé",
+      "started": "Commencé",
+      "unit_d": "j",
+      "unit_h": "h",
+      "unit_m": "m",
+      "unit_s": "s"
     }
   },
   "register": {
@@ -871,7 +844,6 @@
     "chart_title": "Évolution des scores",
     "col_adjustments": "Ajustements",
     "col_hints": "Indices",
-    "col_last_solve": "Dernier solve",
     "col_rank": "Rang",
     "col_solve_points": "Points challenges",
     "col_solves": "Résolus",
@@ -887,9 +859,7 @@
   },
   "settings": {
     "oauth": {
-      "cannot_unlink_last": "Impossible de dissocier — vous n’avez pas de mot de passe et c’est votre seul moyen de connexion.",
       "connect": "Connecter",
-      "empty": "Aucun fournisseur n’est connecté à votre compte.",
       "section_hint": "Gérez les fournisseurs OAuth liés à votre compte.",
       "section_title": "Comptes connectés",
       "unlink": "Dissocier",
@@ -1009,7 +979,6 @@
     "name_label": "Nom de l'équipe",
     "name_placeholder": "ex. Team Rocket",
     "no_team_hint": "Vous avez besoin d'une équipe pour soumettre des réponses. Créez-en une ou rejoignez-en une avec un code d'invitation.",
-    "no_team_title": "Vous n'êtes pas dans une équipe",
     "partial": "{{solved}}/{{total}}",
     "profile_back": "Retour au classement",
     "profile_load_error": "Échec du chargement de l'équipe",

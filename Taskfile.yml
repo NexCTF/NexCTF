@@ -80,11 +80,14 @@ tasks:
     dir: frontend
 
   dev:frontend:check:
-    desc: "Run tsc + biome + i18n key sync (check-only)"
+    desc: "Run tsc + biome + i18n key sync"
     cmds:
       - bunx tsc -b
       - bunx biome check .
-      - bunx i18next --silent --fail-on-update
+      # --fail-on-update only reports added keys, so snapshot and diff to catch removed ones too
+      - |
+        snap=$(mktemp -d) && cp src/i18n/locales/*.json "$snap/" && bunx i18next --silent \
+          && diff -ru "$snap" src/i18n/locales; rc=$?; rm -rf "$snap"; exit $rc
     dir: frontend
 
   dev:frontend:fix:
