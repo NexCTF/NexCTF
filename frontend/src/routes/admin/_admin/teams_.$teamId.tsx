@@ -4,8 +4,8 @@ import { ExternalLink, Maximize2, Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { CustomFieldInput } from "@/components/custom-field-input";
 import { CustomFieldValuesList } from "@/components/custom-field-values-list";
+import { CustomFieldsSection, useCustomFieldDefs } from "@/components/custom-fields-section";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
 import { DetailPageShell, DetailSection } from "@/components/detail-page";
 import { IdCell } from "@/components/id-cell";
@@ -28,7 +28,6 @@ import {
   type AdminTeamChallengeStats,
   apiErrorMessage,
   deleteAdminSubmission,
-  getAdminCustomFields,
   getAdminTeamChallengeStats,
   getAdminTeamDetail,
   getAdminTeamSubmissions,
@@ -62,12 +61,7 @@ function EditTeamDialog({
     Object.fromEntries(team.custom_field_values.map((cfv) => [cfv.definition.id, cfv.value ?? ""])),
   );
 
-  const { data: defsResponse } = useQuery({
-    queryKey: ["admin", "custom-fields", "all"],
-    queryFn: () => getAdminCustomFields("items_per_page=100"),
-    enabled: open,
-  });
-  const teamDefs = (defsResponse?.data ?? []).filter((d) => d.target === "team");
+  const teamDefs = useCustomFieldDefs("team", open);
 
   const existingDefIds = new Set(team.custom_field_values.map((cfv) => cfv.definition.id));
 
@@ -152,26 +146,7 @@ function EditTeamDialog({
 
           <LinksFormSection links={links} onChange={setLinks} />
 
-          {teamDefs.length > 0 && (
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {t("admin.custom_fields.values_title")}
-              </p>
-              {teamDefs.map((def) => (
-                <div key={def.id} className="space-y-1.5">
-                  <Label>
-                    {def.label}
-                    {def.is_required && <span className="text-destructive ml-0.5">*</span>}
-                  </Label>
-                  <CustomFieldInput
-                    fieldType={def.field_type}
-                    value={cfValues[def.id] ?? ""}
-                    onChange={(v) => setCfValues((prev) => ({ ...prev, [def.id]: v }))}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+          <CustomFieldsSection defs={teamDefs} values={cfValues} onChange={setCfValues} />
 
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

@@ -4,8 +4,8 @@ import { Ban, ExternalLink, KeyRound, Pencil, ShieldCheck, ShieldOff } from "luc
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { CustomFieldInput } from "@/components/custom-field-input";
 import { CustomFieldValuesList } from "@/components/custom-field-values-list";
+import { CustomFieldsSection, useCustomFieldDefs } from "@/components/custom-fields-section";
 import { DataTable, useTableState } from "@/components/data-table";
 import { DetailPageShell, DetailSection } from "@/components/detail-page";
 import { LinksFormSection } from "@/components/links-form-section";
@@ -27,10 +27,10 @@ import {
   adminCreatePasswordResetToken,
   adminResetUserTotp,
   apiErrorMessage,
-  getAdminCustomFields,
   getAdminUser,
   getAdminUserEvents,
   setAdminCustomFieldValue,
+  USER_ROLES,
   updateAdminUser,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -40,8 +40,6 @@ import { COLUMNS, EventDetailsDialog } from "@/routes/admin/_admin/events";
 export const Route = createFileRoute("/admin/_admin/users_/$userId")({
   component: UserDetailPage,
 });
-
-const ROLES = ["user", "moderator", "admin"] as const;
 
 function EditUserDialog({
   userId,
@@ -63,12 +61,7 @@ function EditUserDialog({
     Object.fromEntries(user.custom_field_values.map((cfv) => [cfv.definition.id, cfv.value ?? ""])),
   );
 
-  const { data: defsResponse } = useQuery({
-    queryKey: ["admin", "custom-fields", "all"],
-    queryFn: () => getAdminCustomFields("items_per_page=100"),
-    enabled: open,
-  });
-  const userDefs = (defsResponse?.data ?? []).filter((d) => d.target === "user");
+  const userDefs = useCustomFieldDefs("user", open);
 
   const existingDefIds = new Set(user.custom_field_values.map((cfv) => cfv.definition.id));
 
@@ -139,7 +132,7 @@ function EditUserDialog({
               onChange={(e) => setRole(e.target.value)}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring capitalize"
             >
-              {ROLES.map((r) => (
+              {USER_ROLES.map((r) => (
                 <option key={r} value={r} className="capitalize">
                   {r}
                 </option>
@@ -154,26 +147,7 @@ function EditUserDialog({
 
           <LinksFormSection links={links} onChange={setLinks} />
 
-          {userDefs.length > 0 && (
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {t("admin.custom_fields.values_title")}
-              </p>
-              {userDefs.map((def) => (
-                <div key={def.id} className="space-y-1.5">
-                  <Label>
-                    {def.label}
-                    {def.is_required && <span className="text-destructive ml-0.5">*</span>}
-                  </Label>
-                  <CustomFieldInput
-                    fieldType={def.field_type}
-                    value={cfValues[def.id] ?? ""}
-                    onChange={(v) => setCfValues((prev) => ({ ...prev, [def.id]: v }))}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+          <CustomFieldsSection defs={userDefs} values={cfValues} onChange={setCfValues} />
 
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

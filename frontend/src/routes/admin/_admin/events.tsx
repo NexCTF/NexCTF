@@ -28,6 +28,7 @@ export const EVENT_TYPE_COLORS: Record<string, string> = {
   "challenge.complete": "bg-purple-500/10 text-purple-600 dark:text-purple-400",
   "hint.unlock": "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   "challenge.feedback": "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
+  "admin.user_created": "bg-green-600/10 text-green-700 dark:text-green-400",
   "admin.user_updated": "bg-violet-500/10 text-violet-600 dark:text-violet-400",
   "admin.user_deleted": "bg-red-700/10 text-red-700 dark:text-red-400",
   "admin.submission_deleted": "bg-rose-500/10 text-rose-600 dark:text-rose-400",

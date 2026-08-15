@@ -31,6 +31,10 @@ class AdminTeamCreate(PydanticBase):
     links: list[Link] = []
 
 
+class AdminTeamCreateRequest(AdminTeamCreate):
+    custom_fields: dict[UUID, str | None] = {}
+
+
 class AdminTeamUpdate(PydanticBase):
     id: UUID
     name: str | None = None

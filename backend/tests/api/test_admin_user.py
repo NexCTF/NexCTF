@@ -1,4 +1,4 @@
-"""Tests for /admin/user endpoints (list, get, update, delete — no create)."""
+"""Tests for /admin/user endpoints (list, get, create, update, delete)."""
 
 import hashlib
 from unittest.mock import AsyncMock
@@ -10,11 +10,92 @@ from nexctf.model import Team, User
 
 from ..base import (
     NULL_UUID,
+    CreateGuardMixin,
     DeleteGuardMixin,
     GetItemGuardMixin,
     ListGuardMixin,
     UpdateGuardMixin,
 )
+
+
+class TestCreateUser(CreateGuardMixin):
+    PREFIX = "/admin/user"
+
+    async def test_create_works_with_registration_disabled(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        config_overrides: dict[str, str],
+    ) -> None:
+        config_overrides["ctf.allow_registration"] = "false"
+        c, _ = admin_client
+        resp = await c.post(
+            self.PREFIX,
+            json={
+                "username": "made-by-admin",
+                "password": "s3cret-pass",
+                "role": "moderator",
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()["data"]
+        assert data["username"] == "made-by-admin"
+        assert data["role"] == "moderator"
+        # Admin hands the password over out of band, so the account is usable now.
+        assert data["email_verified"] is True
+        assert data["has_password"] is True
+
+    async def test_create_duplicate_username(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_user_members: list[User],
+    ) -> None:
+        c, _ = admin_client
+        resp = await c.post(
+            self.PREFIX,
+            json={
+                "username": fixture_user_members[0].username,
+                "password": "s3cret-pass",
+            },
+        )
+        assert resp.status_code == 409
+
+    async def test_create_duplicate_email(
+        self,
+        admin_client: tuple[AsyncClient, User],
+    ) -> None:
+        c, _ = admin_client
+        body = {"username": "dup-a", "password": "s3cret-pass", "email": "dup@test.com"}
+        assert (await c.post(self.PREFIX, json=body)).status_code == 201
+        resp = await c.post(self.PREFIX, json={**body, "username": "dup-b"})
+        assert resp.status_code == 409
+
+    async def test_create_with_custom_fields(
+        self, admin_client: tuple[AsyncClient, User]
+    ) -> None:
+        """Values sent on create land in the same transaction as the user."""
+        c, _ = admin_client
+        dresp = await c.post(
+            "/admin/custom-field",
+            json={"name": "discord", "label": "Discord", "target": "user"},
+        )
+        assert dresp.status_code == 200
+        definition_id = dresp.json()["data"]["id"]
+
+        resp = await c.post(
+            self.PREFIX,
+            json={
+                "username": "cf-user",
+                "password": "s3cret-pass",
+                "custom_fields": {definition_id: "player#1"},
+            },
+        )
+        assert resp.status_code == 201
+
+        detail = await c.get(f"{self.PREFIX}/{resp.json()['data']['id']}")
+        values = detail.json()["data"]["custom_field_values"]
+        assert [(v["definition"]["id"], v["value"]) for v in values] == [
+            (definition_id, "player#1")
+        ]
 
 
 class TestListUsers(ListGuardMixin):

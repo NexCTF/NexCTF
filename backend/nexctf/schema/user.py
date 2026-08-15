@@ -19,6 +19,15 @@ class AdminUserUpdate(PydanticBase):
     links: list[Link] | None = None
 
 
+class AdminUserCreate(PydanticBase):
+    username: str
+    password: str
+    email: EmailStr | None = None
+    role: UserRole = UserRole.user
+    team_id: UUID | None = None
+    custom_fields: dict[UUID, str | None] = {}
+
+
 class PublicRegisterRequest(PydanticBase):
     username: str
     password: str
@@ -65,6 +74,8 @@ class UserCreate(PydanticBase):
     email: str | None = None
     hashed_password: str | None = None
     email_verified: bool = False
+    role: UserRole = UserRole.user
+    team_id: UUID | None = None
 
 
 class UserTokenCreate(PydanticBase):

@@ -2,12 +2,14 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from fastapi_toolsets.exceptions import NotFoundError
+from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
+from sqlalchemy.exc import IntegrityError
 
 from nexctf import crud
 from nexctf.api.dep import RedisDep, SessionDep
 from nexctf.model import CustomFieldValue, Submission, Team
+from nexctf.module.custom_field import create_custom_field_values
 from nexctf.module.scoreboard.cache import invalidate as invalidate_scoreboard
 from nexctf.module.stats import compute_admin_team_challenge_stats
 from nexctf.schema.custom_field import AdminCustomFieldValueRead
@@ -15,6 +17,7 @@ from nexctf.schema.stats import AdminTeamChallengeStats
 from nexctf.schema.submission import AdminSubmissionRead
 from nexctf.schema.team import (
     AdminTeamCreate,
+    AdminTeamCreateRequest,
     AdminTeamDetailRead,
     AdminTeamMember,
     AdminTeamRead,
@@ -39,9 +42,21 @@ async def get_teams(
 @team_router.post("")
 async def create_team(
     session: SessionDep,
-    obj: AdminTeamCreate,
+    obj: AdminTeamCreateRequest,
 ) -> Response[AdminTeamRead]:
-    return await crud.TeamCrud.create(session=session, obj=obj, schema=AdminTeamRead)
+    try:
+        result = await crud.TeamCrud.create(
+            session=session,
+            obj=AdminTeamCreate(**obj.model_dump(exclude={"custom_fields"})),
+            schema=AdminTeamRead,
+        )
+    except IntegrityError:
+        raise ConflictError(detail="Team name already taken")
+    if result.data is not None:
+        await create_custom_field_values(
+            session, obj.custom_fields, team_id=result.data.id
+        )
+    return result
 
 
 @team_router.get("/{uuid}/detail")
