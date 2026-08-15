@@ -18,8 +18,9 @@
 ## 0.6.0
 - [x] Public team details
 
-## 0.7.0.
+## 0.7.0
 - [x] Challenge feedback
+- [x] User/team creation in admin
 
 ## Before v1.0 release
 - [ ] Event import/export/sync
@@ -27,7 +28,7 @@
 - [ ] Documentation
 - [ ] Frontend tests
 - [ ] Add more metrics
-- [ ] Admin tools
+- [ ] Admin rework/cleanup
 - [ ] Support for Kubernetes deployment
 - [ ] Anti-cheat / flag sharing detection
 - [ ] Notification integrations (Discord/webhook)
