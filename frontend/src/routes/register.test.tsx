@@ -80,7 +80,7 @@ it("redirects an already-signed-in user away from the form", async () => {
 
 it("shows the API error description", async () => {
   vi.mocked(register).mockRejectedValue(
-    new ApiError(409, "Conflict", "Username already taken", "USER-409"),
+    new ApiError(409, "Conflict", "whatever the API said", "USER-409"),
   );
   renderRoute(Route, { path: "/register" });
 
@@ -88,5 +88,5 @@ it("shows the API error description", async () => {
   await userEvent.type(screen.getByLabelText("Password"), "hunter2");
   await userEvent.click(screen.getByRole("button", { name: "Sign up" }));
 
-  expect(await screen.findByText("Username already taken")).toBeDefined();
+  expect(await screen.findByText("whatever the API said")).toBeDefined();
 });

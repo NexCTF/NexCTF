@@ -23,6 +23,7 @@ from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from redis.asyncio import Redis
 from sqlalchemy import func
 from sqlalchemy import update as sql_update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -144,26 +145,24 @@ async def register(
     await check_rate_limit(
         redis, f"rl:register:{client_ip}", window_seconds=60, max_requests=5
     )
-    existing = await crud.UserCrud.first(
-        session=session, filters=[User.username == obj.username]
-    )
-    if existing:
-        raise ConflictError(detail="Username already taken")
     # When SMTP is enabled an email is mandatory: it is the verification channel
     # and the login gate keys off it. With SMTP off, email stays optional.
     email_enabled = _email_enabled(overrides)
     if email_enabled and not obj.email:
         raise EmailRequiredError()
-    result = await crud.UserCrud.create(
-        session=session,
-        obj=UserCreate(
-            username=obj.username,
-            email=obj.email,
-            hashed_password=hash_password(obj.password),
-            email_verified=not email_enabled,
-        ),
-        schema=PublicUserRead,
-    )
+    try:
+        result = await crud.UserCrud.create(
+            session=session,
+            obj=UserCreate(
+                username=obj.username,
+                email=obj.email,
+                hashed_password=hash_password(obj.password),
+                email_verified=not email_enabled,
+            ),
+            schema=PublicUserRead,
+        )
+    except IntegrityError:
+        raise ConflictError(detail="Username or email already taken")
     if result.data is not None:
         await emit(
             session,

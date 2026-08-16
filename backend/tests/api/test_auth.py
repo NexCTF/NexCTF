@@ -52,6 +52,28 @@ class TestRegister:
         resp2 = await http_client.post("/auth/register", json=payload)
         assert resp2.status_code == 409
 
+    async def test_register_conflict_message_hides_which_field(self, http_client):
+        """A taken email is a 409 like a taken username, reported identically."""
+        first = await http_client.post(
+            "/auth/register",
+            json={"username": "sameuser", "password": "pass123", "email": "a@test.com"},
+        )
+        assert first.status_code == 201
+        by_username = await http_client.post(
+            "/auth/register",
+            json={"username": "sameuser", "password": "pass123", "email": "b@test.com"},
+        )
+        by_email = await http_client.post(
+            "/auth/register",
+            json={
+                "username": "otheruser",
+                "password": "pass123",
+                "email": "a@test.com",
+            },
+        )
+        assert by_username.status_code == by_email.status_code == 409
+        assert by_username.json()["message"] == by_email.json()["message"]
+
     async def test_register_missing_fields(self, http_client):
         resp = await http_client.post(
             "/auth/register",
