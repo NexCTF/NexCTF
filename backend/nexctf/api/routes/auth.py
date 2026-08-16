@@ -80,6 +80,7 @@ from nexctf.schema.user import (
     UserPasswordUpdate,
 )
 from nexctf.util.ip import get_client_ip
+from nexctf.util.url import append_query
 
 logger = logging.getLogger(__name__)
 
@@ -625,9 +626,10 @@ async def oauth_callback(
     db: SessionDep,
     redis: RedisDep,
     slug: str,
-    code: str,
     current_user: OptionalCookieUserDep,
     provider: OAuthProvider = ProviderDep,
+    code: str | None = None,
+    error: str | None = None,
     state: str | None = None,
 ) -> RedirectResponse:
     if not provider.is_active:
@@ -645,6 +647,13 @@ async def oauth_callback(
         fallback=settings.FRONTEND_HOST,
         allowed_hosts=tuple(_ALLOWED_REDIRECT_ORIGINS),
     )
+
+    # RFC 6749 §4.1.2.1: a provider reports a denial or failure by redirecting
+    # back with ?error= and no code. Hand the user back to where they started
+    # instead of rejecting the request as a missing required parameter.
+    if not code:
+        destination = append_query(destination, {"error": error or "invalid_request"})
+
     redirect = RedirectResponse(url=destination, status_code=302)
     redirect.delete_cookie(
         f"oauth_state_{slug}",
@@ -652,6 +661,9 @@ async def oauth_callback(
         samesite="lax",
         secure=settings.ENVIRONMENT != "development",
     )
+
+    if not code:
+        return redirect
 
     endpoints = await oauth_resolve_provider_urls(provider.discovery_url)
     if not endpoints.userinfo_endpoint:

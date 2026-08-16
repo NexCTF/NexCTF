@@ -5,7 +5,7 @@ import json
 import secrets
 from datetime import timedelta
 from typing import Annotated
-from urllib.parse import quote, urlencode, urlsplit
+from urllib.parse import quote, urlencode
 from uuid import UUID
 
 from fastapi import APIRouter, Form, Request
@@ -33,6 +33,7 @@ from nexctf.schema.oauth_server import (
     OAuthTokenResponse,
     OAuthUserinfo,
 )
+from nexctf.util.url import append_query
 
 oauth_router = APIRouter(prefix="/oauth2", tags=["oauth2"])
 
@@ -62,12 +63,6 @@ def _verify_pkce(verifier: str, challenge: str) -> bool:
     digest = hashlib.sha256(verifier.encode("ascii")).digest()
     computed = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
     return hmac.compare_digest(computed, challenge)
-
-
-def _append_query(url: str, params: dict[str, str]) -> str:
-    """Append *params* to *url*, preserving any query string it already carries."""
-    sep = "&" if urlsplit(url).query else "?"
-    return f"{url}{sep}{urlencode(params, quote_via=quote)}"
 
 
 # The loaders and the role check are shared by the wire-protocol endpoints and
@@ -133,7 +128,7 @@ def _error_redirect(
     params = {"error": error}
     if state:
         params["state"] = state
-    return RedirectResponse(url=_append_query(redirect_uri, params), status_code=302)
+    return RedirectResponse(url=append_query(redirect_uri, params), status_code=302)
 
 
 @oauth_router.get("/authorize")
@@ -250,7 +245,7 @@ async def approve(
         params["state"] = obj.state
 
     return Response(
-        data=OAuthApproveResponse(redirect_to=_append_query(obj.redirect_uri, params))
+        data=OAuthApproveResponse(redirect_to=append_query(obj.redirect_uri, params))
     )
 
 

@@ -70,6 +70,18 @@ it("bounces back with access_denied and the state on refusal", async () => {
   expect(approveOAuthConsent).not.toHaveBeenCalled();
 });
 
+it("keeps a query string the redirect_uri already carries on refusal", async () => {
+  renderConsent(
+    "/oauth/consent?client_id=app1&redirect_uri=https%3A%2F%2Fapp.example%2Fcb%3Ftenant%3Dacme&scope=openid&state=xyz",
+  );
+
+  await userEvent.click(await screen.findByRole("button", { name: "Deny" }));
+
+  expect(window.location.href).toBe(
+    "https://app.example/cb?tenant=acme&error=access_denied&state=xyz",
+  );
+});
+
 it("rejects a request with no client_id", async () => {
   renderConsent("/oauth/consent");
 

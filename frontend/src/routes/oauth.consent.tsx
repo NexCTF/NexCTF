@@ -61,9 +61,10 @@ function ConsentPage() {
     (approveMutation.error instanceof ApiError && approveMutation.error.status === 403);
 
   function handleDeny() {
-    let url = `${redirect_uri}?error=access_denied`;
-    if (state) url += `&state=${encodeURIComponent(state)}`;
-    window.location.href = url;
+    const url = new URL(redirect_uri);
+    url.searchParams.set("error", "access_denied");
+    if (state) url.searchParams.set("state", state);
+    window.location.href = url.toString();
   }
 
   // Redirect to login if not authenticated

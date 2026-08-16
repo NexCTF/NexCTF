@@ -803,6 +803,31 @@ class TestOAuthFlow:
         )
         assert resp.status_code == 401
 
+    async def test_callback_provider_denial_returns_to_the_app(
+        self, http_client, oauth_provider
+    ):
+        """A denial carries ?error= and no code — RFC 6749 §4.1.2.1."""
+        with patch(
+            "nexctf.api.routes.auth.oauth_resolve_provider_urls",
+            new_callable=AsyncMock,
+            return_value=self._FAKE_URLS,
+        ):
+            auth_resp = await http_client.get(
+                "/auth/providers/test-idp/authorize",
+                follow_redirects=False,
+            )
+        state = parse_qs(urlparse(auth_resp.headers["location"]).query)["state"][0]
+
+        resp = await http_client.get(
+            "/auth/providers/test-idp/callback",
+            params={"error": "access_denied", "state": state},
+            follow_redirects=False,
+        )
+
+        assert resp.status_code == 302
+        assert "error=access_denied" in resp.headers["location"]
+        assert "NexCTF" not in resp.cookies
+
     async def test_callback_inactive_provider(self, http_client, inactive_provider):
         resp = await http_client.get(
             "/auth/providers/inactive-idp/callback",
