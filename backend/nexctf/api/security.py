@@ -101,14 +101,12 @@ async def _verify_cookie(credential: str, role: UserRole | None = None) -> User:
     try:
         user_id_str, version_str = credential.split(":", 1)
         expected_version = int(version_str)
+        user_id = UUID(user_id_str)
     except ValueError:
         raise UnauthorizedError()
 
     async with get_db_context() as db:
-        user = await crud.UserCrud.first(
-            session=db,
-            filters=[User.id == UUID(user_id_str)],
-        )
+        user = await crud.UserCrud.first(session=db, filters=[User.id == user_id])
 
     if not user or not user.is_active:
         raise UnauthorizedError()
