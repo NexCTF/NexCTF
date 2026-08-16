@@ -68,6 +68,7 @@ class TestOAuth2Authorize:
         assert _CLIENT_ID in resp.headers["location"]
 
     async def test_invalid_client_id(self, http_client: AsyncClient) -> None:
+        """An unknown client is never redirected to — RFC 6749 §4.1.2.1."""
         resp = await http_client.get(
             "/oauth2/authorize",
             params={
@@ -78,12 +79,14 @@ class TestOAuth2Authorize:
             follow_redirects=False,
         )
         assert resp.status_code == 400
+        assert resp.json()["error"] == "invalid_client"
 
     async def test_invalid_redirect_uri(
         self,
         http_client: AsyncClient,
         fixture_oauth_server_client: list[OAuthServerClient],
     ) -> None:
+        """An unregistered redirect_uri is never redirected to either."""
         resp = await http_client.get(
             "/oauth2/authorize",
             params={
@@ -94,22 +97,32 @@ class TestOAuth2Authorize:
             follow_redirects=False,
         )
         assert resp.status_code == 400
+        assert resp.json()["error"] == "invalid_request"
+        assert "evil.example.com" not in resp.headers.get("location", "")
 
     async def test_unsupported_response_type(
         self,
         http_client: AsyncClient,
         fixture_oauth_server_client: list[OAuthServerClient],
     ) -> None:
+        """Once the redirect_uri is trusted, errors go back to the client."""
         resp = await http_client.get(
             "/oauth2/authorize",
             params={
                 "client_id": _CLIENT_ID,
                 "redirect_uri": _REDIRECT_URI,
                 "response_type": "token",
+                "state": "abc",
             },
             follow_redirects=False,
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 302
+        location = resp.headers["location"]
+        assert location.startswith(_REDIRECT_URI)
+        assert "/oauth/consent" not in location
+        params = dict(parse_qsl(urlparse(location).query))
+        assert params["error"] == "unsupported_response_type"
+        assert params["state"] == "abc"
 
 
 class TestOAuth2ClientInfo:
@@ -147,12 +160,16 @@ class TestOAuth2ClientInfo:
         assert "unknown_scope" not in scopes
 
     async def test_invalid_client(self, user_client: tuple[AsyncClient, User]) -> None:
+        """The consent page is an app endpoint: app error contract, not RFC."""
         c, _ = user_client
         resp = await c.get(
             "/oauth2/client-info",
             params={"client_id": "no_such_client"},
         )
         assert resp.status_code == 400
+        body = resp.json()
+        assert body["error_code"] == "OAUTH2-400-CLIENT"
+        assert body["description"]
 
     async def test_requires_auth(self, http_client: AsyncClient) -> None:
         resp = await http_client.get(
@@ -246,6 +263,7 @@ class TestOAuth2Approve:
             },
         )
         assert resp.status_code == 400
+        assert resp.json()["error_code"] == "OAUTH2-400-CLIENT"
 
     async def test_approve_invalid_redirect_uri(
         self,
@@ -263,6 +281,7 @@ class TestOAuth2Approve:
             },
         )
         assert resp.status_code == 400
+        assert resp.json()["error_code"] == "OAUTH2-400-REQUEST"
 
     async def test_approve_merges_into_existing_redirect_query(
         self,
@@ -351,6 +370,12 @@ class TestOAuth2Token:
             },
         )
         assert resp.status_code == 400
+        body = resp.json()
+        assert body["error"] == "invalid_grant"
+        assert body["error_description"]
+        # RFC 6749 §5.2 body only — never the app's ErrorResponse envelope.
+        assert "message" not in body
+        assert "error_code" not in body
 
     async def test_wrong_client_secret(
         self,
@@ -369,6 +394,7 @@ class TestOAuth2Token:
             },
         )
         assert resp.status_code == 401
+        assert resp.json()["error"] == "invalid_client"
 
     async def test_role_is_rechecked_at_exchange(
         self,
@@ -403,6 +429,7 @@ class TestOAuth2Token:
             },
         )
         assert resp.status_code == 403
+        assert resp.json()["error"] == "access_denied"
         mock_redis.setex.assert_not_called()
 
     async def test_unsupported_grant_type(
@@ -421,6 +448,7 @@ class TestOAuth2Token:
             },
         )
         assert resp.status_code == 400
+        assert resp.json()["error"] == "unsupported_grant_type"
 
 
 class TestOAuth2PKCE:
@@ -478,7 +506,11 @@ class TestOAuth2PKCE:
             },
             follow_redirects=False,
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 302
+        location = resp.headers["location"]
+        assert location.startswith(_REDIRECT_URI)
+        assert "/oauth/consent" not in location
+        assert dict(parse_qsl(urlparse(location).query))["error"] == "invalid_request"
 
     async def test_approve_binds_challenge_into_code(
         self,
@@ -521,6 +553,7 @@ class TestOAuth2PKCE:
             },
         )
         assert resp.status_code == 400
+        assert resp.json()["error_code"] == "OAUTH2-400-REQUEST"
 
     async def test_token_with_valid_verifier(
         self,
@@ -568,6 +601,7 @@ class TestOAuth2PKCE:
             },
         )
         assert resp.status_code == 400
+        assert resp.json()["error"] == "invalid_grant"
 
     async def test_token_wrong_verifier(
         self,
@@ -590,6 +624,7 @@ class TestOAuth2PKCE:
             },
         )
         assert resp.status_code == 400
+        assert resp.json()["error"] == "invalid_grant"
         # The code must be consumed even on a failed PKCE check (no retry).
         mock_redis.delete.assert_called_once()
 
@@ -624,6 +659,7 @@ class TestOAuth2RoleRestriction:
             params={"client_id": _ADMIN_CLIENT_ID, "scope": "openid"},
         )
         assert resp.status_code == 403
+        assert resp.json()["error_code"] == "OAUTH2-403-ROLE"
 
     async def test_approve_rejects_disallowed_role(
         self,
@@ -728,6 +764,7 @@ class TestOAuth2Userinfo:
             headers={"Authorization": "Bearer some_opaque_token"},
         )
         assert resp.status_code == 403
+        assert resp.json()["error"] == "access_denied"
 
     async def test_deactivated_client_invalidates_live_token(
         self,
@@ -747,10 +784,12 @@ class TestOAuth2Userinfo:
             headers={"Authorization": "Bearer some_opaque_token"},
         )
         assert resp.status_code == 401
+        assert resp.json()["error"] == "invalid_token"
 
     async def test_missing_bearer(self, http_client: AsyncClient) -> None:
         resp = await http_client.get("/oauth2/userinfo")
         assert resp.status_code == 401
+        assert 'error="invalid_token"' in resp.headers["www-authenticate"]
 
     async def test_invalid_token(self, http_client: AsyncClient, mock_redis) -> None:
         # Default mock_redis.get returns None — simulates expired/unknown token
@@ -759,6 +798,12 @@ class TestOAuth2Userinfo:
             headers={"Authorization": "Bearer expired_token"},
         )
         assert resp.status_code == 401
+        # RFC 6750 §3: the bearer challenge carries the error code.
+        assert resp.headers["www-authenticate"].startswith("Bearer ")
+        assert 'error="invalid_token"' in resp.headers["www-authenticate"]
+        body = resp.json()
+        assert body["error"] == "invalid_token"
+        assert "message" not in body
 
     async def test_scope_filtering_profile_only(
         self,

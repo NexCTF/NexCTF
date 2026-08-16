@@ -18,6 +18,7 @@ from nexctf.core.appconfig import sync_to_redis
 from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.config import settings
 from nexctf.core.db import db, get_db_context
+from nexctf.exceptions import OAuth2ProtocolError
 from nexctf.plugins import init_plugins
 
 _ADMIN_PREFIX = f"{settings.API_V1_STR}/admin"
@@ -102,6 +103,23 @@ async def multiauth_unauthorized_handler(
             description=api_error.desc,
             error_code=api_error.err_code,
         ).model_dump(),
+        headers=exc.headers,
+    )
+
+
+@app.exception_handler(OAuth2ProtocolError)
+async def oauth2_protocol_error_handler(
+    request: Request, exc: OAuth2ProtocolError
+) -> JSONResponse:
+    """Render OAuth2 wire-protocol errors in the RFC body shape.
+
+    Third-party OAuth clients read ``error`` per RFC 6749 §5.2, not the app's
+    ``ErrorResponse``. Registered explicitly so it wins over the toolsets
+    ``HTTPException`` handler, which Starlette would otherwise resolve to.
+    """
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.error, "error_description": exc.error_description},
         headers=exc.headers,
     )
 

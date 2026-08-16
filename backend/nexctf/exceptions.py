@@ -2,6 +2,7 @@
 
 from uuid import UUID
 
+from fastapi import HTTPException
 from fastapi_toolsets.exceptions import ApiException
 from fastapi_toolsets.schemas import ApiError
 
@@ -288,6 +289,72 @@ class OAuthProviderResponseError(OAuthError):
         msg="OAuth provider error",
         desc="The provider returned an invalid response.",
         err_code="OAUTH-502",
+    )
+
+
+class OAuth2ProtocolError(HTTPException):
+    """An OAuth2 wire-protocol error, rendered as the RFC body, not ``ErrorResponse``.
+
+    Raised by the endpoints third-party OAuth clients talk to. ``main.py``
+    registers a handler that emits ``{"error", "error_description"}`` per
+    RFC 6749 §5.2 / RFC 6750 §3. Subclassing ``HTTPException`` keeps the status
+    code correct should that handler ever be dropped.
+    """
+
+    def __init__(
+        self,
+        status_code: int,
+        error: str,
+        description: str,
+        *,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        self.error = error
+        self.error_description = description
+        super().__init__(status_code, error, headers=headers)
+
+
+def bearer_error(error: str, description: str) -> OAuth2ProtocolError:
+    """Build a 401/403 bearer-token error carrying the RFC 6750 §3 challenge."""
+    status_code = 403 if error == "access_denied" else 401
+    challenge = f'Bearer error="{error}", error_description="{description}"'
+    return OAuth2ProtocolError(
+        status_code, error, description, headers={"WWW-Authenticate": challenge}
+    )
+
+
+class OAuth2ServerError(ApiException, abstract=True):
+    """Base for the consent-page endpoints of the OAuth2 authorization server.
+
+    Distinct from ``OAuthError``, which covers NexCTF acting as an OAuth
+    *client* (provider login, account linking).
+    """
+
+
+class OAuth2UnknownClientError(OAuth2ServerError):
+    api_error = ApiError(
+        code=400,
+        msg="Unknown OAuth2 client",
+        desc="No enabled application is registered with this client_id.",
+        err_code="OAUTH2-400-CLIENT",
+    )
+
+
+class OAuth2InvalidRequestError(OAuth2ServerError):
+    api_error = ApiError(
+        code=400,
+        msg="Invalid OAuth2 request",
+        desc="The authorization request is malformed.",
+        err_code="OAUTH2-400-REQUEST",
+    )
+
+
+class OAuth2AccessDeniedError(OAuth2ServerError):
+    api_error = ApiError(
+        code=403,
+        msg="Access denied",
+        desc="Your role is not permitted to authorize this application.",
+        err_code="OAUTH2-403-ROLE",
     )
 
 
