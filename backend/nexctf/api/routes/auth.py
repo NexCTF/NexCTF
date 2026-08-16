@@ -80,7 +80,6 @@ from nexctf.schema.user import (
     UserPasswordUpdate,
 )
 from nexctf.util.ip import get_client_ip
-from nexctf.util.url import append_query
 
 logger = logging.getLogger(__name__)
 
@@ -648,12 +647,6 @@ async def oauth_callback(
         allowed_hosts=tuple(_ALLOWED_REDIRECT_ORIGINS),
     )
 
-    # RFC 6749 §4.1.2.1: a provider reports a denial or failure by redirecting
-    # back with ?error= and no code. Hand the user back to where they started
-    # instead of rejecting the request as a missing required parameter.
-    if not code:
-        destination = append_query(destination, {"error": error or "invalid_request"})
-
     redirect = RedirectResponse(url=destination, status_code=302)
     redirect.delete_cookie(
         f"oauth_state_{slug}",
@@ -662,6 +655,7 @@ async def oauth_callback(
         secure=settings.ENVIRONMENT != "development",
     )
 
+    # RFC 6749 §4.1.2.1: a denial arrives as ?error= with no code.
     if not code:
         return redirect
 

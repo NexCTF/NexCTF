@@ -5,7 +5,7 @@ import json
 import secrets
 from datetime import timedelta
 from typing import Annotated
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlsplit
 from uuid import UUID
 
 from fastapi import APIRouter, Form, Request
@@ -21,7 +21,6 @@ from nexctf.exceptions import (
     OAuth2InvalidRequestError,
     OAuth2ProtocolError,
     OAuth2UnknownClientError,
-    bearer_error,
 )
 from nexctf.model import User
 from nexctf.model.oauth_server import OAuthServerClient
@@ -33,7 +32,6 @@ from nexctf.schema.oauth_server import (
     OAuthTokenResponse,
     OAuthUserinfo,
 )
-from nexctf.util.url import append_query
 
 oauth_router = APIRouter(prefix="/oauth2", tags=["oauth2"])
 
@@ -50,6 +48,7 @@ _SCOPE_DESCRIPTIONS = {
 _CODE_PREFIX = "oauth:code:"
 _TOKEN_PREFIX = "oauth:token:"
 _PKCE_METHODS = ("S256",)
+_ROLE_REVOKED = "Your role is no longer permitted for this client."
 
 
 def _hash(value: str) -> str:
@@ -65,9 +64,19 @@ def _verify_pkce(verifier: str, challenge: str) -> bool:
     return hmac.compare_digest(computed, challenge)
 
 
-# The loaders and the role check are shared by the wire-protocol endpoints and
-# the consent-page ones, which owe their callers different error bodies — so the
-# caller supplies the exception rather than the helper picking one.
+def _append_query(url: str, params: dict[str, str]) -> str:
+    """Append *params* to *url*, preserving any query string it already carries."""
+    sep = "&" if urlsplit(url).query else "?"
+    return f"{url}{sep}{urlencode(params, quote_via=quote)}"
+
+
+def _unknown_client() -> OAuth2ProtocolError:
+    """Protocol-side error for a client_id that is unknown or disabled."""
+    return OAuth2ProtocolError(
+        400, "invalid_client", "No enabled client is registered with this client_id."
+    )
+
+
 async def _get_active_client(
     session: AsyncSession, client_id: str, *, error: Exception
 ) -> OAuthServerClient:
@@ -105,6 +114,17 @@ def _ensure_role_allowed(
         raise error
 
 
+async def _consent_client(
+    session: AsyncSession, client_id: str, user: User
+) -> OAuthServerClient:
+    """Load the client a consent-page request names, checking the user's role."""
+    client = await _get_active_client(
+        session, client_id, error=OAuth2UnknownClientError()
+    )
+    _ensure_role_allowed(client, user, error=OAuth2AccessDeniedError())
+    return client
+
+
 @oauth_router.get("/.well-known/oauth-authorization-server")
 async def metadata() -> OAuthServerMetadata:
     base = f"{settings.BACKEND_HOST}{settings.API_V1_STR}/oauth2"
@@ -128,7 +148,7 @@ def _error_redirect(
     params = {"error": error}
     if state:
         params["state"] = state
-    return RedirectResponse(url=append_query(redirect_uri, params), status_code=302)
+    return RedirectResponse(url=_append_query(redirect_uri, params), status_code=302)
 
 
 @oauth_router.get("/authorize")
@@ -145,15 +165,7 @@ async def authorize(
     # RFC 6749 §4.1.2.1: an unknown client or an unregistered redirect_uri is
     # answered directly and never redirected to; everything after this point has
     # a trusted target and reports back to it with ?error=.
-    client = await _get_active_client(
-        session,
-        client_id,
-        error=OAuth2ProtocolError(
-            400,
-            "invalid_client",
-            "No enabled client is registered with this client_id.",
-        ),
-    )
+    client = await _get_active_client(session, client_id, error=_unknown_client())
     if redirect_uri not in client.redirect_uri_list:
         raise OAuth2ProtocolError(
             400, "invalid_request", "redirect_uri is not registered for this client."
@@ -173,7 +185,7 @@ async def authorize(
         qs["code_challenge_method"] = "S256"
 
     return RedirectResponse(
-        url=f"{settings.FRONTEND_HOST}/oauth/consent?{urlencode(qs, quote_via=quote)}",
+        url=_append_query(f"{settings.FRONTEND_HOST}/oauth/consent", qs),
         status_code=302,
     )
 
@@ -185,10 +197,7 @@ async def client_info(
     user: CurrentUserDep,
     scope: str = "openid profile",
 ) -> Response[OAuthConsentInfo]:
-    client = await _get_active_client(
-        session, client_id, error=OAuth2UnknownClientError()
-    )
-    _ensure_role_allowed(client, user, error=OAuth2AccessDeniedError())
+    client = await _consent_client(session, client_id, user)
     requested = [s for s in scope.split() if s in _SCOPE_DESCRIPTIONS]
     return Response(
         data=OAuthConsentInfo(
@@ -208,10 +217,7 @@ async def approve(
     obj: OAuthApproveRequest,
     user: CurrentUserDep,
 ) -> Response[OAuthApproveResponse]:
-    client = await _get_active_client(
-        session, obj.client_id, error=OAuth2UnknownClientError()
-    )
-    _ensure_role_allowed(client, user, error=OAuth2AccessDeniedError())
+    client = await _consent_client(session, obj.client_id, user)
 
     if obj.redirect_uri not in client.redirect_uri_list:
         raise OAuth2InvalidRequestError(
@@ -245,7 +251,7 @@ async def approve(
         params["state"] = obj.state
 
     return Response(
-        data=OAuthApproveResponse(redirect_to=append_query(obj.redirect_uri, params))
+        data=OAuthApproveResponse(redirect_to=_append_query(obj.redirect_uri, params))
     )
 
 
@@ -260,29 +266,20 @@ async def token(
     client_secret: Annotated[str, Form()],
     code_verifier: Annotated[str | None, Form()] = None,
 ) -> OAuthTokenResponse:
-    invalid_grant = OAuth2ProtocolError(
-        400, "invalid_grant", "The authorization code is invalid, expired or revoked."
-    )
-
     if grant_type != "authorization_code":
         raise OAuth2ProtocolError(
             400, "unsupported_grant_type", "Only authorization_code is supported."
         )
 
-    client = await _get_active_client(
-        session,
-        client_id,
-        error=OAuth2ProtocolError(
-            400,
-            "invalid_client",
-            "No enabled client is registered with this client_id.",
-        ),
-    )
+    client = await _get_active_client(session, client_id, error=_unknown_client())
     if not hmac.compare_digest(client.client_secret_hash, _hash(client_secret)):
         raise OAuth2ProtocolError(
             401, "invalid_client", "Client authentication failed."
         )
 
+    invalid_grant = OAuth2ProtocolError(
+        400, "invalid_grant", "The authorization code is invalid, expired or revoked."
+    )
     raw_payload = await redis.get(_CODE_PREFIX + code)
     if raw_payload is None:
         raise invalid_grant
@@ -306,9 +303,7 @@ async def token(
     _ensure_role_allowed(
         client,
         user,
-        error=OAuth2ProtocolError(
-            403, "access_denied", "Your role is no longer permitted for this client."
-        ),
+        error=OAuth2ProtocolError(403, "access_denied", _ROLE_REVOKED),
     )
 
     raw_token = secrets.token_urlsafe(32)
@@ -339,8 +334,8 @@ async def userinfo(
     session: SessionDep,
     redis: RedisDep,
 ) -> OAuthUserinfo:
-    invalid_token = bearer_error(
-        "invalid_token", "The access token is invalid, expired or revoked."
+    invalid_token = OAuth2ProtocolError.bearer(
+        401, "invalid_token", "The access token is invalid, expired or revoked."
     )
 
     auth_header = request.headers.get("Authorization", "")
@@ -361,9 +356,7 @@ async def userinfo(
     _ensure_role_allowed(
         client,
         user,
-        error=bearer_error(
-            "access_denied", "Your role is no longer permitted for this client."
-        ),
+        error=OAuth2ProtocolError.bearer(403, "access_denied", _ROLE_REVOKED),
     )
 
     scopes = set(data["scopes"].split())

@@ -111,12 +111,7 @@ async def multiauth_unauthorized_handler(
 async def oauth2_protocol_error_handler(
     request: Request, exc: OAuth2ProtocolError
 ) -> JSONResponse:
-    """Render OAuth2 wire-protocol errors in the RFC body shape.
-
-    Third-party OAuth clients read ``error`` per RFC 6749 §5.2, not the app's
-    ``ErrorResponse``. Registered explicitly so it wins over the toolsets
-    ``HTTPException`` handler, which Starlette would otherwise resolve to.
-    """
+    """Render OAuth2 protocol errors as ``{"error", "error_description"}``."""
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": exc.error, "error_description": exc.error_description},

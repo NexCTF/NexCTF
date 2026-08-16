@@ -293,12 +293,9 @@ class OAuthProviderResponseError(OAuthError):
 
 
 class OAuth2ProtocolError(HTTPException):
-    """An OAuth2 wire-protocol error, rendered as the RFC body, not ``ErrorResponse``.
+    """An OAuth2 error rendered as ``{"error", "error_description"}``.
 
-    Raised by the endpoints third-party OAuth clients talk to. ``main.py``
-    registers a handler that emits ``{"error", "error_description"}`` per
-    RFC 6749 §5.2 / RFC 6750 §3. Subclassing ``HTTPException`` keeps the status
-    code correct should that handler ever be dropped.
+    RFC 6749 §5.2 / RFC 6750 §3, emitted by the handler ``main.py`` registers.
     """
 
     def __init__(
@@ -313,25 +310,22 @@ class OAuth2ProtocolError(HTTPException):
         self.error_description = description
         super().__init__(status_code, error, headers=headers)
 
-
-def bearer_error(error: str, description: str) -> OAuth2ProtocolError:
-    """Build a 401/403 bearer-token error carrying the RFC 6750 §3 challenge."""
-    status_code = 403 if error == "access_denied" else 401
-    challenge = f'Bearer error="{error}", error_description="{description}"'
-    return OAuth2ProtocolError(
-        status_code, error, description, headers={"WWW-Authenticate": challenge}
-    )
-
-
-class OAuth2ServerError(ApiException, abstract=True):
-    """Base for the consent-page endpoints of the OAuth2 authorization server.
-
-    Distinct from ``OAuthError``, which covers NexCTF acting as an OAuth
-    *client* (provider login, account linking).
-    """
+    @classmethod
+    def bearer(
+        cls, status_code: int, error: str, description: str
+    ) -> OAuth2ProtocolError:
+        """Build the same error with an RFC 6750 §3 ``WWW-Authenticate`` challenge."""
+        challenge = f'Bearer error="{error}", error_description="{description}"'
+        return cls(
+            status_code, error, description, headers={"WWW-Authenticate": challenge}
+        )
 
 
-class OAuth2UnknownClientError(OAuth2ServerError):
+class OAuth2ConsentError(ApiException, abstract=True):
+    """Base for the consent-page endpoints of the OAuth2 authorization server."""
+
+
+class OAuth2UnknownClientError(OAuth2ConsentError):
     api_error = ApiError(
         code=400,
         msg="Unknown OAuth2 client",
@@ -340,7 +334,7 @@ class OAuth2UnknownClientError(OAuth2ServerError):
     )
 
 
-class OAuth2InvalidRequestError(OAuth2ServerError):
+class OAuth2InvalidRequestError(OAuth2ConsentError):
     api_error = ApiError(
         code=400,
         msg="Invalid OAuth2 request",
@@ -349,7 +343,7 @@ class OAuth2InvalidRequestError(OAuth2ServerError):
     )
 
 
-class OAuth2AccessDeniedError(OAuth2ServerError):
+class OAuth2AccessDeniedError(OAuth2ConsentError):
     api_error = ApiError(
         code=403,
         msg="Access denied",

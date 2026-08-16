@@ -825,8 +825,10 @@ class TestOAuthFlow:
         )
 
         assert resp.status_code == 302
-        assert "error=access_denied" in resp.headers["location"]
         assert "NexCTF" not in resp.cookies
+        # Nothing reads an error param, so none is emitted — it would otherwise
+        # feed back through redirect_url and accumulate on every denial.
+        assert "error=" not in resp.headers["location"]
 
     async def test_callback_inactive_provider(self, http_client, inactive_provider):
         resp = await http_client.get(
