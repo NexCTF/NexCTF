@@ -78,10 +78,17 @@ class User(Base):
     def has_password(self) -> bool:
         return self.hashed_password is not None
 
-    oauth_accounts: Mapped[list[OAuthAccount]] = relationship(back_populates="user")
-    tokens: Mapped[list[UserToken]] = relationship(back_populates="user")
+    oauth_accounts: Mapped[list[OAuthAccount]] = relationship(
+        back_populates="user", cascade="all, delete-orphan", passive_deletes=True
+    )
+    tokens: Mapped[list[UserToken]] = relationship(
+        back_populates="user", cascade="all, delete-orphan", passive_deletes=True
+    )
+    sessions: Mapped[list[UserSession]] = relationship(
+        back_populates="user", cascade="all, delete-orphan", passive_deletes=True
+    )
     custom_field_values: Mapped[list[CustomFieldValue]] = relationship(
-        back_populates="user", cascade="all, delete-orphan"
+        back_populates="user", cascade="all, delete-orphan", passive_deletes=True
     )
 
     team: Mapped[Team | None] = relationship(back_populates="users")
@@ -102,4 +109,21 @@ class UserToken(Base):
     expires_at: Mapped[datetime | None]
 
     user: Mapped[User] = relationship(back_populates="tokens")
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+
+
+class UserSession(Base):
+    """One signed-in browser session, keyed on the cookie's session id."""
+
+    __tablename__ = "user_sessions"
+
+    sid_hash: Mapped[str] = mapped_column(unique=True, index=True)
+    ip: Mapped[str | None]
+    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    last_seen_at: Mapped[datetime]
+    expires_at: Mapped[datetime]
+
+    user: Mapped[User] = relationship(back_populates="sessions")
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )

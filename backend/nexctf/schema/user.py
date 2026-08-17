@@ -69,6 +69,15 @@ class PublicApiTokenRead(PydanticBase):
     token: str | None = None
 
 
+class PublicUserSessionRead(PydanticBase):
+    id: UUID
+    ip: str | None
+    user_agent: str | None
+    last_seen_at: datetime
+    # True for the session making the request
+    current: bool
+
+
 class UserCreate(PydanticBase):
     username: str
     email: str | None = None

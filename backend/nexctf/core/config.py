@@ -49,12 +49,7 @@ class Settings(BaseSettings):
             )
         return self
 
-    # Number of trusted reverse proxies in front of the application.
-    # 0 = no proxy (use the direct connection IP, ignore X-Forwarded-For).
-    # N = N trusted proxies; the client IP is read N entries from the right of
-    #     X-Forwarded-For (the leftmost entries are client-controlled and spoofable).
-    # Adjust this to match your deployment topology.
-    TRUSTED_PROXY_COUNT: int = 1
+    TRUSTED_PROXY_COUNT: int = 0
 
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)

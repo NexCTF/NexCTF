@@ -40,7 +40,7 @@ class OAuthAccount(Base):
     subject: Mapped[str]
 
     user: Mapped[User] = relationship(back_populates="oauth_accounts")
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
 
     provider_id: Mapped[UUID] = mapped_column(ForeignKey("oauth_providers.id"))
     provider: Mapped[OAuthProvider] = relationship(back_populates="accounts")

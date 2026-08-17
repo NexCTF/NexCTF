@@ -877,6 +877,24 @@
       "submit": "Change password",
       "wrong_current": "Current password is incorrect"
     },
+    "session": {
+      "all_revoke_error": "Could not sign out the other devices",
+      "all_revoked": "Signed out on every device",
+      "current": "This device",
+      "device_on": "{{browser}} on {{os}}",
+      "device_unknown": "Unknown device",
+      "last_seen": "Last active {{when}}",
+      "revoke": "Sign out this device",
+      "revoke_all": "Sign out everywhere",
+      "revoke_all_confirm": "Sign out on every device? You will be signed out here too.",
+      "revoke_confirm": "Sign out {{device}}?",
+      "revoke_error": "Could not sign out that session",
+      "revoked": "Session signed out",
+      "section_hint": "Devices currently signed in to your account.",
+      "section_title": "Active sessions",
+      "signed_in_from": "Signed in from {{ip}}",
+      "signed_in_from_unknown": "Signed in from an unknown IP"
+    },
     "subtitle": "Manage your account settings.",
     "title": "Settings",
     "token": {

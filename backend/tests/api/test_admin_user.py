@@ -352,6 +352,48 @@ class TestDeleteUser(DeleteGuardMixin):
         resp2 = await c.get(f"{self.PREFIX}/{u.id}")
         assert resp2.status_code == 404
 
+    async def test_delete_takes_the_rows_the_user_owns(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        """Tokens, OAuth links and sessions must not block deleting their owner."""
+        from datetime import UTC, datetime, timedelta
+
+        from nexctf.model import OAuthAccount, OAuthProvider, UserSession, UserToken
+
+        c, _ = admin_client
+        victim = User(username="fk_victim", hashed_password="x")
+        provider = OAuthProvider(
+            name="IdP",
+            slug="fk-idp",
+            client_id="c",
+            client_secret="s",
+            discovery_url="https://idp.example.com/.well-known/openid-configuration",
+        )
+        db_session.add_all([victim, provider])
+        await db_session.flush()
+
+        now = datetime.now(UTC)
+        db_session.add_all(
+            [
+                UserToken(user_id=victim.id, token_hash="fk-token-hash", name="t"),
+                OAuthAccount(
+                    user_id=victim.id, provider_id=provider.id, subject="fk-subject"
+                ),
+                UserSession(
+                    user_id=victim.id,
+                    sid_hash="fk-sid-hash",
+                    last_seen_at=now,
+                    expires_at=now + timedelta(days=1),
+                ),
+            ]
+        )
+        await db_session.flush()
+
+        assert (await c.delete(f"{self.PREFIX}/{victim.id}")).status_code == 200
+        assert (await c.get(f"{self.PREFIX}/{victim.id}")).status_code == 404
+
     async def test_delete_not_found(
         self, admin_client: tuple[AsyncClient, User]
     ) -> None:

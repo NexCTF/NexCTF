@@ -300,6 +300,28 @@ export async function deleteMyToken(id: string): Promise<void> {
   await rawRequest(`/me/tokens/${id}`, { method: "DELETE" });
 }
 
+export interface UserSession {
+  id: string;
+  ip: string | null;
+  user_agent: string | null;
+  last_seen_at: string;
+  /** True for the session making the request */
+  current: boolean;
+}
+
+export async function getMySessions(): Promise<UserSession[]> {
+  return request<UserSession[]>("/me/sessions");
+}
+
+export async function deleteMySession(id: string): Promise<void> {
+  await rawRequest(`/me/sessions/${id}`, { method: "DELETE" });
+}
+
+/** Sign out every device, including this one. Clears the cookie server-side. */
+export async function deleteAllSessions(): Promise<void> {
+  await rawRequest("/me/sessions", { method: "DELETE" });
+}
+
 export interface TotpSetupData {
   provisioning_uri: string;
 }

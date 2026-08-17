@@ -19,4 +19,4 @@ class TestVerifyCookie:
     )
     async def test_malformed_payload_is_unauthorized(self, credential: str) -> None:
         with pytest.raises(UnauthorizedError):
-            await _verify_cookie(credential)
+            await _verify_cookie(credential, session_id="irrelevant")
