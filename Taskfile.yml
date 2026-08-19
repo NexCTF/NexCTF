@@ -24,6 +24,7 @@ tasks:
       REDIS_HOST: 127.0.0.1
       S3_HOST: 127.0.0.1
       ENVIRONMENT: development
+      TRUSTED_PROXY_COUNT: 1
 
   dev:scheduler:
     desc: "Run the scheduler worker in dev mode"

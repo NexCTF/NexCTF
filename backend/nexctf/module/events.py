@@ -28,6 +28,8 @@ EVENT_CATEGORIES: dict[str, str] = {
     "user.totp_disabled": "account",
     "user.token_created": "account",
     "user.token_revoked": "account",
+    "user.session_revoked": "account",
+    "user.sessions_revoked": "account",
     "user.oauth_unlinked": "account",
     "team.created": "gameplay",
     "team.joined": "gameplay",

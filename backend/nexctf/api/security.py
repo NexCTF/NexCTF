@@ -6,15 +6,18 @@ from uuid import UUID
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+from fastapi import Request, Response
 from fastapi_multiauth import APIKeyCookieAuth, HTTPBearerAuth, MultiAuth
 from fastapi_toolsets.exceptions import ForbiddenError, UnauthorizedError
 from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from nexctf import crud
 from nexctf.core.config import settings
 from nexctf.core.db import get_db_context
 from nexctf.model import User, UserRole, UserToken
+from nexctf.module.session import SESSION_TTL, start_session, touch_live_session
 from nexctf.schema import UserTokenCreate
 
 TOKEN_PREFIX = "nexctf_"
@@ -97,7 +100,9 @@ async def _verify_token(token: str, role: UserRole | None = None) -> User:
         return user
 
 
-async def _verify_cookie(credential: str, role: UserRole | None = None) -> User:
+async def _verify_cookie(
+    credential: str, *, session_id: str, role: UserRole | None = None
+) -> User:
     try:
         user_id_str, version_str = credential.split(":", 1)
         expected_version = int(version_str)
@@ -108,11 +113,14 @@ async def _verify_cookie(credential: str, role: UserRole | None = None) -> User:
     async with get_db_context() as db:
         user = await crud.UserCrud.first(session=db, filters=[User.id == user_id])
 
-    if not user or not user.is_active:
-        raise UnauthorizedError()
+        if not user or not user.is_active:
+            raise UnauthorizedError()
 
-    if user.session_version != expected_version:
-        raise UnauthorizedError()
+        if user.session_version != expected_version:
+            raise UnauthorizedError()
+
+        if not await touch_live_session(db, session_id, user_id):
+            raise UnauthorizedError()
 
     if role is not None and user.role != role:
         raise ForbiddenError()
@@ -129,8 +137,20 @@ cookie_auth = APIKeyCookieAuth(
     validator=_verify_cookie,
     secret_key=settings.SECRET_KEY,
     secure=settings.ENVIRONMENT != "development",
+    ttl=SESSION_TTL,
+    session_id=True,
 )
 auth = MultiAuth(bearer_auth, cookie_auth)
+
+
+async def issue_session_cookie(
+    db: AsyncSession, response: Response, user: User, request: Request
+) -> None:
+    """Sign the user in on this device: set the cookie and record its session."""
+    sid = cookie_auth.set_cookie(response, f"{user.id}:{user.session_version}")
+    if sid is None:  # session_id=True always mints one
+        raise RuntimeError("cookie_auth must be built with session_id=True")
+    await start_session(db, sid, user=user, request=request)
 
 
 async def create_api_token(

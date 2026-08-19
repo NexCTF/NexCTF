@@ -6,15 +6,18 @@ import {
   ApiError,
   changePassword,
   createMyToken,
+  deleteAllSessions,
   deleteMyOAuthAccount,
+  deleteMySession,
   deleteMyToken,
   getMyOAuthAccounts,
+  getMySessions,
   getMyTokens,
   getPublicInfo,
   totpSetup,
 } from "@/lib/api";
 import type { AuthContext } from "@/lib/auth";
-import { paginated, publicInfo, user } from "@/test/fixtures";
+import { paginated, publicInfo, user, userSession } from "@/test/fixtures";
 import { renderRoute } from "@/test/render";
 import { Route } from "./settings";
 
@@ -26,8 +29,11 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   getPublicInfo: vi.fn(),
   getMyTokens: vi.fn(),
   getMyOAuthAccounts: vi.fn(),
+  getMySessions: vi.fn(),
   createMyToken: vi.fn(),
   deleteMyToken: vi.fn(),
+  deleteMySession: vi.fn(),
+  deleteAllSessions: vi.fn(),
   deleteMyOAuthAccount: vi.fn(),
   changePassword: vi.fn(),
   totpSetup: vi.fn(),
@@ -39,6 +45,7 @@ beforeEach(() => {
   vi.mocked(getPublicInfo).mockResolvedValue(publicInfo());
   vi.mocked(getMyTokens).mockResolvedValue(paginated([]));
   vi.mocked(getMyOAuthAccounts).mockResolvedValue([]);
+  vi.mocked(getMySessions).mockResolvedValue([]);
 });
 
 async function fillPasswordForm(next: string, confirm: string) {
@@ -184,4 +191,85 @@ it("sends an anonymous visitor to the login page", async () => {
 
   await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
   expect(getMyTokens).not.toHaveBeenCalled();
+});
+
+it("lists sessions and marks the current device", async () => {
+  vi.mocked(getMySessions).mockResolvedValue([
+    userSession({ id: "s1", current: true }),
+    userSession({ id: "s2", ip: "198.51.100.9" }),
+  ]);
+  renderSettings();
+
+  expect(await screen.findByText("This device")).toBeDefined();
+  expect(screen.getAllByText("Chrome on Windows")).toHaveLength(2);
+  // The IP is captured at login and never refreshed, so the label must say
+  // where the session started, not imply it is where it is now.
+  expect(screen.getByText(/Signed in from 198\.51\.100\.9/)).toBeDefined();
+});
+
+it("offers no revoke button for the current device", async () => {
+  vi.mocked(getMySessions).mockResolvedValue([userSession({ id: "s1", current: true })]);
+  renderSettings();
+
+  await screen.findByText("This device");
+  expect(screen.queryByRole("button", { name: "Sign out this device" })).toBeNull();
+});
+
+it("revokes a single session", async () => {
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  vi.mocked(getMySessions).mockResolvedValue([
+    userSession({ id: "s1", current: true }),
+    userSession({ id: "s2" }),
+  ]);
+  vi.mocked(deleteMySession).mockResolvedValue(undefined);
+  renderSettings();
+
+  await userEvent.click(await screen.findByRole("button", { name: "Sign out this device" }));
+
+  await waitFor(() => expect(deleteMySession).toHaveBeenCalledWith("s2"));
+  expect(toast.success).toHaveBeenCalledWith("Session signed out");
+});
+
+it("signs out everywhere and drops this session too", async () => {
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  const logout = vi.fn().mockResolvedValue(undefined);
+  vi.mocked(getMySessions).mockResolvedValue([
+    userSession({ id: "s1", current: true }),
+    userSession({ id: "s2" }),
+  ]);
+  vi.mocked(deleteAllSessions).mockResolvedValue(undefined);
+  renderSettings({ user: user(), logout });
+
+  await userEvent.click(await screen.findByRole("button", { name: /Sign out everywhere/ }));
+
+  await waitFor(() => expect(deleteAllSessions).toHaveBeenCalled());
+  expect(toast.success).toHaveBeenCalledWith("Signed out on every device");
+  await waitFor(() => expect(logout).toHaveBeenCalled());
+});
+
+it("warns that signing out everywhere includes this device", async () => {
+  const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+  vi.mocked(getMySessions).mockResolvedValue([userSession({ id: "s1", current: true })]);
+  renderSettings();
+
+  await userEvent.click(await screen.findByRole("button", { name: /Sign out everywhere/ }));
+
+  expect(confirmSpy).toHaveBeenCalledWith(
+    "Sign out on every device? You will be signed out here too.",
+  );
+  expect(deleteAllSessions).not.toHaveBeenCalled();
+});
+
+it("keeps the session out of the list when revocation fails", async () => {
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  vi.mocked(getMySessions).mockResolvedValue([
+    userSession({ id: "s1", current: true }),
+    userSession({ id: "s2" }),
+  ]);
+  vi.mocked(deleteMySession).mockRejectedValue(new ApiError(500, "boom", null, null));
+  renderSettings();
+
+  await userEvent.click(await screen.findByRole("button", { name: "Sign out this device" }));
+
+  await waitFor(() => expect(toast.error).toHaveBeenCalledWith("boom"));
 });

@@ -1,10 +1,12 @@
 """Current-user self-management endpoints."""
 
+from datetime import UTC, datetime
 from uuid import UUID
 
 import pyotp
 from fastapi import APIRouter, Request
 from fastapi.responses import Response as RawResponse
+from fastapi_multiauth import hash_token
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, PaginationType, Response
 from sqlalchemy.orm import selectinload
@@ -21,6 +23,7 @@ from nexctf.api.security import (
     cookie_auth,
     create_api_token,
     hash_password,
+    issue_session_cookie,
     verify_password,
 )
 from nexctf.core import appconfig
@@ -37,14 +40,16 @@ from nexctf.exceptions import (
     TotpAlreadyEnabledError,
     TotpNotEnabledError,
 )
-from nexctf.model import OAuthAccount, Team, User, UserToken
+from nexctf.model import OAuthAccount, Team, User, UserSession, UserToken
 from nexctf.model.user import gen_invite_code
 from nexctf.module.events import emit
+from nexctf.module.session import revoke_user_sessions
 from nexctf.module.team import load_team_read
 from nexctf.schema import (
     PublicApiTokenCreate,
     PublicApiTokenRead,
     PublicOAuthAccountRead,
+    PublicUserSessionRead,
     UserTeamUpdate,
     UserTotpUpdate,
 )
@@ -131,6 +136,88 @@ async def revoke_token(
         actor_id=user.id,
         ip=get_client_ip(request),
         meta={"token_name": token.name},
+    )
+
+
+@me_router.get("/sessions")
+async def list_sessions(
+    request: Request,
+    session: SessionDep,
+    user: CurrentUserDep,
+) -> Response[list[PublicUserSessionRead]]:
+    """List the user's live sessions, newest activity first."""
+    rows = await crud.UserSessionCrud.get_multi(
+        session=session,
+        filters=[
+            UserSession.user_id == user.id,
+            UserSession.expires_at > datetime.now(UTC),
+        ],
+        order_by=UserSession.last_seen_at.desc(),
+    )
+    sid = cookie_auth.session_id_of(request)
+    this_hash = hash_token(sid) if sid else None
+    return Response(
+        data=[
+            PublicUserSessionRead(
+                id=row.id,
+                ip=row.ip,
+                user_agent=row.user_agent,
+                last_seen_at=row.last_seen_at,
+                current=row.sid_hash == this_hash,
+            )
+            for row in rows
+        ]
+    )
+
+
+@me_router.delete("/sessions/{session_id}", status_code=204)
+async def revoke_one_session(
+    request: Request,
+    session: SessionDep,
+    redis: RedisDep,
+    session_id: UUID,
+    user: CurrentUserDep,
+):
+    """Sign out one device."""
+    row = await crud.UserSessionCrud.first(
+        session=session,
+        filters=[UserSession.id == session_id, UserSession.user_id == user.id],
+    )
+    if not row:
+        raise NotFoundError(detail="Session not found")
+    await crud.UserSessionCrud.delete(
+        session=session, filters=[UserSession.id == row.id]
+    )
+    await emit(
+        session,
+        redis,
+        event_type="user.session_revoked",
+        actor_id=user.id,
+        ip=get_client_ip(request),
+    )
+
+
+@me_router.delete("/sessions", status_code=204)
+async def revoke_all_sessions(
+    request: Request,
+    session: SessionDep,
+    redis: RedisDep,
+    response: RawResponse,
+    user: CurrentUserDep,
+):
+    """Sign out every device, including the one making the request.
+
+    Included so a user who suspects their cookie was stolen can end every
+    session without having to guess which one is the attacker's.
+    """
+    await revoke_user_sessions(session, user)
+    cookie_auth.delete_cookie(response)
+    await emit(
+        session,
+        redis,
+        event_type="user.sessions_revoked",
+        actor_id=user.id,
+        ip=get_client_ip(request),
     )
 
 
@@ -225,7 +312,10 @@ async def change_password(
             session_version=session_version,
         ),
     )
-    cookie_auth.set_cookie(response, f"{user.id}:{session_version}")
+    # Reflect the bump on the instance so the re-issued cookie carries it.
+    user.session_version = session_version
+    await revoke_user_sessions(session, user)
+    await issue_session_cookie(session, response, user, request)
     await emit(
         session,
         redis,

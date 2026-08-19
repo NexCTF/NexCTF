@@ -22,7 +22,6 @@ from fastapi_multiauth.oauth import (
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from redis.asyncio import Redis
 from sqlalchemy import func
-from sqlalchemy import update as sql_update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -38,6 +37,7 @@ from nexctf.api.security import (
     cookie_auth,
     dummy_verify_password,
     hash_password,
+    issue_session_cookie,
     issue_single_use_token,
     verify_password,
 )
@@ -66,6 +66,7 @@ from nexctf.exceptions import (
 )
 from nexctf.model import OAuthAccount, OAuthProvider, User, UserToken
 from nexctf.module.events import emit
+from nexctf.module.session import revoke_session, revoke_user_sessions
 from nexctf.schema import (
     OAuthAccountCreate,
     PublicRegisterRequest,
@@ -273,7 +274,7 @@ async def login(
             reason="email_not_verified",
         )
         raise EmailNotVerifiedError()
-    cookie_auth.set_cookie(response, f"{user.id}:{user.session_version}")
+    await issue_session_cookie(session, response, user, request)
     await emit(
         session,
         redis,
@@ -310,15 +311,13 @@ async def reset_password(
         session=session,
         filters=[User.id == user.id],
         obj=UserPasswordUpdate(
-            id=user.id, hashed_password=hash_password(body.new_password)
+            id=user.id,
+            hashed_password=hash_password(body.new_password),
+            session_version=user.session_version + 1,
         ),
     )
     await crud.UserTokenCrud.delete(session, filters=[UserToken.user_id == user.id])
-    await session.execute(
-        sql_update(User)
-        .where(User.id == user.id)
-        .values(session_version=User.session_version + 1)
-    )
+    await revoke_user_sessions(session, user)
     await emit(
         session,
         redis,
@@ -481,7 +480,9 @@ async def logout(
     response: RawResponse,
     user: OptionalCookieUserDep,
 ):
-    cookie_auth.delete_cookie(response)
+    sid = cookie_auth.delete_cookie(response, request)
+    if sid is not None:
+        await revoke_session(session, sid)
     if user is not None:
         await emit(
             session,
@@ -700,5 +701,5 @@ async def oauth_callback(
         meta={"username": user.username, "provider": provider.slug},
     )
 
-    cookie_auth.set_cookie(redirect, f"{user.id}:{user.session_version}")
+    await issue_session_cookie(db, redirect, user, request)
     return redirect

@@ -23,6 +23,7 @@ from nexctf.model import (
     Submission,
     Team,
     User,
+    UserSession,
     UserToken,
 )
 from nexctf.module.audit import AuditedCrud
@@ -84,6 +85,15 @@ class UserTokenCrud(AsyncCrud[UserToken]):
     facet_fields = []
     order_fields = [UserToken.name, (UserToken.user, User.username)]
     default_load_options = [joinedload(UserToken.user)]
+
+
+class UserSessionCrud(AsyncCrud[UserSession]):
+    model = UserSession
+    cursor_column = UserSession.created_at
+    searchable_fields = []
+    facet_fields = []
+    order_fields = [UserSession.last_seen_at]
+    default_load_options = []
 
 
 class OAuthProviderCrud(AuditedCrud[OAuthProvider]):

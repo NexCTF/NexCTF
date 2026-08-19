@@ -879,6 +879,24 @@
       "submit": "Changer le mot de passe",
       "wrong_current": "Le mot de passe actuel est incorrect"
     },
+    "session": {
+      "all_revoke_error": "",
+      "all_revoked": "",
+      "current": "",
+      "device_on": "",
+      "device_unknown": "",
+      "last_seen": "",
+      "revoke": "",
+      "revoke_all": "",
+      "revoke_all_confirm": "",
+      "revoke_confirm": "",
+      "revoke_error": "",
+      "revoked": "",
+      "section_hint": "",
+      "section_title": "",
+      "signed_in_from": "",
+      "signed_in_from_unknown": ""
+    },
     "subtitle": "Gérez les paramètres de votre compte.",
     "title": "Paramètres",
     "token": {

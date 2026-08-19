@@ -625,18 +625,18 @@ class TestOAuthFlow:
         )
         assert resp.status_code == 404
 
-    async def test_callback_creates_new_user(self, http_client, oauth_provider):
+    async def test_callback_cookie_actually_authenticates(
+        self, http_client, db_session, oauth_provider, override_db_context
+    ):
+        """The callback must create a usable session, not just set a cookie."""
         with patch(
             "nexctf.api.routes.auth.oauth_resolve_provider_urls",
             new_callable=AsyncMock,
             return_value=self._FAKE_URLS,
         ):
             auth_resp = await http_client.get(
-                "/auth/providers/test-idp/authorize",
-                follow_redirects=False,
+                "/auth/providers/test-idp/authorize", follow_redirects=False
             )
-
-        assert auth_resp.status_code in (302, 303, 307)
         state = parse_qs(urlparse(auth_resp.headers["location"]).query).get(
             "state", [None]
         )[0]
@@ -655,7 +655,7 @@ class TestOAuthFlow:
             patch(
                 "nexctf.api.routes.auth.oauth_fetch_userinfo",
                 new_callable=AsyncMock,
-                return_value={"sub": "external-user-001", "email": "ext@example.com"},
+                return_value={"sub": "session-probe-001", "email": "sp@example.com"},
             ),
         ):
             callback_resp = await http_client.get(
@@ -665,7 +665,11 @@ class TestOAuthFlow:
             )
 
         assert callback_resp.status_code == 302
-        assert "NexCTF" in callback_resp.cookies
+        assert (await http_client.get("/info/me")).status_code == 200
+
+        rows = (await http_client.get("/me/sessions")).json()["data"]
+        assert len(rows) == 1
+        assert rows[0]["current"] is True
 
     async def test_callback_suffixes_a_taken_username(
         self, http_client, db_session, oauth_provider, override_db_context

@@ -7,9 +7,12 @@ import {
   KeyRound,
   Link2,
   Link2Off,
+  LogOut,
+  Monitor,
   Plus,
   ShieldCheck,
   ShieldOff,
+  Smartphone,
   Trash2,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
@@ -34,9 +37,12 @@ import {
   apiErrorMessage,
   changePassword,
   createMyToken,
+  deleteAllSessions,
   deleteMyOAuthAccount,
+  deleteMySession,
   deleteMyToken,
   getMyOAuthAccounts,
+  getMySessions,
   getMyTokens,
   getPublicInfo,
   type OAuthAccount,
@@ -46,6 +52,7 @@ import {
   totpEnable,
   totpSetup,
   type User,
+  type UserSession,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { copyToClipboard } from "@/lib/utils";
@@ -69,6 +76,19 @@ function CopyButton({ value }: { value: string }) {
     <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={copy}>
       {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
     </Button>
+  );
+}
+
+// ── Row skeleton ──────────────────────────────────────────────────────────────
+
+function RowSkeleton() {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: 2 }).map((_, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton placeholders
+        <div key={i} className="h-14 rounded-lg border bg-muted/20 animate-pulse" />
+      ))}
+    </div>
   );
 }
 
@@ -211,6 +231,214 @@ function TokenRow({ token, onDeleted }: { token: ApiToken; onDeleted: () => void
         <Trash2 className="size-3.5" />
       </Button>
     </div>
+  );
+}
+
+// ponytail: substring matching on the UA string, enough for a device label.
+// Swap in a real parser only if the labels start being wrong for real users.
+// Order is significant — first match wins, so narrower patterns come first.
+const BROWSERS: [RegExp, string][] = [
+  [/Edg\//, "Edge"],
+  [/OPR\/|Opera/, "Opera"],
+  [/Firefox\//, "Firefox"],
+  [/Chrome\//, "Chrome"],
+  [/Safari\//, "Safari"],
+];
+
+const OSES: [RegExp, string][] = [
+  [/Windows/, "Windows"],
+  [/Android/, "Android"],
+  [/iPhone|iPad|iPod/, "iOS"],
+  [/Mac OS X/, "macOS"],
+  [/Linux/, "Linux"],
+];
+
+const matchUa = (ua: string, table: [RegExp, string][]): string | null =>
+  table.find(([re]) => re.test(ua))?.[1] ?? null;
+
+function describeDevice(ua: string | null): { browser: string | null; os: string | null } {
+  if (!ua) return { browser: null, os: null };
+  return { browser: matchUa(ua, BROWSERS), os: matchUa(ua, OSES) };
+}
+
+function formatLastSeen(iso: string, locale: string): string {
+  const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  const units: [Intl.RelativeTimeFormatUnit, number][] = [
+    ["day", 86400],
+    ["hour", 3600],
+    ["minute", 60],
+  ];
+  for (const [unit, secs] of units) {
+    if (seconds >= secs) return rtf.format(-Math.floor(seconds / secs), unit);
+  }
+  return rtf.format(-Math.max(seconds, 0), "second");
+}
+
+function SessionRow({ session, onRevoked }: { session: UserSession; onRevoked: () => void }) {
+  const { t, i18n } = useTranslation();
+
+  const mutation = useMutation({
+    mutationFn: () => deleteMySession(session.id),
+    onSuccess: () => {
+      toast.success(t("settings.session.revoked", { defaultValue: "Session signed out" }));
+      onRevoked();
+    },
+    onError: (err) =>
+      toast.error(
+        apiErrorMessage(
+          err,
+          t("settings.session.revoke_error", { defaultValue: "Could not sign out that session" }),
+        ),
+      ),
+  });
+
+  const { browser, os } = describeDevice(session.user_agent);
+  const label =
+    browser && os
+      ? t("settings.session.device_on", {
+          browser,
+          os,
+          defaultValue: "{{browser}} on {{os}}",
+        })
+      : (browser ?? os ?? t("settings.session.device_unknown", { defaultValue: "Unknown device" }));
+  const isMobile = os === "Android" || os === "iOS";
+  const DeviceIcon = isMobile ? Smartphone : Monitor;
+
+  return (
+    <div className="flex items-center gap-4 rounded-lg border px-4 py-3">
+      <DeviceIcon className="size-4 text-muted-foreground shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">
+          {label}
+          {session.current && (
+            <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary align-middle">
+              {t("settings.session.current", { defaultValue: "This device" })}
+            </span>
+          )}
+        </p>
+        <p className="text-xs text-muted-foreground truncate">
+          {session.ip
+            ? t("settings.session.signed_in_from", {
+                ip: session.ip,
+                defaultValue: "Signed in from {{ip}}",
+              })
+            : t("settings.session.signed_in_from_unknown", {
+                defaultValue: "Signed in from an unknown IP",
+              })}
+          {!session.current &&
+            ` · ${t("settings.session.last_seen", {
+              when: formatLastSeen(session.last_seen_at, i18n.language),
+              defaultValue: "Last active {{when}}",
+            })}`}
+        </p>
+      </div>
+      {!session.current && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7 text-destructive hover:text-destructive shrink-0"
+          aria-label={t("settings.session.revoke", { defaultValue: "Sign out this device" })}
+          disabled={mutation.isPending}
+          onClick={() => {
+            if (
+              confirm(
+                t("settings.session.revoke_confirm", {
+                  device: label,
+                  defaultValue: "Sign out {{device}}?",
+                }),
+              )
+            ) {
+              mutation.mutate();
+            }
+          }}
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function SessionsSection() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const { logout } = useAuth();
+
+  const { data: sessions = [], isLoading } = useQuery({
+    queryKey: ["my-sessions"],
+    queryFn: getMySessions,
+  });
+
+  function invalidate() {
+    void queryClient.invalidateQueries({ queryKey: ["my-sessions"] });
+  }
+
+  const revokeAll = useMutation({
+    mutationFn: deleteAllSessions,
+    onSuccess: async () => {
+      toast.success(
+        t("settings.session.all_revoked", { defaultValue: "Signed out on every device" }),
+      );
+      // The cookie is already dead server-side; reuse logout's teardown so the
+      // app drops its cached identity and the route guard sends us to login.
+      await logout();
+    },
+    onError: (err) =>
+      toast.error(
+        apiErrorMessage(
+          err,
+          t("settings.session.all_revoke_error", {
+            defaultValue: "Could not sign out the other devices",
+          }),
+        ),
+      ),
+  });
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold">
+            {t("settings.session.section_title", { defaultValue: "Active sessions" })}
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {t("settings.session.section_hint", {
+              defaultValue: "Devices currently signed in to your account.",
+            })}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={sessions.length === 0 || revokeAll.isPending}
+          onClick={() => {
+            if (
+              confirm(
+                t("settings.session.revoke_all_confirm", {
+                  defaultValue: "Sign out on every device? You will be signed out here too.",
+                }),
+              )
+            ) {
+              revokeAll.mutate();
+            }
+          }}
+        >
+          <LogOut />
+          {t("settings.session.revoke_all", { defaultValue: "Sign out everywhere" })}
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <RowSkeleton />
+      ) : (
+        <div className="space-y-2">
+          {sessions.map((session) => (
+            <SessionRow key={session.id} session={session} onRevoked={invalidate} />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -496,12 +724,7 @@ function OAuthSection() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 2 }).map((_, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton
-            <div key={i} className="h-14 rounded-lg border bg-muted/20 animate-pulse" />
-          ))}
-        </div>
+        <RowSkeleton />
       ) : (
         <div className="space-y-2">
           {allProviders.map((provider) => {
@@ -713,6 +936,9 @@ function SettingsPage() {
       {/* Connected OAuth accounts */}
       <OAuthSection />
 
+      {/* Signed-in devices */}
+      <SessionsSection />
+
       {/* API Tokens section */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
@@ -737,12 +963,7 @@ function SettingsPage() {
         </div>
 
         {isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 2 }).map((_, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton placeholders
-              <div key={i} className="h-14 rounded-lg border bg-muted/20 animate-pulse" />
-            ))}
-          </div>
+          <RowSkeleton />
         ) : tokens.length === 0 ? (
           <div className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
             {t("settings.token.empty")}

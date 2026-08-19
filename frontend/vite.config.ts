@@ -21,12 +21,15 @@ export default defineConfig({
       "/api/v1/stream": {
         target: "http://localhost:8000",
         changeOrigin: true,
+        // xfwd sends the real client IP; pairs with TRUSTED_PROXY_COUNT=1
+        xfwd: true,
         timeout: 0,
         proxyTimeout: 0,
       },
       "/api": {
         target: "http://localhost:8000",
         changeOrigin: true,
+        xfwd: true,
       },
     },
   },

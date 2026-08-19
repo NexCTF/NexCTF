@@ -9,7 +9,7 @@ requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.19.1",
     "argon2-cffi>=23.1.0",
-    "fastapi-multiauth[oauth]>=0.2.0",
+    "fastapi-multiauth[oauth]>=0.4.0",
     "fastapi-toolsets[all]>=5.1.0",
     "fastapi[standard-no-fastapi-cloud-cli]>=0.141.1",
     "pydantic>=2.12.5",

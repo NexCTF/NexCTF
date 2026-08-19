@@ -7,6 +7,7 @@ import type {
   PublicQuestion,
   Scoreboard,
   User,
+  UserSession,
 } from "@/lib/api";
 import { DEFAULT_BRANDING } from "@/lib/branding";
 
@@ -162,6 +163,17 @@ export function scoreboard(overrides: Partial<Scoreboard> = {}): Scoreboard {
     computed_at: "2026-01-01T12:00:00Z",
     brackets: [],
     custom_fields: [],
+    ...overrides,
+  };
+}
+
+export function userSession(overrides: Partial<UserSession> = {}): UserSession {
+  return {
+    id: "11111111-1111-4111-8111-111111111111",
+    ip: "203.0.113.7",
+    user_agent: "Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
+    last_seen_at: new Date().toISOString(),
+    current: false,
     ...overrides,
   };
 }
