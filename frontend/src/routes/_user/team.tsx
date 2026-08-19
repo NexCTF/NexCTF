@@ -252,7 +252,7 @@ function TeamPage() {
   const { user, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: publicInfo } = useQuery({
+  const { data: publicInfo, isLoading: infoLoading } = useQuery({
     queryKey: ["info", "public"],
     queryFn: getPublicInfo,
     staleTime: 5 * 60 * 1000,
@@ -267,7 +267,7 @@ function TeamPage() {
   if (authLoading) return null;
   if (!user) return <Navigate to="/login" />;
 
-  if (teamLoading) {
+  if (teamLoading || infoLoading) {
     return (
       <div className="flex items-center justify-center py-32">
         <p className="text-muted-foreground text-sm">Loading…</p>

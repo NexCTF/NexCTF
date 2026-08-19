@@ -116,6 +116,20 @@ it("swaps in the new invite code after regenerating it", async () => {
   expect(await screen.findByText("NEWCODE9")).toBeDefined();
 });
 
+it("waits for the config before rendering, so a frozen CTF never flashes the invite code", async () => {
+  vi.mocked(getMyTeam).mockResolvedValue(team());
+  vi.mocked(getPublicInfo).mockReturnValue(new Promise(() => {}));
+  renderTeam();
+
+  // The team has loaded but the config has not: rendering now would fall back
+  // to allow_team_changes=true and show the code a frozen CTF must not show.
+  await waitFor(() => expect(getMyTeam).toHaveBeenCalled());
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  expect(screen.getByText("Loading…")).toBeDefined();
+  expect(screen.queryByText("INVITE123")).toBeNull();
+});
+
 it("hides the invite section and leave button when changes are frozen", async () => {
   vi.mocked(getMyTeam).mockResolvedValue(team());
   vi.mocked(getPublicInfo).mockResolvedValue(publicInfoWith({ allow_team_changes: false }));
