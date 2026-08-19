@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { BracketSelect } from "@/components/bracket-select";
 import { PageHeader } from "@/components/page-header";
 import { RankBadge, ScoreboardBanners } from "@/components/scoreboard";
-import { DateCell, SignedPoints } from "@/components/table-cells";
+import { EmptyCell } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import { apiErrorMessage, getAdminScoreboard, invalidateScoreboardCache } from "@/lib/api";
 
@@ -78,23 +78,16 @@ function ScoreboardSection() {
                       {t("scoreboard.bracket_label")}
                     </th>
                   )}
+                  {data.custom_fields.map((f) => (
+                    <th
+                      key={f.name}
+                      className="px-4 py-2.5 text-left text-muted-foreground font-medium"
+                    >
+                      {f.label}
+                    </th>
+                  ))}
                   <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">
                     {t("scoreboard.col_total")}
-                  </th>
-                  <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">
-                    {t("scoreboard.col_solve_points")}
-                  </th>
-                  <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">
-                    {t("scoreboard.col_adjustments")}
-                  </th>
-                  <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">
-                    {t("scoreboard.col_hints")}
-                  </th>
-                  <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">
-                    {t("scoreboard.col_solves")}
-                  </th>
-                  <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
-                    {t("admin.scoreboard.col_last_solve", { defaultValue: "Last solve" })}
                   </th>
                   <th className="w-8" />
                 </tr>
@@ -103,7 +96,7 @@ function ScoreboardSection() {
                 {data.entries.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={data.brackets.length > 0 ? 10 : 9}
+                      colSpan={4 + (data.brackets.length > 0 ? 1 : 0) + data.custom_fields.length}
                       className="px-4 py-8 text-center text-muted-foreground"
                     >
                       {t("scoreboard.empty")}
@@ -127,32 +120,16 @@ function ScoreboardSection() {
                       <td className="px-4 py-3 font-medium">{entry.team_name}</td>
                       {data.brackets.length > 0 && (
                         <td className="px-4 py-3 text-muted-foreground capitalize">
-                          {entry.team_bracket ?? "—"}
+                          {entry.team_bracket ?? <EmptyCell />}
                         </td>
                       )}
+                      {data.custom_fields.map((f) => (
+                        <td key={f.name} className="px-4 py-3 text-muted-foreground">
+                          {entry.custom_fields[f.name] ?? <EmptyCell />}
+                        </td>
+                      ))}
                       <td className="px-4 py-3 text-right font-semibold tabular-nums">
                         {entry.total}
-                      </td>
-                      <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
-                        {entry.solve_points}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <SignedPoints amount={entry.adjustment_points} />
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">
-                        <span
-                          className={
-                            entry.hint_points !== 0 ? "text-red-500" : "text-muted-foreground"
-                          }
-                        >
-                          {entry.hint_points}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
-                        {entry.solve_count}
-                      </td>
-                      <td className="px-4 py-3">
-                        <DateCell value={entry.last_solve_at} />
                       </td>
                       <td className="px-3 py-3 w-8 text-muted-foreground/30 group-hover:text-primary transition-colors">
                         <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />

@@ -146,7 +146,7 @@ function CreateTeamDialog({ onCreated }: { onCreated: () => void }) {
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
               {mutation.isPending
-                ? t("common.creating", { defaultValue: "Creating..." })
+                ? t("common.creating", { defaultValue: "Creating…" })
                 : t("common.create", { defaultValue: "Create" })}
             </Button>
           </DialogFooter>

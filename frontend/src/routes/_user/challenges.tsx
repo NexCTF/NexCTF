@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2, ChevronRight, Circle } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Banner } from "@/components/banner";
 import { TagBadge } from "@/components/tag-badge";
 import { getChallenges, type PublicChallenge } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -38,17 +39,20 @@ function ChallengesPage() {
   return (
     <div className="mx-auto max-w-screen-lg px-4 py-10 space-y-10">
       {eventEnded && (
-        <div className="flex items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
-          <AlertTriangle className="size-4 shrink-0" />
+        <Banner tone="amber" icon={AlertTriangle}>
           {t("challenge.event_ended_banner")}
-        </div>
+        </Banner>
       )}
-      <h1 className="text-2xl font-bold">Challenges</h1>
+      <h1 className="text-2xl font-bold">
+        {t("challenge.list_title", { defaultValue: "Challenges" })}
+      </h1>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Loading…</p>
+        <p className="text-muted-foreground">{t("common.loading")}</p>
       ) : challenges.length === 0 ? (
-        <p className="text-muted-foreground">No challenges available yet.</p>
+        <p className="text-muted-foreground">
+          {t("challenge.list_empty", { defaultValue: "No challenges available yet." })}
+        </p>
       ) : (
         Array.from(grouped.entries()).map(([category, items]) => (
           <section key={category} className="space-y-3">

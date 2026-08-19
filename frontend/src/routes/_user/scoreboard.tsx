@@ -54,7 +54,7 @@ function ScoreboardRow({
 }) {
   return (
     <tr
-      className="group transition-colors hover:bg-muted/30 cursor-pointer"
+      className="group transition-colors cursor-pointer hover:bg-accent/60 border-l-2 border-l-transparent hover:border-l-primary"
       onClick={() => onOpen(entry.team_id)}
     >
       <td className="px-4 py-3">

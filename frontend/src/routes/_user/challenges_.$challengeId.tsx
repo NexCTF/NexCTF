@@ -17,6 +17,8 @@ import {
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { Banner } from "@/components/banner";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Markdown } from "@/components/markdown";
 import { PluginSlot } from "@/components/plugin-slot";
 import { TagBadge } from "@/components/tag-badge";
@@ -38,6 +40,52 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useEventEnded } from "@/lib/use-event-ended";
 import { formatBytes } from "@/lib/utils";
+
+function UnlockHintButton({
+  hint,
+  disabled,
+  onUnlock,
+}: {
+  hint: PublicHint;
+  disabled: boolean;
+  onUnlock: () => void;
+}) {
+  const { t } = useTranslation();
+  const label = (
+    <>
+      <Lock className="size-3 mr-1" />
+      {hint.cost > 0 ? `−${hint.cost} pts` : t("challenge.hint_unlock_btn")}
+    </>
+  );
+
+  if (hint.cost === 0) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7 text-xs shrink-0"
+        disabled={disabled}
+        onClick={onUnlock}
+      >
+        {label}
+      </Button>
+    );
+  }
+
+  return (
+    <ConfirmDialog
+      description={t("challenge.hint_unlock_confirm", { cost: hint.cost })}
+      confirmLabel={t("challenge.hint_unlock_btn")}
+      destructive={false}
+      onConfirm={onUnlock}
+      trigger={
+        <Button variant="outline" size="sm" className="h-7 text-xs shrink-0" disabled={disabled}>
+          {label}
+        </Button>
+      }
+    />
+  );
+}
 
 export const Route = createFileRoute("/_user/challenges_/$challengeId")({
   component: ChallengePage,
@@ -94,10 +142,9 @@ function ChallengeView({ challenge }: { challenge: PublicChallengeDetail }) {
   return (
     <div className="mx-auto max-w-screen-md px-4 py-8 space-y-8">
       {eventEnded && (
-        <div className="flex items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
-          <AlertTriangle className="size-4 shrink-0" />
+        <Banner tone="amber" icon={AlertTriangle}>
           {t("challenge.event_ended_banner")}
-        </div>
+        </Banner>
       )}
       <div className="space-y-4">
         <Link
@@ -422,23 +469,11 @@ function HintsSection({
                 <span className="font-medium">{h.title}</span>
               </div>
               {!h.is_unlocked && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs shrink-0"
-                  onClick={() => {
-                    if (
-                      h.cost === 0 ||
-                      confirm(t("challenge.hint_unlock_confirm", { cost: h.cost }))
-                    ) {
-                      unlockMutation.mutate(h.id);
-                    }
-                  }}
+                <UnlockHintButton
+                  hint={h}
                   disabled={unlockMutation.isPending}
-                >
-                  <Lock className="size-3 mr-1" />
-                  {h.cost > 0 ? `−${h.cost} pts` : t("challenge.hint_unlock_btn")}
-                </Button>
+                  onUnlock={() => unlockMutation.mutate(h.id)}
+                />
               )}
               {h.is_unlocked && <Eye className="size-4 text-muted-foreground shrink-0" />}
             </div>

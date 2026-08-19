@@ -4,6 +4,7 @@ import { Check, Copy, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   ChallengeProgressTable,
   MembersList,
@@ -193,19 +194,21 @@ function TeamView({
           <TeamBadges team={team} />
         </div>
         {allowChanges ? (
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => {
-              if (confirm(t("team.leave_confirm", { name: team.name }))) {
-                leaveMutation.mutate();
-              }
-            }}
-            disabled={leaveMutation.isPending}
-          >
-            {t("team.leave_btn")}
-          </Button>
+          <ConfirmDialog
+            description={t("team.leave_confirm", { name: team.name })}
+            confirmLabel={t("team.leave_btn")}
+            onConfirm={() => leaveMutation.mutate()}
+            trigger={
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                disabled={leaveMutation.isPending}
+              >
+                {t("team.leave_btn")}
+              </Button>
+            }
+          />
         ) : (
           <p className="text-xs text-muted-foreground max-w-40 text-right">
             {t("team.changes_disabled")}
@@ -249,6 +252,7 @@ function TeamView({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 function TeamPage() {
+  const { t } = useTranslation();
   const { user, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
 
@@ -270,7 +274,7 @@ function TeamPage() {
   if (teamLoading || infoLoading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <p className="text-muted-foreground text-sm">Loading…</p>
+        <p className="text-muted-foreground text-sm">{t("common.loading")}</p>
       </div>
     );
   }

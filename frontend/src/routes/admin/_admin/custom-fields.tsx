@@ -381,7 +381,6 @@ function CustomFieldsPage() {
       <PageHeader
         icon={ListChecks}
         title={t("admin.custom_fields.title")}
-        description={t("admin.custom_fields.subtitle")}
         actions={<CreateFieldDialog onCreated={invalidate} />}
       />
 

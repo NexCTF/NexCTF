@@ -453,7 +453,6 @@ function OAuthClientsPage() {
       <PageHeader
         icon={KeyRound}
         title={t("admin.oauth_client.title")}
-        description={t("admin.oauth_client.subtitle")}
         actions={<CreateClientDialog onCreated={invalidate} />}
       />
 

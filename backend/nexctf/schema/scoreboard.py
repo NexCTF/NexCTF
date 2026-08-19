@@ -63,6 +63,7 @@ class AdminScoreboardEntry(PydanticBase):
     hint_points: int
     solve_count: int
     last_solve_at: datetime | None
+    custom_fields: dict[str, str] = {}
 
 
 class PublicScoreboard(PydanticBase):
@@ -76,6 +77,7 @@ class AdminScoreboard(PydanticBase):
     entries: list[AdminScoreboardEntry]
     computed_at: datetime
     brackets: list[str] = []
+    custom_fields: list[ScoreboardCustomField] = []
 
 
 class ScoreEvent(PydanticBase):

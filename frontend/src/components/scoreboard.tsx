@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Clock, Snowflake } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Banner } from "@/components/banner";
 import { getPublicInfo } from "@/lib/api";
 
 const MEDALS: Record<number, string> = {
@@ -60,27 +61,4 @@ export function ScoreboardBanners() {
     );
   }
   return null;
-}
-
-const TONES = {
-  yellow: "border-yellow-500/30 bg-yellow-500/10 text-yellow-400",
-  zinc: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",
-  blue: "border-blue-500/30 bg-blue-500/10 text-blue-400",
-};
-
-function Banner({
-  tone,
-  icon: Icon,
-  children,
-}: {
-  tone: keyof typeof TONES;
-  icon: React.ElementType;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm ${TONES[tone]}`}>
-      <Icon className="h-4 w-4 shrink-0" />
-      <span>{children}</span>
-    </div>
-  );
 }

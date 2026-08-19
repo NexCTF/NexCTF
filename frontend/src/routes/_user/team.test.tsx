@@ -13,7 +13,7 @@ import {
 } from "@/lib/api";
 import type { AuthContext } from "@/lib/auth";
 import { publicInfo, publicInfoWith, team, user } from "@/test/fixtures";
-import { renderRoute } from "@/test/render";
+import { clickAndCancel, clickAndConfirm, renderRoute } from "@/test/render";
 import { Route } from "./team";
 
 const renderTeam = (auth: Partial<AuthContext> = { user: user() }) =>
@@ -95,14 +95,12 @@ it("shows the team with its invite code and member count", async () => {
 it("asks before leaving the team", async () => {
   vi.mocked(getMyTeam).mockResolvedValue(team());
   vi.mocked(leaveTeam).mockResolvedValue(undefined);
-  const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
   renderTeam();
 
-  await userEvent.click(await screen.findByRole("button", { name: "Leave team" }));
+  await clickAndCancel(await screen.findByRole("button", { name: "Leave team" }));
   expect(leaveTeam).not.toHaveBeenCalled();
 
-  confirmSpy.mockReturnValue(true);
-  await userEvent.click(screen.getByRole("button", { name: "Leave team" }));
+  await clickAndConfirm(screen.getByRole("button", { name: "Leave team" }), "Leave team");
   await waitFor(() => expect(leaveTeam).toHaveBeenCalled());
 });
 

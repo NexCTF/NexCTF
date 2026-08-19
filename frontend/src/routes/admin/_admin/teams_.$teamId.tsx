@@ -354,6 +354,15 @@ function TeamDetailPage() {
                       </span>
                     }
                   />
+                  <StatCard label={t("scoreboard.col_solves")} value={boardEntry.solve_count} />
+                  <StatCard
+                    label={t("admin.scoreboard.col_last_solve", { defaultValue: "Last solve" })}
+                    value={
+                      <span className="text-base font-medium">
+                        <DateCell value={boardEntry.last_solve_at} />
+                      </span>
+                    }
+                  />
                 </div>
               </DetailSection>
             )}

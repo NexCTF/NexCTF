@@ -265,10 +265,19 @@ async def compute_admin_scoreboard(
     adjustments = await _fetch_all_adjustments(session)
     hint_unlocks = await _fetch_all_hint_unlocks(session)
     all_teams = await _fetch_all_teams(session)
+    fields, field_values = await _fetch_scoreboard_fields(session)
     teams, brackets = _filter_teams_by_bracket(all_teams, bracket)
 
     entries, now = _build_ranked_entries(submissions, adjustments, hint_unlocks, teams)
-    return AdminScoreboard(entries=entries, computed_at=now, brackets=brackets)
+    return AdminScoreboard(
+        entries=[
+            e.model_copy(update={"custom_fields": field_values.get(e.team_id, {})})
+            for e in entries
+        ],
+        computed_at=now,
+        brackets=brackets,
+        custom_fields=fields,
+    )
 
 
 async def compute_scoreboard(

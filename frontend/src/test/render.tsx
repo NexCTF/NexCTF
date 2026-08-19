@@ -7,7 +7,8 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import { type AuthContext, AuthCtx } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
@@ -75,4 +76,18 @@ export function renderRoute(
     </QueryClientProvider>,
   );
   return { ...result, router, auth: authValue };
+}
+
+/** Open a ConfirmDialog from its trigger and accept it. */
+export async function clickAndConfirm(trigger: HTMLElement, confirmLabel: string | RegExp) {
+  await userEvent.click(trigger);
+  const dialog = await screen.findByRole("dialog");
+  await userEvent.click(within(dialog).getByRole("button", { name: confirmLabel }));
+}
+
+/** Open a ConfirmDialog from its trigger and dismiss it. */
+export async function clickAndCancel(trigger: HTMLElement) {
+  await userEvent.click(trigger);
+  const dialog = await screen.findByRole("dialog");
+  await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
 }

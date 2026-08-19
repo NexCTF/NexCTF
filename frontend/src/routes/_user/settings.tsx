@@ -13,12 +13,12 @@ import {
   ShieldCheck,
   ShieldOff,
   Smartphone,
-  Trash2,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ConfirmDialog, DeleteButton } from "@/components/confirm-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -216,20 +216,12 @@ function TokenRow({ token, onDeleted }: { token: ApiToken; onDeleted: () => void
           })}
         </span>
       )}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-7 text-destructive hover:text-destructive shrink-0"
-        aria-label={t("settings.token.revoke")}
+      <DeleteButton
+        label={t("settings.token.revoke", { defaultValue: "Revoke token" })}
+        description={t("settings.token.revoke_confirm", { name: displayName })}
         disabled={mutation.isPending}
-        onClick={() => {
-          if (confirm(t("settings.token.revoke_confirm", { name: displayName }))) {
-            mutation.mutate();
-          }
-        }}
-      >
-        <Trash2 className="size-3.5" />
-      </Button>
+        onConfirm={() => mutation.mutate()}
+      />
     </div>
   );
 }
@@ -334,27 +326,15 @@ function SessionRow({ session, onRevoked }: { session: UserSession; onRevoked: (
         </p>
       </div>
       {!session.current && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 text-destructive hover:text-destructive shrink-0"
-          aria-label={t("settings.session.revoke", { defaultValue: "Sign out this device" })}
+        <DeleteButton
+          label={t("settings.session.revoke", { defaultValue: "Sign out this device" })}
+          description={t("settings.session.revoke_confirm", {
+            device: label,
+            defaultValue: "Sign out {{device}}?",
+          })}
           disabled={mutation.isPending}
-          onClick={() => {
-            if (
-              confirm(
-                t("settings.session.revoke_confirm", {
-                  device: label,
-                  defaultValue: "Sign out {{device}}?",
-                }),
-              )
-            ) {
-              mutation.mutate();
-            }
-          }}
-        >
-          <Trash2 className="size-3.5" />
-        </Button>
+          onConfirm={() => mutation.mutate()}
+        />
       )}
     </div>
   );
@@ -408,25 +388,23 @@ function SessionsSection() {
             })}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={sessions.length === 0 || revokeAll.isPending}
-          onClick={() => {
-            if (
-              confirm(
-                t("settings.session.revoke_all_confirm", {
-                  defaultValue: "Sign out on every device? You will be signed out here too.",
-                }),
-              )
-            ) {
-              revokeAll.mutate();
-            }
-          }}
-        >
-          <LogOut />
-          {t("settings.session.revoke_all", { defaultValue: "Sign out everywhere" })}
-        </Button>
+        <ConfirmDialog
+          description={t("settings.session.revoke_all_confirm", {
+            defaultValue: "Sign out on every device? You will be signed out here too.",
+          })}
+          confirmLabel={t("settings.session.revoke_all", { defaultValue: "Sign out everywhere" })}
+          onConfirm={() => revokeAll.mutate()}
+          trigger={
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={sessions.length === 0 || revokeAll.isPending}
+            >
+              <LogOut />
+              {t("settings.session.revoke_all", { defaultValue: "Sign out everywhere" })}
+            </Button>
+          }
+        />
       </div>
 
       {isLoading ? (
@@ -709,9 +687,7 @@ function OAuthSection() {
   });
 
   function handleUnlink(account: OAuthAccount) {
-    if (confirm(t("settings.oauth.unlink_confirm", { name: account.provider_name }))) {
-      unlink.mutate({ id: account.id, name: account.provider_name });
-    }
+    unlink.mutate({ id: account.id, name: account.provider_name });
   }
 
   if (allProviders.length === 0) return null;
@@ -741,16 +717,24 @@ function OAuthSection() {
                 )}
                 <p className="flex-1 text-sm font-medium">{provider.name}</p>
                 {linked ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive shrink-0 gap-1.5"
-                    disabled={unlink.isPending}
-                    onClick={() => handleUnlink(linked)}
-                  >
-                    <Link2Off className="size-3.5" />
-                    {t("settings.oauth.unlink")}
-                  </Button>
+                  <ConfirmDialog
+                    description={t("settings.oauth.unlink_confirm", {
+                      name: linked.provider_name,
+                    })}
+                    confirmLabel={t("settings.oauth.unlink")}
+                    onConfirm={() => handleUnlink(linked)}
+                    trigger={
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive shrink-0 gap-1.5"
+                        disabled={unlink.isPending}
+                      >
+                        <Link2Off className="size-3.5" />
+                        {t("settings.oauth.unlink")}
+                      </Button>
+                    }
+                  />
                 ) : (
                   <a
                     href={oauthAuthorizeUrl(provider.slug, window.location.href)}

@@ -1479,6 +1479,11 @@ export async function deleteSubEntity(endpoint: string, id: string): Promise<voi
 // Public – Scoreboard
 // ---------------------------------------------------------------------------
 
+export interface ScoreboardCustomField {
+  name: string;
+  label: string;
+}
+
 export interface ScoreboardEntry {
   rank: number;
   team_id: string;
@@ -1492,7 +1497,7 @@ export interface Scoreboard {
   entries: ScoreboardEntry[];
   computed_at: string;
   brackets: string[];
-  custom_fields: { name: string; label: string }[];
+  custom_fields: ScoreboardCustomField[];
 }
 
 export interface SolveDetail {
@@ -1562,12 +1567,14 @@ export interface AdminScoreboardEntry {
   hint_points: number;
   solve_count: number;
   last_solve_at: string | null;
+  custom_fields: Record<string, string>;
 }
 
 export interface AdminScoreboard {
   entries: AdminScoreboardEntry[];
   computed_at: string;
   brackets: string[];
+  custom_fields: ScoreboardCustomField[];
 }
 
 export async function getAdminScoreboard(bracket?: string): Promise<AdminScoreboard> {

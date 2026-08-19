@@ -1,7 +1,7 @@
 import { Check, ChevronRight, Lightbulb, Users, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SignedPoints } from "@/components/table-cells";
+import { EmptyCell, SignedPoints } from "@/components/table-cells";
 import type { PublicCustomField, PublicTeam, TeamChallengeStats, TeamScoreDetail } from "@/lib/api";
 
 // ── Badges ────────────────────────────────────────────────────────────────────
@@ -241,7 +241,7 @@ function ChallengeStatsRow({ stats }: { stats: TeamChallengeStats }) {
                       </span>
                     )}
                     {q.is_solved && <SignedPoints amount={q.points_earned} />}
-                    {q.is_solved ? <Check className="size-3.5 text-green-500" /> : <span>—</span>}
+                    {q.is_solved ? <Check className="size-3.5 text-green-500" /> : <EmptyCell />}
                   </span>
                 </div>
               ))}

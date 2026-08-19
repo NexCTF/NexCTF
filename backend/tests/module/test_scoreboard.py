@@ -504,3 +504,25 @@ async def test_compute_team_score_freeze_excludes_post_freeze_solves(db_session)
     result = await compute_team_score(db_session, t.id, freeze_time=_FREEZE)
     assert result.total == 100
     assert len(result.solves) == 1
+
+
+async def test_compute_admin_scoreboard_ignores_the_freeze(db_session):
+    """Admins see live scores: the freeze hides nothing from the admin board."""
+    ch = await _challenge(db_session)
+    q1 = await _question(db_session, ch.id, points=100)
+    q2 = await _question(db_session, ch.id, points=50)
+    t = await _team(db_session, "AdminFreeze")
+    await _submission(
+        db_session, t.id, q1.id, points_earned=100, created_at=_BEFORE_FREEZE
+    )
+    await _submission(
+        db_session, t.id, q2.id, points_earned=50, created_at=_AFTER_FREEZE
+    )
+
+    frozen = await compute_scoreboard(db_session, freeze_time=_FREEZE)
+    assert next(e for e in frozen.entries if e.team_name == "AdminFreeze").total == 100
+
+    admin = await compute_admin_scoreboard(db_session)
+    entry = next(e for e in admin.entries if e.team_name == "AdminFreeze")
+    assert entry.total == 150
+    assert entry.solve_count == 2

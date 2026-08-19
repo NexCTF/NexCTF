@@ -17,6 +17,8 @@ type ConfirmDialogProps = {
   /** What the confirmation is about. */
   description: string;
   confirmLabel?: string;
+  /** Styles the confirm button as destructive. Off for actions that only spend. */
+  destructive?: boolean;
   onConfirm: () => void;
 };
 
@@ -24,6 +26,7 @@ export function ConfirmDialog({
   trigger,
   description,
   confirmLabel,
+  destructive = true,
   onConfirm,
 }: ConfirmDialogProps) {
   const { t } = useTranslation();
@@ -43,7 +46,7 @@ export function ConfirmDialog({
           </Button>
           <Button
             type="button"
-            variant="destructive"
+            variant={destructive ? "destructive" : "default"}
             onClick={() => {
               setOpen(false);
               onConfirm();
@@ -63,12 +66,15 @@ export function DeleteButton({
   onConfirm,
   disabled,
   size = "icon-sm",
+  label,
 }: {
   description: string;
   onConfirm: () => void;
   disabled?: boolean;
   /** "icon-xs" for compact inline rows. */
   size?: "icon-xs" | "icon-sm";
+  /** Accessible name, when "Delete" is not what the action is called. */
+  label?: string;
 }) {
   const { t } = useTranslation();
   return (
@@ -83,7 +89,7 @@ export function DeleteButton({
           className="text-destructive hover:text-destructive"
           disabled={disabled}
           onClick={(e) => e.stopPropagation()}
-          aria-label={t("common.delete")}
+          aria-label={label ?? t("common.delete")}
         >
           <Trash2 className={size === "icon-xs" ? "size-3" : "size-3.5"} />
         </Button>
