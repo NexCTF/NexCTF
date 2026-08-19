@@ -1,17 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { ExternalLink, Maximize2, Pencil, Trash2 } from "lucide-react";
+import { ExternalLink, Pencil } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { CustomFieldValuesList } from "@/components/custom-field-values-list";
 import { CustomFieldsSection, useCustomFieldDefs } from "@/components/custom-fields-section";
-import { type Column, DataTable, useTableState } from "@/components/data-table";
+import { DataTable, useTableState } from "@/components/data-table";
 import { DetailPageShell, DetailSection } from "@/components/detail-page";
-import { IdCell } from "@/components/id-cell";
 import { LabelInput } from "@/components/label-input";
 import { LinksFormSection } from "@/components/links-form-section";
 import { StatCard } from "@/components/stat-card";
+import { SubmissionAnswerDialog, useSubmissionColumns } from "@/components/submission-table";
+import {
+  ChallengeLink,
+  DateCell,
+  EmptyCell,
+  SignedPoints,
+  StatusCell,
+  UserLink,
+} from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,6 +36,7 @@ import {
   type AdminTeamChallengeStats,
   apiErrorMessage,
   deleteAdminSubmission,
+  getAdminScoreboard,
   getAdminTeamChallengeStats,
   getAdminTeamDetail,
   getAdminTeamSubmissions,
@@ -191,6 +200,12 @@ function TeamDetailPage() {
     placeholderData: (prev) => prev,
   });
 
+  const { data: scoreboard } = useQuery({
+    queryKey: ["admin", "scoreboard", undefined],
+    queryFn: () => getAdminScoreboard(),
+  });
+  const boardEntry = scoreboard?.entries.find((e) => e.team_id === teamId);
+
   const { data: challengeStats } = useQuery<AdminTeamChallengeStats[]>({
     queryKey: ["admin", "team", teamId, "challenge-stats"],
     queryFn: () => getAdminTeamChallengeStats(teamId),
@@ -200,9 +215,7 @@ function TeamDetailPage() {
     if (!challengeStats) return null;
     return {
       solves: challengeStats.filter((cs) => cs.is_solved).length,
-      points: challengeStats.reduce((acc, cs) => acc + cs.points_earned, 0),
       hintUnlocks: challengeStats.reduce((acc, cs) => acc + cs.hint_unlock_count, 0),
-      hintCost: challengeStats.reduce((acc, cs) => acc + cs.hint_cost_spent, 0),
     };
   }, [challengeStats]);
 
@@ -218,93 +231,11 @@ function TeamDetailPage() {
     onError: (err) => toast.error(apiErrorMessage(err, t("admin.teams.submission_delete_error"))),
   });
 
-  const SUBMISSION_COLUMNS: Column<AdminSubmission>[] = [
-    {
-      key: "id",
-      header: "ID",
-      sortable: false,
-      cell: (sub) => <IdCell id={sub.id} />,
-      className: "w-32",
-    },
-    {
-      key: "question_challenge_title",
-      header: t("admin.teams.col_challenge"),
-      cell: (sub) => (
-        <span className="text-muted-foreground">{sub.question_challenge_title ?? "—"}</span>
-      ),
-    },
-    {
-      key: "question_label",
-      header: t("admin.teams.col_question"),
-      cell: (sub) => <span>{sub.question_label ?? "—"}</span>,
-    },
-    {
-      key: "answer",
-      header: t("admin.teams.col_answer"),
-      cell: (sub) => (
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-xs text-primary underline-offset-2 hover:underline hover:bg-primary/10 transition-colors max-w-[140px] truncate"
-          onClick={(e) => {
-            e.stopPropagation();
-            setAnswerDialog(sub);
-          }}
-        >
-          <span className="truncate">{sub.answer}</span>
-          <Maximize2 className="size-3 shrink-0 opacity-60" />
-        </button>
-      ),
-    },
-    {
-      key: "is_correct",
-      header: t("admin.teams.col_correct"),
-      cell: (sub) => (
-        <span className={sub.is_correct ? "text-green-500 font-semibold" : "text-muted-foreground"}>
-          {sub.is_correct ? "✓" : "✗"}
-        </span>
-      ),
-    },
-    {
-      key: "points_earned",
-      header: t("admin.teams.col_points"),
-      sortable: true,
-      cell: (sub) => (
-        <span className="tabular-nums">
-          {sub.points_earned > 0 ? `+${sub.points_earned}` : sub.points_earned}
-        </span>
-      ),
-    },
-    {
-      key: "created_at",
-      header: t("admin.teams.col_date"),
-      cell: (sub) => (
-        <span className="text-muted-foreground text-xs whitespace-nowrap">
-          {new Date(sub.created_at).toLocaleString()}
-        </span>
-      ),
-    },
-    {
-      key: "actions",
-      header: "",
-      sortable: false,
-      cell: (sub) => (
-        <div className="flex justify-end">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 text-destructive hover:text-destructive"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (confirm(t("admin.teams.submission_delete_confirm"))) removeSubmission(sub.id);
-            }}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
-        </div>
-      ),
-      className: "w-12",
-    },
-  ];
+  const submissionColumns = useSubmissionColumns({
+    showTeam: false,
+    onAnswerClick: setAnswerDialog,
+    onDelete: removeSubmission,
+  });
 
   return (
     <>
@@ -386,6 +317,47 @@ function TeamDetailPage() {
               readOnly
             />
 
+            {boardEntry && (
+              <DetailSection title={t("admin.teams.score_title", { defaultValue: "Score" })}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <StatCard
+                    label={t("scoreboard.col_rank")}
+                    value={
+                      <span>
+                        #{boardEntry.rank}
+                        <span className="text-sm font-normal text-muted-foreground ml-1">
+                          / {scoreboard?.entries.length}
+                        </span>
+                      </span>
+                    }
+                  />
+                  <StatCard label={t("scoreboard.col_total")} value={boardEntry.total} />
+                  <StatCard
+                    label={t("scoreboard.col_solve_points")}
+                    value={boardEntry.solve_points}
+                  />
+                  <StatCard
+                    label={t("scoreboard.col_adjustments")}
+                    value={<SignedPoints amount={boardEntry.adjustment_points} />}
+                  />
+                  <StatCard
+                    label={t("scoreboard.col_hints")}
+                    value={
+                      <span
+                        className={
+                          boardEntry.hint_points !== 0
+                            ? "text-amber-600 dark:text-amber-400"
+                            : undefined
+                        }
+                      >
+                        {boardEntry.hint_points}
+                      </span>
+                    }
+                  />
+                </div>
+              </DetailSection>
+            )}
+
             <DetailSection
               title={t("admin.teams.members_title", {
                 n: team.users.length,
@@ -399,35 +371,31 @@ function TeamDetailPage() {
                     <thead className="border-b bg-muted/40">
                       <tr>
                         <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
-                          {t("admin.teams.col_username")}
+                          {t("table.col_username", { defaultValue: "Username" })}
                         </th>
                         <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
-                          {t("admin.teams.col_email")}
+                          {t("table.col_email", { defaultValue: "Email" })}
                         </th>
                         <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
-                          {t("admin.teams.col_role")}
+                          {t("table.col_role", { defaultValue: "Role" })}
                         </th>
                         <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
-                          {t("admin.teams.col_active")}
+                          {t("table.col_status", { defaultValue: "Status" })}
                         </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
                       {team.users.map((member) => (
                         <tr key={member.id} className="transition-colors hover:bg-muted/30">
-                          <td className="px-4 py-3 font-medium">{member.username}</td>
+                          <td className="px-4 py-3 font-medium">
+                            <UserLink id={member.id} name={member.username} />
+                          </td>
                           <td className="px-4 py-3 text-muted-foreground">{member.email ?? "—"}</td>
                           <td className="px-4 py-3">
                             <span className="capitalize">{member.role}</span>
                           </td>
                           <td className="px-4 py-3">
-                            <span
-                              className={
-                                member.is_active ? "text-green-500" : "text-muted-foreground"
-                              }
-                            >
-                              {member.is_active ? "✓" : "✗"}
-                            </span>
+                            <StatusCell active={member.is_active} />
                           </td>
                         </tr>
                       ))}
@@ -444,7 +412,7 @@ function TeamDetailPage() {
                 })}
               >
                 {challengeSummary && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                  <div className="grid grid-cols-2 gap-3 mb-4">
                     <StatCard
                       label={t("admin.teams.stat_solves", { defaultValue: "Challenges Solved" })}
                       value={
@@ -459,22 +427,10 @@ function TeamDetailPage() {
                       }
                     />
                     <StatCard
-                      label={t("admin.teams.stat_points", { defaultValue: "Total Points" })}
-                      value={challengeSummary.points}
-                    />
-                    <StatCard
                       label={t("admin.teams.stat_hint_unlocks", { defaultValue: "Hint Unlocks" })}
                       value={
                         <span className="text-amber-600 dark:text-amber-400">
                           {challengeSummary.hintUnlocks}
-                        </span>
-                      }
-                    />
-                    <StatCard
-                      label={t("admin.teams.stat_hint_cost", { defaultValue: "Hint Cost Spent" })}
-                      value={
-                        <span className="text-amber-600 dark:text-amber-400">
-                          {challengeSummary.hintCost > 0 ? `-${challengeSummary.hintCost}` : "0"}
                         </span>
                       }
                     />
@@ -486,7 +442,7 @@ function TeamDetailPage() {
                     <thead className="border-b bg-muted/40">
                       <tr>
                         <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
-                          {t("admin.teams.col_challenge")}
+                          {t("table.col_challenge", { defaultValue: "Challenge" })}
                         </th>
                         <th className="px-4 py-2.5 text-center text-muted-foreground font-medium w-24">
                           {t("admin.teams.col_progress", {
@@ -494,12 +450,10 @@ function TeamDetailPage() {
                           })}
                         </th>
                         <th className="px-4 py-2.5 text-center text-muted-foreground font-medium w-24">
-                          {t("admin.teams.col_points")}
+                          {t("table.col_points", { defaultValue: "Points" })}
                         </th>
                         <th className="px-4 py-2.5 text-center text-muted-foreground font-medium w-28">
-                          {t("admin.teams.col_hints", {
-                            defaultValue: "Hints",
-                          })}
+                          {t("table.col_hints", { defaultValue: "Hints" })}
                         </th>
                         <th className="px-4 py-2.5 text-center text-muted-foreground font-medium w-32">
                           {t("admin.teams.col_hint_cost", {
@@ -516,10 +470,12 @@ function TeamDetailPage() {
                     <tbody className="divide-y">
                       {challengeStats.map((cs) => (
                         <tr key={cs.challenge_id} className="transition-colors hover:bg-muted/30">
-                          <td className="px-4 py-3 font-medium">{cs.challenge_title}</td>
+                          <td className="px-4 py-3 font-medium">
+                            <ChallengeLink id={cs.challenge_id} name={cs.challenge_title} />
+                          </td>
                           <td className="px-4 py-3 text-center">
                             {cs.question_count === 0 ? (
-                              <span className="text-muted-foreground">—</span>
+                              <EmptyCell />
                             ) : cs.is_solved ? (
                               <span className="text-green-500 font-semibold">
                                 ✓ {cs.solved_question_count}/{cs.question_count}
@@ -538,7 +494,7 @@ function TeamDetailPage() {
                                 +{cs.points_earned}
                               </span>
                             ) : (
-                              <span className="text-muted-foreground">—</span>
+                              <EmptyCell />
                             )}
                           </td>
                           <td className="px-4 py-3 text-center tabular-nums">
@@ -547,7 +503,7 @@ function TeamDetailPage() {
                                 {cs.hint_unlock_count}
                               </span>
                             ) : (
-                              <span className="text-muted-foreground">—</span>
+                              <EmptyCell />
                             )}
                           </td>
                           <td className="px-4 py-3 text-center tabular-nums">
@@ -556,11 +512,11 @@ function TeamDetailPage() {
                                 -{cs.hint_cost_spent}
                               </span>
                             ) : (
-                              <span className="text-muted-foreground">—</span>
+                              <EmptyCell />
                             )}
                           </td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                            {cs.first_solve_at ? new Date(cs.first_solve_at).toLocaleString() : "—"}
+                          <td className="px-4 py-3">
+                            <DateCell value={cs.first_solve_at} />
                           </td>
                         </tr>
                       ))}
@@ -572,7 +528,7 @@ function TeamDetailPage() {
 
             <DetailSection title={t("admin.teams.submissions_title")}>
               <DataTable
-                columns={SUBMISSION_COLUMNS}
+                columns={submissionColumns}
                 response={submissionsResponse}
                 table={submissionsTable}
                 isLoading={submissionsLoading}
@@ -585,49 +541,12 @@ function TeamDetailPage() {
         )}
       </DetailPageShell>
 
-      {answerDialog && (
-        <Dialog open onOpenChange={(v) => !v && setAnswerDialog(null)}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>{t("admin.teams.answer_dialog_title")}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3 text-sm">
-              {answerDialog.question_challenge_title && (
-                <div className="flex gap-2">
-                  <span className="text-muted-foreground shrink-0">
-                    {t("admin.teams.col_challenge")}:
-                  </span>
-                  <span>{answerDialog.question_challenge_title}</span>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <span className="text-muted-foreground shrink-0">
-                  {t("admin.teams.col_question")}:
-                </span>
-                <span>{answerDialog.question_label ?? "—"}</span>
-              </div>
-              <div className="rounded-md bg-muted p-3 font-mono text-sm break-all">
-                {answerDialog.answer}
-              </div>
-              <div className="flex justify-end pt-2">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    if (confirm(t("admin.teams.submission_delete_confirm"))) {
-                      removeSubmission(answerDialog.id);
-                      setAnswerDialog(null);
-                    }
-                  }}
-                >
-                  <Trash2 />
-                  {t("common.delete")}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      <SubmissionAnswerDialog
+        sub={answerDialog}
+        showTeam={false}
+        onClose={() => setAnswerDialog(null)}
+        onDelete={removeSubmission}
+      />
     </>
   );
 }

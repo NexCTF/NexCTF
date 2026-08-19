@@ -5,9 +5,10 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
-import { IdCell } from "@/components/id-cell";
+import { PageHeader } from "@/components/page-header";
 import { JobStatusBadge } from "@/components/scheduler-status";
 import { initFromSchema, SchemaFields } from "@/components/schema-form";
+import { DateCell, idColumn } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import {
@@ -221,56 +222,6 @@ function CreateJobDialog({ onCreated }: { onCreated: () => void }) {
 // Columns
 // ---------------------------------------------------------------------------
 
-const COLUMNS: Column<SchedulerJob>[] = [
-  {
-    key: "id",
-    header: "ID",
-    sortable: false,
-    cell: (j) => <IdCell id={j.id} />,
-    className: "w-32",
-  },
-  {
-    key: "name",
-    header: "Name",
-    cell: (j) => <span className="font-medium">{j.name}</span>,
-  },
-  {
-    key: "job_type",
-    header: "Type",
-    cell: (j) => (
-      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-        <Clock className="size-3" />
-        {j.job_type}
-      </span>
-    ),
-  },
-  {
-    key: "scheduled_at",
-    header: "Scheduled at",
-    sortable: true,
-    cell: (j) => (
-      <span className="text-sm tabular-nums">{new Date(j.scheduled_at).toLocaleString()}</span>
-    ),
-  },
-  {
-    key: "is_active",
-    header: "Status",
-    cell: (j) => <JobStatusBadge job={j} />,
-  },
-  {
-    key: "last_run",
-    header: "Last run",
-    cell: (j) =>
-      j.last_run ? (
-        <span className="text-sm tabular-nums text-muted-foreground">
-          {new Date(j.last_run).toLocaleString()}
-        </span>
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      ),
-  },
-];
-
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -281,6 +232,40 @@ function SchedulerPage() {
   const queryClient = useQueryClient();
 
   const table = useTableState();
+  const columns: Column<SchedulerJob>[] = [
+    idColumn<SchedulerJob>(t),
+    {
+      key: "name",
+      header: t("table.col_name", { defaultValue: "Name" }),
+      cell: (j) => <span className="font-medium">{j.name}</span>,
+    },
+    {
+      key: "job_type",
+      header: t("table.col_type", { defaultValue: "Type" }),
+      cell: (j) => (
+        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+          <Clock className="size-3" />
+          {j.job_type}
+        </span>
+      ),
+    },
+    {
+      key: "scheduled_at",
+      header: t("table.col_scheduled_at", { defaultValue: "Scheduled at" }),
+      sortable: true,
+      cell: (j) => <DateCell value={j.scheduled_at} />,
+    },
+    {
+      key: "is_active",
+      header: t("table.col_status", { defaultValue: "Status" }),
+      cell: (j) => <JobStatusBadge job={j} />,
+    },
+    {
+      key: "last_run",
+      header: t("table.col_last_run", { defaultValue: "Last run" }),
+      cell: (j) => <DateCell value={j.last_run} />,
+    },
+  ];
 
   const {
     data: response,
@@ -301,15 +286,14 @@ function SchedulerPage() {
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">
-          {t("admin.nav.scheduler", { defaultValue: "Scheduler" })}
-        </h1>
-        <CreateJobDialog onCreated={handleCreated} />
-      </div>
+      <PageHeader
+        icon={Clock}
+        title={t("admin.nav.scheduler", { defaultValue: "Scheduler" })}
+        actions={<CreateJobDialog onCreated={handleCreated} />}
+      />
 
       <DataTable
-        columns={COLUMNS}
+        columns={columns}
         response={response}
         table={table}
         isLoading={isLoading}

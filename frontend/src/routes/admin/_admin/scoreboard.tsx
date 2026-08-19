@@ -5,6 +5,9 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { BracketSelect } from "@/components/bracket-select";
+import { PageHeader } from "@/components/page-header";
+import { RankBadge, ScoreboardBanners } from "@/components/scoreboard";
+import { DateCell, SignedPoints } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import { apiErrorMessage, getAdminScoreboard, invalidateScoreboardCache } from "@/lib/api";
 
@@ -15,18 +18,6 @@ export const Route = createFileRoute("/admin/_admin/scoreboard")({
 // ---------------------------------------------------------------------------
 // Scoreboard table
 // ---------------------------------------------------------------------------
-
-function RankCell({ rank }: { rank: number }) {
-  const color =
-    rank === 1
-      ? "text-yellow-500 font-bold"
-      : rank === 2
-        ? "text-zinc-400 font-bold"
-        : rank === 3
-          ? "text-amber-600 font-bold"
-          : "text-muted-foreground";
-  return <span className={color}>#{rank}</span>;
-}
 
 function ScoreboardSection() {
   const { t } = useTranslation();
@@ -102,6 +93,9 @@ function ScoreboardSection() {
                   <th className="px-4 py-2.5 text-right text-muted-foreground font-medium">
                     {t("scoreboard.col_solves")}
                   </th>
+                  <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
+                    {t("admin.scoreboard.col_last_solve", { defaultValue: "Last solve" })}
+                  </th>
                   <th className="w-8" />
                 </tr>
               </thead>
@@ -109,7 +103,7 @@ function ScoreboardSection() {
                 {data.entries.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={data.brackets.length > 0 ? 9 : 8}
+                      colSpan={data.brackets.length > 0 ? 10 : 9}
                       className="px-4 py-8 text-center text-muted-foreground"
                     >
                       {t("scoreboard.empty")}
@@ -128,7 +122,7 @@ function ScoreboardSection() {
                       }
                     >
                       <td className="px-4 py-3">
-                        <RankCell rank={entry.rank} />
+                        <RankBadge rank={entry.rank} />
                       </td>
                       <td className="px-4 py-3 font-medium">{entry.team_name}</td>
                       {data.brackets.length > 0 && (
@@ -142,19 +136,8 @@ function ScoreboardSection() {
                       <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
                         {entry.solve_points}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums">
-                        <span
-                          className={
-                            entry.adjustment_points !== 0
-                              ? entry.adjustment_points > 0
-                                ? "text-green-500"
-                                : "text-red-500"
-                              : "text-muted-foreground"
-                          }
-                        >
-                          {entry.adjustment_points > 0 ? "+" : ""}
-                          {entry.adjustment_points}
-                        </span>
+                      <td className="px-4 py-3 text-right">
+                        <SignedPoints amount={entry.adjustment_points} />
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">
                         <span
@@ -167,6 +150,9 @@ function ScoreboardSection() {
                       </td>
                       <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
                         {entry.solve_count}
+                      </td>
+                      <td className="px-4 py-3">
+                        <DateCell value={entry.last_solve_at} />
                       </td>
                       <td className="px-3 py-3 w-8 text-muted-foreground/30 group-hover:text-primary transition-colors">
                         <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
@@ -198,13 +184,10 @@ function AdminScoreboardPage() {
   const { t } = useTranslation();
 
   return (
-    <div className="p-8 space-y-10">
-      <div className="flex items-center gap-3">
-        <Trophy className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">
-          {t("admin.nav.scoreboard", { defaultValue: "Scoreboard" })}
-        </h1>
-      </div>
+    <div className="p-8 space-y-6">
+      <PageHeader icon={Trophy} title={t("admin.nav.scoreboard", { defaultValue: "Scoreboard" })} />
+
+      <ScoreboardBanners />
 
       <ScoreboardSection />
     </div>

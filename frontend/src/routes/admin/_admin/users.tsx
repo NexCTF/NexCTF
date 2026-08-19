@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowUpRight, Check, Copy, Plus, RefreshCw, ShieldCheck } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Check, Copy, Plus, RefreshCw, Users } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { CustomFieldsSection, useCustomFieldDefs } from "@/components/custom-fields-section";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
-import { IdCell } from "@/components/id-cell";
+import { PageHeader } from "@/components/page-header";
+import { EmptyCell, idColumn, RoleBadge, StatusCell, TeamLink } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { apiErrorMessage, createAdminUser, getAdminUsers, USER_ROLES, type User } from "@/lib/api";
-import { cn, copyToClipboard, generatePassword } from "@/lib/utils";
+import { copyToClipboard, generatePassword } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin/users")({
   component: UsersPage,
@@ -191,37 +192,16 @@ function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
   );
 }
 
-function RoleCell(user: User) {
-  const isAdmin = user.role === "admin";
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-        isAdmin ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
-      )}
-    >
-      {isAdmin && <ShieldCheck className="size-3" />}
-      {user.role}
-    </span>
-  );
-}
-
 function UsersPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const columns: Column<User>[] = [
-    {
-      key: "id",
-      header: "ID",
-      sortable: false,
-      cell: (u) => <IdCell id={u.id} />,
-      className: "w-32",
-    },
+    idColumn<User>(t),
     {
       key: "username",
-      header: "Username",
+      header: t("table.col_username", { defaultValue: "Username" }),
       cell: (u) => (
         <div className="flex items-center gap-2">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium uppercase">
@@ -233,51 +213,24 @@ function UsersPage() {
     },
     {
       key: "email",
-      header: "Email",
-      cell: (u) => <span className="text-muted-foreground">{u.email ?? "—"}</span>,
+      header: t("table.col_email", { defaultValue: "Email" }),
+      cell: (u) =>
+        u.email ? <span className="text-muted-foreground">{u.email}</span> : <EmptyCell />,
     },
     {
       key: "team",
-      header: "Team",
-      cell: (u) =>
-        u.team_id ? (
-          <Link
-            to="/admin/teams/$teamId"
-            params={{ teamId: u.team_id }}
-            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sm font-medium text-primary underline-offset-2 hover:underline hover:bg-primary/10 transition-colors"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {u.team_name}
-            <ArrowUpRight className="size-3 opacity-60" />
-          </Link>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        ),
+      header: t("table.col_team", { defaultValue: "Team" }),
+      cell: (u) => <TeamLink id={u.team_id} name={u.team_name} />,
     },
     {
       key: "role",
-      header: "Role",
-      cell: RoleCell,
+      header: t("table.col_role", { defaultValue: "Role" }),
+      cell: (u) => <RoleBadge role={u.role} />,
     },
     {
       key: "is_active",
-      header: "Status",
-      cell: (u) => (
-        <span
-          className={cn(
-            "inline-flex items-center gap-1.5 text-xs",
-            u.is_active ? "text-green-600 dark:text-green-400" : "text-muted-foreground",
-          )}
-        >
-          <span
-            className={cn(
-              "size-1.5 rounded-full",
-              u.is_active ? "bg-green-500" : "bg-muted-foreground/50",
-            )}
-          />
-          {u.is_active ? t("admin.users.status_active") : t("admin.users.status_disabled")}
-        </span>
-      ),
+      header: t("table.col_status", { defaultValue: "Status" }),
+      cell: (u) => <StatusCell active={u.is_active} />,
     },
   ];
 
@@ -296,12 +249,15 @@ function UsersPage() {
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("admin.nav.users", { defaultValue: "Users" })}</h1>
-        <CreateUserDialog
-          onCreated={() => void queryClient.invalidateQueries({ queryKey: ["admin", "users"] })}
-        />
-      </div>
+      <PageHeader
+        icon={Users}
+        title={t("admin.nav.users", { defaultValue: "Users" })}
+        actions={
+          <CreateUserDialog
+            onCreated={() => void queryClient.invalidateQueries({ queryKey: ["admin", "users"] })}
+          />
+        }
+      />
 
       <DataTable
         columns={columns}

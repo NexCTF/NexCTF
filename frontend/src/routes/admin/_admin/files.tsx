@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Download, Eye, FileText, Globe, Lock, Pencil, Plus, Trash2 } from "lucide-react";
+import { Download, Eye, Files, FileText, Globe, Lock, Pencil, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { DeleteButton } from "@/components/confirm-dialog";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
-import { IdCell } from "@/components/id-cell";
+import { PageHeader } from "@/components/page-header";
+import { ActionsCell, EmptyCell, idColumn } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -396,7 +398,7 @@ function PublicToggle({ file, onUpdated }: { file: StoredFile; onUpdated: () => 
 // Delete button
 // ---------------------------------------------------------------------------
 
-function DeleteButton({ file, onDeleted }: { file: StoredFile; onDeleted: () => void }) {
+function DeleteFileButton({ file, onDeleted }: { file: StoredFile; onDeleted: () => void }) {
   const { t } = useTranslation();
 
   const mutation = useMutation({
@@ -412,16 +414,14 @@ function DeleteButton({ file, onDeleted }: { file: StoredFile; onDeleted: () => 
   });
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="text-destructive hover:text-destructive"
-      onClick={() => mutation.mutate()}
+    <DeleteButton
+      description={t("admin.files.delete_confirm", {
+        name: file.name,
+        defaultValue: 'Delete file "{{name}}"?',
+      })}
       disabled={mutation.isPending}
-      title="Delete"
-    >
-      <Trash2 className="size-4" />
-    </Button>
+      onConfirm={() => mutation.mutate()}
+    />
   );
 }
 
@@ -451,16 +451,10 @@ function FilesPage() {
   }
 
   const columns: Column<StoredFile>[] = [
-    {
-      key: "id",
-      header: "ID",
-      sortable: false,
-      cell: (f) => <IdCell id={f.id} />,
-      className: "w-32",
-    },
+    idColumn<StoredFile>(t),
     {
       key: "name",
-      header: t("admin.files.col_name", { defaultValue: "Name" }),
+      header: t("table.col_name", { defaultValue: "Name" }),
       cell: (f) => <span className="font-medium">{f.name}</span>,
     },
     {
@@ -472,8 +466,13 @@ function FilesPage() {
     },
     {
       key: "mime_type",
-      header: t("admin.files.col_type", { defaultValue: "Type" }),
-      cell: (f) => <span className="text-muted-foreground text-xs">{f.mime_type ?? "—"}</span>,
+      header: t("table.col_type", { defaultValue: "Type" }),
+      cell: (f) =>
+        f.mime_type ? (
+          <span className="text-muted-foreground text-xs">{f.mime_type}</span>
+        ) : (
+          <EmptyCell />
+        ),
     },
     {
       key: "file_size",
@@ -484,7 +483,7 @@ function FilesPage() {
     },
     {
       key: "is_public",
-      header: t("admin.files.col_public", { defaultValue: "Public" }),
+      header: t("table.col_public", { defaultValue: "Public" }),
       sortable: false,
       cell: (f) => <PublicToggle file={f} onUpdated={invalidate} />,
       className: "w-16 text-center",
@@ -494,11 +493,11 @@ function FilesPage() {
       header: "",
       sortable: false,
       cell: (f) => (
-        <div className="flex items-center justify-end gap-1">
+        <ActionsCell>
           <PreviewButton file={f} />
           <EditFileDialog file={f} onUpdated={invalidate} />
-          <DeleteButton file={f} onDeleted={invalidate} />
-        </div>
+          <DeleteFileButton file={f} onDeleted={invalidate} />
+        </ActionsCell>
       ),
       className: "w-32 text-right",
     },
@@ -506,10 +505,11 @@ function FilesPage() {
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("admin.nav.files", { defaultValue: "Files" })}</h1>
-        <UploadFileDialog onCreated={invalidate} />
-      </div>
+      <PageHeader
+        icon={Files}
+        title={t("admin.nav.files", { defaultValue: "Files" })}
+        actions={<UploadFileDialog onCreated={invalidate} />}
+      />
 
       <DataTable
         columns={columns}

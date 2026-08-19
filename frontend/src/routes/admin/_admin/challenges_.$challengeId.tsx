@@ -14,6 +14,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ConfirmDialog, DeleteButton } from "@/components/confirm-dialog";
 import { DetailPageShell, DetailSection } from "@/components/detail-page";
 import { LabelInput } from "@/components/label-input";
 import { initFromSchema, SchemaFields } from "@/components/schema-form";
@@ -1147,19 +1148,11 @@ function QuestionCard({
             <ArrowDown className="size-3.5" />
           </Button>
           <EditQuestionDialog question={question} onSaved={onUpdated} />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 text-destructive hover:text-destructive"
-            onClick={() => {
-              if (confirm(t("admin.challenge.question.delete_confirm"))) {
-                deleteMutation.mutate();
-              }
-            }}
+          <DeleteButton
+            description={t("admin.challenge.question.delete_confirm")}
             disabled={deleteMutation.isPending}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
+            onConfirm={() => deleteMutation.mutate()}
+          />
           <Button
             variant="ghost"
             size="icon"
@@ -1220,18 +1213,11 @@ function QuestionCard({
                         solutionTypes={solutionTypes}
                         onSaved={() => void refetchSolutions()}
                       />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-6 text-destructive hover:text-destructive"
-                        onClick={() => {
-                          if (confirm(t("admin.challenge.solution.delete_confirm"))) {
-                            deleteSolutionMutation.mutate(sol.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="size-3" />
-                      </Button>
+                      <DeleteButton
+                        size="icon-xs"
+                        description={t("admin.challenge.solution.delete_confirm")}
+                        onConfirm={() => deleteSolutionMutation.mutate(sol.id)}
+                      />
                     </div>
                   </div>
                 ))}
@@ -1270,18 +1256,11 @@ function QuestionCard({
                     <span className="text-xs text-muted-foreground">{hint.cost} pts</span>
                     <div className="flex items-center gap-1">
                       <EditHintDialog hint={hint} onSaved={() => void refetchHints()} />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-6 text-destructive hover:text-destructive"
-                        onClick={() => {
-                          if (confirm(t("admin.challenge.hint.delete_confirm"))) {
-                            deleteHintMutation.mutate(hint.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="size-3" />
-                      </Button>
+                      <DeleteButton
+                        size="icon-xs"
+                        description={t("admin.challenge.hint.delete_confirm")}
+                        onConfirm={() => deleteHintMutation.mutate(hint.id)}
+                      />
                     </div>
                   </div>
                 ))}
@@ -1460,26 +1439,22 @@ function ChallengePage() {
         }
         actions={
           challenge && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-destructive hover:text-destructive"
-              onClick={() => {
-                if (
-                  confirm(
-                    t("admin.challenge.delete_confirm", {
-                      title: challenge.title,
-                    }),
-                  )
-                ) {
-                  deleteMutation.mutate();
-                }
-              }}
-              disabled={deleteMutation.isPending}
-            >
-              <Trash2 className="size-4" />
-              {t("admin.challenge.delete_btn")}
-            </Button>
+            <ConfirmDialog
+              description={t("admin.challenge.delete_confirm", { title: challenge.title })}
+              confirmLabel={t("admin.challenge.delete_btn")}
+              onConfirm={() => deleteMutation.mutate()}
+              trigger={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="size-4" />
+                  {t("admin.challenge.delete_btn")}
+                </Button>
+              }
+            />
           )
         }
         isLoading={isLoading}

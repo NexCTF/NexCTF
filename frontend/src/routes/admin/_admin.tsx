@@ -89,6 +89,12 @@ const NAV_SECTIONS: NavSection[] = [
       { to: "/admin/files", label: "admin.nav.files", icon: Files },
       { to: "/admin/pages", label: "admin.nav.pages", icon: ScrollText },
       { to: "/admin/links", label: "admin.nav.links", icon: Link2 },
+      { to: "/admin/scheduler", label: "admin.nav.scheduler", icon: Clock },
+      {
+        to: "/admin/notifications",
+        label: "admin.nav.notifications",
+        icon: Bell,
+      },
     ],
   },
   {
@@ -104,12 +110,6 @@ const NAV_SECTIONS: NavSection[] = [
         to: "/admin/oauth-clients",
         label: "admin.nav.oauth_clients",
         icon: KeyRound,
-      },
-      { to: "/admin/scheduler", label: "admin.nav.scheduler", icon: Clock },
-      {
-        to: "/admin/notifications",
-        label: "admin.nav.notifications",
-        icon: Bell,
       },
       { to: "/admin/settings", label: "admin.nav.settings", icon: Settings },
     ],

@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, Pencil, Plus, Trash2, XCircle } from "lucide-react";
+import { KeyRound, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { DeleteButton } from "@/components/confirm-dialog";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
-import { IdCell } from "@/components/id-cell";
+import { PageHeader } from "@/components/page-header";
+import { ActionsCell, idColumn, StatusCell } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,47 +34,6 @@ export const Route = createFileRoute("/admin/_admin/oauth-providers")({
 });
 
 // ── Columns ───────────────────────────────────────────────────────────────────
-
-const COLUMNS: Column<AdminOAuthProvider>[] = [
-  {
-    key: "id",
-    header: "ID",
-    sortable: false,
-    cell: (p) => <IdCell id={p.id} />,
-    className: "w-32",
-  },
-  {
-    key: "name",
-    header: "Name",
-    cell: (p) => (
-      <div className="flex items-center gap-2">
-        {p.icon_url && <img src={p.icon_url} alt="" className="size-4 rounded-sm object-contain" />}
-        <span className="font-medium">{p.name}</span>
-        <span className="font-mono text-xs text-muted-foreground">{p.slug}</span>
-      </div>
-    ),
-  },
-  {
-    key: "discovery_url",
-    header: "Discovery URL",
-    cell: (p) => (
-      <span className="font-mono text-xs text-muted-foreground truncate max-w-xs block">
-        {p.discovery_url}
-      </span>
-    ),
-  },
-  {
-    key: "is_active",
-    header: "Active",
-    cell: (p) =>
-      p.is_active ? (
-        <CheckCircle2 className="size-4 text-green-500" />
-      ) : (
-        <XCircle className="size-4 text-muted-foreground" />
-      ),
-    className: "w-20",
-  },
-];
 
 // ── Shared form type ──────────────────────────────────────────────────────────
 
@@ -322,6 +284,56 @@ function EditProviderDialog({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 function OAuthProvidersPage() {
+  const { t } = useTranslation();
+  const columns: Column<AdminOAuthProvider>[] = [
+    idColumn<AdminOAuthProvider>(t),
+    {
+      key: "name",
+      header: t("table.col_name", { defaultValue: "Name" }),
+      cell: (p) => (
+        <div className="flex items-center gap-2">
+          {p.icon_url && (
+            <img src={p.icon_url} alt="" className="size-4 rounded-sm object-contain" />
+          )}
+          <span className="font-medium">{p.name}</span>
+          <span className="font-mono text-xs text-muted-foreground">{p.slug}</span>
+        </div>
+      ),
+    },
+    {
+      key: "discovery_url",
+      header: t("admin.oauth_provider.col_discovery_url", { defaultValue: "Discovery URL" }),
+      cell: (p) => (
+        <span className="font-mono text-xs text-muted-foreground truncate max-w-xs block">
+          {p.discovery_url}
+        </span>
+      ),
+    },
+    {
+      key: "is_active",
+      header: t("table.col_status", { defaultValue: "Status" }),
+      cell: (p) => <StatusCell active={p.is_active} />,
+    },
+    {
+      key: "_actions",
+      header: "",
+      sortable: false,
+      className: "w-20",
+      cell: (provider) => (
+        <ActionsCell>
+          <EditProviderDialog provider={provider} onSaved={invalidate} />
+          <DeleteButton
+            description={t("admin.oauth_provider.delete_confirm", {
+              name: provider.name,
+              defaultValue: 'Delete provider "{{name}}"?',
+            })}
+            disabled={deleteMutation.isPending}
+            onConfirm={() => deleteMutation.mutate(provider.id)}
+          />
+        </ActionsCell>
+      ),
+    },
+  ];
   const queryClient = useQueryClient();
 
   const table = useTableState();
@@ -352,44 +364,16 @@ function OAuthProvidersPage() {
     onError: (err) => toast.error(apiErrorMessage(err, "Failed to delete provider")),
   });
 
-  const columnsWithActions: Column<AdminOAuthProvider>[] = [
-    ...COLUMNS,
-    {
-      key: "_actions",
-      header: "",
-      sortable: false,
-      className: "w-20",
-      cell: (provider) => (
-        <div className="flex gap-1 justify-end">
-          <EditProviderDialog provider={provider} onSaved={invalidate} />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 text-destructive hover:text-destructive"
-            disabled={deleteMutation.isPending}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (confirm(`Delete provider "${provider.name}"?`)) {
-                deleteMutation.mutate(provider.id);
-              }
-            }}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
-        </div>
-      ),
-    },
-  ];
-
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">OAuth Providers</h1>
-        <CreateProviderDialog onCreated={invalidate} />
-      </div>
+      <PageHeader
+        icon={KeyRound}
+        title={t("admin.nav.oauth_providers", { defaultValue: "OAuth Providers" })}
+        actions={<CreateProviderDialog onCreated={invalidate} />}
+      />
 
       <DataTable
-        columns={columnsWithActions}
+        columns={columns}
         response={response}
         table={table}
         isLoading={isLoading}

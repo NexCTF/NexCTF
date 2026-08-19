@@ -45,6 +45,12 @@ class Submission(Base):
             return None
         return self.question.challenge_title
 
+    @property
+    def question_challenge_id(self) -> UUID | None:
+        if self.question is None:
+            return None
+        return self.question.challenge_id
+
 
 class ScoreAdjustment(Base):
     """Manual bonus or malus applied by an admin."""

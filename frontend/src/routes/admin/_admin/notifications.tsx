@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus, Radio } from "lucide-react";
+import { Bell, Plus, Radio } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
-import { IdCell } from "@/components/id-cell";
+import { PageHeader } from "@/components/page-header";
+import { idColumn, UserLink } from "@/components/table-cells";
 import { TeamMultiSelect } from "@/components/team-multi-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,41 +32,6 @@ import { useAuth } from "@/lib/auth";
 export const Route = createFileRoute("/admin/_admin/notifications")({
   component: NotificationsPage,
 });
-
-const COLUMNS: Column<AdminNotification>[] = [
-  {
-    key: "id",
-    header: "ID",
-    sortable: false,
-    cell: (n) => <IdCell id={n.id} />,
-    className: "w-32",
-  },
-  {
-    key: "title",
-    header: "Title",
-    cell: (n) => <span className="font-medium">{n.title}</span>,
-  },
-  {
-    key: "is_broadcast",
-    header: "Type",
-    cell: (n) =>
-      n.is_broadcast ? (
-        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-          <Radio className="size-3" />
-          Broadcast
-        </span>
-      ) : (
-        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-          Targeted
-        </span>
-      ),
-  },
-  {
-    key: "created_by_username",
-    header: "Created by",
-    cell: (n) => <span className="text-muted-foreground">{n.created_by_username ?? "—"}</span>,
-  },
-];
 
 const EMPTY_FORM = {
   title: "",
@@ -239,6 +205,34 @@ function NotificationsPage() {
   const queryClient = useQueryClient();
 
   const table = useTableState();
+  const columns: Column<AdminNotification>[] = [
+    idColumn<AdminNotification>(t),
+    {
+      key: "title",
+      header: t("table.col_title", { defaultValue: "Title" }),
+      cell: (n) => <span className="font-medium">{n.title}</span>,
+    },
+    {
+      key: "is_broadcast",
+      header: t("table.col_type", { defaultValue: "Type" }),
+      cell: (n) =>
+        n.is_broadcast ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            <Radio className="size-3" />
+            {t("admin.notifications.type_broadcast", { defaultValue: "Broadcast" })}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            {t("admin.notifications.type_targeted", { defaultValue: "Targeted" })}
+          </span>
+        ),
+    },
+    {
+      key: "created_by_username",
+      header: t("table.col_created_by", { defaultValue: "Created by" }),
+      cell: (n) => <UserLink id={n.created_by_id} name={n.created_by_username} />,
+    },
+  ];
 
   const {
     data: response,
@@ -259,15 +253,14 @@ function NotificationsPage() {
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">
-          {t("admin.nav.notifications", { defaultValue: "Notifications" })}
-        </h1>
-        <CreateNotificationDialog onCreated={handleCreated} />
-      </div>
+      <PageHeader
+        icon={Bell}
+        title={t("admin.nav.notifications", { defaultValue: "Notifications" })}
+        actions={<CreateNotificationDialog onCreated={handleCreated} />}
+      />
 
       <DataTable
-        columns={COLUMNS}
+        columns={columns}
         response={response}
         table={table}
         isLoading={isLoading}

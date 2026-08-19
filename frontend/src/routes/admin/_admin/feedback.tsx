@@ -4,7 +4,8 @@ import { MessageSquareHeart, Star } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
-import { IdCell } from "@/components/id-cell";
+import { PageHeader } from "@/components/page-header";
+import { ChallengeLink, DateCell, EmptyCell, idColumn, TeamLink } from "@/components/table-cells";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { type AdminFeedback, getAdminFeedbacks } from "@/lib/api";
 
@@ -44,23 +45,17 @@ function FeedbackPage() {
     placeholderData: (prev) => prev,
   });
 
-  const COLUMNS: Column<AdminFeedback>[] = [
-    {
-      key: "id",
-      header: "ID",
-      sortable: false,
-      cell: (fb) => <IdCell id={fb.id} />,
-      className: "w-32",
-    },
+  const columns: Column<AdminFeedback>[] = [
+    idColumn<AdminFeedback>(t),
     {
       key: "challenge_title",
-      header: t("admin.feedback.col_challenge"),
-      cell: (fb) => <span className="font-medium">{fb.challenge_title ?? fb.challenge_id}</span>,
+      header: t("table.col_challenge", { defaultValue: "Challenge" }),
+      cell: (fb) => <ChallengeLink id={fb.challenge_id} name={fb.challenge_title} />,
     },
     {
       key: "team_name",
-      header: t("admin.feedback.col_team"),
-      cell: (fb) => <span className="text-muted-foreground">{fb.team_name ?? fb.team_id}</span>,
+      header: t("table.col_team", { defaultValue: "Team" }),
+      cell: (fb) => <TeamLink id={fb.team_id} name={fb.team_name} />,
     },
     {
       key: "rating",
@@ -73,21 +68,20 @@ function FeedbackPage() {
       key: "comment",
       header: t("admin.feedback.col_comment"),
       sortable: false,
-      cell: (fb) => (
-        <span className="block max-w-[320px] truncate text-muted-foreground text-xs">
-          {fb.comment ?? "—"}
-        </span>
-      ),
+      cell: (fb) =>
+        fb.comment ? (
+          <span className="block max-w-[320px] truncate text-muted-foreground text-xs">
+            {fb.comment}
+          </span>
+        ) : (
+          <EmptyCell />
+        ),
     },
     {
       key: "created_at",
-      header: t("admin.feedback.col_date"),
+      header: t("table.col_date", { defaultValue: "Date" }),
       sortable: true,
-      cell: (fb) => (
-        <span className="text-muted-foreground text-xs whitespace-nowrap">
-          {new Date(fb.created_at).toLocaleString()}
-        </span>
-      ),
+      cell: (fb) => <DateCell value={fb.created_at} />,
       className: "w-40",
     },
   ];
@@ -95,13 +89,10 @@ function FeedbackPage() {
   return (
     <>
       <div className="p-8 space-y-6">
-        <div className="flex items-center gap-3">
-          <MessageSquareHeart className="size-6 text-muted-foreground" />
-          <h1 className="text-2xl font-bold">{t("admin.nav.feedback")}</h1>
-        </div>
+        <PageHeader icon={MessageSquareHeart} title={t("admin.nav.feedback")} />
 
         <DataTable
-          columns={COLUMNS}
+          columns={columns}
           response={response}
           table={table}
           isLoading={isLoading}
@@ -121,15 +112,15 @@ function FeedbackPage() {
             <div className="space-y-3 text-sm">
               <div className="flex gap-2">
                 <span className="text-muted-foreground shrink-0">
-                  {t("admin.feedback.col_challenge")}:
+                  {t("table.col_challenge", { defaultValue: "Challenge" })}:
                 </span>
-                <span>{detail.challenge_title ?? detail.challenge_id}</span>
+                <ChallengeLink id={detail.challenge_id} name={detail.challenge_title} />
               </div>
               <div className="flex gap-2">
                 <span className="text-muted-foreground shrink-0">
-                  {t("admin.feedback.col_team")}:
+                  {t("table.col_team", { defaultValue: "Team" })}:
                 </span>
-                <span>{detail.team_name ?? detail.team_id}</span>
+                <TeamLink id={detail.team_id} name={detail.team_name} />
               </div>
               <div className="flex gap-2">
                 <span className="text-muted-foreground shrink-0">

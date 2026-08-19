@@ -695,6 +695,7 @@ export interface AdminSubmission {
   team_name: string | null;
   question_label: string | null;
   question_challenge_title: string | null;
+  question_challenge_id: string | null;
 }
 
 export async function getAdminTeams(queryString: string): Promise<PaginatedResponse<Team>> {

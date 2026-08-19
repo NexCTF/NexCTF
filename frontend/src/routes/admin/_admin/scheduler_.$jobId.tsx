@@ -4,10 +4,12 @@ import { Play, Trash2 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DetailPageShell, DetailSection } from "@/components/detail-page";
 import { IdCell } from "@/components/id-cell";
 import { JobStatusBadge } from "@/components/scheduler-status";
 import { SchemaFields } from "@/components/schema-form";
+import { EmptyCell } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Input } from "@/components/ui/input";
@@ -209,20 +211,6 @@ function SchedulerJobDetailPage() {
       ),
   });
 
-  function handleDeleteClick() {
-    if (!job) return;
-    if (
-      !window.confirm(
-        t("admin.scheduler.delete_confirm", {
-          name: job.name,
-          defaultValue: `Delete job "${job.name}"?`,
-        }),
-      )
-    )
-      return;
-    deleteMutation.mutate();
-  }
-
   if (!isLoading && !job) {
     return (
       <DetailPageShell
@@ -269,15 +257,20 @@ function SchedulerJobDetailPage() {
               <Play className="size-3.5" />
               {t("admin.scheduler.run", { defaultValue: "Run now" })}
             </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={handleDeleteClick}
-              disabled={deleteMutation.isPending}
-            >
-              <Trash2 className="size-3.5" />
-              {t("common.delete", { defaultValue: "Delete" })}
-            </Button>
+            <ConfirmDialog
+              description={t("admin.scheduler.delete_confirm", {
+                name: job?.name ?? "",
+                defaultValue: 'Delete job "{{name}}"?',
+              })}
+              confirmLabel={t("common.delete", { defaultValue: "Delete" })}
+              onConfirm={() => deleteMutation.mutate()}
+              trigger={
+                <Button size="sm" variant="destructive" disabled={deleteMutation.isPending}>
+                  <Trash2 className="size-3.5" />
+                  {t("common.delete", { defaultValue: "Delete" })}
+                </Button>
+              }
+            />
           </div>
         )
       }
@@ -308,13 +301,7 @@ function SchedulerJobDetailPage() {
                   label={t("admin.scheduler.col_last_run", {
                     defaultValue: "Last run",
                   })}
-                  value={
-                    job.last_run ? (
-                      new Date(job.last_run).toLocaleString()
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )
-                  }
+                  value={job.last_run ? new Date(job.last_run).toLocaleString() : <EmptyCell />}
                 />
                 <InfoRow
                   label={t("admin.scheduler.field_created_at", {
@@ -479,7 +466,7 @@ function SchedulerJobDetailPage() {
                           {task.error ? (
                             <span className="text-destructive text-xs font-mono">{task.error}</span>
                           ) : (
-                            <span className="text-muted-foreground">—</span>
+                            <EmptyCell />
                           )}
                         </td>
                       </tr>

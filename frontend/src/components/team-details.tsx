@@ -1,6 +1,7 @@
 import { Check, ChevronRight, Lightbulb, Users, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SignedPoints } from "@/components/table-cells";
 import type { PublicCustomField, PublicTeam, TeamChallengeStats, TeamScoreDetail } from "@/lib/api";
 
 // ── Badges ────────────────────────────────────────────────────────────────────
@@ -98,17 +99,6 @@ export function TeamStatsSummary({ team }: { team: PublicTeam }) {
 
 // ── Score breakdown ───────────────────────────────────────────────────────────
 
-function SignedAmount({ amount }: { amount: number }) {
-  const color =
-    amount !== 0 ? (amount > 0 ? "text-green-500" : "text-red-500") : "text-muted-foreground";
-  return (
-    <span className={`font-medium tabular-nums ${color}`}>
-      {amount > 0 ? "+" : ""}
-      {amount}
-    </span>
-  );
-}
-
 export function ScoreBreakdown({ score }: { score: TeamScoreDetail }) {
   const { t } = useTranslation();
 
@@ -126,7 +116,7 @@ export function ScoreBreakdown({ score }: { score: TeamScoreDetail }) {
               <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
               {t("team.adjustments_label")}
             </span>
-            <SignedAmount amount={score.adjustment_points} />
+            <SignedPoints amount={score.adjustment_points} />
           </summary>
           <div className="divide-y bg-muted/10 px-4 py-1">
             {score.adjustments.length === 0 && (
@@ -145,7 +135,7 @@ export function ScoreBreakdown({ score }: { score: TeamScoreDetail }) {
                     <span className="text-muted-foreground"> — {adj.challenge_title}</span>
                   )}
                 </span>
-                <SignedAmount amount={adj.amount} />
+                <SignedPoints amount={adj.amount} />
               </div>
             ))}
           </div>
@@ -250,7 +240,7 @@ function ChallengeStatsRow({ stats }: { stats: TeamChallengeStats }) {
                         {t("team.hints_used", { count: q.hint_unlock_count })}
                       </span>
                     )}
-                    {q.is_solved && <SignedAmount amount={q.points_earned} />}
+                    {q.is_solved && <SignedPoints amount={q.points_earned} />}
                     {q.is_solved ? <Check className="size-3.5 text-green-500" /> : <span>—</span>}
                   </span>
                 </div>
