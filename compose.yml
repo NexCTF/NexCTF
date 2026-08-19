@@ -75,7 +75,7 @@ services:
       - internal
 
   app:
-    image: ghcr.io/nexctf/nexctf:0.7.0
+    image: ghcr.io/nexctf/nexctf:0.7.1
     restart: always
     ports:
       - "127.0.0.1:8080:80"
