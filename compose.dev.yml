@@ -60,6 +60,16 @@ services:
       - ADMIN_KEY=${CAP_ADMIN_KEY}
       - REDIS_URL=redis://cache:6379/1
 
+  mail:
+    image: axllent/mailpit:v1.28.2@sha256:28a161f4a39c70671d0fb771a6e7a3abe6d2144c0e2a595ff72767ab63cd14f6
+    restart: always
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      - MP_SMTP_AUTH_ACCEPT_ANY=1
+      - MP_SMTP_AUTH_ALLOW_INSECURE=1
+
 volumes:
   app-db-data:
   app-s3-data:

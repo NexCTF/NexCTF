@@ -6,6 +6,7 @@ from fastapi_toolsets.fixtures.enum import Context
 
 from nexctf.model import (
     ChallengeFeedback,
+    ConfigEntry,
     CustomFieldDefinition,
     CustomFieldTarget,
     CustomFieldType,
@@ -31,6 +32,22 @@ def _t(minutes: int) -> datetime:
 
 
 fixtures = FixtureRegistry(contexts=[Context.DEVELOPMENT])
+
+
+@fixtures.register()
+def config() -> list[ConfigEntry]:
+    """Point email at the mailpit container from compose.dev.yml."""
+    return [
+        ConfigEntry(key=key, value=value)
+        for key, value in {
+            "email.enabled": "true",
+            "email.smtp_host": "127.0.0.1",
+            "email.smtp_port": "1025",
+            "email.security": "none",
+            "email.from_address": "ctf@nexctf.lan",
+            "email.from_name": "NexCTF",
+        }.items()
+    ]
 
 
 @fixtures.register()
