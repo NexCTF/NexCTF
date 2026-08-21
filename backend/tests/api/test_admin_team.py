@@ -3,7 +3,9 @@
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.model import Team, User
+from nexctf.model import ChallengeFeedback, ScoreAdjustment, Team, User
+from nexctf.model.question import Question
+from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 
 from ..base import (
     NULL_UUID,
@@ -150,6 +152,73 @@ class TestGetTeamDetail:
     ) -> None:
         c, _ = admin_client
         resp = await c.get(f"{self.PREFIX}/{NULL_UUID}/detail")
+        assert resp.status_code == 404
+
+
+class TestTeamRelatedListings:
+    PREFIX = "/admin/team"
+
+    async def test_only_this_teams_rows(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_team: list[Team],
+        db_session: AsyncSession,
+    ) -> None:
+        c, admin = admin_client
+        mine, other = fixture_team[0], Team(name="other")
+        mine_id = mine.id
+        db_session.add(other)
+        await db_session.flush()
+
+        ch = StandardChallenge(title="Feedback Filter Test")
+        db_session.add(ch)
+        await db_session.flush()
+        db_session.add(Question(label="Q1", points=1, challenge_id=ch.id))
+        db_session.add_all(
+            [
+                ChallengeFeedback(team_id=mine_id, challenge_id=ch.id, rating=5),
+                ChallengeFeedback(team_id=other.id, challenge_id=ch.id, rating=1),
+                ScoreAdjustment(
+                    team_id=mine_id, amount=10, reason="mine", created_by_id=admin.id
+                ),
+                ScoreAdjustment(
+                    team_id=other.id, amount=-5, reason="other", created_by_id=admin.id
+                ),
+            ]
+        )
+        await db_session.flush()
+
+        resp = await c.get(f"{self.PREFIX}/{mine_id}/feedback")
+        assert resp.status_code == 200
+        assert [fb["rating"] for fb in resp.json()["data"]] == [5]
+
+        resp = await c.get(f"{self.PREFIX}/{mine_id}/score-adjustments")
+        assert resp.status_code == 200
+        assert [adj["reason"] for adj in resp.json()["data"]] == ["mine"]
+
+
+class TestGetTeamScore:
+    PREFIX = "/admin/team"
+
+    async def test_score_breakdown(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_team: list[Team],
+    ) -> None:
+        c, _ = admin_client
+        t = fixture_team[0]
+        resp = await c.get(f"{self.PREFIX}/{t.id}/score")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["team_name"] == t.name
+        assert data["total"] == 0
+        assert data["adjustments"] == []
+
+    async def test_score_not_found(
+        self, admin_client: tuple[AsyncClient, User]
+    ) -> None:
+        c, _ = admin_client
+        resp = await c.get(f"{self.PREFIX}/{NULL_UUID}/score")
         assert resp.status_code == 404
 
 

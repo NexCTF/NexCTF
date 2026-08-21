@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   ChallengeProgressTable,
   MembersList,
+  ScoreBreakdown,
   TeamBadges,
   TeamStatsSummary,
 } from "@/components/team-details";
@@ -19,6 +20,7 @@ import {
   createTeam,
   getMyTeam,
   getPublicInfo,
+  getTeamScore,
   joinTeam,
   leaveTeam,
   type MyTeam,
@@ -171,6 +173,12 @@ function TeamView({
 }) {
   const { t } = useTranslation();
 
+  const { data: score } = useQuery({
+    queryKey: ["team-score", team.id],
+    queryFn: () => getTeamScore(team.id),
+    staleTime: 60_000,
+  });
+
   const leaveMutation = useMutation({
     mutationFn: leaveTeam,
     onSuccess: () => onLeft(),
@@ -245,6 +253,8 @@ function TeamView({
       )}
 
       <ChallengeProgressTable stats={team.challenge_stats} />
+
+      {score && <ScoreBreakdown score={score} />}
     </div>
   );
 }

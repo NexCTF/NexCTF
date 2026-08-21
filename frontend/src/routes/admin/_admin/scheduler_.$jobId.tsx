@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Play, Trash2 } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { DetailPageShell, DetailSection } from "@/components/detail-page";
+import { DetailPageShell, DetailSection, InfoRow } from "@/components/detail-page";
 import { IdCell } from "@/components/id-cell";
 import { JobStatusBadge } from "@/components/scheduler-status";
 import { SchemaFields } from "@/components/schema-form";
@@ -32,15 +32,6 @@ export const Route = createFileRoute("/admin/_admin/scheduler_/$jobId")({
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex items-center gap-4 px-4 py-3 text-sm">
-      <span className="w-36 shrink-0 text-muted-foreground">{label}</span>
-      <span className="flex-1">{value}</span>
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Task status badge

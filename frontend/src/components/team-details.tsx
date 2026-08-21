@@ -1,7 +1,7 @@
 import { Check, ChevronRight, Lightbulb, Users, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { EmptyCell, SignedPoints } from "@/components/table-cells";
+import { ChallengeLink, DateCell, EmptyCell, SignedPoints } from "@/components/table-cells";
 import type { PublicCustomField, PublicTeam, TeamChallengeStats, TeamScoreDetail } from "@/lib/api";
 
 // ── Badges ────────────────────────────────────────────────────────────────────
@@ -65,12 +65,17 @@ function StatBox({ value, label }: { value: ReactNode; label: string }) {
   );
 }
 
+/** Percentage of questions the team has solved, across every challenge. */
+export function progressPercent(stats: TeamChallengeStats[]) {
+  const total = stats.reduce((sum, s) => sum + s.question_count, 0);
+  const solved = stats.reduce((sum, s) => sum + s.solved_question_count, 0);
+  return total > 0 ? Math.round((solved / total) * 100) : 0;
+}
+
 export function TeamStatsSummary({ team }: { team: PublicTeam }) {
   const { t } = useTranslation();
-  const totalQuestions = team.challenge_stats.reduce((sum, s) => sum + s.question_count, 0);
-  const solvedQuestions = team.challenge_stats.reduce((sum, s) => sum + s.solved_question_count, 0);
   const totalPoints = team.challenge_stats.reduce((sum, s) => sum + s.points_earned, 0);
-  const completion = totalQuestions > 0 ? Math.round((solvedQuestions / totalQuestions) * 100) : 0;
+  const completion = progressPercent(team.challenge_stats);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -180,7 +185,7 @@ export function MembersList({ members }: { members: PublicTeam["members"] }) {
 
 // ── Challenge progress ────────────────────────────────────────────────────────
 
-function ChallengeStatsRow({ stats }: { stats: TeamChallengeStats }) {
+function ChallengeStatsRow({ stats, detailed }: { stats: TeamChallengeStats; detailed: boolean }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const expandable = stats.questions.length > 0;
@@ -198,7 +203,11 @@ function ChallengeStatsRow({ stats }: { stats: TeamChallengeStats }) {
                 open ? "rotate-90" : ""
               } ${expandable ? "" : "invisible"}`}
             />
-            {stats.challenge_title}
+            {detailed ? (
+              <ChallengeLink id={stats.challenge_id} name={stats.challenge_title} />
+            ) : (
+              stats.challenge_title
+            )}
           </span>
         </td>
         <td className="px-4 py-3">
@@ -222,27 +231,42 @@ function ChallengeStatsRow({ stats }: { stats: TeamChallengeStats }) {
           <td colSpan={3} className="px-4 py-1">
             <div className="divide-y">
               {stats.questions.map((q) => (
-                <div
-                  key={q.question_id}
-                  className="flex items-center justify-between py-2 pl-6 text-xs"
-                >
-                  <span>{q.question_label}</span>
-                  <span className="flex items-center gap-4 text-muted-foreground">
-                    {q.wrong_attempt_count > 0 && (
-                      <span className="flex items-center gap-1">
-                        <X className="size-3 text-red-500" />
-                        {t("team.attempts_failed", { count: q.wrong_attempt_count })}
-                      </span>
-                    )}
-                    {q.hint_unlock_count > 0 && (
-                      <span className="flex items-center gap-1">
+                <div key={q.question_id} className="py-2 pl-6 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span>{q.question_label}</span>
+                    <span className="flex items-center gap-4 text-muted-foreground">
+                      {q.wrong_attempt_count > 0 && (
+                        <span className="flex items-center gap-1">
+                          <X className="size-3 text-red-500" />
+                          {t("team.attempts_failed", { count: q.wrong_attempt_count })}
+                        </span>
+                      )}
+                      {q.hint_unlock_count > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Lightbulb className="size-3" />
+                          {t("team.hints_used", { count: q.hint_unlock_count })}
+                        </span>
+                      )}
+                      {q.is_solved && <SignedPoints amount={q.points_earned} />}
+                      {q.solved_at && <DateCell value={q.solved_at} />}
+                      {q.is_solved ? <Check className="size-3.5 text-green-500" /> : <EmptyCell />}
+                    </span>
+                  </div>
+                  {q.hints?.map((h) => (
+                    <div
+                      key={h.hint_id}
+                      className="flex items-center justify-between gap-4 pt-1.5 pl-6 text-xs text-muted-foreground"
+                    >
+                      <span className="flex items-center gap-1.5">
                         <Lightbulb className="size-3" />
-                        {t("team.hints_used", { count: q.hint_unlock_count })}
+                        {h.title}
                       </span>
-                    )}
-                    {q.is_solved && <SignedPoints amount={q.points_earned} />}
-                    {q.is_solved ? <Check className="size-3.5 text-green-500" /> : <EmptyCell />}
-                  </span>
+                      <span className="flex items-center gap-4">
+                        <SignedPoints amount={-h.cost_paid} />
+                        <DateCell value={h.unlocked_at} />
+                      </span>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
@@ -253,11 +277,20 @@ function ChallengeStatsRow({ stats }: { stats: TeamChallengeStats }) {
   );
 }
 
-export function ChallengeProgressTable({ stats }: { stats: TeamChallengeStats[] }) {
+/** `detailed` is the admin variant: challenges link to the admin pages and the
+ * caller owns the heading. The extra per-question rows (solve date, unlocked
+ * hints) come from the admin payload itself. */
+export function ChallengeProgressTable({
+  stats,
+  detailed = false,
+}: {
+  stats: TeamChallengeStats[];
+  detailed?: boolean;
+}) {
   const { t } = useTranslation();
   return (
     <section className="space-y-3">
-      <h2 className="text-base font-semibold">{t("team.progress_title")}</h2>
+      {!detailed && <h2 className="text-base font-semibold">{t("team.progress_title")}</h2>}
 
       {stats.length === 0 ? (
         <div className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
@@ -281,7 +314,7 @@ export function ChallengeProgressTable({ stats }: { stats: TeamChallengeStats[] 
             </thead>
             <tbody className="divide-y">
               {stats.map((s) => (
-                <ChallengeStatsRow key={s.challenge_id} stats={s} />
+                <ChallengeStatsRow key={s.challenge_id} stats={s} detailed={detailed} />
               ))}
             </tbody>
           </table>

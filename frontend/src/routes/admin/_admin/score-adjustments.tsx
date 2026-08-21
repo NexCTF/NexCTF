@@ -1,13 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Pencil, Plus, SlidersHorizontal } from "lucide-react";
+import { Plus, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { DeleteButton } from "@/components/confirm-dialog";
-import { type Column, DataTable, useTableState } from "@/components/data-table";
+import { DataTable, useTableState } from "@/components/data-table";
 import { PageHeader } from "@/components/page-header";
-import { ActionsCell, ChallengeLink, idColumn, TeamLink, UserLink } from "@/components/table-cells";
+import { useScoreAdjustmentColumns } from "@/components/score-adjustment-table";
 import { TeamSingleSelect } from "@/components/team-single-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -228,69 +227,7 @@ function ScoreAdjustmentsPage() {
       toast.error(apiErrorMessage(err, t("admin.scoreboard.adjustment_delete_error"))),
   });
 
-  const COLUMNS: Column<ScoreAdjustment>[] = [
-    idColumn<ScoreAdjustment>(t),
-    {
-      key: "team_name",
-      header: t("table.col_team", { defaultValue: "Team" }),
-      cell: (adj) => <TeamLink id={adj.team_id} name={adj.team_name} />,
-    },
-    {
-      key: "amount",
-      header: t("admin.scoreboard.col_amount"),
-      sortable: true,
-      cell: (adj) => (
-        <span
-          className={
-            adj.amount > 0
-              ? "text-green-500 font-medium"
-              : adj.amount < 0
-                ? "text-red-500 font-medium"
-                : "text-muted-foreground"
-          }
-        >
-          {adj.amount > 0 ? "+" : ""}
-          {adj.amount}
-        </span>
-      ),
-    },
-    {
-      key: "reason",
-      header: t("admin.scoreboard.col_reason"),
-    },
-    {
-      key: "challenge_title",
-      header: t("table.col_challenge", { defaultValue: "Challenge" }),
-      cell: (adj) => <ChallengeLink id={adj.challenge_id} name={adj.challenge_title} />,
-    },
-    {
-      key: "created_by_username",
-      header: t("table.col_created_by", { defaultValue: "Created by" }),
-      cell: (adj) => <UserLink id={adj.created_by_id} name={adj.created_by_username} />,
-    },
-    {
-      key: "actions",
-      header: "",
-      sortable: false,
-      cell: (adj) => (
-        <ActionsCell>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setEditing(adj)}
-            aria-label={t("common.edit")}
-          >
-            <Pencil className="size-3.5" />
-          </Button>
-          <DeleteButton
-            description={t("admin.scoreboard.adjustment_delete_confirm")}
-            onConfirm={() => remove(adj.id)}
-          />
-        </ActionsCell>
-      ),
-      className: "w-20",
-    },
-  ];
+  const COLUMNS = useScoreAdjustmentColumns({ onEdit: setEditing, onDelete: remove });
 
   return (
     <div className="p-8 space-y-6">

@@ -1424,48 +1424,46 @@ function ChallengePage() {
   }
 
   return (
-    <div className="max-w-3xl">
-      <DetailPageShell
-        backTo="/admin/challenges"
-        backLabel={t("admin.challenge.back_breadcrumb")}
-        title={challenge?.title}
-        badge={
-          challenge && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-              <Puzzle className="size-3" />
-              {challenge.challenge_type}
-            </span>
-          )
-        }
-        actions={
-          challenge && (
-            <ConfirmDialog
-              description={t("admin.challenge.delete_confirm", { title: challenge.title })}
-              confirmLabel={t("admin.challenge.delete_btn")}
-              onConfirm={() => deleteMutation.mutate()}
-              trigger={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
-                  disabled={deleteMutation.isPending}
-                >
-                  <Trash2 className="size-4" />
-                  {t("admin.challenge.delete_btn")}
-                </Button>
-              }
-            />
-          )
-        }
-        isLoading={isLoading}
-      >
-        {challenge && (
-          <>
-            <ChallengeInfoSection challenge={challenge} />
-            <QuestionsSection challengeId={challengeId} />
-          </>
-        )}
-      </DetailPageShell>
-    </div>
+    <DetailPageShell
+      backTo="/admin/challenges"
+      backLabel={t("admin.challenge.back_breadcrumb")}
+      title={challenge?.title}
+      badge={
+        challenge && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+            <Puzzle className="size-3" />
+            {challenge.challenge_type}
+          </span>
+        )
+      }
+      actions={
+        challenge && (
+          <ConfirmDialog
+            description={t("admin.challenge.delete_confirm", { title: challenge.title })}
+            confirmLabel={t("admin.challenge.delete_btn")}
+            onConfirm={() => deleteMutation.mutate()}
+            trigger={
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                disabled={deleteMutation.isPending}
+              >
+                <Trash2 className="size-4" />
+                {t("admin.challenge.delete_btn")}
+              </Button>
+            }
+          />
+        )
+      }
+      isLoading={isLoading}
+    >
+      {challenge && (
+        <>
+          <ChallengeInfoSection challenge={challenge} />
+          <QuestionsSection challengeId={challengeId} />
+        </>
+      )}
+    </DetailPageShell>
   );
 }

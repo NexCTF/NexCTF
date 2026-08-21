@@ -383,6 +383,13 @@ export interface TeamChallengeStats {
   questions: TeamQuestionStats[];
 }
 
+export interface TeamHintUnlock {
+  hint_id: string;
+  title: string;
+  cost_paid: number;
+  unlocked_at: string;
+}
+
 export interface TeamQuestionStats {
   question_id: string;
   question_label: string;
@@ -390,6 +397,9 @@ export interface TeamQuestionStats {
   points_earned: number;
   hint_unlock_count: number;
   wrong_attempt_count: number;
+  /** Admin payloads only — the public profile omits solve and hint timings. */
+  solved_at?: string | null;
+  hints?: TeamHintUnlock[];
 }
 
 export interface PublicCustomField {
@@ -657,6 +667,9 @@ export interface AdminTeamMember {
 }
 
 export interface TeamDetail extends Team {
+  invite_code: string;
+  created_at: string;
+  updated_at: string;
   users: AdminTeamMember[];
   custom_field_values: CustomFieldValue[];
 }
@@ -721,6 +734,13 @@ export async function getAdminFeedbacks(
   queryString: string,
 ): Promise<PaginatedResponse<AdminFeedback>> {
   return requestPaginated<AdminFeedback>(`/admin/feedback?${queryString}`);
+}
+
+export async function getAdminTeamFeedbacks(
+  teamId: string,
+  queryString: string,
+): Promise<PaginatedResponse<AdminFeedback>> {
+  return requestPaginated<AdminFeedback>(`/admin/team/${teamId}/feedback?${queryString}`);
 }
 
 export async function getAdminSubmissions(
@@ -1619,6 +1639,15 @@ export async function getAdminScoreAdjustments(
   return requestPaginated<ScoreAdjustment>(`/admin/score-adjustment?${queryString}`);
 }
 
+export async function getAdminTeamScoreAdjustments(
+  teamId: string,
+  queryString: string,
+): Promise<PaginatedResponse<ScoreAdjustment>> {
+  return requestPaginated<ScoreAdjustment>(
+    `/admin/team/${teamId}/score-adjustments?${queryString}`,
+  );
+}
+
 export async function createAdminScoreAdjustment(data: {
   team_id: string;
   amount: number;
@@ -1790,19 +1819,16 @@ export interface ChallengeStats {
   questions: QuestionStats[];
 }
 
-export interface AdminTeamChallengeStats extends TeamChallengeStats {
-  hint_unlock_count: number;
-  hint_cost_spent: number;
-}
-
 export async function getAdminAllChallengeStats(): Promise<ChallengeStats[]> {
   return request<ChallengeStats[]>("/admin/stats/challenges");
 }
 
-export async function getAdminTeamChallengeStats(
-  teamId: string,
-): Promise<AdminTeamChallengeStats[]> {
-  return request<AdminTeamChallengeStats[]>(`/admin/team/${teamId}/challenge-stats`);
+export async function getAdminTeamScore(teamId: string): Promise<TeamScoreDetail> {
+  return request<TeamScoreDetail>(`/admin/team/${teamId}/score`);
+}
+
+export async function getAdminTeamChallengeStats(teamId: string): Promise<TeamChallengeStats[]> {
+  return request<TeamChallengeStats[]>(`/admin/team/${teamId}/challenge-stats`);
 }
 
 // ---------------------------------------------------------------------------

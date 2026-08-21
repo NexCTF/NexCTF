@@ -56,6 +56,17 @@ class TeamChallengeStats(PydanticBase):
     questions: list[TeamQuestionStats] = []
 
 
+class TeamHintUnlock(PydanticBase):
+    hint_id: UUID
+    title: str
+    cost_paid: int
+    unlocked_at: datetime
+
+
+class AdminTeamQuestionStats(TeamQuestionStats):
+    solved_at: datetime | None = None
+    hints: list[TeamHintUnlock] = []
+
+
 class AdminTeamChallengeStats(TeamChallengeStats):
-    hint_unlock_count: int = 0
-    hint_cost_spent: int = 0
+    questions: list[AdminTeamQuestionStats] = []

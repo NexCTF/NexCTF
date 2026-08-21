@@ -1,14 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Ban, ExternalLink, KeyRound, Pencil, ShieldCheck, ShieldOff } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CustomFieldValuesList } from "@/components/custom-field-values-list";
 import { CustomFieldsSection, useCustomFieldDefs } from "@/components/custom-fields-section";
 import { DataTable, useTableState } from "@/components/data-table";
-import { DetailPageShell, DetailSection } from "@/components/detail-page";
+import { DetailPageShell, DetailSection, InfoRow } from "@/components/detail-page";
 import { EventDetailsDialog, useEventColumns } from "@/components/event-table";
 import { LinksFormSection } from "@/components/links-form-section";
 import { EmptyCell, RoleBadge, StatusCell, TeamLink } from "@/components/table-cells";
@@ -242,15 +242,6 @@ function PasswordResetTokenDialog({ userId }: { userId: string }) {
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex items-center gap-4 px-4 py-3 text-sm">
-      <span className="w-36 shrink-0 text-muted-foreground">{label}</span>
-      <span className="flex-1">{value}</span>
-    </div>
   );
 }
 

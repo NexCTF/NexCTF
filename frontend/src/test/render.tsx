@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { vi } from "vitest";
 import { type AuthContext, AuthCtx } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
@@ -76,6 +77,17 @@ export function renderRoute(
     </QueryClientProvider>,
   );
   return { ...result, router, auth: authValue };
+}
+
+/** Render a bare component that needs router context (links, navigation). */
+export function renderWithRouter(ui: ReactNode) {
+  const rootRoute = createRootRoute({ component: () => ui });
+  const router = createRouter({
+    routeTree: rootRoute,
+    history: createMemoryHistory({ initialEntries: ["/"] }),
+  });
+  // biome-ignore lint/suspicious/noExplicitAny: test router isn't the registered app router
+  return render(<RouterProvider router={router as any} />);
 }
 
 /** Open a ConfirmDialog from its trigger and accept it. */
