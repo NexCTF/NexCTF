@@ -1,5 +1,6 @@
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
+import { stopRowClick } from "@/components/table-cells";
 import { cn, copyToClipboard } from "@/lib/utils";
 
 interface IdCellProps {
@@ -10,7 +11,7 @@ export function IdCell({ id }: IdCellProps) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy(e: React.MouseEvent) {
-    e.stopPropagation();
+    stopRowClick(e);
     copyToClipboard(id);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);

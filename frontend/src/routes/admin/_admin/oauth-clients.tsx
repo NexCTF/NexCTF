@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, CheckCircle2, Copy, Link, Pencil, Plus, Trash2, XCircle } from "lucide-react";
+import { Check, Copy, KeyRound, Link, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { DeleteButton } from "@/components/confirm-dialog";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
-import { IdCell } from "@/components/id-cell";
+import { PageHeader } from "@/components/page-header";
+import { ActionsCell, idColumn, StatusCell } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -51,51 +53,6 @@ function CopyButton({ value }: { value: string }) {
 }
 
 // ── Columns ───────────────────────────────────────────────────────────────────
-
-function getColumns(t: ReturnType<typeof useTranslation>["t"]): Column<AdminOAuthClient>[] {
-  return [
-    {
-      key: "id",
-      header: "ID",
-      sortable: false,
-      cell: (c) => <IdCell id={c.id} />,
-      className: "w-32",
-    },
-    {
-      key: "name",
-      header: t("admin.oauth_client.col_name"),
-      cell: (c) => (
-        <div>
-          <p className="font-medium">{c.name}</p>
-          {c.description && (
-            <p className="text-xs text-muted-foreground truncate max-w-64">{c.description}</p>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "client_id",
-      header: t("admin.oauth_client.col_client_id"),
-      cell: (c) => <code className="font-mono text-xs text-muted-foreground">{c.client_id}</code>,
-    },
-    {
-      key: "allowed_scopes",
-      header: t("admin.oauth_client.col_scopes"),
-      cell: (c) => <span className="text-xs text-muted-foreground">{c.allowed_scopes}</span>,
-    },
-    {
-      key: "is_active",
-      header: t("admin.oauth_client.col_active"),
-      cell: (c) =>
-        c.is_active ? (
-          <CheckCircle2 className="size-4 text-green-500" />
-        ) : (
-          <XCircle className="size-4 text-muted-foreground" />
-        ),
-      className: "w-20",
-    },
-  ];
-}
 
 // ── Form fields ───────────────────────────────────────────────────────────────
 
@@ -442,49 +399,65 @@ function OAuthClientsPage() {
     onError: (err) => toast.error(apiErrorMessage(err, t("admin.oauth_client.delete_error"))),
   });
 
-  const columns = getColumns(t);
-  const columnsWithActions: Column<AdminOAuthClient>[] = [
-    ...columns,
+  const columns: Column<AdminOAuthClient>[] = [
+    idColumn<AdminOAuthClient>(t),
+    {
+      key: "name",
+      header: t("table.col_name", { defaultValue: "Name" }),
+      cell: (c) => (
+        <div>
+          <p className="font-medium">{c.name}</p>
+          {c.description && (
+            <p className="text-xs text-muted-foreground truncate max-w-64">{c.description}</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "client_id",
+      header: t("admin.oauth_client.col_client_id"),
+      cell: (c) => <code className="font-mono text-xs text-muted-foreground">{c.client_id}</code>,
+    },
+    {
+      key: "allowed_scopes",
+      header: t("admin.oauth_client.col_scopes"),
+      cell: (c) => <span className="text-xs text-muted-foreground">{c.allowed_scopes}</span>,
+    },
+    {
+      key: "is_active",
+      header: t("table.col_status", { defaultValue: "Status" }),
+      cell: (c) => <StatusCell active={c.is_active} />,
+      className: "w-20",
+    },
     {
       key: "_actions",
       header: "",
       sortable: false,
       className: "w-20",
       cell: (client) => (
-        <div className="flex gap-1 justify-end">
+        <ActionsCell>
           <EndpointsDialog client={client} />
           <EditClientDialog client={client} onSaved={invalidate} />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 text-destructive hover:text-destructive"
+          <DeleteButton
+            description={t("admin.oauth_client.delete_confirm", { name: client.name })}
             disabled={deleteMutation.isPending}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (confirm(t("admin.oauth_client.delete_confirm", { name: client.name }))) {
-                deleteMutation.mutate(client.id);
-              }
-            }}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
-        </div>
+            onConfirm={() => deleteMutation.mutate(client.id)}
+          />
+        </ActionsCell>
       ),
     },
   ];
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{t("admin.oauth_client.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t("admin.oauth_client.subtitle")}</p>
-        </div>
-        <CreateClientDialog onCreated={invalidate} />
-      </div>
+      <PageHeader
+        icon={KeyRound}
+        title={t("admin.oauth_client.title")}
+        actions={<CreateClientDialog onCreated={invalidate} />}
+      />
 
       <DataTable
-        columns={columnsWithActions}
+        columns={columns}
         response={response}
         table={table}
         isLoading={isLoading}

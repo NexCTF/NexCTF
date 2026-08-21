@@ -1,17 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { ExternalLink, Maximize2, Pencil, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { ExternalLink, Pencil } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { CustomFieldValuesList } from "@/components/custom-field-values-list";
 import { CustomFieldsSection, useCustomFieldDefs } from "@/components/custom-fields-section";
-import { type Column, DataTable, useTableState } from "@/components/data-table";
-import { DetailPageShell, DetailSection } from "@/components/detail-page";
-import { IdCell } from "@/components/id-cell";
+import { CLICKABLE_ROW_CLS, DataTable, RowChevron, useTableState } from "@/components/data-table";
+import { DetailPageShell, DetailSection, InfoRow } from "@/components/detail-page";
+import { FeedbackDetailDialog, useFeedbackColumns } from "@/components/feedback-table";
 import { LabelInput } from "@/components/label-input";
 import { LinksFormSection } from "@/components/links-form-section";
+import { useScoreAdjustmentColumns } from "@/components/score-adjustment-table";
 import { StatCard } from "@/components/stat-card";
+import { SubmissionAnswerDialog, useSubmissionColumns } from "@/components/submission-table";
+import { DateCell, EmptyCell, StatusCell, UserLink } from "@/components/table-cells";
+import { ChallengeProgressTable, progressPercent, ScoreBreakdown } from "@/components/team-details";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,12 +28,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  type AdminFeedback,
   type AdminSubmission,
-  type AdminTeamChallengeStats,
   apiErrorMessage,
   deleteAdminSubmission,
+  getAdminScoreboard,
   getAdminTeamChallengeStats,
   getAdminTeamDetail,
+  getAdminTeamFeedbacks,
+  getAdminTeamScore,
+  getAdminTeamScoreAdjustments,
   getAdminTeamSubmissions,
   type Link,
   setAdminCustomFieldValue,
@@ -165,11 +173,13 @@ function EditTeamDialog({
 function TeamDetailPage() {
   const { t } = useTranslation();
   const { teamId } = Route.useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [answerDialog, setAnswerDialog] = useState<AdminSubmission | null>(null);
+  const [feedbackDialog, setFeedbackDialog] = useState<AdminFeedback | null>(null);
 
   function invalidateTeam() {
-    void queryClient.invalidateQueries({ queryKey: ["admin", "team", teamId] });
+    void queryClient.invalidateQueries({ queryKey: ["admin", "team", teamId], exact: true });
     void queryClient.invalidateQueries({ queryKey: ["admin", "teams"] });
   }
 
@@ -191,120 +201,66 @@ function TeamDetailPage() {
     placeholderData: (prev) => prev,
   });
 
-  const { data: challengeStats } = useQuery<AdminTeamChallengeStats[]>({
+  const { data: scoreboard } = useQuery({
+    queryKey: ["admin", "scoreboard", undefined],
+    queryFn: () => getAdminScoreboard(),
+  });
+  const boardEntry = scoreboard?.entries.find((e) => e.team_id === teamId);
+
+  const { data: score } = useQuery({
+    queryKey: ["admin", "team", teamId, "score"],
+    queryFn: () => getAdminTeamScore(teamId),
+  });
+
+  const { data: challengeStats } = useQuery({
     queryKey: ["admin", "team", teamId, "challenge-stats"],
     queryFn: () => getAdminTeamChallengeStats(teamId),
   });
 
-  const challengeSummary = useMemo(() => {
-    if (!challengeStats) return null;
-    return {
-      solves: challengeStats.filter((cs) => cs.is_solved).length,
-      points: challengeStats.reduce((acc, cs) => acc + cs.points_earned, 0),
-      hintUnlocks: challengeStats.reduce((acc, cs) => acc + cs.hint_unlock_count, 0),
-      hintCost: challengeStats.reduce((acc, cs) => acc + cs.hint_cost_spent, 0),
-    };
-  }, [challengeStats]);
+  const progress = challengeStats ? `${progressPercent(challengeStats)}%` : "—";
 
   const { mutate: removeSubmission } = useMutation({
     mutationFn: (id: string) => deleteAdminSubmission(id),
     onSuccess: () => {
       toast.success(t("admin.teams.submission_deleted"));
-      void queryClient.invalidateQueries({
-        queryKey: ["admin", "team", teamId, "submissions"],
-      });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "team", teamId] });
       void queryClient.invalidateQueries({ queryKey: ["admin", "scoreboard"] });
     },
     onError: (err) => toast.error(apiErrorMessage(err, t("admin.teams.submission_delete_error"))),
   });
 
-  const SUBMISSION_COLUMNS: Column<AdminSubmission>[] = [
-    {
-      key: "id",
-      header: "ID",
-      sortable: false,
-      cell: (sub) => <IdCell id={sub.id} />,
-      className: "w-32",
-    },
-    {
-      key: "question_challenge_title",
-      header: t("admin.teams.col_challenge"),
-      cell: (sub) => (
-        <span className="text-muted-foreground">{sub.question_challenge_title ?? "—"}</span>
-      ),
-    },
-    {
-      key: "question_label",
-      header: t("admin.teams.col_question"),
-      cell: (sub) => <span>{sub.question_label ?? "—"}</span>,
-    },
-    {
-      key: "answer",
-      header: t("admin.teams.col_answer"),
-      cell: (sub) => (
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-xs text-primary underline-offset-2 hover:underline hover:bg-primary/10 transition-colors max-w-[140px] truncate"
-          onClick={(e) => {
-            e.stopPropagation();
-            setAnswerDialog(sub);
-          }}
-        >
-          <span className="truncate">{sub.answer}</span>
-          <Maximize2 className="size-3 shrink-0 opacity-60" />
-        </button>
-      ),
-    },
-    {
-      key: "is_correct",
-      header: t("admin.teams.col_correct"),
-      cell: (sub) => (
-        <span className={sub.is_correct ? "text-green-500 font-semibold" : "text-muted-foreground"}>
-          {sub.is_correct ? "✓" : "✗"}
-        </span>
-      ),
-    },
-    {
-      key: "points_earned",
-      header: t("admin.teams.col_points"),
-      sortable: true,
-      cell: (sub) => (
-        <span className="tabular-nums">
-          {sub.points_earned > 0 ? `+${sub.points_earned}` : sub.points_earned}
-        </span>
-      ),
-    },
-    {
-      key: "created_at",
-      header: t("admin.teams.col_date"),
-      cell: (sub) => (
-        <span className="text-muted-foreground text-xs whitespace-nowrap">
-          {new Date(sub.created_at).toLocaleString()}
-        </span>
-      ),
-    },
-    {
-      key: "actions",
-      header: "",
-      sortable: false,
-      cell: (sub) => (
-        <div className="flex justify-end">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 text-destructive hover:text-destructive"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (confirm(t("admin.teams.submission_delete_confirm"))) removeSubmission(sub.id);
-            }}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
-        </div>
-      ),
-      className: "w-12",
-    },
-  ];
+  const adjustmentsTable = useTableState();
+  const {
+    data: adjustmentsResponse,
+    isLoading: adjustmentsLoading,
+    isFetching: adjustmentsFetching,
+    refetch: refetchAdjustments,
+  } = useQuery({
+    queryKey: ["admin", "team", teamId, "score-adjustments", adjustmentsTable.queryString],
+    queryFn: () => getAdminTeamScoreAdjustments(teamId, adjustmentsTable.queryString),
+    placeholderData: (prev) => prev,
+  });
+
+  const feedbackTable = useTableState();
+  const {
+    data: feedbackResponse,
+    isLoading: feedbackLoading,
+    isFetching: feedbackFetching,
+    refetch: refetchFeedback,
+  } = useQuery({
+    queryKey: ["admin", "team", teamId, "feedback", feedbackTable.queryString],
+    queryFn: () => getAdminTeamFeedbacks(teamId, feedbackTable.queryString),
+    placeholderData: (prev) => prev,
+  });
+
+  const adjustmentColumns = useScoreAdjustmentColumns({ showTeam: false });
+  const feedbackColumns = useFeedbackColumns({ showTeam: false });
+
+  const submissionColumns = useSubmissionColumns({
+    showTeam: false,
+    onAnswerClick: setAnswerDialog,
+    onDelete: removeSubmission,
+  });
 
   return (
     <>
@@ -321,59 +277,67 @@ function TeamDetailPage() {
               actions={<EditTeamDialog teamId={teamId} team={team} onSaved={invalidateTeam} />}
             >
               <div className="rounded-lg border divide-y text-sm">
-                <div className="flex gap-2 px-4 py-3">
-                  <span className="text-muted-foreground w-24 shrink-0">
-                    {t("admin.teams.field_id")}
-                  </span>
-                  <span className="font-mono text-xs break-all">{team.id}</span>
-                </div>
-                <div className="flex gap-2 px-4 py-3">
-                  <span className="text-muted-foreground w-24 shrink-0">
-                    {t("admin.teams.field_name")}
-                  </span>
-                  <span className="font-medium">{team.name}</span>
-                </div>
-                <div className="flex gap-2 px-4 py-3">
-                  <span className="text-muted-foreground w-24 shrink-0">
-                    {t("admin.teams.field_country")}
-                  </span>
-                  <span
-                    className={team.country ? "font-mono font-medium" : "text-muted-foreground"}
-                  >
-                    {team.country ?? "—"}
-                  </span>
-                </div>
-                <div className="flex gap-2 px-4 py-3">
-                  <span className="text-muted-foreground w-24 shrink-0">
-                    {t("admin.teams.field_bracket")}
-                  </span>
-                  <span
-                    className={team.bracket ? "font-medium capitalize" : "text-muted-foreground"}
-                  >
-                    {team.bracket ?? "—"}
-                  </span>
-                </div>
+                <InfoRow
+                  label={t("admin.teams.field_id")}
+                  value={<span className="font-mono text-xs break-all">{team.id}</span>}
+                />
+                <InfoRow
+                  label={t("admin.teams.field_name")}
+                  value={<span className="font-medium">{team.name}</span>}
+                />
+                <InfoRow
+                  label={t("admin.teams.field_country")}
+                  value={
+                    team.country ? (
+                      <span className="font-mono font-medium">{team.country}</span>
+                    ) : (
+                      <EmptyCell />
+                    )
+                  }
+                />
+                <InfoRow
+                  label={t("admin.teams.field_bracket")}
+                  value={
+                    team.bracket ? (
+                      <span className="font-medium capitalize">{team.bracket}</span>
+                    ) : (
+                      <EmptyCell />
+                    )
+                  }
+                />
+                <InfoRow
+                  label={t("admin.teams.field_invite_code", { defaultValue: "Invite code" })}
+                  value={<span className="font-mono text-xs">{team.invite_code}</span>}
+                />
+                <InfoRow
+                  label={t("admin.teams.field_created", { defaultValue: "Created" })}
+                  value={<DateCell value={team.created_at} />}
+                />
+                <InfoRow
+                  label={t("admin.teams.field_updated", { defaultValue: "Updated" })}
+                  value={<DateCell value={team.updated_at} />}
+                />
                 {team.links.length > 0 && (
-                  <div className="flex gap-2 px-4 py-3">
-                    <span className="text-muted-foreground w-24 shrink-0">
-                      {t("admin.teams.field_links")}
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      {team.links.map((lnk, i) => (
-                        <a
-                          // biome-ignore lint/suspicious/noArrayIndexKey: display-only, never reorders
-                          key={i}
-                          href={lnk.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:underline underline-offset-2 text-xs"
-                        >
-                          {lnk.label || lnk.url}
-                          <ExternalLink className="size-3 opacity-60" />
-                        </a>
-                      ))}
-                    </div>
-                  </div>
+                  <InfoRow
+                    label={t("admin.teams.field_links")}
+                    value={
+                      <div className="flex flex-wrap gap-2">
+                        {team.links.map((lnk, i) => (
+                          <a
+                            // biome-ignore lint/suspicious/noArrayIndexKey: display-only, never reorders
+                            key={i}
+                            href={lnk.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline underline-offset-2 text-xs"
+                          >
+                            {lnk.label || lnk.url}
+                            <ExternalLink className="size-3 opacity-60" />
+                          </a>
+                        ))}
+                      </div>
+                    }
+                  />
                 )}
               </div>
             </DetailSection>
@@ -399,36 +363,43 @@ function TeamDetailPage() {
                     <thead className="border-b bg-muted/40">
                       <tr>
                         <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
-                          {t("admin.teams.col_username")}
+                          {t("table.col_username", { defaultValue: "Username" })}
                         </th>
                         <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
-                          {t("admin.teams.col_email")}
+                          {t("table.col_email", { defaultValue: "Email" })}
                         </th>
                         <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
-                          {t("admin.teams.col_role")}
+                          {t("table.col_role", { defaultValue: "Role" })}
                         </th>
                         <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
-                          {t("admin.teams.col_active")}
+                          {t("table.col_status", { defaultValue: "Status" })}
                         </th>
+                        <th className="w-8" />
                       </tr>
                     </thead>
                     <tbody className="divide-y">
                       {team.users.map((member) => (
-                        <tr key={member.id} className="transition-colors hover:bg-muted/30">
-                          <td className="px-4 py-3 font-medium">{member.username}</td>
+                        <tr
+                          key={member.id}
+                          className={CLICKABLE_ROW_CLS}
+                          onClick={() =>
+                            void navigate({
+                              to: "/admin/users/$userId",
+                              params: { userId: member.id },
+                            })
+                          }
+                        >
+                          <td className="px-4 py-3 font-medium">
+                            <UserLink id={member.id} name={member.username} />
+                          </td>
                           <td className="px-4 py-3 text-muted-foreground">{member.email ?? "—"}</td>
                           <td className="px-4 py-3">
                             <span className="capitalize">{member.role}</span>
                           </td>
                           <td className="px-4 py-3">
-                            <span
-                              className={
-                                member.is_active ? "text-green-500" : "text-muted-foreground"
-                              }
-                            >
-                              {member.is_active ? "✓" : "✗"}
-                            </span>
+                            <StatusCell active={member.is_active} />
                           </td>
+                          <RowChevron />
                         </tr>
                       ))}
                     </tbody>
@@ -437,197 +408,89 @@ function TeamDetailPage() {
               )}
             </DetailSection>
 
-            {challengeStats && challengeStats.length > 0 && (
-              <DetailSection
-                title={t("admin.teams.challenge_progress_title", {
-                  defaultValue: "Challenge Progress",
-                })}
-              >
-                {challengeSummary && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                    <StatCard
-                      label={t("admin.teams.stat_solves", { defaultValue: "Challenges Solved" })}
-                      value={
-                        <span>
-                          <span className="text-green-600 dark:text-green-400">
-                            {challengeSummary.solves}
-                          </span>
-                          <span className="text-sm font-normal text-muted-foreground ml-1">
-                            / {challengeStats?.length}
-                          </span>
+            <DetailSection title={t("admin.teams.progress_title", { defaultValue: "Progress" })}>
+              <div className="grid grid-cols-3 gap-3">
+                <StatCard
+                  label={t("team.rank_label")}
+                  value={
+                    boardEntry ? (
+                      <span>
+                        #{boardEntry.rank}
+                        <span className="text-sm font-normal text-muted-foreground ml-1">
+                          / {scoreboard?.entries.length}
                         </span>
-                      }
-                    />
-                    <StatCard
-                      label={t("admin.teams.stat_points", { defaultValue: "Total Points" })}
-                      value={challengeSummary.points}
-                    />
-                    <StatCard
-                      label={t("admin.teams.stat_hint_unlocks", { defaultValue: "Hint Unlocks" })}
-                      value={
-                        <span className="text-amber-600 dark:text-amber-400">
-                          {challengeSummary.hintUnlocks}
-                        </span>
-                      }
-                    />
-                    <StatCard
-                      label={t("admin.teams.stat_hint_cost", { defaultValue: "Hint Cost Spent" })}
-                      value={
-                        <span className="text-amber-600 dark:text-amber-400">
-                          {challengeSummary.hintCost > 0 ? `-${challengeSummary.hintCost}` : "0"}
-                        </span>
-                      }
-                    />
-                  </div>
-                )}
+                      </span>
+                    ) : (
+                      "—"
+                    )
+                  }
+                />
+                <StatCard label={t("team.progress_col_progress")} value={progress} />
+                <StatCard label={t("team.progress_col_points")} value={score?.total ?? "—"} />
+              </div>
 
-                <div className="rounded-lg border overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="border-b bg-muted/40">
-                      <tr>
-                        <th className="px-4 py-2.5 text-left text-muted-foreground font-medium">
-                          {t("admin.teams.col_challenge")}
-                        </th>
-                        <th className="px-4 py-2.5 text-center text-muted-foreground font-medium w-24">
-                          {t("admin.teams.col_progress", {
-                            defaultValue: "Progress",
-                          })}
-                        </th>
-                        <th className="px-4 py-2.5 text-center text-muted-foreground font-medium w-24">
-                          {t("admin.teams.col_points")}
-                        </th>
-                        <th className="px-4 py-2.5 text-center text-muted-foreground font-medium w-28">
-                          {t("admin.teams.col_hints", {
-                            defaultValue: "Hints",
-                          })}
-                        </th>
-                        <th className="px-4 py-2.5 text-center text-muted-foreground font-medium w-32">
-                          {t("admin.teams.col_hint_cost", {
-                            defaultValue: "Hint Cost",
-                          })}
-                        </th>
-                        <th className="px-4 py-2.5 text-left text-muted-foreground font-medium w-44">
-                          {t("admin.teams.col_first_solve", {
-                            defaultValue: "First Solve",
-                          })}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {challengeStats.map((cs) => (
-                        <tr key={cs.challenge_id} className="transition-colors hover:bg-muted/30">
-                          <td className="px-4 py-3 font-medium">{cs.challenge_title}</td>
-                          <td className="px-4 py-3 text-center">
-                            {cs.question_count === 0 ? (
-                              <span className="text-muted-foreground">—</span>
-                            ) : cs.is_solved ? (
-                              <span className="text-green-500 font-semibold">
-                                ✓ {cs.solved_question_count}/{cs.question_count}
-                              </span>
-                            ) : cs.solved_question_count > 0 ? (
-                              <span className="text-amber-500">
-                                {cs.solved_question_count}/{cs.question_count}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">0/{cs.question_count}</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-center tabular-nums">
-                            {cs.points_earned > 0 ? (
-                              <span className="text-green-600 dark:text-green-400 font-medium">
-                                +{cs.points_earned}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-center tabular-nums">
-                            {cs.hint_unlock_count > 0 ? (
-                              <span className="text-amber-600 dark:text-amber-400">
-                                {cs.hint_unlock_count}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-center tabular-nums">
-                            {cs.hint_cost_spent > 0 ? (
-                              <span className="text-amber-600 dark:text-amber-400">
-                                -{cs.hint_cost_spent}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                            {cs.first_solve_at ? new Date(cs.first_solve_at).toLocaleString() : "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </DetailSection>
-            )}
+              {challengeStats && <ChallengeProgressTable stats={challengeStats} detailed />}
+
+              {score && <ScoreBreakdown score={score} />}
+            </DetailSection>
+
+            <DetailSection
+              title={t("admin.scoreboard.adjustments_title", {
+                defaultValue: "Score Adjustments",
+              })}
+            >
+              <DataTable
+                columns={adjustmentColumns}
+                response={adjustmentsResponse}
+                table={adjustmentsTable}
+                isLoading={adjustmentsLoading}
+                isFetching={adjustmentsFetching}
+                rowKey={(adj) => adj.id}
+                onRefresh={() => void refetchAdjustments()}
+              />
+            </DetailSection>
+
+            <DetailSection title={t("admin.nav.feedback")}>
+              <DataTable
+                columns={feedbackColumns}
+                response={feedbackResponse}
+                table={feedbackTable}
+                isLoading={feedbackLoading}
+                isFetching={feedbackFetching}
+                rowKey={(fb) => fb.id}
+                onRefresh={() => void refetchFeedback()}
+                onRowClick={(fb) => setFeedbackDialog(fb)}
+              />
+            </DetailSection>
 
             <DetailSection title={t("admin.teams.submissions_title")}>
               <DataTable
-                columns={SUBMISSION_COLUMNS}
+                columns={submissionColumns}
                 response={submissionsResponse}
                 table={submissionsTable}
                 isLoading={submissionsLoading}
                 isFetching={submissionsFetching}
                 rowKey={(sub) => sub.id}
                 onRefresh={() => void refetch()}
+                onRowClick={(sub) => setAnswerDialog(sub)}
               />
             </DetailSection>
           </>
         )}
       </DetailPageShell>
 
-      {answerDialog && (
-        <Dialog open onOpenChange={(v) => !v && setAnswerDialog(null)}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>{t("admin.teams.answer_dialog_title")}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3 text-sm">
-              {answerDialog.question_challenge_title && (
-                <div className="flex gap-2">
-                  <span className="text-muted-foreground shrink-0">
-                    {t("admin.teams.col_challenge")}:
-                  </span>
-                  <span>{answerDialog.question_challenge_title}</span>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <span className="text-muted-foreground shrink-0">
-                  {t("admin.teams.col_question")}:
-                </span>
-                <span>{answerDialog.question_label ?? "—"}</span>
-              </div>
-              <div className="rounded-md bg-muted p-3 font-mono text-sm break-all">
-                {answerDialog.answer}
-              </div>
-              <div className="flex justify-end pt-2">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    if (confirm(t("admin.teams.submission_delete_confirm"))) {
-                      removeSubmission(answerDialog.id);
-                      setAnswerDialog(null);
-                    }
-                  }}
-                >
-                  <Trash2 />
-                  {t("common.delete")}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      <FeedbackDetailDialog
+        feedback={feedbackDialog}
+        showTeam={false}
+        onClose={() => setFeedbackDialog(null)}
+      />
+
+      <SubmissionAnswerDialog
+        sub={answerDialog}
+        showTeam={false}
+        onClose={() => setAnswerDialog(null)}
+        onDelete={removeSubmission}
+      />
     </>
   );
 }

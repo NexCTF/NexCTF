@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Pencil, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Plus, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { type Column, DataTable, useTableState } from "@/components/data-table";
-import { IdCell } from "@/components/id-cell";
+import { DataTable, useTableState } from "@/components/data-table";
+import { PageHeader } from "@/components/page-header";
+import { useScoreAdjustmentColumns } from "@/components/score-adjustment-table";
 import { TeamSingleSelect } from "@/components/team-single-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -226,91 +227,20 @@ function ScoreAdjustmentsPage() {
       toast.error(apiErrorMessage(err, t("admin.scoreboard.adjustment_delete_error"))),
   });
 
-  const COLUMNS: Column<ScoreAdjustment>[] = [
-    {
-      key: "id",
-      header: "ID",
-      sortable: false,
-      cell: (adj) => <IdCell id={adj.id} />,
-      className: "w-32",
-    },
-    {
-      key: "team_name",
-      header: t("admin.scoreboard.col_team"),
-      cell: (adj) => <span>{adj.team_name ?? adj.team_id}</span>,
-    },
-    {
-      key: "amount",
-      header: t("admin.scoreboard.col_amount"),
-      sortable: true,
-      cell: (adj) => (
-        <span
-          className={
-            adj.amount > 0
-              ? "text-green-500 font-medium"
-              : adj.amount < 0
-                ? "text-red-500 font-medium"
-                : "text-muted-foreground"
-          }
-        >
-          {adj.amount > 0 ? "+" : ""}
-          {adj.amount}
-        </span>
-      ),
-    },
-    {
-      key: "reason",
-      header: t("admin.scoreboard.col_reason"),
-    },
-    {
-      key: "challenge_title",
-      header: t("admin.scoreboard.col_challenge"),
-      cell: (adj) => <span>{adj.challenge_title ?? "—"}</span>,
-    },
-    {
-      key: "created_by_username",
-      header: t("admin.scoreboard.col_created_by"),
-      cell: (adj) => <span>{adj.created_by_username ?? "—"}</span>,
-    },
-    {
-      key: "actions",
-      header: "",
-      sortable: false,
-      cell: (adj) => (
-        <div className="flex items-center gap-1 justify-end">
-          <Button variant="ghost" size="icon" className="size-7" onClick={() => setEditing(adj)}>
-            <Pencil className="size-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 text-destructive hover:text-destructive"
-            onClick={() => {
-              if (confirm(t("admin.scoreboard.adjustment_delete_confirm"))) remove(adj.id);
-            }}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
-        </div>
-      ),
-      className: "w-20",
-    },
-  ];
+  const COLUMNS = useScoreAdjustmentColumns({ onEdit: setEditing, onDelete: remove });
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <SlidersHorizontal className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">
-            {t("admin.scoreboard.adjustments_title", { defaultValue: "Score Adjustments" })}
-          </h1>
-        </div>
-        <Button size="sm" onClick={() => setAddOpen(true)}>
-          <Plus />
-          {t("admin.scoreboard.add_adjustment")}
-        </Button>
-      </div>
+      <PageHeader
+        icon={SlidersHorizontal}
+        title={t("admin.scoreboard.adjustments_title", { defaultValue: "Score Adjustments" })}
+        actions={
+          <Button onClick={() => setAddOpen(true)}>
+            <Plus />
+            {t("admin.scoreboard.add_adjustment")}
+          </Button>
+        }
+      />
 
       <DataTable
         columns={COLUMNS}

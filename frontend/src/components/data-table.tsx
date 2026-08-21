@@ -148,6 +148,19 @@ export type UseTableStateResult = ReturnType<typeof useTableState>;
 
 // ── DataTable ─────────────────────────────────────────────────────────────────
 
+/** Row look for a table row that navigates or opens a dialog when clicked. */
+export const CLICKABLE_ROW_CLS =
+  "group cursor-pointer border-l-2 border-l-transparent transition-colors hover:bg-accent/60 hover:border-l-primary";
+
+/** Trailing affordance of a clickable row; pair it with a `<th className="w-8" />`. */
+export function RowChevron() {
+  return (
+    <td className="px-3 py-3 w-8 text-muted-foreground/30 group-hover:text-primary transition-colors">
+      <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+    </td>
+  );
+}
+
 interface DataTableProps<T> {
   columns: Column<T>[];
   response: PaginatedResponse<T> | undefined;
@@ -519,12 +532,7 @@ export function DataTable<T>({
               data.map((row, i) => (
                 <tr
                   key={rowKey ? rowKey(row) : i}
-                  className={cn(
-                    "transition-colors",
-                    onRowClick
-                      ? "group cursor-pointer hover:bg-accent/60 border-l-2 border-l-transparent hover:border-l-primary"
-                      : "hover:bg-muted/30",
-                  )}
+                  className={onRowClick ? CLICKABLE_ROW_CLS : "transition-colors hover:bg-muted/30"}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >
                   {columns.map((col) => (
@@ -534,11 +542,7 @@ export function DataTable<T>({
                         : String((row as Record<string, unknown>)[col.key] ?? "")}
                     </td>
                   ))}
-                  {onRowClick && (
-                    <td className="px-3 py-3 w-8 text-muted-foreground/30 group-hover:text-primary transition-colors">
-                      <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-                    </td>
-                  )}
+                  {onRowClick && <RowChevron />}
                 </tr>
               ))
             )}

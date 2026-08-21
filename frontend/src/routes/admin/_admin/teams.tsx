@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { Plus, UsersRound } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { CustomFieldsSection, useCustomFieldDefs } from "@/components/custom-fields-section";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
-import { IdCell } from "@/components/id-cell";
 import { LabelInput } from "@/components/label-input";
+import { PageHeader } from "@/components/page-header";
+import { EmptyCell, idColumn } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,20 +30,30 @@ export const Route = createFileRoute("/admin/_admin/teams")({
   }),
 });
 
-const COLUMNS: Column<Team>[] = [
-  {
-    key: "id",
-    header: "ID",
-    sortable: false,
-    cell: (team) => <IdCell id={team.id} />,
-    className: "w-32",
-  },
-  {
-    key: "name",
-    header: "Name",
-    cell: (team) => <span className="font-medium">{team.name}</span>,
-  },
-];
+function useTeamColumns(): Column<Team>[] {
+  const { t } = useTranslation();
+  return [
+    idColumn<Team>(t),
+    {
+      key: "name",
+      header: t("table.col_name", { defaultValue: "Name" }),
+      cell: (team) => <span className="font-medium">{team.name}</span>,
+    },
+    {
+      key: "country",
+      header: t("admin.teams.field_country"),
+      cell: (team) =>
+        team.country ? <span className="font-mono">{team.country}</span> : <EmptyCell />,
+      className: "w-24",
+    },
+    {
+      key: "bracket",
+      header: t("admin.teams.field_bracket"),
+      cell: (team) =>
+        team.bracket ? <span className="capitalize">{team.bracket}</span> : <EmptyCell />,
+    },
+  ];
+}
 
 function CreateTeamDialog({ onCreated }: { onCreated: () => void }) {
   const { t } = useTranslation();
@@ -135,7 +146,7 @@ function CreateTeamDialog({ onCreated }: { onCreated: () => void }) {
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
               {mutation.isPending
-                ? t("common.creating", { defaultValue: "Creating..." })
+                ? t("common.creating", { defaultValue: "Creating…" })
                 : t("common.create", { defaultValue: "Create" })}
             </Button>
           </DialogFooter>
@@ -152,6 +163,7 @@ function TeamsPage() {
   const { search: initialSearch } = Route.useSearch();
 
   const table = useTableState({ search: initialSearch ?? "" });
+  const columns = useTeamColumns();
 
   const {
     data: response,
@@ -166,15 +178,18 @@ function TeamsPage() {
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("admin.nav.teams", { defaultValue: "Teams" })}</h1>
-        <CreateTeamDialog
-          onCreated={() => void queryClient.invalidateQueries({ queryKey: ["admin", "teams"] })}
-        />
-      </div>
+      <PageHeader
+        icon={UsersRound}
+        title={t("admin.nav.teams", { defaultValue: "Teams" })}
+        actions={
+          <CreateTeamDialog
+            onCreated={() => void queryClient.invalidateQueries({ queryKey: ["admin", "teams"] })}
+          />
+        }
+      />
 
       <DataTable
-        columns={COLUMNS}
+        columns={columns}
         response={response}
         table={table}
         isLoading={isLoading}

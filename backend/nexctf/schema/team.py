@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -60,6 +61,9 @@ class AdminTeamMember(PydanticBase):
 
 
 class AdminTeamDetailRead(AdminTeamRead):
+    invite_code: str
+    created_at: datetime
+    updated_at: datetime
     users: list[AdminTeamMember]
     custom_field_values: list[AdminCustomFieldValueRead] = []
 

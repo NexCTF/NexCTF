@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Link2, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { DeleteButton } from "@/components/confirm-dialog";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
-import { IdCell } from "@/components/id-cell";
+import { PageHeader } from "@/components/page-header";
+import { ActionsCell, idColumn, StatusCell } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -261,16 +263,10 @@ function LinksPage() {
   });
 
   const columns: Column<AdminLink>[] = [
-    {
-      key: "id",
-      header: "ID",
-      sortable: false,
-      cell: (l) => <IdCell id={l.id} />,
-      className: "w-32",
-    },
+    idColumn<AdminLink>(t),
     {
       key: "name",
-      header: t("admin.links.col_name", { defaultValue: "Name" }),
+      header: t("table.col_name", { defaultValue: "Name" }),
       cell: (l) => <span className="font-medium">{l.name}</span>,
     },
     {
@@ -293,17 +289,8 @@ function LinksPage() {
     },
     {
       key: "is_enabled",
-      header: t("admin.links.col_status", { defaultValue: "Status" }),
-      cell: (l) =>
-        l.is_enabled ? (
-          <span className="text-xs text-green-600">
-            {t("admin.links.enabled", { defaultValue: "Enabled" })}
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">
-            {t("admin.links.disabled", { defaultValue: "Disabled" })}
-          </span>
-        ),
+      header: t("table.col_status", { defaultValue: "Status" }),
+      cell: (l) => <StatusCell active={l.is_enabled} />,
     },
     {
       key: "_actions",
@@ -311,33 +298,25 @@ function LinksPage() {
       sortable: false,
       className: "w-20",
       cell: (link) => (
-        <div className="flex gap-1 justify-end">
+        <ActionsCell>
           <EditLinkDialog link={link} onSaved={invalidate} />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 text-destructive hover:text-destructive"
+          <DeleteButton
+            description={t("admin.links.delete_confirm", { name: link.name })}
             disabled={deleteMutation.isPending}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (confirm(t("admin.links.delete_confirm", { name: link.name }))) {
-                deleteMutation.mutate(link.id);
-              }
-            }}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
-        </div>
+            onConfirm={() => deleteMutation.mutate(link.id)}
+          />
+        </ActionsCell>
       ),
     },
   ];
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("admin.nav.links", { defaultValue: "Links" })}</h1>
-        <CreateLinkDialog onCreated={invalidate} />
-      </div>
+      <PageHeader
+        icon={Link2}
+        title={t("admin.nav.links", { defaultValue: "Links" })}
+        actions={<CreateLinkDialog onCreated={invalidate} />}
+      />
 
       <DataTable
         columns={columns}

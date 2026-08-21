@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangle, Box, ExternalLink, Puzzle, ShieldCheck, User } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { getAdminPlugins, type Plugin } from "@/lib/api";
 
@@ -123,6 +125,7 @@ function PluginSection({ title, plugins }: { title: string; plugins: Plugin[] })
 }
 
 function PluginsPage() {
+  const { t } = useTranslation();
   const { data: plugins = [], isLoading } = useQuery({
     queryKey: ["admin", "plugins"],
     queryFn: getAdminPlugins,
@@ -133,15 +136,17 @@ function PluginsPage() {
 
   return (
     <div className="p-8 space-y-8">
-      <div className="flex items-center gap-3">
-        <Puzzle className="size-6 text-muted-foreground" />
-        <h1 className="text-2xl font-bold">Plugins</h1>
-        {!isLoading && (
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {plugins.length}
-          </span>
-        )}
-      </div>
+      <PageHeader
+        icon={Puzzle}
+        title={t("admin.nav.plugins", { defaultValue: "Plugins" })}
+        actions={
+          !isLoading && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              {plugins.length}
+            </span>
+          )
+        }
+      />
 
       {isLoading ? (
         <div className="flex items-center justify-center py-24">

@@ -16,3 +16,4 @@ class AdminSubmissionRead(PydanticBase):
     team_name: str | None = None
     question_label: str | None = None
     question_challenge_title: str | None = None
+    question_challenge_id: UUID | None = None

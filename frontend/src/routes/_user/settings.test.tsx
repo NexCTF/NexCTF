@@ -18,7 +18,7 @@ import {
 } from "@/lib/api";
 import type { AuthContext } from "@/lib/auth";
 import { paginated, publicInfo, user, userSession } from "@/test/fixtures";
-import { renderRoute } from "@/test/render";
+import { clickAndCancel, clickAndConfirm, renderRoute } from "@/test/render";
 import { Route } from "./settings";
 
 const renderSettings = (auth: Partial<AuthContext> = { user: user() }) =>
@@ -125,16 +125,13 @@ it("lists tokens and asks before revoking one", async () => {
     paginated([{ id: "tok1", name: "CI", created_at: "2026-01-01T00:00:00Z", expires_at: null }]),
   );
   vi.mocked(deleteMyToken).mockResolvedValue(undefined);
-  const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
   renderSettings();
 
   const revoke = await screen.findByRole("button", { name: "Revoke token" });
-  await userEvent.click(revoke);
-  expect(confirmSpy).toHaveBeenCalledWith('Revoke token "CI"?');
+  await clickAndCancel(revoke);
   expect(deleteMyToken).not.toHaveBeenCalled();
 
-  confirmSpy.mockReturnValue(true);
-  await userEvent.click(revoke);
+  await clickAndConfirm(revoke, "Delete");
   await waitFor(() => expect(deleteMyToken).toHaveBeenCalledWith("tok1"));
 });
 
@@ -175,13 +172,12 @@ it("offers to connect an unlinked provider and to unlink a linked one", async ()
     { id: "acc1", provider_slug: "github", provider_name: "GitHub", provider_icon_url: null },
   ]);
   vi.mocked(deleteMyOAuthAccount).mockResolvedValue(undefined);
-  vi.spyOn(window, "confirm").mockReturnValue(true);
   renderSettings();
 
   expect(await screen.findByRole("heading", { name: "Connected Accounts" })).toBeDefined();
   expect(screen.getByRole("link", { name: "Connect" })).toBeDefined();
 
-  await userEvent.click(screen.getByRole("button", { name: "Unlink" }));
+  await clickAndConfirm(screen.getByRole("button", { name: "Unlink" }), "Unlink");
   await waitFor(() => expect(deleteMyOAuthAccount).toHaveBeenCalledWith("acc1"));
   expect(toast.success).toHaveBeenCalledWith("GitHub unlinked");
 });
@@ -216,7 +212,6 @@ it("offers no revoke button for the current device", async () => {
 });
 
 it("revokes a single session", async () => {
-  vi.spyOn(window, "confirm").mockReturnValue(true);
   vi.mocked(getMySessions).mockResolvedValue([
     userSession({ id: "s1", current: true }),
     userSession({ id: "s2" }),
@@ -224,14 +219,16 @@ it("revokes a single session", async () => {
   vi.mocked(deleteMySession).mockResolvedValue(undefined);
   renderSettings();
 
-  await userEvent.click(await screen.findByRole("button", { name: "Sign out this device" }));
+  await clickAndConfirm(
+    await screen.findByRole("button", { name: "Sign out this device" }),
+    "Delete",
+  );
 
   await waitFor(() => expect(deleteMySession).toHaveBeenCalledWith("s2"));
   expect(toast.success).toHaveBeenCalledWith("Session signed out");
 });
 
 it("signs out everywhere and drops this session too", async () => {
-  vi.spyOn(window, "confirm").mockReturnValue(true);
   const logout = vi.fn().mockResolvedValue(undefined);
   vi.mocked(getMySessions).mockResolvedValue([
     userSession({ id: "s1", current: true }),
@@ -240,7 +237,10 @@ it("signs out everywhere and drops this session too", async () => {
   vi.mocked(deleteAllSessions).mockResolvedValue(undefined);
   renderSettings({ user: user(), logout });
 
-  await userEvent.click(await screen.findByRole("button", { name: /Sign out everywhere/ }));
+  await clickAndConfirm(
+    await screen.findByRole("button", { name: /Sign out everywhere/ }),
+    "Sign out everywhere",
+  );
 
   await waitFor(() => expect(deleteAllSessions).toHaveBeenCalled());
   expect(toast.success).toHaveBeenCalledWith("Signed out on every device");
@@ -248,20 +248,18 @@ it("signs out everywhere and drops this session too", async () => {
 });
 
 it("warns that signing out everywhere includes this device", async () => {
-  const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
   vi.mocked(getMySessions).mockResolvedValue([userSession({ id: "s1", current: true })]);
   renderSettings();
 
   await userEvent.click(await screen.findByRole("button", { name: /Sign out everywhere/ }));
 
-  expect(confirmSpy).toHaveBeenCalledWith(
-    "Sign out on every device? You will be signed out here too.",
-  );
+  expect(
+    await screen.findByText("Sign out on every device? You will be signed out here too."),
+  ).toBeDefined();
   expect(deleteAllSessions).not.toHaveBeenCalled();
 });
 
 it("keeps the session out of the list when revocation fails", async () => {
-  vi.spyOn(window, "confirm").mockReturnValue(true);
   vi.mocked(getMySessions).mockResolvedValue([
     userSession({ id: "s1", current: true }),
     userSession({ id: "s2" }),
@@ -269,7 +267,10 @@ it("keeps the session out of the list when revocation fails", async () => {
   vi.mocked(deleteMySession).mockRejectedValue(new ApiError(500, "boom", null, null));
   renderSettings();
 
-  await userEvent.click(await screen.findByRole("button", { name: "Sign out this device" }));
+  await clickAndConfirm(
+    await screen.findByRole("button", { name: "Sign out this device" }),
+    "Delete",
+  );
 
   await waitFor(() => expect(toast.error).toHaveBeenCalledWith("boom"));
 });

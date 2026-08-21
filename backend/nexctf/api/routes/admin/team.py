@@ -8,11 +8,21 @@ from sqlalchemy.exc import IntegrityError
 
 from nexctf import crud
 from nexctf.api.dep import RedisDep, SessionDep
-from nexctf.model import CustomFieldValue, Submission, Team
+from nexctf.model import (
+    ChallengeFeedback,
+    CustomFieldValue,
+    ScoreAdjustment,
+    Submission,
+    Team,
+)
 from nexctf.module.custom_field import create_custom_field_values
 from nexctf.module.scoreboard.cache import invalidate as invalidate_scoreboard
+from nexctf.module.scoreboard.compute import compute_team_score
 from nexctf.module.stats import compute_admin_team_challenge_stats
 from nexctf.schema.custom_field import AdminCustomFieldValueRead
+from nexctf.schema.feedback import AdminFeedbackRead
+from nexctf.schema.score_adjustment import AdminScoreAdjustmentRead
+from nexctf.schema.scoreboard import PublicTeamScoreDetail
 from nexctf.schema.stats import AdminTeamChallengeStats
 from nexctf.schema.submission import AdminSubmissionRead
 from nexctf.schema.team import (
@@ -77,6 +87,9 @@ async def get_team_detail(
             country=team.country,
             bracket=team.bracket,
             links=team.links or [],
+            invite_code=team.invite_code,
+            created_at=team.created_at,
+            updated_at=team.updated_at,
             users=[AdminTeamMember.model_validate(u) for u in team.users],
             custom_field_values=[
                 AdminCustomFieldValueRead.model_validate(cfv) for cfv in cfv_rows
@@ -97,6 +110,46 @@ async def get_team_submissions(
         filters=[Submission.team_id == uuid],
         schema=AdminSubmissionRead,
     )
+
+
+@team_router.get("/{uuid}/feedback")
+async def get_team_feedbacks(
+    session: SessionDep,
+    uuid: UUID,
+    params: Annotated[dict, Depends(crud.ChallengeFeedbackCrud.paginate_params())],
+) -> PaginatedResponse[AdminFeedbackRead]:
+    return await crud.ChallengeFeedbackCrud.paginate(
+        session=session,
+        **params,
+        filters=[ChallengeFeedback.team_id == uuid],
+        schema=AdminFeedbackRead,
+    )
+
+
+@team_router.get("/{uuid}/score-adjustments")
+async def get_team_score_adjustments(
+    session: SessionDep,
+    uuid: UUID,
+    params: Annotated[dict, Depends(crud.ScoreAdjustmentCrud.paginate_params())],
+) -> PaginatedResponse[AdminScoreAdjustmentRead]:
+    return await crud.ScoreAdjustmentCrud.paginate(
+        session=session,
+        **params,
+        filters=[ScoreAdjustment.team_id == uuid],
+        schema=AdminScoreAdjustmentRead,
+    )
+
+
+@team_router.get("/{uuid}/score")
+async def get_team_score_detail(
+    session: SessionDep,
+    uuid: UUID,
+) -> Response[PublicTeamScoreDetail]:
+    """Score breakdown ignoring ``ctf.freeze_time`` — admins see live numbers."""
+    try:
+        return Response(data=await compute_team_score(session, uuid))
+    except ValueError:
+        raise NotFoundError()
 
 
 @team_router.get("/{uuid}/challenge-stats")

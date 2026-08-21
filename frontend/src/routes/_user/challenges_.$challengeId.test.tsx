@@ -5,7 +5,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { getChallenge, getPublicInfo, submitAnswer, submitFeedback, unlockHint } from "@/lib/api";
 import type { AuthContext } from "@/lib/auth";
 import { challengeDetail, publicInfo, publicInfoWith, question, user } from "@/test/fixtures";
-import { renderRoute } from "@/test/render";
+import { clickAndCancel, clickAndConfirm, renderRoute } from "@/test/render";
 import { Route } from "./challenges_.$challengeId";
 
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -145,16 +145,12 @@ it("asks for confirmation before spending points on a hint", async () => {
     }),
   );
   vi.mocked(unlockHint).mockResolvedValue(undefined as never);
-  const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
   renderChallenge();
 
-  await userEvent.click(await screen.findByRole("button", { name: "−25 pts" }));
-
-  expect(confirmSpy).toHaveBeenCalledWith("Unlock this hint for 25 points?");
+  await clickAndCancel(await screen.findByRole("button", { name: "−25 pts" }));
   expect(unlockHint).not.toHaveBeenCalled();
 
-  confirmSpy.mockReturnValue(true);
-  await userEvent.click(screen.getByRole("button", { name: "−25 pts" }));
+  await clickAndConfirm(screen.getByRole("button", { name: "−25 pts" }), "Unlock");
   await waitFor(() => expect(unlockHint).toHaveBeenCalledWith("c1", "q1", "h1"));
 });
 

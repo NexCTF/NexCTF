@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FileText, Globe, Plus, Trash2 } from "lucide-react";
+import { Plus, ScrollText } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { DeleteButton } from "@/components/confirm-dialog";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
+import { PageHeader } from "@/components/page-header";
+import { ActionsCell, EmptyCell, idColumn, StatusCell } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -137,16 +140,14 @@ function DeletePageButton({ page, onDeleted }: { page: CustomPage; onDeleted: ()
   });
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="text-destructive hover:text-destructive"
-      onClick={() => mutation.mutate()}
+    <DeleteButton
+      description={t("admin.pages.delete_confirm", {
+        title: page.title,
+        defaultValue: 'Delete page "{{title}}"?',
+      })}
       disabled={mutation.isPending}
-      title={t("common.delete", { defaultValue: "Delete" })}
-    >
-      <Trash2 className="size-4" />
-    </Button>
+      onConfirm={() => mutation.mutate()}
+    />
   );
 }
 
@@ -185,9 +186,10 @@ function PagesPage() {
   }
 
   const columns: Column<CustomPage>[] = [
+    idColumn<CustomPage>(t),
     {
       key: "title",
-      header: t("admin.pages.col_title", { defaultValue: "Title" }),
+      header: t("table.col_title", { defaultValue: "Title" }),
       cell: (p) => (
         <button
           type="button"
@@ -212,31 +214,29 @@ function PagesPage() {
             {NAV_PLACEMENT_LABELS[p.nav_placement] ?? p.nav_placement}
           </span>
         ) : (
-          <span className="text-xs text-muted-foreground">—</span>
+          <EmptyCell />
         ),
     },
     {
       key: "is_published",
-      header: t("admin.pages.col_status", { defaultValue: "Status" }),
-      cell: (p) =>
-        p.is_published ? (
-          <span className="flex items-center gap-1 text-xs text-green-600">
-            <Globe className="size-3" />
-            {t("admin.pages.published", { defaultValue: "Published" })}
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <FileText className="size-3" />
-            {t("admin.pages.draft", { defaultValue: "Draft" })}
-          </span>
-        ),
+      header: t("table.col_status", { defaultValue: "Status" }),
+      cell: (p) => (
+        <StatusCell
+          active={p.is_published}
+          label={
+            p.is_published
+              ? t("admin.pages.published", { defaultValue: "Published" })
+              : t("admin.pages.draft", { defaultValue: "Draft" })
+          }
+        />
+      ),
     },
     {
       key: "actions" as keyof CustomPage,
       header: "",
       sortable: false,
       cell: (p) => (
-        <div className="flex items-center justify-end gap-1">
+        <ActionsCell>
           <Button
             variant="ghost"
             size="sm"
@@ -245,7 +245,7 @@ function PagesPage() {
             {t("common.edit", { defaultValue: "Edit" })}
           </Button>
           <DeletePageButton page={p} onDeleted={invalidate} />
-        </div>
+        </ActionsCell>
       ),
       className: "w-40 text-right",
     },
@@ -253,12 +253,15 @@ function PagesPage() {
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("admin.nav.pages", { defaultValue: "Pages" })}</h1>
-        <CreatePageDialog
-          onCreated={(id) => navigate({ to: "/admin/pages/$pageId", params: { pageId: id } })}
-        />
-      </div>
+      <PageHeader
+        icon={ScrollText}
+        title={t("admin.nav.pages", { defaultValue: "Pages" })}
+        actions={
+          <CreatePageDialog
+            onCreated={(id) => navigate({ to: "/admin/pages/$pageId", params: { pageId: id } })}
+          />
+        }
+      />
 
       <DataTable
         columns={columns}

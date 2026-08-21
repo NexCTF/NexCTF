@@ -4,6 +4,7 @@ import * as LucideIcons from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
@@ -141,13 +142,16 @@ function SettingsPage() {
   return (
     <div className="flex flex-col flex-1">
       {/* Header */}
-      <div className="border-b px-8 pt-6 pb-0">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold">{t("config.title")}</h1>
-          <Button onClick={handleSave} disabled={!isDirty || mutation.isPending}>
-            {mutation.isPending ? t("common.saving") : t("common.save")}
-          </Button>
-        </div>
+      <div className="border-b px-8 pt-6 pb-0 space-y-4">
+        <PageHeader
+          icon={LucideIcons.Settings}
+          title={t("config.title")}
+          actions={
+            <Button onClick={handleSave} disabled={!isDirty || mutation.isPending}>
+              {mutation.isPending ? t("common.saving") : t("common.save")}
+            </Button>
+          }
+        />
 
         {/* Tab bar */}
         <div className="flex items-end gap-0 -mb-px">

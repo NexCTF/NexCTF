@@ -96,6 +96,16 @@ type DetailSectionProps = {
   children: ReactNode;
 };
 
+/** One label/value line inside a detail card. */
+export function InfoRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-center gap-4 px-4 py-3 text-sm">
+      <span className="w-36 shrink-0 text-muted-foreground">{label}</span>
+      <span className="flex-1">{value}</span>
+    </div>
+  );
+}
+
 export function DetailSection({ title, actions, children }: DetailSectionProps) {
   return (
     <div className="space-y-3">

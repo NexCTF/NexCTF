@@ -10,10 +10,11 @@ from sqlalchemy.orm import joinedload, selectinload
 from nexctf.model import Challenge, Hint, HintUnlock, Submission, Team
 from nexctf.schema.stats import (
     AdminTeamChallengeStats,
+    AdminTeamQuestionStats,
     ChallengeStats,
     QuestionStats,
     TeamChallengeStats,
-    TeamQuestionStats,
+    TeamHintUnlock,
 )
 
 
@@ -24,15 +25,7 @@ async def compute_team_challenge_stats(
     admin_stats = await compute_admin_team_challenge_stats(
         session, team_id, freeze_time=freeze_time
     )
-    return [
-        TeamChallengeStats(
-            **s.model_dump(
-                exclude={"hint_unlock_count", "hint_cost_spent", "points_earned"}
-            ),
-            points_earned=sum(q.points_earned for q in s.questions),
-        )
-        for s in admin_stats
-    ]
+    return [TeamChallengeStats(**s.model_dump()) for s in admin_stats]
 
 
 async def compute_admin_team_challenge_stats(
@@ -63,40 +56,35 @@ async def compute_admin_team_challenge_stats(
         submission_stmt = submission_stmt.where(Submission.created_at <= freeze_time)
     submissions = (await session.execute(submission_stmt)).scalars().all()
 
-    # Load hints to map hint_id → question_id for this challenge set
-    hint_rows = (await session.execute(select(Hint.id, Hint.question_id))).all()
-    hint_id_to_question_id: dict[UUID, UUID] = {
-        row.id: row.question_id for row in hint_rows
+    unlock_stmt = (
+        select(
+            Hint.question_id,
+            HintUnlock.hint_id,
+            Hint.title,
+            HintUnlock.cost_paid,
+            HintUnlock.created_at,
+        )
+        .join(Hint, HintUnlock.hint_id == Hint.id)
+        .where(HintUnlock.team_id == team_id)
+        .order_by(HintUnlock.created_at)
+    )
+    if freeze_time is not None:
+        unlock_stmt = unlock_stmt.where(HintUnlock.created_at <= freeze_time)
+
+    unlocks_by_question: dict[UUID, list[TeamHintUnlock]] = {}
+    for row in (await session.execute(unlock_stmt)).all():
+        unlocks_by_question.setdefault(row.question_id, []).append(
+            TeamHintUnlock(
+                hint_id=row.hint_id,
+                title=row.title,
+                cost_paid=row.cost_paid,
+                unlocked_at=row.created_at,
+            )
+        )
+    hint_cost_by_question = {
+        qid: sum(u.cost_paid for u in unlocks)
+        for qid, unlocks in unlocks_by_question.items()
     }
-
-    # Build question_id → challenge_id mapping
-    question_id_to_challenge_id: dict[UUID, UUID] = {}
-    for c in challenges:
-        for q in c.questions:
-            question_id_to_challenge_id[q.id] = c.id
-
-    hint_unlock_by_question: dict[UUID, int] = {}
-    hint_cost_by_question: dict[UUID, int] = {}
-    hint_cost_by_challenge: dict[UUID, int] = {}
-    if hint_id_to_question_id:
-        unlock_stmt = select(HintUnlock).where(HintUnlock.team_id == team_id)
-        if freeze_time is not None:
-            unlock_stmt = unlock_stmt.where(HintUnlock.created_at <= freeze_time)
-        hint_unlocks = (await session.execute(unlock_stmt)).scalars().all()
-        for hu in hint_unlocks:
-            qid = hint_id_to_question_id.get(hu.hint_id)
-            if qid is None:
-                continue
-            cid = question_id_to_challenge_id.get(qid)
-            if cid is None:
-                continue
-            hint_unlock_by_question[qid] = hint_unlock_by_question.get(qid, 0) + 1
-            hint_cost_by_question[qid] = (
-                hint_cost_by_question.get(qid, 0) + hu.cost_paid
-            )
-            hint_cost_by_challenge[cid] = (
-                hint_cost_by_challenge.get(cid, 0) + hu.cost_paid
-            )
 
     subs_by_question: dict[UUID, list[Submission]] = {}
     for sub in submissions:
@@ -126,7 +114,7 @@ async def compute_admin_team_challenge_stats(
         # Per-question points_earned is the net gain: solve points minus hint
         # costs, hints being charged only once the question is solved.
         question_stats = [
-            TeamQuestionStats(
+            AdminTeamQuestionStats(
                 question_id=q.id,
                 question_label=q.label,
                 is_solved=q.id in solved_q_ids,
@@ -135,14 +123,24 @@ async def compute_admin_team_challenge_stats(
                     if q.id in solved_q_ids
                     else 0
                 ),
-                hint_unlock_count=hint_unlock_by_question.get(q.id, 0),
+                hint_unlock_count=len(unlocks_by_question.get(q.id, [])),
                 wrong_attempt_count=sum(
                     1 for s in subs_by_question.get(q.id, []) if not s.is_correct
                 ),
+                solved_at=next(
+                    (
+                        s.created_at
+                        for s in subs_by_question.get(q.id, [])
+                        if s.is_correct
+                    ),
+                    None,
+                ),
+                hints=unlocks_by_question.get(q.id, []),
             )
             for q in challenge.questions
         ]
-        points_earned = sum(s.points_earned for s in correct_subs)
+        # Net of hint costs, like the per-question figures it sums.
+        points_earned = sum(q.points_earned for q in question_stats)
 
         result.append(
             AdminTeamChallengeStats(
@@ -153,8 +151,6 @@ async def compute_admin_team_challenge_stats(
                 is_solved=is_solved,
                 attempt_count=len(c_subs),
                 points_earned=points_earned,
-                hint_unlock_count=sum(q.hint_unlock_count for q in question_stats),
-                hint_cost_spent=hint_cost_by_challenge.get(challenge.id, 0),
                 first_solve_at=first_solve_at,
                 last_solve_at=last_solve_at,
                 questions=question_stats,
@@ -318,6 +314,7 @@ async def compute_all_challenge_stats(session: AsyncSession) -> list[ChallengeSt
                     question_id=qid,
                     question_label=q.label,
                     question_index=q.index,
+                    points=q.points,
                     attempt_count=attempt_by_q.get(qid, 0),
                     correct_count=correct_by_q.get(qid, 0),
                     teams_attempted=len(teams_attempted_by_q.get(qid, set())),
@@ -333,6 +330,8 @@ async def compute_all_challenge_stats(session: AsyncSession) -> list[ChallengeSt
             ChallengeStats(
                 challenge_id=cid,
                 challenge_title=c.title,
+                category=c.category,
+                points=sum(q.points for q in c.questions),
                 question_count=q_count,
                 attempt_count=attempt_by_c.get(cid, 0),
                 correct_count=correct_by_c.get(cid, 0),

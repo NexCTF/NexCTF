@@ -1,14 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Ban, ExternalLink, KeyRound, Pencil, ShieldCheck, ShieldOff } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CustomFieldValuesList } from "@/components/custom-field-values-list";
 import { CustomFieldsSection, useCustomFieldDefs } from "@/components/custom-fields-section";
 import { DataTable, useTableState } from "@/components/data-table";
-import { DetailPageShell, DetailSection } from "@/components/detail-page";
+import { DetailPageShell, DetailSection, InfoRow } from "@/components/detail-page";
+import { EventDetailsDialog, useEventColumns } from "@/components/event-table";
 import { LinksFormSection } from "@/components/links-form-section";
+import { EmptyCell, RoleBadge, StatusCell, TeamLink } from "@/components/table-cells";
 import { TeamSingleSelect } from "@/components/team-single-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,8 +37,7 @@ import {
   updateAdminUser,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { cn, copyToClipboard } from "@/lib/utils";
-import { COLUMNS, EventDetailsDialog } from "@/routes/admin/_admin/events";
+import { copyToClipboard } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin/users_/$userId")({
   component: UserDetailPage,
@@ -174,16 +176,17 @@ function ResetTotpButton({ userId, onSuccess }: { userId: string; onSuccess: () 
     onError: (err) => toast.error(apiErrorMessage(err, t("admin.users.totp_reset_error"))),
   });
 
-  function handleClick() {
-    if (!confirm(t("admin.users.totp_reset_confirm"))) return;
-    mutation.mutate();
-  }
-
   return (
-    <Button variant="outline" size="sm" onClick={handleClick} disabled={mutation.isPending}>
-      <ShieldOff className="size-3.5 mr-1.5" />
-      {t("admin.users.totp_reset_btn")}
-    </Button>
+    <ConfirmDialog
+      description={t("admin.users.totp_reset_confirm")}
+      onConfirm={() => mutation.mutate()}
+      trigger={
+        <Button variant="outline" size="sm" disabled={mutation.isPending}>
+          <ShieldOff className="size-3.5 mr-1.5" />
+          {t("admin.users.totp_reset_btn")}
+        </Button>
+      }
+    />
   );
 }
 
@@ -242,15 +245,6 @@ function PasswordResetTokenDialog({ userId }: { userId: string }) {
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex items-center gap-4 px-4 py-3 text-sm">
-      <span className="w-36 shrink-0 text-muted-foreground">{label}</span>
-      <span className="flex-1">{value}</span>
-    </div>
-  );
-}
-
 function UserDetailPage() {
   const { t } = useTranslation();
   const { userId } = Route.useParams();
@@ -263,6 +257,7 @@ function UserDetailPage() {
   }
 
   const eventsTable = useTableState();
+  const eventColumns = useEventColumns();
   const [selectedEvent, setSelectedEvent] = useState<AdminEvent | null>(null);
 
   const { data: user, isLoading } = useQuery({
@@ -297,20 +292,14 @@ function UserDetailPage() {
 
   const isSelf = currentUser?.id === userId;
 
-  function handleToggleActive() {
-    if (!user) return;
-    if (user.is_active) {
-      if (!confirm(t("admin.users.disable_confirm"))) return;
-      mutation.mutate(
-        { is_active: false },
-        { onSuccess: () => toast.success(t("admin.users.disabled")) },
-      );
-    } else {
-      mutation.mutate(
-        { is_active: true },
-        { onSuccess: () => toast.success(t("admin.users.enabled")) },
-      );
-    }
+  function setActive(is_active: boolean) {
+    mutation.mutate(
+      { is_active },
+      {
+        onSuccess: () =>
+          toast.success(is_active ? t("admin.users.enabled") : t("admin.users.disabled")),
+      },
+    );
   }
 
   return (
@@ -319,42 +308,35 @@ function UserDetailPage() {
       backLabel={t("admin.users.detail_back")}
       title={user?.username}
       isLoading={isLoading}
-      badge={
-        user && (
-          <span
-            className={cn(
-              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-              user.role === "admin"
-                ? "bg-primary/10 text-primary"
-                : "bg-muted text-muted-foreground",
-            )}
-          >
-            {user.role === "admin" && <ShieldCheck className="size-3" />}
-            {user.role}
-          </span>
-        )
-      }
+      badge={user && <RoleBadge role={user.role} />}
       actions={
-        user && (
+        user &&
+        (user.is_active ? (
+          <ConfirmDialog
+            description={t("admin.users.disable_confirm")}
+            confirmLabel={t("admin.users.disable_btn")}
+            onConfirm={() => setActive(false)}
+            trigger={
+              <Button
+                variant="destructive"
+                disabled={mutation.isPending || isSelf}
+                title={isSelf ? t("admin.users.self_action_hint") : undefined}
+              >
+                <Ban />
+                {t("admin.users.disable_btn")}
+              </Button>
+            }
+          />
+        ) : (
           <Button
-            variant={user.is_active ? "destructive" : "default"}
-            onClick={handleToggleActive}
+            onClick={() => setActive(true)}
             disabled={mutation.isPending || isSelf}
             title={isSelf ? t("admin.users.self_action_hint") : undefined}
           >
-            {user.is_active ? (
-              <>
-                <Ban />
-                {t("admin.users.disable_btn")}
-              </>
-            ) : (
-              <>
-                <ShieldCheck />
-                {t("admin.users.enable_btn")}
-              </>
-            )}
+            <ShieldCheck />
+            {t("admin.users.enable_btn")}
           </Button>
-        )
+        ))
       }
     >
       {user && (
@@ -388,33 +370,12 @@ function UserDetailPage() {
                   </span>
                 }
               />
-              <InfoRow
-                label={t("admin.users.field_role")}
-                value={
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-                      user.role === "admin"
-                        ? "bg-primary/10 text-primary"
-                        : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {user.role === "admin" && <ShieldCheck className="size-3" />}
-                    {user.role}
-                  </span>
-                }
-              />
+              <InfoRow label={t("admin.users.field_role")} value={<RoleBadge role={user.role} />} />
               <InfoRow
                 label={t("admin.users.field_team")}
                 value={
                   user.team_id ? (
-                    <Link
-                      to="/admin/teams/$teamId"
-                      params={{ teamId: user.team_id }}
-                      className="text-primary hover:underline underline-offset-2"
-                    >
-                      {user.team_name}
-                    </Link>
+                    <TeamLink id={user.team_id} name={user.team_name} />
                   ) : (
                     <span className="text-muted-foreground">{t("admin.users.no_team")}</span>
                   )
@@ -438,24 +399,7 @@ function UserDetailPage() {
               />
               <InfoRow
                 label={t("admin.users.field_status")}
-                value={
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 text-xs",
-                      user.is_active ? "text-green-600 dark:text-green-400" : "text-destructive",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "size-1.5 rounded-full",
-                        user.is_active ? "bg-green-500" : "bg-destructive",
-                      )}
-                    />
-                    {user.is_active
-                      ? t("admin.users.status_active")
-                      : t("admin.users.status_disabled")}
-                  </span>
-                }
+                value={<StatusCell active={user.is_active} />}
               />
               <InfoRow
                 label={t("admin.users.field_last_login_ip")}
@@ -465,7 +409,7 @@ function UserDetailPage() {
                       {user.last_login_ip}
                     </code>
                   ) : (
-                    <span className="text-muted-foreground">—</span>
+                    <EmptyCell />
                   )
                 }
               />
@@ -477,7 +421,7 @@ function UserDetailPage() {
                       {new Date(user.last_login_at).toLocaleString()}
                     </span>
                   ) : (
-                    <span className="text-muted-foreground">—</span>
+                    <EmptyCell />
                   )
                 }
               />
@@ -516,7 +460,7 @@ function UserDetailPage() {
 
           <DetailSection title={t("admin.users.events_title")}>
             <DataTable
-              columns={COLUMNS}
+              columns={eventColumns}
               response={eventsResponse}
               table={eventsTable}
               isLoading={eventsLoading}

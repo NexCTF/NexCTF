@@ -1,9 +1,10 @@
-import { ExternalLink, Trash2 } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { DeleteButton } from "@/components/confirm-dialog";
 import { DetailSection } from "@/components/detail-page";
 import { SetCustomFieldValueDialog } from "@/components/set-custom-field-value-dialog";
-import { Button } from "@/components/ui/button";
+import { EmptyCell } from "@/components/table-cells";
 import { apiErrorMessage, type CustomFieldValue, deleteAdminCustomFieldValue } from "@/lib/api";
 
 interface CustomFieldValuesListProps {
@@ -15,7 +16,7 @@ interface CustomFieldValuesListProps {
 }
 
 function CfvValue({ cfv }: { cfv: CustomFieldValue }) {
-  if (!cfv.value) return <span className="text-muted-foreground">—</span>;
+  if (!cfv.value) return <EmptyCell />;
   if (cfv.definition.field_type === "url") {
     return (
       <a
@@ -44,7 +45,6 @@ export function CustomFieldValuesList({
   if (values.length === 0) return null;
 
   function handleDelete(id: string) {
-    if (!confirm(t("admin.custom_fields.value_delete_confirm"))) return;
     void deleteAdminCustomFieldValue(id)
       .then(onSaved)
       .catch((err) => toast.error(apiErrorMessage(err, t("admin.custom_fields.value_save_error"))));
@@ -68,14 +68,10 @@ export function CustomFieldValuesList({
                   existing={cfv}
                   onSaved={onSaved}
                 />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 text-destructive hover:text-destructive"
-                  onClick={() => handleDelete(cfv.id)}
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
+                <DeleteButton
+                  description={t("admin.custom_fields.value_delete_confirm")}
+                  onConfirm={() => handleDelete(cfv.id)}
+                />
               </div>
             )}
           </div>

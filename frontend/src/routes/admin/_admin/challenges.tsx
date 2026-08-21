@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Plus, Puzzle } from "lucide-react";
+import { Flag, Plus, Puzzle } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
-import { IdCell } from "@/components/id-cell";
 import { LabelInput } from "@/components/label-input";
+import { PageHeader } from "@/components/page-header";
 import { initFromSchema, SchemaFields } from "@/components/schema-form";
+import { BoolCell, EmptyCell, idColumn, StatusCell } from "@/components/table-cells";
 import { TagMultiSelect } from "@/components/tag-multi-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,73 +32,12 @@ import {
   getChallengeTypes,
 } from "@/lib/api";
 import { useFacetValues, useTagSuggestions } from "@/lib/use-facet-values";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin/challenges")({
   component: ChallengesPage,
 });
 
 // ── Columns & filters ────────────────────────────────────────────────────────
-
-const COLUMNS: Column<Challenge>[] = [
-  {
-    key: "id",
-    header: "ID",
-    sortable: false,
-    cell: (c) => <IdCell id={c.id} />,
-    className: "w-32",
-  },
-  {
-    key: "title",
-    header: "Title",
-    cell: (c) => <span className="font-medium">{c.title}</span>,
-  },
-  {
-    key: "challenge_type",
-    header: "Type",
-    cell: (c) => (
-      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-        <Puzzle className="size-3" />
-        {c.challenge_type}
-      </span>
-    ),
-  },
-  {
-    key: "category",
-    header: "Category",
-    cell: (c) => <span className="text-muted-foreground capitalize">{c.category ?? "—"}</span>,
-  },
-  {
-    key: "is_active",
-    header: "Status",
-    cell: (c) => (
-      <span
-        className={cn(
-          "inline-flex items-center gap-1.5 text-xs",
-          c.is_active ? "text-green-600 dark:text-green-400" : "text-muted-foreground",
-        )}
-      >
-        <span
-          className={cn(
-            "size-1.5 rounded-full",
-            c.is_active ? "bg-green-500" : "bg-muted-foreground/50",
-          )}
-        />
-        {c.is_active ? "Active" : "Inactive"}
-      </span>
-    ),
-  },
-  {
-    key: "sequential",
-    header: "Sequential",
-    cell: (c) => <span className="text-muted-foreground">{c.sequential ? "Yes" : "No"}</span>,
-  },
-  {
-    key: "question_count",
-    header: "Questions",
-    cell: (c) => <span className="text-muted-foreground">{c.question_count}</span>,
-  },
-];
 
 // ── Schema field renderer (for extra plugin-specific fields) ─────────────────
 
@@ -314,7 +255,51 @@ function ChallengesPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const { t } = useTranslation();
   const table = useTableState();
+  const columns: Column<Challenge>[] = [
+    idColumn<Challenge>(t),
+    {
+      key: "title",
+      header: t("table.col_title", { defaultValue: "Title" }),
+      cell: (c) => <span className="font-medium">{c.title}</span>,
+    },
+    {
+      key: "challenge_type",
+      header: t("table.col_type", { defaultValue: "Type" }),
+      cell: (c) => (
+        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+          <Puzzle className="size-3" />
+          {c.challenge_type}
+        </span>
+      ),
+    },
+    {
+      key: "category",
+      header: t("table.col_category", { defaultValue: "Category" }),
+      cell: (c) =>
+        c.category ? (
+          <span className="text-muted-foreground capitalize">{c.category}</span>
+        ) : (
+          <EmptyCell />
+        ),
+    },
+    {
+      key: "is_active",
+      header: t("table.col_status", { defaultValue: "Status" }),
+      cell: (c) => <StatusCell active={c.is_active} />,
+    },
+    {
+      key: "sequential",
+      header: t("admin.challenges.col_sequential", { defaultValue: "Sequential" }),
+      cell: (c) => <BoolCell value={c.sequential} />,
+    },
+    {
+      key: "question_count",
+      header: t("admin.challenges.col_questions", { defaultValue: "Questions" }),
+      cell: (c) => <span className="text-muted-foreground">{c.question_count}</span>,
+    },
+  ];
 
   const {
     data: response,
@@ -337,13 +322,14 @@ function ChallengesPage() {
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Challenges</h1>
-        <CreateChallengeDialog onCreated={handleCreated} />
-      </div>
+      <PageHeader
+        icon={Flag}
+        title={t("admin.nav.challenges", { defaultValue: "Challenges" })}
+        actions={<CreateChallengeDialog onCreated={handleCreated} />}
+      />
 
       <DataTable
-        columns={COLUMNS}
+        columns={columns}
         response={response}
         table={table}
         isLoading={isLoading}

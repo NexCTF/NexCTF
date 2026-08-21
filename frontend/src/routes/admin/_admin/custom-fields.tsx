@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { ListChecks, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { DeleteButton } from "@/components/confirm-dialog";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
-import { IdCell } from "@/components/id-cell";
+import { PageHeader } from "@/components/page-header";
+import { ActionsCell, BoolCell, idColumn } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -55,10 +57,6 @@ const EMPTY_FORM: FieldForm = {
   is_public: true,
   show_in_scoreboard: false,
 };
-
-function BoolCell({ value, trueClass = "text-green-500" }: { value: boolean; trueClass?: string }) {
-  return <span className={value ? trueClass : "text-muted-foreground"}>{value ? "✓" : "✗"}</span>;
-}
 
 function FieldFormFields({
   form,
@@ -322,16 +320,10 @@ function CustomFieldsPage() {
   });
 
   const columns: Column<CustomFieldDefinition>[] = [
-    {
-      key: "id",
-      header: "ID",
-      sortable: false,
-      cell: (f) => <IdCell id={f.id} />,
-      className: "w-32",
-    },
+    idColumn<CustomFieldDefinition>(t),
     {
       key: "name",
-      header: t("admin.custom_fields.col_name"),
+      header: t("admin.custom_fields.col_key", { defaultValue: "Key" }),
       cell: (f) => <span className="font-mono text-sm">{f.name}</span>,
     },
     {
@@ -348,12 +340,12 @@ function CustomFieldsPage() {
     },
     {
       key: "field_type",
-      header: t("admin.custom_fields.col_type"),
+      header: t("table.col_type", { defaultValue: "Type" }),
       cell: (f) => <span className="font-mono text-xs text-muted-foreground">{f.field_type}</span>,
     },
     {
       key: "is_public",
-      header: t("admin.custom_fields.col_public"),
+      header: t("table.col_public", { defaultValue: "Public" }),
       cell: (f) => <BoolCell value={f.is_public} />,
     },
     {
@@ -364,7 +356,7 @@ function CustomFieldsPage() {
     {
       key: "is_required",
       header: t("admin.custom_fields.col_required"),
-      cell: (f) => <BoolCell value={f.is_required} trueClass="text-amber-500" />,
+      cell: (f) => <BoolCell value={f.is_required} />,
     },
     {
       key: "_actions",
@@ -372,36 +364,25 @@ function CustomFieldsPage() {
       sortable: false,
       className: "w-20",
       cell: (f) => (
-        <div className="flex gap-1 justify-end">
+        <ActionsCell>
           <EditFieldDialog field={f} onSaved={invalidate} />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 text-destructive hover:text-destructive"
+          <DeleteButton
+            description={t("admin.custom_fields.delete_confirm", { name: f.label })}
             disabled={deleteMutation.isPending}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (confirm(t("admin.custom_fields.delete_confirm", { name: f.label }))) {
-                deleteMutation.mutate(f.id);
-              }
-            }}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
-        </div>
+            onConfirm={() => deleteMutation.mutate(f.id)}
+          />
+        </ActionsCell>
       ),
     },
   ];
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{t("admin.custom_fields.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t("admin.custom_fields.subtitle")}</p>
-        </div>
-        <CreateFieldDialog onCreated={invalidate} />
-      </div>
+      <PageHeader
+        icon={ListChecks}
+        title={t("admin.custom_fields.title")}
+        actions={<CreateFieldDialog onCreated={invalidate} />}
+      />
 
       <DataTable
         columns={columns}

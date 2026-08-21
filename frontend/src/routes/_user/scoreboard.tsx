@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ChevronRight, Clock, Snowflake, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -14,8 +14,9 @@ import {
   YAxis,
 } from "recharts";
 import { BracketSelect } from "@/components/bracket-select";
+import { CLICKABLE_ROW_CLS, RowChevron } from "@/components/data-table";
+import { RankBadge, ScoreboardBanners } from "@/components/scoreboard";
 import {
-  getPublicInfo,
   getScoreboard,
   getScoreboardHistory,
   type Scoreboard,
@@ -41,32 +42,6 @@ const TEAM_COLORS = [
   "#84cc16", // lime
 ];
 
-function RankBadge({ rank }: { rank: number }) {
-  if (rank === 1)
-    return (
-      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-yellow-400/20 text-yellow-500 font-bold text-sm">
-        1
-      </span>
-    );
-  if (rank === 2)
-    return (
-      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-zinc-300/20 text-zinc-400 font-bold text-sm">
-        2
-      </span>
-    );
-  if (rank === 3)
-    return (
-      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-700/20 text-amber-600 font-bold text-sm">
-        3
-      </span>
-    );
-  return (
-    <span className="inline-flex items-center justify-center w-8 h-8 text-muted-foreground text-sm">
-      {rank}
-    </span>
-  );
-}
-
 function ScoreboardRow({
   entry,
   showBracket,
@@ -79,10 +54,7 @@ function ScoreboardRow({
   onOpen: (teamId: string) => void;
 }) {
   return (
-    <tr
-      className="group transition-colors hover:bg-muted/30 cursor-pointer"
-      onClick={() => onOpen(entry.team_id)}
-    >
+    <tr className={CLICKABLE_ROW_CLS} onClick={() => onOpen(entry.team_id)}>
       <td className="px-4 py-3">
         <RankBadge rank={entry.rank} />
       </td>
@@ -96,9 +68,7 @@ function ScoreboardRow({
         </td>
       ))}
       <td className="px-4 py-3 text-right font-semibold tabular-nums">{entry.total}</td>
-      <td className="px-3 py-3 w-8 text-muted-foreground/30 group-hover:text-primary transition-colors">
-        <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-      </td>
+      <RowChevron />
     </tr>
   );
 }
@@ -217,12 +187,6 @@ function ScoreboardPage() {
   const navigate = useNavigate();
   const [bracket, setBracket] = useState<string | undefined>(undefined);
 
-  const { data: publicInfo } = useQuery({
-    queryKey: ["public-info"],
-    queryFn: getPublicInfo,
-    staleTime: 60_000,
-  });
-
   const { data, isLoading, error } = useQuery({
     queryKey: ["scoreboard", bracket],
     queryFn: () => getScoreboard(bracket),
@@ -235,17 +199,6 @@ function ScoreboardPage() {
     refetchInterval: 30_000,
   });
 
-  const now = new Date();
-  const competition = publicInfo?.competition;
-
-  const startTime = competition?.start_time ? new Date(competition.start_time) : null;
-  const endTime = competition?.end_time ? new Date(competition.end_time) : null;
-  const freezeTime = competition?.freeze_time ? new Date(competition.freeze_time) : null;
-
-  const isNotStarted = startTime !== null && now < startTime;
-  const isEnded = endTime !== null && now > endTime;
-  const isFrozen = freezeTime !== null && now >= freezeTime && !isEnded;
-
   return (
     <div className="mx-auto max-w-screen-lg px-4 py-10 space-y-8">
       <div className="flex items-center justify-between gap-3">
@@ -257,38 +210,7 @@ function ScoreboardPage() {
         {data && <BracketSelect brackets={data.brackets} value={bracket} onChange={setBracket} />}
       </div>
 
-      {isNotStarted && (
-        <div className="flex items-center gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-400">
-          <Clock className="h-4 w-4 shrink-0" />
-          <span>
-            {t("scoreboard.not_started_banner", {
-              date: startTime?.toLocaleString(),
-            })}
-          </span>
-        </div>
-      )}
-
-      {isEnded && (
-        <div className="flex items-center gap-2 rounded-lg border border-zinc-500/30 bg-zinc-500/10 px-4 py-3 text-sm text-zinc-400">
-          <Clock className="h-4 w-4 shrink-0" />
-          <span>
-            {t("scoreboard.ended_banner", {
-              date: endTime?.toLocaleString(),
-            })}
-          </span>
-        </div>
-      )}
-
-      {isFrozen && (
-        <div className="flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-400">
-          <Snowflake className="h-4 w-4 shrink-0" />
-          <span>
-            {t("scoreboard.frozen_banner", {
-              date: freezeTime?.toLocaleString(),
-            })}
-          </span>
-        </div>
-      )}
+      <ScoreboardBanners />
 
       {isLoading && <p className="text-muted-foreground">{t("common.loading")}</p>}
 
