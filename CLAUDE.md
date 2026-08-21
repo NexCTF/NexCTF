@@ -12,6 +12,8 @@ All dev commands are wrapped by `Taskfile.yml` (run `task` from the repo root). 
 
 Mail is captured by mailpit, not delivered: the dev `config` fixture points `email.*` at it, and sent mail is readable at http://localhost:8025.
 
+The same fixture provisions a CAP site (admin UI on http://localhost:3000, key `CAP_ADMIN_KEY`) and turns `captcha.*` on, so login and register are captcha-gated in dev.
+
 Infra must be up (`task dev:infra:up`) before running the backend or its tests.
 
 One-time setup: `task dev:hooks:install` installs git pre-commit hooks (via prek, running `dev:backend:check` / `dev:frontend:check` from `.pre-commit-config.yaml`). Run hooks on demand with `task dev:hooks:run`.

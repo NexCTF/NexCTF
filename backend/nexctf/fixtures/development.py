@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi_toolsets.fixtures import FixtureRegistry
 from fastapi_toolsets.fixtures.enum import Context
 
+from nexctf.fixtures import utils
 from nexctf.model import (
     ChallengeFeedback,
     ConfigEntry,
@@ -36,17 +37,26 @@ fixtures = FixtureRegistry(contexts=[Context.DEVELOPMENT])
 
 @fixtures.register()
 def config() -> list[ConfigEntry]:
-    """Point email at the mailpit container from compose.dev.yml."""
+    """Point email at mailpit and captcha at the CAP site, both from compose.dev.yml."""
+    stored = utils.stored_config_keys()
+    values = {
+        "email.enabled": "true",
+        "email.smtp_host": "127.0.0.1",
+        "email.smtp_port": "1025",
+        "email.security": "none",
+        "email.from_address": "ctf@nexctf.lan",
+        "email.from_name": "NexCTF",
+    }
+
+    if "captcha.cap_site_key" not in stored and (site := utils.provision_cap_site()):
+        values["captcha.enabled"] = "true"
+        values["captcha.cap_api_url"] = utils.cap_api_url()
+        values["captcha.cap_site_key"], values["captcha.cap_secret_key"] = site
+
     return [
         ConfigEntry(key=key, value=value)
-        for key, value in {
-            "email.enabled": "true",
-            "email.smtp_host": "127.0.0.1",
-            "email.smtp_port": "1025",
-            "email.security": "none",
-            "email.from_address": "ctf@nexctf.lan",
-            "email.from_name": "NexCTF",
-        }.items()
+        for key, value in values.items()
+        if key not in stored
     ]
 
 

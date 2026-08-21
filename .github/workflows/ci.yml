@@ -73,6 +73,13 @@ jobs:
         ports:
           - 1025:1025
           - 8025:8025
+      cap:
+        image: tiago2/cap:3.1.9@sha256:98fdaaf4ffe6bea18549484a431c601399f24dd561370e196970e6fc0e6b79d0
+        env:
+          ADMIN_KEY: changethischangethischangethis
+          REDIS_URL: redis://cache:6379/1
+        ports:
+          - 3000:3000
     env:
       NEXCTF_TEST_MODE: "1"
       POSTGRES_SERVER: localhost
@@ -85,6 +92,7 @@ jobs:
       S3_BUCKET: nexctf
       S3_ACCESS_KEY: admin
       S3_SECRET_KEY: admin
+      CAP_ADMIN_KEY: changethischangethischangethis
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
