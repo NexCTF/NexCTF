@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from email.message import EmailMessage
+from email.utils import formataddr
 
 import aiosmtplib
 from redis.asyncio import Redis
@@ -71,7 +72,7 @@ async def send_email(
         raise EmailMisconfiguredError()
 
     message = EmailMessage()
-    message["From"] = f"{from_name} <{from_address}>" if from_name else from_address
+    message["From"] = formataddr((from_name, from_address))
     message["To"] = to
     message["Subject"] = subject
     message.set_content(text)
