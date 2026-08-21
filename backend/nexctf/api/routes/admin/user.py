@@ -19,11 +19,13 @@ from nexctf.model import CustomFieldValue, User
 from nexctf.model.event import Event
 from nexctf.module.custom_field import create_custom_field_values
 from nexctf.module.events import emit
+from nexctf.module.session import live_sessions
 from nexctf.schema.custom_field import AdminCustomFieldValueRead
 from nexctf.schema.event import AdminEventRead
 from nexctf.schema.user import (
     AdminUserCreate,
     AdminUserDetailRead,
+    AdminUserIpRead,
     AdminUserUpdate,
     PublicUserRead,
     UserCreate,
@@ -89,6 +91,17 @@ async def create_user(
     return result
 
 
+async def _session_ips(
+    session: SessionDep, user_id: UUID, login_ip: str | None
+) -> list[AdminUserIpRead]:
+    """Addresses of a user's live sessions, most recently active first."""
+    rows = await live_sessions(session, user_id)
+    pairs = dict.fromkeys((row.ip, row.last_ip) for row in rows)
+    if not pairs:
+        return [AdminUserIpRead(ip=login_ip, last_ip=login_ip)] if login_ip else []
+    return [AdminUserIpRead(ip=ip, last_ip=last_ip) for ip, last_ip in pairs]
+
+
 @user_router.get("/{uuid}")
 async def get_user(
     session: SessionDep,
@@ -115,7 +128,7 @@ async def get_user(
     return Response(
         data=AdminUserDetailRead(
             **result.data.model_dump(),
-            last_login_ip=login_row.ip if login_row else None,
+            ips=await _session_ips(session, uuid, login_row.ip if login_row else None),
             last_login_at=login_row.created_at if login_row else None,
             custom_field_values=[
                 AdminCustomFieldValueRead.model_validate(cfv) for cfv in cfv_rows

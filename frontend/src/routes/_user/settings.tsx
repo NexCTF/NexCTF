@@ -318,6 +318,14 @@ function SessionRow({ session, onRevoked }: { session: UserSession; onRevoked: (
             : t("settings.session.signed_in_from_unknown", {
                 defaultValue: "Signed in from an unknown IP",
               })}
+          {session.last_ip && session.last_ip !== session.ip && (
+            <span className="text-amber-600 dark:text-amber-500">
+              {` · ${t("settings.session.now_used_from", {
+                ip: session.last_ip,
+                defaultValue: "now used from {{ip}}",
+              })}`}
+            </span>
+          )}
           {!session.current &&
             ` · ${t("settings.session.last_seen", {
               when: formatLastSeen(session.last_seen_at, i18n.language),
@@ -326,14 +334,23 @@ function SessionRow({ session, onRevoked }: { session: UserSession; onRevoked: (
         </p>
       </div>
       {!session.current && (
-        <DeleteButton
-          label={t("settings.session.revoke", { defaultValue: "Sign out this device" })}
+        <ConfirmDialog
           description={t("settings.session.revoke_confirm", {
             device: label,
             defaultValue: "Sign out {{device}}?",
           })}
-          disabled={mutation.isPending}
+          confirmLabel={t("settings.session.revoke", { defaultValue: "Sign out this device" })}
           onConfirm={() => mutation.mutate()}
+          trigger={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              disabled={mutation.isPending}
+              aria-label={t("settings.session.revoke", { defaultValue: "Sign out this device" })}
+            >
+              <LogOut className="size-3.5" />
+            </Button>
+          }
         />
       )}
     </div>

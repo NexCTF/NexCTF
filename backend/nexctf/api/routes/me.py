@@ -1,6 +1,5 @@
 """Current-user self-management endpoints."""
 
-from datetime import UTC, datetime
 from uuid import UUID
 
 import pyotp
@@ -43,7 +42,7 @@ from nexctf.exceptions import (
 from nexctf.model import OAuthAccount, Team, User, UserSession, UserToken
 from nexctf.model.user import gen_invite_code
 from nexctf.module.events import emit
-from nexctf.module.session import revoke_user_sessions
+from nexctf.module.session import live_sessions, revoke_user_sessions
 from nexctf.module.team import load_team_read
 from nexctf.schema import (
     PublicApiTokenCreate,
@@ -146,14 +145,7 @@ async def list_sessions(
     user: CurrentUserDep,
 ) -> Response[list[PublicUserSessionRead]]:
     """List the user's live sessions, newest activity first."""
-    rows = await crud.UserSessionCrud.get_multi(
-        session=session,
-        filters=[
-            UserSession.user_id == user.id,
-            UserSession.expires_at > datetime.now(UTC),
-        ],
-        order_by=UserSession.last_seen_at.desc(),
-    )
+    rows = await live_sessions(session, user.id)
     sid = cookie_auth.session_id_of(request)
     this_hash = hash_token(sid) if sid else None
     return Response(
@@ -161,6 +153,7 @@ async def list_sessions(
             PublicUserSessionRead(
                 id=row.id,
                 ip=row.ip,
+                last_ip=row.last_ip,
                 user_agent=row.user_agent,
                 last_seen_at=row.last_seen_at,
                 current=row.sid_hash == this_hash,

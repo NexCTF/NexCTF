@@ -2,10 +2,12 @@
 
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
 from httpx import AsyncClient
 from sqlalchemy import select
 
+from nexctf.core.config import settings
 from nexctf.model import UserSession
 
 from ..base import NULL_UUID
@@ -75,6 +77,28 @@ class TestListSessions:
         rows = _sessions(await c.get("/me/sessions"))
         assert rows[0]["user_agent"] is not None
         assert rows[0]["ip"] is not None
+        assert rows[0]["last_ip"] == rows[0]["ip"]
+
+    async def test_last_ip_follows_the_session_and_ip_keeps_the_origin(
+        self, user_client, db_session
+    ):
+        """A cookie replayed elsewhere shows the new location."""
+        c, user = user_client
+        origin = _sessions(await c.get("/me/sessions"))[0]["ip"]
+
+        with patch.object(settings, "TRUSTED_PROXY_COUNT", 1):
+            resp = await c.get("/info/me", headers={"X-Forwarded-For": "198.51.100.9"})
+            assert resp.status_code == 200
+
+        ip, last_ip = (
+            await db_session.execute(
+                select(UserSession.ip, UserSession.last_ip).where(
+                    UserSession.user_id == user.id
+                )
+            )
+        ).one()
+        assert ip == origin
+        assert last_ip == "198.51.100.9"
 
 
 class TestRevokeSession:

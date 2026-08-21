@@ -119,6 +119,7 @@ class UserSession(Base):
 
     sid_hash: Mapped[str] = mapped_column(unique=True, index=True)
     ip: Mapped[str | None]
+    last_ip: Mapped[str | None]
     user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
     last_seen_at: Mapped[datetime]
     expires_at: Mapped[datetime]

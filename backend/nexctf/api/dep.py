@@ -23,6 +23,7 @@ from nexctf.core.db import db
 from nexctf.exceptions import EventEndedError, EventNotStartedError, NoTeamError
 from nexctf.model import Challenge, OAuthProvider, Solution, Team, User, UserRole
 from nexctf.module.audit import AuditContext, set_audit_context
+from nexctf.module.session import track_session_ip
 from nexctf.plugins.registry import (
     challenge_registry,
     solution_registry,
@@ -33,8 +34,29 @@ from nexctf.util.pydantic import Label
 
 SessionDep = Annotated[AsyncSession, Depends(db)]
 RedisDep = Annotated[Redis, Depends(get_redis)]
-CurrentUserDep = Annotated[User, Security(auth)]
-AdminAuthDep = Security(auth.require(role=UserRole.admin))
+_AuthedUser = Annotated[User, Security(auth)]
+_AuthedAdmin = Annotated[User, Security(auth.require(role=UserRole.admin))]
+
+
+async def _current_user(
+    request: Request, session: SessionDep, user: _AuthedUser
+) -> User:
+    """Authenticate, refreshing the cookie session's current IP as a side effect."""
+    sid = cookie_auth.session_id_of(request)
+    if sid is not None:
+        await track_session_ip(session, sid, get_client_ip(request))
+    return user
+
+
+CurrentUserDep = Annotated[User, Depends(_current_user)]
+
+
+async def _current_admin(user: _AuthedAdmin, tracked: CurrentUserDep) -> User:
+    """Admin gate. Depends on CurrentUserDep so tracking runs once per request."""
+    return user
+
+
+AdminAuthDep = Depends(_current_admin)
 
 
 async def _config_overrides(redis: RedisDep) -> dict[str, str]:
