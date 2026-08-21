@@ -39,6 +39,8 @@ import {
 import { useAuth } from "@/lib/auth";
 import { copyToClipboard } from "@/lib/utils";
 
+const CHIP = "rounded bg-muted px-1.5 py-0.5 text-xs font-mono";
+
 export const Route = createFileRoute("/admin/_admin/users_/$userId")({
   component: UserDetailPage,
 });
@@ -356,11 +358,7 @@ function UserDetailPage() {
             <div className="rounded-lg border divide-y">
               <InfoRow
                 label={t("admin.users.field_id")}
-                value={
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
-                    {user.id}
-                  </code>
-                }
+                value={<code className={CHIP}>{user.id}</code>}
               />
               <InfoRow
                 label={t("admin.users.field_email")}
@@ -402,12 +400,21 @@ function UserDetailPage() {
                 value={<StatusCell active={user.is_active} />}
               />
               <InfoRow
-                label={t("admin.users.field_last_login_ip")}
+                label={t("admin.users.field_ips", { defaultValue: "IP addresses" })}
                 value={
-                  user.last_login_ip ? (
-                    <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
-                      {user.last_login_ip}
-                    </code>
+                  user.ips.length > 0 ? (
+                    <div className="flex flex-col items-start gap-1">
+                      {user.ips.map((entry) => (
+                        <code key={`${entry.ip}-${entry.last_ip}`} className={CHIP}>
+                          {entry.ip ?? "?"}
+                          {entry.last_ip && entry.last_ip !== entry.ip && (
+                            <span className="text-amber-600 dark:text-amber-500">
+                              {` → ${entry.last_ip}`}
+                            </span>
+                          )}
+                        </code>
+                      ))}
+                    </div>
                   ) : (
                     <EmptyCell />
                   )

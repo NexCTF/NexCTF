@@ -198,9 +198,20 @@ it("lists sessions and marks the current device", async () => {
 
   expect(await screen.findByText("This device")).toBeDefined();
   expect(screen.getAllByText("Chrome on Windows")).toHaveLength(2);
-  // The IP is captured at login and never refreshed, so the label must say
-  // where the session started, not imply it is where it is now.
+  // `ip` is the address the session was opened from, so the label stays
+  // past-tense; the live address is shown separately when it differs.
   expect(screen.getByText(/Signed in from 198\.51\.100\.9/)).toBeDefined();
+});
+
+it("flags a session now used from a different IP", async () => {
+  vi.mocked(getMySessions).mockResolvedValue([
+    userSession({ id: "s1", ip: "203.0.113.7", last_ip: "198.51.100.9" }),
+    userSession({ id: "s2", ip: "203.0.113.7", last_ip: "203.0.113.7" }),
+  ]);
+  renderSettings();
+
+  expect(await screen.findByText(/now used from 198\.51\.100\.9/)).toBeDefined();
+  expect(screen.queryByText(/now used from 203\.0\.113\.7/)).toBeNull();
 });
 
 it("offers no revoke button for the current device", async () => {
@@ -221,7 +232,7 @@ it("revokes a single session", async () => {
 
   await clickAndConfirm(
     await screen.findByRole("button", { name: "Sign out this device" }),
-    "Delete",
+    "Sign out this device",
   );
 
   await waitFor(() => expect(deleteMySession).toHaveBeenCalledWith("s2"));
@@ -269,7 +280,7 @@ it("keeps the session out of the list when revocation fails", async () => {
 
   await clickAndConfirm(
     await screen.findByRole("button", { name: "Sign out this device" }),
-    "Delete",
+    "Sign out this device",
   );
 
   await waitFor(() => expect(toast.error).toHaveBeenCalledWith("boom"));

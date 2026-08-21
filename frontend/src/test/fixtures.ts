@@ -171,6 +171,7 @@ export function userSession(overrides: Partial<UserSession> = {}): UserSession {
   return {
     id: "11111111-1111-4111-8111-111111111111",
     ip: "203.0.113.7",
+    last_ip: "203.0.113.7",
     user_agent: "Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
     last_seen_at: new Date().toISOString(),
     current: false,

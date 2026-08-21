@@ -302,7 +302,10 @@ export async function deleteMyToken(id: string): Promise<void> {
 
 export interface UserSession {
   id: string;
+  /** Where the session was opened from */
   ip: string | null;
+  /** Where it is being used from now: differs from `ip` on a replayed cookie */
+  last_ip: string | null;
   user_agent: string | null;
   last_seen_at: string;
   /** True for the session making the request */
@@ -534,8 +537,16 @@ export interface CustomFieldValue {
   value: string | null;
 }
 
+export interface AdminUserIp {
+  /** Where a live session was opened from */
+  ip: string | null;
+  /** Where it is being used from now, when that differs from `ip` */
+  last_ip: string | null;
+}
+
 export interface AdminUserDetail extends User {
-  last_login_ip: string | null;
+  /** Live sessions' addresses, most recently active first */
+  ips: AdminUserIp[];
   last_login_at: string | null;
   custom_field_values: CustomFieldValue[];
 }

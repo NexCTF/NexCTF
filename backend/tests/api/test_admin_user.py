@@ -144,6 +144,48 @@ class TestGetUser(GetItemGuardMixin):
         resp = await c.get(f"{self.PREFIX}/{NULL_UUID}")
         assert resp.status_code == 404
 
+    async def test_get_lists_live_session_ips(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_user_members: list[User],
+        db_session,
+    ) -> None:
+        """The origin, plus the current address when it moved."""
+        from datetime import UTC, datetime, timedelta
+
+        from nexctf.model import UserSession
+
+        u = fixture_user_members[0]
+        now = datetime.now(UTC)
+        db_session.add_all(
+            [
+                UserSession(
+                    user_id=u.id,
+                    sid_hash="ip-sid-moved",
+                    ip="203.0.113.7",
+                    last_ip="198.51.100.9",
+                    last_seen_at=now,
+                    expires_at=now + timedelta(days=1),
+                ),
+                UserSession(
+                    user_id=u.id,
+                    sid_hash="ip-sid-still",
+                    ip="203.0.113.7",
+                    last_ip="203.0.113.7",
+                    last_seen_at=now - timedelta(minutes=1),
+                    expires_at=now + timedelta(days=1),
+                ),
+            ]
+        )
+        await db_session.flush()
+
+        c, _ = admin_client
+        data = (await c.get(f"{self.PREFIX}/{u.id}")).json()["data"]
+        assert data["ips"] == [
+            {"ip": "203.0.113.7", "last_ip": "198.51.100.9"},
+            {"ip": "203.0.113.7", "last_ip": "203.0.113.7"},
+        ]
+
 
 class TestUpdateUser(UpdateGuardMixin):
     PREFIX = "/admin/user"

@@ -49,8 +49,14 @@ class PublicUserRead(PydanticBase):
     links: list[Link] = []
 
 
+class AdminUserIpRead(PydanticBase):
+    ip: str | None
+    last_ip: str | None
+
+
 class AdminUserDetailRead(PublicUserRead):
-    last_login_ip: str | None = None
+    # Live sessions' addresses, most recently active first
+    ips: list[AdminUserIpRead] = []
     last_login_at: datetime | None = None
     custom_field_values: list[AdminCustomFieldValueRead] = []
 
@@ -72,6 +78,7 @@ class PublicApiTokenRead(PydanticBase):
 class PublicUserSessionRead(PydanticBase):
     id: UUID
     ip: str | None
+    last_ip: str | None
     user_agent: str | None
     last_seen_at: datetime
     # True for the session making the request
