@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ChevronRight, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -14,6 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import { BracketSelect } from "@/components/bracket-select";
+import { CLICKABLE_ROW_CLS, RowChevron } from "@/components/data-table";
 import { RankBadge, ScoreboardBanners } from "@/components/scoreboard";
 import {
   getScoreboard,
@@ -53,10 +54,7 @@ function ScoreboardRow({
   onOpen: (teamId: string) => void;
 }) {
   return (
-    <tr
-      className="group transition-colors cursor-pointer hover:bg-accent/60 border-l-2 border-l-transparent hover:border-l-primary"
-      onClick={() => onOpen(entry.team_id)}
-    >
+    <tr className={CLICKABLE_ROW_CLS} onClick={() => onOpen(entry.team_id)}>
       <td className="px-4 py-3">
         <RankBadge rank={entry.rank} />
       </td>
@@ -70,9 +68,7 @@ function ScoreboardRow({
         </td>
       ))}
       <td className="px-4 py-3 text-right font-semibold tabular-nums">{entry.total}</td>
-      <td className="px-3 py-3 w-8 text-muted-foreground/30 group-hover:text-primary transition-colors">
-        <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-      </td>
+      <RowChevron />
     </tr>
   );
 }

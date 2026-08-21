@@ -1793,6 +1793,7 @@ export interface QuestionStats {
   question_id: string;
   question_label: string;
   question_index: number;
+  points: number;
   attempt_count: number;
   correct_count: number;
   teams_attempted: number;
@@ -1806,6 +1807,8 @@ export interface QuestionStats {
 export interface ChallengeStats {
   challenge_id: string;
   challenge_title: string;
+  category: string | null;
+  points: number;
   question_count: number;
   attempt_count: number;
   correct_count: number;

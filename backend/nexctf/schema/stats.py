@@ -8,6 +8,7 @@ class QuestionStats(PydanticBase):
     question_id: UUID
     question_label: str
     question_index: int
+    points: int = 0
     attempt_count: int
     correct_count: int
     teams_attempted: int
@@ -21,6 +22,8 @@ class QuestionStats(PydanticBase):
 class ChallengeStats(PydanticBase):
     challenge_id: UUID
     challenge_title: str
+    category: str | None = None
+    points: int = 0
     question_count: int
     attempt_count: int
     correct_count: int

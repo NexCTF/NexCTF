@@ -314,6 +314,7 @@ async def compute_all_challenge_stats(session: AsyncSession) -> list[ChallengeSt
                     question_id=qid,
                     question_label=q.label,
                     question_index=q.index,
+                    points=q.points,
                     attempt_count=attempt_by_q.get(qid, 0),
                     correct_count=correct_by_q.get(qid, 0),
                     teams_attempted=len(teams_attempted_by_q.get(qid, set())),
@@ -329,6 +330,8 @@ async def compute_all_challenge_stats(session: AsyncSession) -> list[ChallengeSt
             ChallengeStats(
                 challenge_id=cid,
                 challenge_title=c.title,
+                category=c.category,
+                points=sum(q.points for q in c.questions),
                 question_count=q_count,
                 attempt_count=attempt_by_c.get(cid, 0),
                 correct_count=correct_by_c.get(cid, 0),

@@ -6,6 +6,7 @@ from nexctf.model import Hint, HintUnlock, Question, Submission, Team
 from nexctf.module.scoreboard.compute import compute_team_score
 from nexctf.module.stats.compute import (
     compute_admin_team_challenge_stats,
+    compute_all_challenge_stats,
     compute_team_challenge_stats,
 )
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
@@ -108,3 +109,22 @@ async def test_admin_stats_carry_hint_unlocks_public_does_not(db_session):
     assert pq.hint_unlock_count == 2
     assert not hasattr(pq, "hints")
     assert not hasattr(pq, "solved_at")
+
+
+async def test_challenge_stats_carry_category_and_points(db_session):
+    ch = StandardChallenge(title="Stats Category Test", category="pwn")
+    db_session.add(ch)
+    await db_session.flush()
+    db_session.add_all(
+        [
+            Question(label="Q1", points=100, challenge_id=ch.id),
+            Question(label="Q2", points=50, challenge_id=ch.id),
+        ]
+    )
+    await db_session.flush()
+
+    stats = await compute_all_challenge_stats(db_session)
+    c = next(s for s in stats if s.challenge_id == ch.id)
+    assert c.category == "pwn"
+    assert c.points == 150
+    assert sorted(q.points for q in c.questions) == [50, 100]

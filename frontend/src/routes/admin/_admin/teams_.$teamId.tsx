@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ChevronRight, ExternalLink, Pencil } from "lucide-react";
+import { ExternalLink, Pencil } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { CustomFieldValuesList } from "@/components/custom-field-values-list";
 import { CustomFieldsSection, useCustomFieldDefs } from "@/components/custom-fields-section";
-import { DataTable, useTableState } from "@/components/data-table";
+import { CLICKABLE_ROW_CLS, DataTable, RowChevron, useTableState } from "@/components/data-table";
 import { DetailPageShell, DetailSection, InfoRow } from "@/components/detail-page";
 import { FeedbackDetailDialog, useFeedbackColumns } from "@/components/feedback-table";
 import { LabelInput } from "@/components/label-input";
@@ -381,7 +381,7 @@ function TeamDetailPage() {
                       {team.users.map((member) => (
                         <tr
                           key={member.id}
-                          className="group cursor-pointer border-l-2 border-l-transparent transition-colors hover:bg-accent/60 hover:border-l-primary"
+                          className={CLICKABLE_ROW_CLS}
                           onClick={() =>
                             void navigate({
                               to: "/admin/users/$userId",
@@ -399,9 +399,7 @@ function TeamDetailPage() {
                           <td className="px-4 py-3">
                             <StatusCell active={member.is_active} />
                           </td>
-                          <td className="px-3 py-3 w-8 text-muted-foreground/30 group-hover:text-primary transition-colors">
-                            <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-                          </td>
+                          <RowChevron />
                         </tr>
                       ))}
                     </tbody>
