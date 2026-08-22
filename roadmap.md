@@ -27,6 +27,7 @@
 
 ## 0.9.0
 - [x] Trap flags
+- [x] Scheduler rework
 
 ## Before v1.0 release
 - [ ] Event import/export/sync

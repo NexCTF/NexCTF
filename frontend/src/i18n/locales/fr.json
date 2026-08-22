@@ -324,6 +324,10 @@
       "create": "Nouvelle tâche",
       "create_error": "Échec de la création",
       "created": "Tâche créée",
+      "cron_check_failed": "",
+      "cron_hint": "",
+      "cron_invalid": "",
+      "cron_preview": "",
       "delete_confirm": "Supprimer la tâche « {{name}} » ?",
       "delete_error": "Échec de la suppression",
       "deleted": "Tâche supprimée",
@@ -334,8 +338,11 @@
       "enabled": "Tâche activée",
       "field_active": "Active",
       "field_created_at": "Créée le",
+      "field_cron": "",
+      "field_first_run": "",
       "field_id": "ID",
       "field_name": "Nom",
+      "field_next_run": "",
       "field_params": "Paramètres",
       "field_scheduled_at": "Planifiée à",
       "field_type": "Type de tâche",
@@ -348,7 +355,6 @@
       "run_success": "Tâche exécutée",
       "save_error": "Échec de l'enregistrement",
       "saved": "Tâche enregistrée",
-      "tasks_empty": "Aucune exécution pour le moment.",
       "tasks_title": "Historique d'exécution",
       "toggle_error": "Échec de la mise à jour",
       "type_placeholder": "Sélectionner un type…"
@@ -616,6 +622,10 @@
       "team_size": {
         "description": "Nombre maximum de membres par équipe",
         "label": "Taille max. d'équipe"
+      },
+      "timezone": {
+        "description": "Fuseau horaire d'interprétation des plannings cron (l'affichage reste dans l'heure locale de chaque visiteur)",
+        "label": "Fuseau horaire"
       }
     },
     "email": {
@@ -943,11 +953,11 @@
     "col_ip": "IP",
     "col_last_run": "Dernière exécution",
     "col_name": "Nom",
+    "col_next_run": "",
     "col_points": "Points",
     "col_public": "Public",
     "col_question": "Question",
     "col_role": "Rôle",
-    "col_scheduled_at": "Planifiée le",
     "col_status": "Statut",
     "col_target": "Cible",
     "col_team": "Équipe",

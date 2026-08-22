@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Any
 
 from fastapi_toolsets.crud import CrudFactory
 from pydantic import BaseModel
@@ -10,6 +10,9 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import selectinload
 
 from nexctf.enums import InputType
+
+if TYPE_CHECKING:
+    from redis.asyncio import Redis
 
 type SchemaClass = type[BaseModel]
 
@@ -178,12 +181,13 @@ solution_registry = PolymorphicRegistry()
 
 @dataclasses.dataclass
 class SchedulerEntry:
-    """A registered one-shot job type and its handler/schemas."""
+    """A registered job type, its handler/schemas and post-run cache drop."""
 
     type_name: str
     handler: Callable  # sync or async: handler(job, session, redis)
     create_schema: type[BaseModel]
     update_schema: type[BaseModel]
+    invalidate: Callable[[Redis], Awaitable[None]] | None = None
 
 
 class SchedulerRegistry:
@@ -208,6 +212,7 @@ class SchedulerRegistry:
         handler: Callable,
         create_schema: type[BaseModel],
         update_schema: type[BaseModel],
+        invalidate: Callable[[Redis], Awaitable[None]] | None = None,
     ) -> None:
         """Register a job type with its handler and schemas.
 
@@ -216,12 +221,15 @@ class SchedulerRegistry:
             handler: The sync or async callable that runs the job.
             create_schema: Schema used to create jobs of this type.
             update_schema: Schema used to update jobs of this type.
+            invalidate: Cache drop run after the run commits, when the handler
+                changes state that is cached elsewhere.
         """
         self._entries[type_name] = SchedulerEntry(
             type_name=type_name,
             handler=handler,
             create_schema=create_schema,
             update_schema=update_schema,
+            invalidate=invalidate,
         )
 
     def get(self, type_name: str) -> SchedulerEntry:

@@ -1,4 +1,4 @@
-"""Datetime parsing helpers for appconfig values."""
+"""Datetime and timezone helpers for appconfig values."""
 
 from __future__ import annotations
 
@@ -22,3 +22,8 @@ def is_config_dt_past(key: str, overrides: dict[str, str]) -> bool:
     """Return True if the given appconfig datetime key is set and in the past."""
     dt = parse_config_dt(key, overrides)
     return dt is not None and datetime.now(UTC) > dt
+
+
+def event_timezone(overrides: dict[str, str]) -> str:
+    """Return the configured event timezone name (``ctf.timezone``)."""
+    return str(appconfig.get_with_overrides("ctf.timezone", overrides))
