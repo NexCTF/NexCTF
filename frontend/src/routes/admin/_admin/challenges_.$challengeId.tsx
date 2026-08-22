@@ -69,6 +69,7 @@ import {
   updateSolution,
 } from "@/lib/api";
 import { useFacetValues, useTagSuggestions } from "@/lib/use-facet-values";
+import { BASE_CHALLENGE_FIELDS } from "@/routes/admin/_admin/challenges";
 export const Route = createFileRoute("/admin/_admin/challenges_/$challengeId")({
   component: ChallengePage,
 });
@@ -77,17 +78,7 @@ export const Route = createFileRoute("/admin/_admin/challenges_/$challengeId")({
 
 const SKIP_SOL = new Set(["id", "question_id"]);
 
-const SKIP_CHALLENGE = new Set([
-  "id",
-  "title",
-  "description",
-  "writeup",
-  "is_active",
-  "sequential",
-  "category",
-  "author_id",
-  "tags",
-]);
+const SKIP_CHALLENGE = new Set(BASE_CHALLENGE_FIELDS);
 
 // ── Challenge info section ─────────────────────────────────────────────────────
 

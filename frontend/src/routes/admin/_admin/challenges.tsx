@@ -41,9 +41,10 @@ export const Route = createFileRoute("/admin/_admin/challenges")({
 
 // ── Schema field renderer (for extra plugin-specific fields) ─────────────────
 
-const BASE_CHALLENGE_FIELDS = [
+export const BASE_CHALLENGE_FIELDS = [
   "title",
   "description",
+  "writeup",
   "is_active",
   "sequential",
   "category",
@@ -59,6 +60,7 @@ type CreateStep = 1 | 2;
 const EMPTY_BASE = {
   title: "",
   description: "",
+  writeup: "",
   is_active: false,
   sequential: false,
   category: null as string | null,
@@ -180,6 +182,20 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
                 rows={4}
                 value={String(form.description ?? "")}
                 onChange={(v) => update({ description: v || null })}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="ch-writeup">Writeup</Label>
+              <p className="text-xs text-muted-foreground">
+                Markdown, shown to players once they complete the challenge (or after the event
+                ends, if enabled)
+              </p>
+              <MarkdownEditor
+                id="ch-writeup"
+                rows={6}
+                value={String(form.writeup ?? "")}
+                onChange={(v) => update({ writeup: v || null })}
               />
             </div>
 
