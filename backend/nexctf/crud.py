@@ -310,7 +310,7 @@ class SchedulerJobCrud(AsyncCrud[SchedulerJob]):
         SchedulerJob.scheduled_at,
         SchedulerJob.is_active,
     ]
-    default_load_options = [joinedload(SchedulerJob.created_by)]
+    default_load_options = []
 
 
 class SchedulerTaskCrud(AsyncCrud[SchedulerTask]):

@@ -1917,6 +1917,7 @@ export interface SchedulerJob {
   job_type: string;
   is_active: boolean;
   scheduled_at: string;
+  cron_expression: string | null;
   params: Record<string, unknown>;
   last_run: string | null;
   created_at: string;
@@ -1933,10 +1934,6 @@ export interface SchedulerTask {
   created_at: string;
 }
 
-export interface SchedulerJobDetail extends SchedulerJob {
-  tasks: SchedulerTask[];
-}
-
 export async function getAdminSchedulerJobTypes(): Promise<SchedulerJobType[]> {
   return request<SchedulerJobType[]>("/admin/scheduler/jobs/types");
 }
@@ -1947,14 +1944,22 @@ export async function getAdminSchedulerJobs(
   return requestPaginated<SchedulerJob>(`/admin/scheduler/jobs?${queryString}`);
 }
 
-export async function getAdminSchedulerJob(id: string): Promise<SchedulerJobDetail> {
-  return request<SchedulerJobDetail>(`/admin/scheduler/jobs/${id}`);
+export async function getAdminSchedulerJob(id: string): Promise<SchedulerJob> {
+  return request<SchedulerJob>(`/admin/scheduler/jobs/${id}`);
+}
+
+export async function getAdminSchedulerJobTasks(
+  jobId: string,
+  queryString: string,
+): Promise<PaginatedResponse<SchedulerTask>> {
+  return requestPaginated<SchedulerTask>(`/admin/scheduler/jobs/${jobId}/tasks?${queryString}`);
 }
 
 export async function createAdminSchedulerJob(data: {
   name: string;
   job_type: string;
-  scheduled_at: string;
+  scheduled_at?: string;
+  cron_expression?: string | null;
   is_active: boolean;
   params: Record<string, unknown>;
 }): Promise<SchedulerJob> {
@@ -1969,6 +1974,7 @@ export async function updateAdminSchedulerJob(
   data: {
     name?: string;
     scheduled_at?: string;
+    cron_expression?: string | null;
     is_active?: boolean;
     params?: Record<string, unknown>;
   },
@@ -1981,6 +1987,15 @@ export async function updateAdminSchedulerJob(
 
 export async function deleteAdminSchedulerJob(id: string): Promise<void> {
   await rawRequest(`/admin/scheduler/jobs/${id}`, { method: "DELETE" });
+}
+
+export interface CronPreview {
+  timezone: string;
+  next_runs: string[];
+}
+
+export async function getAdminSchedulerCronNext(expr: string): Promise<CronPreview> {
+  return request<CronPreview>(`/admin/scheduler/cron/next?expr=${encodeURIComponent(expr)}`);
 }
 
 export async function runAdminSchedulerJob(id: string): Promise<SchedulerTask> {
