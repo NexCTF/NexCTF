@@ -914,7 +914,7 @@ function ManageFilesDialog({ question, onSaved }: { question: Question; onSaved:
 
   const { data: filesResp, isLoading } = useQuery({
     queryKey: ["admin", "files", "all"],
-    queryFn: () => getAdminFiles("items_per_page=200"),
+    queryFn: () => getAdminFiles("items_per_page=100"),
     enabled: open,
     staleTime: 30_000,
   });
