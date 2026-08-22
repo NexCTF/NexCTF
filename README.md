@@ -14,6 +14,9 @@ A self-hosted, extensible Capture The Flag platform with multi-question challeng
     <td align="center"><img src="img/challenges.png" alt="Challenges"/><br/><sub>Challenges</sub></td>
     <td align="center"><img src="img/challenge_details.png" alt="Challenge details"/><br/><sub>Challenge details</sub></td>
     <td align="center"><img src="img/scoreboard.png" alt="Scoreboard"/><br/><sub>Scoreboard</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="img/settings.png" alt="Settings"/><br/><sub>Settings</sub></td>
     <td align="center"><img src="img/team_details.png" alt="Team details"/><br/><sub>Team details</sub></td>
   </tr>
 </table>

@@ -22,13 +22,15 @@
 - [x] Challenge feedback
 - [x] User/team creation in admin
 
+## 0.8.0
+- [x] Admin rework/cleanup
+
 ## Before v1.0 release
 - [ ] Event import/export/sync
 - [ ] Plugins workflow
 - [ ] Documentation
 - [ ] Frontend tests
 - [ ] Add more metrics
-- [ ] Admin rework/cleanup
-- [ ] Support for Kubernetes deployment
 - [ ] Anti-cheat / flag sharing detection
+- [ ] Support for Kubernetes deployment
 - [ ] Notification integrations (Discord/webhook)
