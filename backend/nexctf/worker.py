@@ -3,9 +3,7 @@
 Run with:
     python -m nexctf.worker
 
-This process must NOT be started inside the API lifespan — it is a separate
-container/service. Running multiple replicas of this worker will cause each
-due job to fire N times (no distributed locking in v1). Run exactly one replica.
+This process must NOT be started inside the API lifespan.
 """
 
 from __future__ import annotations

@@ -319,6 +319,9 @@
       "create": "New job",
       "create_error": "Failed to create job",
       "created": "Job created",
+      "cron_hint": "Leave empty for a job that fires once. Schedules are read in the event timezone (Settings → Competition).",
+      "cron_invalid": "Invalid cron expression.",
+      "cron_preview": "Read in {{zone}} · next runs, in your timezone: {{runs}}",
       "delete_confirm": "Delete job \"{{name}}\"?",
       "delete_error": "Failed to delete job",
       "deleted": "Job deleted",
@@ -329,8 +332,11 @@
       "enabled": "Job enabled",
       "field_active": "Active",
       "field_created_at": "Created at",
+      "field_cron": "Repeat (cron)",
+      "field_first_run": "First run (optional)",
       "field_id": "ID",
       "field_name": "Name",
+      "field_next_run": "Next run",
       "field_params": "Parameters",
       "field_scheduled_at": "Scheduled at",
       "field_type": "Job type",
@@ -343,7 +349,6 @@
       "run_success": "Job executed",
       "save_error": "Failed to save job",
       "saved": "Job saved",
-      "tasks_empty": "No executions yet.",
       "tasks_title": "Execution history",
       "toggle_error": "Failed to update job",
       "type_placeholder": "Select a job type…"
@@ -600,6 +605,10 @@
       "team_size": {
         "description": "Maximum number of members per team",
         "label": "Max Team Size"
+      },
+      "timezone": {
+        "description": "Timezone cron schedules are read in (display stays in each viewer's local time)",
+        "label": "Timezone"
       }
     },
     "email": {
@@ -927,11 +936,11 @@
     "col_ip": "IP",
     "col_last_run": "Last run",
     "col_name": "Name",
+    "col_next_run": "Next run",
     "col_points": "Points",
     "col_public": "Public",
     "col_question": "Question",
     "col_role": "Role",
-    "col_scheduled_at": "Scheduled at",
     "col_status": "Status",
     "col_target": "Target",
     "col_team": "Team",

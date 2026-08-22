@@ -20,6 +20,7 @@ dependencies = [
     "pyotp>=2.10.0",
     "regex>=2026.7.19",
     "aiosmtplib>=3.0",
+    "cronsim>=2.7",
 ]
 
 [project.scripts]

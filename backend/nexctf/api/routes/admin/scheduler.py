@@ -1,29 +1,49 @@
 import asyncio
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
-from sqlalchemy.orm import joinedload, selectinload
 
 from nexctf import crud
-from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
-from nexctf.model.scheduler import SchedulerJob
+from nexctf.api.dep import ConfigDep, CurrentUserDep, RedisDep, SessionDep
+from nexctf.model.scheduler import SchedulerJob, SchedulerTask
 from nexctf.module.scheduler import force_run_job
 from nexctf.plugins.registry import SchedulerEntry, scheduler_registry
 from nexctf.schema.scheduler import (
     AdminSchedulerJobCreate,
     AdminSchedulerJobCreateInternal,
     AdminSchedulerJobRead,
-    AdminSchedulerJobReadDetail,
     AdminSchedulerJobTypeRead,
     AdminSchedulerJobUpdate,
     AdminSchedulerTaskRead,
+    CronExpression,
+    CronPreview,
 )
+from nexctf.util.cron import next_fire, next_fires
+from nexctf.util.datetime import event_timezone
 from nexctf.util.pydantic import resolve_dynamic_defaults
 
 scheduler_router = APIRouter(prefix="/scheduler", tags=["Scheduler"])
+
+_PREVIEW_RUNS = 3
+
+
+@scheduler_router.get("/cron/next")
+async def get_cron_next(
+    overrides: ConfigDep,
+    expr: CronExpression,
+) -> Response[CronPreview]:
+    """Preview the next fire times of a cron expression, in UTC."""
+    tz = event_timezone(overrides)
+    return Response(
+        data=CronPreview(
+            timezone=tz,
+            next_runs=next_fires(expr, datetime.now(UTC), count=_PREVIEW_RUNS, tz=tz),
+        )
+    )
 
 
 @scheduler_router.get("/jobs/types")
@@ -67,7 +87,13 @@ async def create_job(
     session: SessionDep,
     obj: AdminSchedulerJobCreate,
     user: CurrentUserDep,
+    overrides: ConfigDep,
 ) -> Response[AdminSchedulerJobRead]:
+    if obj.scheduled_at is None and obj.cron_expression:
+        obj.scheduled_at = next_fire(
+            obj.cron_expression, datetime.now(UTC), event_timezone(overrides)
+        )
+
     try:
         entry = scheduler_registry.get(obj.job_type)
     except KeyError:
@@ -87,15 +113,11 @@ async def create_job(
 async def get_job(
     session: SessionDep,
     uuid: UUID,
-) -> Response[AdminSchedulerJobReadDetail]:
+) -> Response[AdminSchedulerJobRead]:
     return await crud.SchedulerJobCrud.get(
         session,
         filters=[SchedulerJob.id == uuid],
-        load_options=[
-            joinedload(SchedulerJob.created_by),
-            selectinload(SchedulerJob.tasks),
-        ],
-        schema=AdminSchedulerJobReadDetail,
+        schema=AdminSchedulerJobRead,
     )
 
 
@@ -104,16 +126,22 @@ async def update_job(
     session: SessionDep,
     uuid: UUID,
     obj: AdminSchedulerJobUpdate,
+    overrides: ConfigDep,
 ) -> Response[AdminSchedulerJobRead]:
-    if obj.params is not None:
+    if obj.params is not None or obj.cron_expression is not None:
         job = await crud.SchedulerJobCrud.get(
             session, filters=[SchedulerJob.id == uuid]
         )
-        try:
-            entry = scheduler_registry.get(job.job_type)
-        except KeyError:
-            raise NotFoundError(detail=f"Unregistered job type: {job.job_type!r}")
-        entry.update_schema.model_validate(obj.params)
+        if obj.params is not None:
+            try:
+                entry = scheduler_registry.get(job.job_type)
+            except KeyError:
+                raise NotFoundError(detail=f"Unregistered job type: {job.job_type!r}")
+            entry.update_schema.model_validate(obj.params)
+        if obj.cron_expression and obj.cron_expression != job.cron_expression:
+            obj.scheduled_at = next_fire(
+                obj.cron_expression, datetime.now(UTC), event_timezone(overrides)
+            )
 
     return await crud.SchedulerJobCrud.update(
         session=session,
@@ -143,13 +171,23 @@ async def run_job(
     return Response(data=AdminSchedulerTaskRead.model_validate(task))
 
 
-@scheduler_router.get("/tasks")
-async def get_tasks(
+@scheduler_router.get("/jobs/{uuid}/tasks")
+async def get_job_tasks(
     session: SessionDep,
-    params: Annotated[dict, Depends(crud.SchedulerTaskCrud.paginate_params())],
+    uuid: UUID,
+    params: Annotated[
+        dict,
+        Depends(
+            crud.SchedulerTaskCrud.paginate_params(
+                default_order_field=SchedulerTask.started_at, default_order="desc"
+            )
+        ),
+    ],
 ) -> PaginatedResponse[AdminSchedulerTaskRead]:
+    """Execution history for one job, newest first."""
     return await crud.SchedulerTaskCrud.paginate(
         session=session,
         **params,
+        filters=[SchedulerTask.job_id == uuid],
         schema=AdminSchedulerTaskRead,
     )

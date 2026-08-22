@@ -4,6 +4,7 @@ import { Clock, Plus } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { CronInput } from "@/components/cron-input";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
 import { PageHeader } from "@/components/page-header";
 import { JobStatusBadge } from "@/components/scheduler-status";
@@ -21,6 +22,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   apiErrorMessage,
@@ -43,6 +51,7 @@ const EMPTY_FORM = {
   name: "",
   job_type: "",
   scheduled_at: "",
+  cron_expression: "",
   is_active: true,
   params: {} as Record<string, unknown>,
 };
@@ -90,10 +99,17 @@ function CreateJobDialog({ onCreated }: { onCreated: () => void }) {
       ),
   });
 
+  const cron = form.cron_expression.trim();
+  const canSubmit = !!form.job_type && (!!form.scheduled_at || !!cron);
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim() || !form.job_type || !form.scheduled_at) return;
-    mutation.mutate(form);
+    if (!form.name.trim() || !canSubmit) return;
+    mutation.mutate({
+      ...form,
+      scheduled_at: form.scheduled_at || undefined,
+      cron_expression: cron || null,
+    });
   }
 
   return (
@@ -131,33 +147,43 @@ function CreateJobDialog({ onCreated }: { onCreated: () => void }) {
             <Label htmlFor="job-type">
               {t("admin.scheduler.field_type", { defaultValue: "Job type" })}
             </Label>
-            <select
-              id="job-type"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              value={form.job_type}
-              onChange={(e) => handleTypeChange(e.target.value)}
-              required
-            >
-              <option value="">
-                {t("admin.scheduler.type_placeholder", {
-                  defaultValue: "Select a job type…",
-                })}
-              </option>
-              {jobTypes.map((jt) => (
-                <option key={jt.type_name} value={jt.type_name}>
-                  {jt.type_name}
-                </option>
-              ))}
-            </select>
+            <Select value={form.job_type || null} onValueChange={(v) => handleTypeChange(v ?? "")}>
+              <SelectTrigger id="job-type">
+                <SelectValue
+                  placeholder={t("admin.scheduler.type_placeholder", {
+                    defaultValue: "Select a job type…",
+                  })}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {jobTypes.map((jt) => (
+                  <SelectItem key={jt.type_name} value={jt.type_name}>
+                    {jt.type_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <DateTimePicker
-            label={t("admin.scheduler.field_scheduled_at", {
-              defaultValue: "Scheduled at",
-            })}
+            label={
+              cron
+                ? t("admin.scheduler.field_first_run", {
+                    defaultValue: "First run (optional)",
+                  })
+                : t("admin.scheduler.field_scheduled_at", {
+                    defaultValue: "Scheduled at",
+                  })
+            }
             value={form.scheduled_at}
             onChange={(utcIso) => setForm((f) => ({ ...f, scheduled_at: utcIso }))}
-            required
+            required={!cron}
+          />
+
+          <CronInput
+            id="job-cron"
+            value={form.cron_expression}
+            onChange={(v) => setForm((f) => ({ ...f, cron_expression: v }))}
           />
 
           <div className="flex items-center justify-between rounded-lg border px-3 py-2.5">
@@ -203,10 +229,7 @@ function CreateJobDialog({ onCreated }: { onCreated: () => void }) {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               {t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
-            <Button
-              type="submit"
-              disabled={mutation.isPending || !form.job_type || !form.scheduled_at}
-            >
+            <Button type="submit" disabled={mutation.isPending || !canSubmit}>
               {mutation.isPending
                 ? t("common.saving", { defaultValue: "Saving…" })
                 : t("common.save", { defaultValue: "Save" })}
@@ -218,19 +241,10 @@ function CreateJobDialog({ onCreated }: { onCreated: () => void }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Columns
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
-
 function SchedulerPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-
   const table = useTableState();
   const columns: Column<SchedulerJob>[] = [
     idColumn<SchedulerJob>(t),
@@ -251,9 +265,16 @@ function SchedulerPage() {
     },
     {
       key: "scheduled_at",
-      header: t("table.col_scheduled_at", { defaultValue: "Scheduled at" }),
+      header: t("table.col_next_run", { defaultValue: "Next run" }),
       sortable: true,
-      cell: (j) => <DateCell value={j.scheduled_at} />,
+      cell: (j) => (
+        <div className="space-y-0.5">
+          <DateCell value={j.scheduled_at} />
+          {j.cron_expression && (
+            <code className="block text-xs text-muted-foreground">{j.cron_expression}</code>
+          )}
+        </div>
+      ),
     },
     {
       key: "is_active",
@@ -278,18 +299,18 @@ function SchedulerPage() {
     placeholderData: (prev) => prev,
   });
 
-  function handleCreated() {
-    void queryClient.invalidateQueries({
-      queryKey: ["admin", "scheduler", "jobs"],
-    });
-  }
-
   return (
     <div className="p-8 space-y-6">
       <PageHeader
         icon={Clock}
         title={t("admin.nav.scheduler", { defaultValue: "Scheduler" })}
-        actions={<CreateJobDialog onCreated={handleCreated} />}
+        actions={
+          <CreateJobDialog
+            onCreated={() =>
+              void queryClient.invalidateQueries({ queryKey: ["admin", "scheduler", "jobs"] })
+            }
+          />
+        }
       />
 
       <DataTable

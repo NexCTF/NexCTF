@@ -136,7 +136,7 @@ export function BoolCell({ value }: { value: boolean }) {
   );
 }
 
-const DATE_FORMAT = new Intl.DateTimeFormat(undefined, {
+export const DATE_FORMAT = new Intl.DateTimeFormat(undefined, {
   dateStyle: "short",
   timeStyle: "medium",
 });

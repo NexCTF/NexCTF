@@ -1,11 +1,15 @@
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Self
 from uuid import UUID
 
 from fastapi_toolsets.schemas import PydanticBase
+from pydantic import AfterValidator, Field, model_validator
 
+from nexctf.util.cron import validate_cron
 from nexctf.util.pydantic import InlineSelect, SelectOption
+
+CronExpression = Annotated[str, Field(max_length=128), AfterValidator(validate_cron)]
 
 
 class TaskStatus(StrEnum):
@@ -22,14 +26,14 @@ class SendNotificationParams(PydanticBase):
 
 
 async def _get_challenge_options() -> list[SelectOption]:
-    from sqlalchemy import select as sa_select
+    from sqlalchemy import select
 
     from nexctf.core.db import get_db_context
     from nexctf.model.challenge import Challenge
 
     async with get_db_context() as session:
         rows = await session.execute(
-            sa_select(Challenge.id, Challenge.title).order_by(Challenge.title)
+            select(Challenge.id, Challenge.title).order_by(Challenge.title)
         )
         return [SelectOption(value=str(r.id), label=r.title) for r in rows]
 
@@ -42,18 +46,28 @@ class ToggleChallengeParams(PydanticBase):
 class AdminSchedulerJobCreate(PydanticBase):
     name: str
     job_type: str
-    scheduled_at: datetime
+    scheduled_at: datetime | None = None
+    cron_expression: CronExpression | None = None
     is_active: bool = True
     params: dict
 
+    @model_validator(mode="after")
+    def _require_a_schedule(self) -> Self:
+        """A job fires either at a fixed time, on a cron, or it is not a job."""
+        if self.scheduled_at is None and self.cron_expression is None:
+            raise ValueError("scheduled_at is required without a cron_expression")
+        return self
+
 
 class AdminSchedulerJobCreateInternal(AdminSchedulerJobCreate):
+    scheduled_at: datetime
     created_by_id: UUID
 
 
 class AdminSchedulerJobUpdate(PydanticBase):
     name: str | None = None
     scheduled_at: datetime | None = None
+    cron_expression: CronExpression | None = None
     is_active: bool | None = None
     params: dict | None = None
 
@@ -74,17 +88,19 @@ class AdminSchedulerJobRead(PydanticBase):
     job_type: str
     is_active: bool
     scheduled_at: datetime
+    cron_expression: str | None
     params: dict
     last_run: datetime | None
     created_at: datetime
     created_by_id: UUID
 
 
-class AdminSchedulerJobReadDetail(AdminSchedulerJobRead):
-    tasks: list[AdminSchedulerTaskRead] = []
-
-
 class AdminSchedulerJobTypeRead(PydanticBase):
     type_name: str
     create_schema: dict
     update_schema: dict
+
+
+class CronPreview(PydanticBase):
+    timezone: str
+    next_runs: list[datetime]
