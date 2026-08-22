@@ -22,6 +22,7 @@ services:
 
   s3:
     image: ghcr.io/coollabsio/maxio:0.4.2@sha256:2e7fc2a32d66fb31c44ce366e8a289218d3c38fcbe25bd6fa575b4df7c0e0272
+    restart: always
     ports:
       - "9000:9000"
     volumes:
