@@ -72,6 +72,7 @@ async def delete_submission(
             "submission_id": str(uuid),
             "team_id": str(team_id) if team_id else None,
             "is_correct": submission.is_correct,
+            "is_trap": submission.is_trap,
             "points_earned": submission.points_earned,
         },
     )

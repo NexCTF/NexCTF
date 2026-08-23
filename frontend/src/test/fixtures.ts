@@ -93,6 +93,8 @@ export function question(overrides: Partial<PublicQuestion> = {}): PublicQuestio
     label: "What is the flag?",
     description: null,
     is_locked: false,
+    is_blocked: false,
+    has_trap: false,
     points: 100,
     malus: null,
     input_type: "input",
@@ -117,6 +119,7 @@ export function challengeDetail(
     sequential: false,
     question_count: 1,
     questions: [question()],
+    completed: false,
     my_feedback: null,
     ...overrides,
   };

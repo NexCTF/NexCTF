@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   AlignLeft,
   ArrowLeft,
+  Ban,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -21,6 +22,8 @@ import { Banner } from "@/components/banner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Markdown } from "@/components/markdown";
 import { PluginSlot } from "@/components/plugin-slot";
+import { PointsBadges } from "@/components/points-badge";
+import { StatusBadge } from "@/components/status-badge";
 import { TagBadge } from "@/components/tag-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,7 +57,7 @@ function UnlockHintButton({
   const label = (
     <>
       <Lock className="size-3 mr-1" />
-      {hint.cost > 0 ? `−${hint.cost} pts` : t("challenge.hint_unlock_btn")}
+      {hint.cost > 0 ? t("common.points", { value: hint.cost }) : t("challenge.hint_unlock_btn")}
     </>
   );
 
@@ -126,8 +129,6 @@ function ChallengeView({ challenge }: { challenge: PublicChallengeDetail }) {
     challenge.question_count > 0
       ? Math.round((challenge.solved_count / challenge.question_count) * 100)
       : 0;
-  const completed =
-    challenge.question_count > 0 && challenge.solved_count === challenge.question_count;
   const pluginContext = useMemo(() => ({ challenge }), [challenge]);
 
   const { data: publicInfo } = useQuery({
@@ -216,7 +217,7 @@ function ChallengeView({ challenge }: { challenge: PublicChallengeDetail }) {
         </div>
       )}
 
-      {feedbackEnabled && completed && <FeedbackCard challenge={challenge} />}
+      {feedbackEnabled && challenge.completed && <FeedbackCard challenge={challenge} />}
     </div>
   );
 }
@@ -295,7 +296,7 @@ function QuestionCard({
   challengeId: string;
 }) {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(!q.is_solved && !q.is_locked);
+  const [expanded, setExpanded] = useState(!q.is_solved && !q.is_locked && !q.is_blocked);
   const queryClient = useQueryClient();
 
   function refetch() {
@@ -310,9 +311,7 @@ function QuestionCard({
         <div className="w-full flex items-center gap-3 px-5 py-4">
           <Lock className="size-5 text-muted-foreground shrink-0" />
           <span className="flex-1 font-medium text-muted-foreground blur-sm">{q.label}</span>
-          <span className="text-sm text-muted-foreground shrink-0">
-            {q.points} pts{q.malus != null ? ` / −${q.malus}` : ""}
-          </span>
+          <PointsBadges points={q.points} malus={q.malus} />
         </div>
       </div>
     );
@@ -321,7 +320,11 @@ function QuestionCard({
   return (
     <div
       className={`rounded-xl border transition-colors ${
-        q.is_solved ? "border-green-500/40 bg-green-500/5" : "bg-card"
+        q.is_blocked
+          ? "border-red-500/40 bg-red-500/5"
+          : q.is_solved
+            ? "border-green-500/40 bg-green-500/5"
+            : "bg-card"
       }`}
     >
       {/* Question header */}
@@ -330,7 +333,9 @@ function QuestionCard({
         className="w-full flex items-center gap-3 px-5 py-4 text-left"
         onClick={() => setExpanded((v) => !v)}
       >
-        {q.is_solved ? (
+        {q.is_blocked ? (
+          <Ban className="size-5 text-red-500 shrink-0" />
+        ) : q.is_solved ? (
           <CheckCircle2 className="size-5 text-green-500 shrink-0" />
         ) : (
           <span className="size-5 shrink-0 flex items-center justify-center rounded-full border text-xs font-mono text-muted-foreground">
@@ -338,6 +343,11 @@ function QuestionCard({
           </span>
         )}
         <span className="flex-1 font-medium">{q.label}</span>
+        {q.has_trap && (
+          <StatusBadge tone="amber" icon={AlertTriangle} title={t("challenge.trap_hint")}>
+            {t("challenge.trap_badge")}
+          </StatusBadge>
+        )}
         {q.input_type === "code" && (
           <span className="shrink-0 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs text-muted-foreground font-mono">
             <Code2 className="size-3" />
@@ -355,9 +365,7 @@ function QuestionCard({
             MCQ
           </span>
         )}
-        <span className="text-sm text-muted-foreground shrink-0">
-          {q.points} pts{q.malus != null ? ` / −${q.malus}` : ""}
-        </span>
+        <PointsBadges points={q.points} malus={q.malus} />
         {expanded ? (
           <ChevronUp className="size-4 text-muted-foreground shrink-0" />
         ) : (
@@ -415,7 +423,15 @@ function QuestionCard({
             />
           )}
 
-          {!q.is_solved && (
+          {q.is_blocked ? (
+            <QuestionOutcome tone="text-red-600 dark:text-red-400">
+              {t("challenge.blocked")}
+            </QuestionOutcome>
+          ) : q.is_solved ? (
+            <QuestionOutcome tone="text-green-600 dark:text-green-400">
+              {t("challenge.solved")}
+            </QuestionOutcome>
+          ) : (
             <SubmitSection
               challengeId={challengeId}
               questionId={q.id}
@@ -425,16 +441,14 @@ function QuestionCard({
               onSolved={refetch}
             />
           )}
-
-          {q.is_solved && (
-            <p className="text-sm text-green-600 dark:text-green-400 font-medium text-center py-1">
-              {t("challenge.solved")}
-            </p>
-          )}
         </div>
       )}
     </div>
   );
+}
+
+function QuestionOutcome({ tone, children }: { tone: string; children: React.ReactNode }) {
+  return <p className={`text-sm font-medium text-center py-1 ${tone}`}>{children}</p>;
 }
 
 function HintsSection({
@@ -510,12 +524,17 @@ function SubmitSection({
     mutationFn: (payload: string) => submitAnswer(challengeId, questionId, payload),
     onSuccess: (result) => {
       if (result.is_correct) {
-        toast.success(result.message);
+        toast.success(
+          result.already_solved
+            ? t("challenge.submit_already_solved")
+            : t("challenge.submit_correct"),
+        );
         setAnswer("");
         setSelected([]);
         onSolved();
       } else {
-        toast.error(result.message);
+        toast.error(result.is_blocked ? t("challenge.blocked") : t("challenge.submit_wrong"));
+        if (result.is_blocked) onSolved();
       }
     },
     onError: (err) => toast.error(apiErrorMessage(err, t("challenge.submit_error"))),

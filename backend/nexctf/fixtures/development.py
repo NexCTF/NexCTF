@@ -195,6 +195,7 @@ def question() -> list[Question]:
             index=1,
             points=275,
             malus=25,
+            trap_flags=["nexctf{fake_salt_dont_submit}"],
             challenge_id=_cid("Binary Reversing"),
         ),
         Question(
@@ -233,6 +234,7 @@ def question() -> list[Question]:
             index=0,
             points=150,
             malus=0,
+            trap_flags=["nexctf{decoy_email}", "nexctf{honeypot@example.com}"],
             challenge_id=_cid("OSINT Starter"),
         ),
         Question(
@@ -759,6 +761,18 @@ def submission() -> list[Submission]:
             team_id=_TEAM1_ID,
             question_id=_qid("What shift was used?"),
             created_at=_t(210),
+        ),
+        # Binary Q2: walked into a trap flag, so the question is blocked for good
+        Submission(
+            id=UUID("e1000000-0000-4000-8000-000000000043"),
+            answer="nexctf{fake_salt_dont_submit}",
+            is_correct=False,
+            is_trap=True,
+            points_earned=0,
+            wrong_count_before=0,
+            team_id=_TEAM1_ID,
+            question_id=_qid("What is the hardcoded salt?"),
+            created_at=_t(215),
         ),
         # ── team2 (top scorer — clean runs, fastest) ──────────────────────
         Submission(

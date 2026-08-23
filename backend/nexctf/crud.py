@@ -225,10 +225,12 @@ class SubmissionCrud(AsyncCrud[Submission]):
     ]
     facet_fields = [
         Submission.is_correct,
+        Submission.is_trap,
         (Submission.team, Team.name),
     ]
     order_fields = [
         Submission.is_correct,
+        Submission.is_trap,
         Submission.points_earned,
         (Submission.team, Team.name),
         (Submission.question, Question.label),

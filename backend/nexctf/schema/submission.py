@@ -10,6 +10,7 @@ class AdminSubmissionRead(PydanticBase):
     question_id: UUID
     answer: str
     is_correct: bool
+    is_trap: bool = False
     points_earned: int
     wrong_count_before: int
     created_at: datetime

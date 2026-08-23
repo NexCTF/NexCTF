@@ -713,6 +713,7 @@ export interface AdminSubmission {
   question_id: string;
   answer: string;
   is_correct: boolean;
+  is_trap: boolean;
   points_earned: number;
   wrong_count_before: number;
   created_at: string;
@@ -873,6 +874,8 @@ export interface PublicQuestion {
   label: string;
   description: string | null;
   is_locked: boolean;
+  is_blocked: boolean;
+  has_trap: boolean;
   points: number;
   malus: number | null;
   input_type: InputType;
@@ -904,6 +907,7 @@ export interface PublicChallengeDetail extends PublicChallenge {
   writeup: string | null;
   sequential: boolean;
   questions: PublicQuestion[];
+  completed: boolean;
   my_feedback: PublicFeedback | null;
 }
 
@@ -911,7 +915,7 @@ export interface SubmitResult {
   is_correct: boolean;
   already_solved: boolean;
   points_earned: number;
-  message: string;
+  is_blocked: boolean;
 }
 
 export async function getChallenges(): Promise<PublicChallenge[]> {
@@ -1084,6 +1088,7 @@ export interface Question {
   points: number;
   malus: number | null;
   input_type: InputType;
+  trap_flags: string[];
   challenge_title: string | null;
   hint_count: number;
   solution_count: number;

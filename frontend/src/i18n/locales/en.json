@@ -64,6 +64,9 @@
         "field_malus_placeholder": "None",
         "field_points": "Points",
         "field_tags": "Tags",
+        "field_trap_flags": "Trap flags",
+        "field_trap_flags_help": "A team submitting one of these is permanently blocked on this question and can never score it. Matching is case-insensitive.",
+        "field_trap_flags_placeholder": "One flag per line",
         "input_type_code": "Code",
         "input_type_input": "Short answer",
         "input_type_mcq": "Multiple choice",
@@ -377,7 +380,9 @@
       "delete_confirm": "Delete this submission?",
       "delete_error": "Failed to delete submission",
       "deleted": "Submission deleted",
-      "dialog_title": "Submission"
+      "dialog_title": "Submission",
+      "trap": "Trap",
+      "trap_help": "This answer is a trap flag. The question is locked for this team and can never score."
     },
     "tags": {
       "input_placeholder": "Add a tag…",
@@ -466,6 +471,7 @@
     "answer_label": "Answer",
     "answer_placeholder": "Enter your answer…",
     "back": "Back to challenges",
+    "blocked": "Your team submitted a trap flag. This question is locked and can no longer be scored.",
     "event_ended_banner": "The CTF has ended. Submissions are no longer accepted.",
     "feedback_error": "Could not save your feedback",
     "feedback_placeholder": "Anything you liked or would improve? (optional)",
@@ -486,8 +492,13 @@
     "sequential": "Sequential",
     "solved": "✓ Solved",
     "submit": "Submit",
+    "submit_already_solved": "Already solved!",
+    "submit_correct": "Correct! 🎉",
     "submit_error": "Submission failed",
+    "submit_wrong": "Wrong answer, try again.",
     "submitting": "Checking…",
+    "trap_badge": "Traps",
+    "trap_hint": "This question has trap flags. Submitting one locks it for good.",
     "writeup_title": "Writeup"
   },
   "common": {
@@ -505,6 +516,9 @@
     "done": "Done",
     "edit": "Edit",
     "loading": "Loading…",
+    "malus_hint": "Points lost from the reward for each wrong answer.",
+    "points": "{{value}} pts",
+    "points_hint": "Points awarded for solving this question.",
     "save": "Save",
     "saved": "Saved",
     "saving": "Saving…",

@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Column, ForeignKey, Table
+from sqlalchemy import Column, ForeignKey, String, Table
 from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -47,6 +48,9 @@ class Question(Base):
         SAEnum(InputType, native_enum=False),
         default=InputType.INPUT,
     )
+    trap_flags: Mapped[list[str]] = mapped_column(
+        ARRAY(String), default=list, server_default="{}"
+    )
 
     hints: Mapped[list[Hint]] = relationship(back_populates="question")
     solutions: Mapped[list[Solution]] = relationship(back_populates="question")
@@ -71,6 +75,10 @@ class Question(Base):
     @property
     def file_count(self) -> int:
         return len(self.files)
+
+    def is_trap(self, answer: str) -> bool:
+        """Return True if *answer* matches one of the question's trap flags."""
+        return any(answer.casefold() == t.casefold() for t in self.trap_flags)
 
 
 class Hint(Base):

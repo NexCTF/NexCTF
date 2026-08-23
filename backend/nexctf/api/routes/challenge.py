@@ -30,6 +30,7 @@ from nexctf.core.rate_limit import check_config_rate_limit
 from nexctf.exceptions import (
     ChallengeNotCompletedError,
     FeedbackDisabledError,
+    QuestionBlockedError,
     SequentialChallengeError,
     SolutionTimeoutError,
 )
@@ -105,10 +106,31 @@ async def _solved_ids(
     return {r[0] for r in rows}
 
 
-async def _check_sequential_lock(
+async def _blocked_ids(
+    session: SessionDep, user: User | None, question_ids: list[UUID]
+) -> set[UUID]:
+    """Return IDs of questions the user's team blocked by hitting a trap flag."""
+    if not question_ids or user is None or user.team_id is None:
+        return set()
+    rows = await session.execute(
+        select(Submission.question_id)
+        .where(
+            Submission.question_id.in_(question_ids),
+            Submission.is_trap.is_(True),
+            Submission.team_id == user.team_id,
+        )
+        .distinct()
+    )
+    return {r[0] for r in rows}
+
+
+async def _check_question_access(
     session: SessionDep, user: User, challenge: Challenge, question: Question
 ) -> None:
-    """Raise if *question* is still locked behind unsolved earlier questions."""
+    """Raise if the team may not act on *question*: blocked by a trap, or still
+    locked behind unsolved earlier questions."""
+    if question.trap_flags and await _blocked_ids(session, user, [question.id]):
+        raise QuestionBlockedError()
     if not challenge.sequential:
         return
     prev_ids = [q.id for q in challenge.questions if q.index < question.index]
@@ -168,6 +190,7 @@ def _assemble_question(
     *,
     is_solved: bool,
     is_locked: bool,
+    is_blocked: bool,
     unlocked_hint_ids: set[UUID],
 ) -> PublicQuestionRead:
     """Build a player question view from cached structure + per-user state.
@@ -204,6 +227,8 @@ def _assemble_question(
         input_type=q.input_type,
         is_solved=is_solved,
         is_locked=is_locked,
+        is_blocked=is_blocked,
+        has_trap=q.has_trap,
         files=files,
         hints=hints,
         tags=list(q.tags),
@@ -255,6 +280,7 @@ async def get_challenge(
     questions = structure.questions
 
     solved = await _solved_ids(session, user, [q.id for q in questions])
+    blocked = await _blocked_ids(session, user, [q.id for q in questions if q.has_trap])
     all_hint_ids = [h.id for q in questions for h in q.hints]
     unlocked = await _unlocked_ids(session, user, all_hint_ids)
 
@@ -272,12 +298,13 @@ async def get_challenge(
             q,
             is_solved=q.id in solved,
             is_locked=locked_from is not None and i >= locked_from,
+            is_blocked=q.id in blocked,
             unlocked_hint_ids=unlocked,
         )
         for i, q in enumerate(questions)
     ]
 
-    challenge_completed = len(questions) > 0 and len(solved) == len(questions)
+    challenge_completed = len(questions) > 0 and len(solved | blocked) == len(questions)
     writeup = (
         structure.writeup
         if _writeup_visible(
@@ -306,6 +333,7 @@ async def get_challenge(
             challenge_type=structure.challenge_type,
             sequential=structure.sequential,
             questions=question_reads,
+            completed=challenge_completed,
             tags=list(structure.tags),
             my_feedback=my_feedback,
         )
@@ -351,11 +379,10 @@ async def submit_answer(
                 is_correct=True,
                 already_solved=True,
                 points_earned=0,
-                message="Already solved!",
             )
         )
 
-    await _check_sequential_lock(session, user, challenge, question)
+    await _check_question_access(session, user, challenge, question)
 
     # Count previous wrong attempts (for malus)
     wrong_rows = await session.execute(
@@ -368,15 +395,17 @@ async def submit_answer(
     wrong_count_before = len(wrong_rows.all())
 
     answer = obj.answer
+    is_trap = question.is_trap(answer)
     is_correct = False
     timed_out: list[SolutionTimeoutError] = []
-    for sol in question.solutions:
-        try:
-            if await sol.verify(answer, team_id=team_id):
-                is_correct = True
-                break
-        except SolutionTimeoutError as exc:
-            timed_out.append(exc)
+    if not is_trap:
+        for sol in question.solutions:
+            try:
+                if await sol.verify(answer, team_id=team_id):
+                    is_correct = True
+                    break
+            except SolutionTimeoutError as exc:
+                timed_out.append(exc)
 
     points_earned = 0
     if is_correct:
@@ -390,6 +419,7 @@ async def submit_answer(
         Submission(
             answer=obj.answer,
             is_correct=is_correct,
+            is_trap=is_trap,
             points_earned=points_earned,
             wrong_count_before=wrong_count_before,
             team_id=user.team_id,
@@ -465,7 +495,7 @@ async def submit_answer(
         await emit_event(
             session,
             redis,
-            event_type="submission.wrong",
+            event_type="submission.trap" if is_trap else "submission.wrong",
             actor_id=user.id,
             target_type="challenges",
             target_id=challenge.id,
@@ -486,7 +516,7 @@ async def submit_answer(
             is_correct=is_correct,
             already_solved=False,
             points_earned=points_earned,
-            message="Correct! 🎉" if is_correct else "Wrong answer, try again.",
+            is_blocked=is_trap,
         )
     )
 
@@ -514,7 +544,7 @@ async def unlock_hint(
     if hint is None:
         raise NotFoundError(detail="Hint not found")
 
-    await _check_sequential_lock(session, user, challenge, question)
+    await _check_question_access(session, user, challenge, question)
 
     # A hint is bought once per team; teammates unlocking concurrently race on
     # uq_hint_unlock, so let the database settle who pays.
@@ -577,9 +607,10 @@ async def submit_feedback(
 
     challenge = await _get_active_challenge(session, challenge_id)
     question_ids = [q.id for q in challenge.questions]
-    if not question_ids or len(await _solved_ids(session, user, question_ids)) < len(
-        question_ids
-    ):
+    finished = await _solved_ids(session, user, question_ids) | await _blocked_ids(
+        session, user, [q.id for q in challenge.questions if q.trap_flags]
+    )
+    if not question_ids or len(finished) < len(question_ids):
         raise ChallengeNotCompletedError()
 
     # Teammates racing on uq_challenge_feedback settle in the database: the
