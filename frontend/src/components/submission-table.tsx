@@ -1,7 +1,8 @@
-import { Maximize2, Trash2 } from "lucide-react";
+import { Ban, Maximize2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog, DeleteButton } from "@/components/confirm-dialog";
 import type { Column } from "@/components/data-table";
+import { StatusBadge } from "@/components/status-badge";
 import {
   ActionsCell,
   BoolCell,
@@ -80,7 +81,14 @@ export function useSubmissionColumns({
     {
       key: "is_correct",
       header: t("table.col_correct", { defaultValue: "Correct" }),
-      cell: (sub) => <BoolCell value={sub.is_correct} />,
+      cell: (sub) =>
+        sub.is_trap ? (
+          <StatusBadge tone="red" icon={Ban} title={t("admin.submissions.trap_help")}>
+            {t("admin.submissions.trap")}
+          </StatusBadge>
+        ) : (
+          <BoolCell value={sub.is_correct} />
+        ),
       className: "w-20",
     },
     {
@@ -152,6 +160,12 @@ export function SubmissionAnswerDialog({
               {sub.question_label ?? <EmptyCell />}
             </DialogRow>
             <div className="rounded-md bg-muted p-3 font-mono text-sm break-all">{sub.answer}</div>
+            {sub.is_trap && (
+              <p className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
+                <Ban className="size-4 shrink-0" />
+                {t("admin.submissions.trap_help")}
+              </p>
+            )}
             <div className="flex justify-end pt-2">
               <ConfirmDialog
                 description={t("admin.submissions.delete_confirm")}

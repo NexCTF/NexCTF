@@ -41,6 +41,7 @@ async def recalculate_question(
 
         wrong_count_by_team: dict[UUID, int] = {}
         solved_teams: set[UUID] = set()
+        blocked_teams: set[UUID] = set()
         affected_teams: set[UUID] = set()
         timed_out_solutions: set[UUID] = set()
 
@@ -48,31 +49,38 @@ async def recalculate_question(
             team_id = sub.team_id
             wrong_before = wrong_count_by_team.get(team_id, 0)
 
+            new_is_trap = question.is_trap(sub.answer)
+            if new_is_trap:
+                blocked_teams.add(team_id)
+
+            blocked = team_id in blocked_teams
+
             new_is_correct = False
-            for sol in question.solutions:
-                try:
-                    if await sol.verify(sub.answer, team_id=team_id):
-                        new_is_correct = True
-                        break
-                except SolutionTimeoutError as exc:
-                    if (
-                        exc.solution_id is not None
-                        and exc.solution_id not in timed_out_solutions
-                    ):
-                        timed_out_solutions.add(exc.solution_id)
-                        await emit(
-                            session,
-                            redis,
-                            event_type="solution.timeout",
-                            target_type="questions",
-                            target_id=question_id,
-                            target_label=question.label,
-                            meta={
-                                "solution_id": str(exc.solution_id),
-                                "team_id": str(team_id),
-                                "context": "recalculation",
-                            },
-                        )
+            if not blocked:
+                for sol in question.solutions:
+                    try:
+                        if await sol.verify(sub.answer, team_id=team_id):
+                            new_is_correct = True
+                            break
+                    except SolutionTimeoutError as exc:
+                        if (
+                            exc.solution_id is not None
+                            and exc.solution_id not in timed_out_solutions
+                        ):
+                            timed_out_solutions.add(exc.solution_id)
+                            await emit(
+                                session,
+                                redis,
+                                event_type="solution.timeout",
+                                target_type="questions",
+                                target_id=question_id,
+                                target_label=question.label,
+                                meta={
+                                    "solution_id": str(exc.solution_id),
+                                    "team_id": str(team_id),
+                                    "context": "recalculation",
+                                },
+                            )
 
             if new_is_correct and team_id not in solved_teams:
                 new_points = max(
@@ -89,10 +97,12 @@ async def recalculate_question(
                 sub.is_correct != new_is_correct
                 or sub.wrong_count_before != wrong_before
                 or sub.points_earned != new_points
+                or sub.is_trap != new_is_trap
             ):
                 sub.is_correct = new_is_correct
                 sub.wrong_count_before = wrong_before
                 sub.points_earned = new_points
+                sub.is_trap = new_is_trap
                 affected_teams.add(team_id)
 
     await invalidate(redis)

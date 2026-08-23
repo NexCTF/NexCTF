@@ -1,11 +1,17 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi_toolsets.schemas import PydanticBase
+from pydantic import AfterValidator
 
 from nexctf.enums import InputType
 from nexctf.schema.file import AdminFileRead, PublicFileRead
 from nexctf.schema.hint import PublicHintRead
 from nexctf.util.pydantic import Labels
+
+TrapFlags = Annotated[
+    list[str], AfterValidator(lambda v: [f for f in (s.strip() for s in v) if f])
+]
 
 
 class AdminQuestionRead(PydanticBase):
@@ -17,6 +23,7 @@ class AdminQuestionRead(PydanticBase):
     points: int
     malus: int | None
     input_type: InputType = InputType.INPUT
+    trap_flags: list[str] = []
     challenge_title: str | None = None
     hint_count: int = 0
     solution_count: int = 0
@@ -33,6 +40,7 @@ class AdminQuestionCreate(PydanticBase):
     points: int = 100
     malus: int | None = None
     input_type: InputType = InputType.INPUT
+    trap_flags: TrapFlags = []
     tags: Labels = []
 
 
@@ -44,6 +52,7 @@ class AdminQuestionUpdate(PydanticBase):
     points: int | None = None
     malus: int | None = None
     input_type: InputType | None = None
+    trap_flags: TrapFlags | None = None
     files_ids: list[UUID] | None = None
     tags: Labels | None = None
 
@@ -57,6 +66,8 @@ class PublicQuestionRead(PydanticBase):
     input_type: InputType = InputType.INPUT
     is_solved: bool
     is_locked: bool = False
+    is_blocked: bool = False
+    has_trap: bool = False
     files: list[PublicFileRead] = []
     hints: list[PublicHintRead] = []
     tags: list[str] = []

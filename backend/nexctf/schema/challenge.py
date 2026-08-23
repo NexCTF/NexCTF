@@ -59,6 +59,7 @@ class PublicChallengeDetail(PublicChallengeRead):
     writeup: str | None = None
     sequential: bool
     questions: list[PublicQuestionRead]
+    completed: bool = False
     my_feedback: PublicFeedbackRead | None = None
 
 
@@ -77,4 +78,4 @@ class SubmitResult(PydanticBase):
     is_correct: bool
     already_solved: bool
     points_earned: int
-    message: str
+    is_blocked: bool = False

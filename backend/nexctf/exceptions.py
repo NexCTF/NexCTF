@@ -379,6 +379,15 @@ class SequentialChallengeError(ApiException):
     )
 
 
+class QuestionBlockedError(ApiException):
+    api_error = ApiError(
+        code=403,
+        msg="Question blocked",
+        desc="Your team submitted a trap flag on this question. It is locked.",
+        err_code="SUB-403-BLOCKED",
+    )
+
+
 class FeedbackDisabledError(ApiException):
     api_error = ApiError(
         code=403,

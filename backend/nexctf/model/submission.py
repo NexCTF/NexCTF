@@ -24,6 +24,7 @@ class Submission(Base):
     is_correct: Mapped[bool] = mapped_column(default=False)
     points_earned: Mapped[int] = mapped_column(default=0)
     wrong_count_before: Mapped[int] = mapped_column(default=0)
+    is_trap: Mapped[bool] = mapped_column(default=False, server_default="false")
 
     team: Mapped[Team] = relationship(back_populates="submissions")
     team_id: Mapped[UUID] = mapped_column(ForeignKey("teams.id"))

@@ -3,9 +3,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from fastapi_toolsets.schemas import PaginatedResponse, Response
+from sqlalchemy import select
 
 from nexctf import crud
-from nexctf.api.dep import SessionDep
+from nexctf.api.dep import RedisDep, SessionDep
+from nexctf.model import Question
+from nexctf.module.submission import recalculate_question
 from nexctf.schema.question import (
     AdminQuestionCreate,
     AdminQuestionRead,
@@ -44,16 +47,26 @@ async def get_question(session: SessionDep, uuid: UUID) -> Response[AdminQuestio
     )
 
 
+def _trap_set(flags: list[str] | None) -> set[str]:
+    return {f.casefold() for f in flags or ()}
+
+
 @question_router.put("/{uuid}")
 async def update_question(
-    session: SessionDep, uuid: UUID, obj: AdminQuestionUpdate
+    session: SessionDep, redis: RedisDep, uuid: UUID, obj: AdminQuestionUpdate
 ) -> Response[AdminQuestionRead]:
-    return await crud.QuestionCrud.update(
+    traps_before = _trap_set(
+        await session.scalar(select(Question.trap_flags).where(Question.id == uuid))
+    )
+    result = await crud.QuestionCrud.update(
         session=session,
         filters=[crud.QuestionCrud.model.id == uuid],
         obj=obj,
         schema=AdminQuestionRead,
     )
+    if obj.trap_flags is not None and _trap_set(obj.trap_flags) != traps_before:
+        await recalculate_question(session, redis, uuid)
+    return result
 
 
 @question_router.delete("/{uuid}")

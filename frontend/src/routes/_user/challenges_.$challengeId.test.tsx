@@ -47,10 +47,10 @@ it("shows the challenge with its category, tags and progress", async () => {
 
 it("submits a typed answer and reports a correct solve", async () => {
   vi.mocked(submitAnswer).mockResolvedValue({
+    is_blocked: false,
     is_correct: true,
     already_solved: false,
     points_earned: 100,
-    message: "Correct!",
   });
   renderChallenge();
 
@@ -58,15 +58,15 @@ it("submits a typed answer and reports a correct solve", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Submit" }));
 
   await waitFor(() => expect(submitAnswer).toHaveBeenCalledWith("c1", "q1", "flag_x"));
-  expect(toast.success).toHaveBeenCalledWith("Correct!");
+  expect(toast.success).toHaveBeenCalledWith("Correct! 🎉");
 });
 
 it("reports a wrong answer without clearing the field", async () => {
   vi.mocked(submitAnswer).mockResolvedValue({
+    is_blocked: false,
     is_correct: false,
     already_solved: false,
     points_earned: 0,
-    message: "Nope",
   });
   renderChallenge();
 
@@ -74,7 +74,7 @@ it("reports a wrong answer without clearing the field", async () => {
   await userEvent.type(input, "wrong");
   await userEvent.click(screen.getByRole("button", { name: "Submit" }));
 
-  await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Nope"));
+  await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Wrong answer, try again."));
   expect(input).toHaveProperty("value", "wrong");
 });
 
@@ -93,10 +93,10 @@ it("sends multi-select answers as a sorted JSON array", async () => {
     }),
   );
   vi.mocked(submitAnswer).mockResolvedValue({
+    is_blocked: false,
     is_correct: true,
     already_solved: false,
     points_earned: 10,
-    message: "ok",
   });
   renderChallenge();
 
@@ -118,8 +118,42 @@ it("hides the details of a locked question", async () => {
   renderChallenge();
 
   expect(await screen.findByText("Step 2")).toBeDefined();
-  expect(screen.getByText("50 pts / −10")).toBeDefined();
+  expect(screen.getByText("50 pts")).toBeDefined();
+  expect(screen.getByText("10 pts")).toBeDefined();
   expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
+});
+
+it("hides the malus badge when the malus is zero", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({ questions: [question({ points: 50, malus: 0 })] }),
+  );
+  renderChallenge();
+
+  expect(await screen.findByText("50 pts")).toBeDefined();
+  expect(screen.queryByText("0 pts")).toBeNull();
+});
+
+it("badges a question that carries trap flags", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({ questions: [question({ has_trap: true })] }),
+  );
+  renderChallenge();
+
+  expect(await screen.findByText("Traps")).toBeDefined();
+  expect(screen.getByRole("button", { name: "Submit" })).toBeDefined();
+});
+
+it("replaces the form with a blocked marker once a trap is hit", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({ questions: [question({ has_trap: true, is_blocked: true })] }),
+  );
+  renderChallenge();
+
+  await userEvent.click(await screen.findByText("What is the flag?"));
+
+  expect(screen.getByText(/This question is locked/)).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
+  expect(screen.getByText("100 pts")).toBeDefined();
 });
 
 it("replaces the form with a solved marker", async () => {
@@ -147,10 +181,10 @@ it("asks for confirmation before spending points on a hint", async () => {
   vi.mocked(unlockHint).mockResolvedValue(undefined as never);
   renderChallenge();
 
-  await clickAndCancel(await screen.findByRole("button", { name: "−25 pts" }));
+  await clickAndCancel(await screen.findByRole("button", { name: "25 pts" }));
   expect(unlockHint).not.toHaveBeenCalled();
 
-  await clickAndConfirm(screen.getByRole("button", { name: "−25 pts" }), "Unlock");
+  await clickAndConfirm(screen.getByRole("button", { name: "25 pts" }), "Unlock");
   await waitFor(() => expect(unlockHint).toHaveBeenCalledWith("c1", "q1", "h1"));
 });
 
@@ -170,14 +204,12 @@ it("unlocks a free hint without confirmation and shows its content once unlocked
   expect(screen.queryByRole("button", { name: "Unlock" })).toBeNull();
 });
 
-const COMPLETED = { question_count: 1, solved_count: 1 };
+const COMPLETED = { completed: true };
 const FEEDBACK_ON = publicInfoWith({ enable_challenge_feedback: true });
 
 it("hides the feedback card while the challenge is unfinished", async () => {
   vi.mocked(getPublicInfo).mockResolvedValue(FEEDBACK_ON);
-  vi.mocked(getChallenge).mockResolvedValue(
-    challengeDetail({ question_count: 2, solved_count: 1 }),
-  );
+  vi.mocked(getChallenge).mockResolvedValue(challengeDetail());
   renderChallenge();
 
   expect(await screen.findByRole("heading", { name: "Baby RSA" })).toBeDefined();

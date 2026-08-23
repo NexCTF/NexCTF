@@ -65,6 +65,9 @@
         "field_malus_placeholder": "Aucun",
         "field_points": "Points",
         "field_tags": "Tags",
+        "field_trap_flags": "Flags pièges",
+        "field_trap_flags_help": "Une équipe qui en soumet un est définitivement bloquée sur cette question et ne pourra jamais marquer de points. La casse est ignorée.",
+        "field_trap_flags_placeholder": "Un flag par ligne",
         "input_type_code": "Code",
         "input_type_input": "Réponse courte",
         "input_type_mcq": "Choix multiple",
@@ -379,7 +382,9 @@
       "delete_confirm": "Supprimer cette soumission ?",
       "delete_error": "Échec de la suppression de la soumission",
       "deleted": "Soumission supprimée",
-      "dialog_title": "Soumission"
+      "dialog_title": "Soumission",
+      "trap": "Piège",
+      "trap_help": "Cette réponse est un flag piège. La question est verrouillée pour cette équipe et ne rapportera jamais de points."
     },
     "tags": {
       "input_placeholder": "Ajouter un tag…",
@@ -468,6 +473,7 @@
     "answer_label": "Réponse",
     "answer_placeholder": "Entrez votre réponse…",
     "back": "Retour aux challenges",
+    "blocked": "Votre équipe a soumis un flag piège. Cette question est verrouillée et ne rapportera plus de points.",
     "event_ended_banner": "Le CTF est terminé. Les soumissions ne sont plus acceptées.",
     "feedback_error": "Impossible d'enregistrer votre retour",
     "feedback_placeholder": "Ce qui vous a plu ou ce qui pourrait être amélioré ? (facultatif)",
@@ -488,8 +494,13 @@
     "sequential": "Séquentiel",
     "solved": "✓ Résolu",
     "submit": "Soumettre",
+    "submit_already_solved": "Déjà résolu\u202f!",
+    "submit_correct": "Correct\u202f! 🎉",
     "submit_error": "Échec de la soumission",
+    "submit_wrong": "Mauvaise réponse, réessayez.",
     "submitting": "Vérification…",
+    "trap_badge": "Pièges",
+    "trap_hint": "Cette question contient des flags pièges. En soumettre un la verrouille définitivement.",
     "writeup_title": "Writeup"
   },
   "common": {
@@ -507,6 +518,9 @@
     "done": "Terminé",
     "edit": "Modifier",
     "loading": "Chargement…",
+    "malus_hint": "Points retirés de la récompense à chaque mauvaise réponse.",
+    "points": "{{value}} pts",
+    "points_hint": "Points gagnés en résolvant cette question.",
     "save": "Enregistrer",
     "saved": "Enregistré",
     "saving": "Enregistrement…",

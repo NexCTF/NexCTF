@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
   ChevronDown,
@@ -17,7 +18,9 @@ import { toast } from "sonner";
 import { ConfirmDialog, DeleteButton } from "@/components/confirm-dialog";
 import { DetailPageShell, DetailSection } from "@/components/detail-page";
 import { LabelInput } from "@/components/label-input";
+import { PointsBadges } from "@/components/points-badge";
 import { initFromSchema, SchemaFields } from "@/components/schema-form";
+import { StatusBadge } from "@/components/status-badge";
 import { TagMultiSelect } from "@/components/tag-multi-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
   apiErrorMessage,
   type ChallengeDetail,
@@ -252,7 +256,7 @@ function ChallengeInfoSection({ challenge }: { challenge: ChallengeDetail }) {
 
 const INPUT_TYPES: InputType[] = ["input", "text", "code", "mcq"];
 
-function QuestionFormFields({
+export function QuestionFormFields({
   form,
   onUpdate,
 }: {
@@ -321,6 +325,19 @@ function QuestionFormFields({
           </Select>
         </div>
       </div>
+      <div className="space-y-1.5">
+        <Label>{t("admin.challenge.question.field_trap_flags")}</Label>
+        <Textarea
+          rows={3}
+          className="font-mono text-sm"
+          placeholder={t("admin.challenge.question.field_trap_flags_placeholder")}
+          value={((form.trap_flags as string[]) ?? []).join("\n")}
+          onChange={(e) => onUpdate({ trap_flags: e.target.value.split("\n") })}
+        />
+        <p className="text-xs text-muted-foreground">
+          {t("admin.challenge.question.field_trap_flags_help")}
+        </p>
+      </div>
     </div>
   );
 }
@@ -331,6 +348,7 @@ const EMPTY_QUESTION = {
   points: 100,
   malus: null,
   input_type: "input",
+  trap_flags: [] as string[],
   tags: [] as string[],
 };
 
@@ -422,6 +440,7 @@ function EditQuestionDialog({ question, onSaved }: { question: Question; onSaved
     malus: question.malus,
     index: question.index,
     input_type: question.input_type ?? "input",
+    trap_flags: question.trap_flags ?? [],
     tags: question.tags ?? [],
   });
 
@@ -1102,15 +1121,21 @@ function QuestionCard({
           #{question.index + 1}
         </span>
         <span className="flex-1 font-medium text-sm truncate">{question.label}</span>
+        {question.trap_flags.length > 0 && (
+          <StatusBadge
+            tone="amber"
+            icon={AlertTriangle}
+            title={t("admin.challenge.question.field_trap_flags_help")}
+          >
+            {t("challenge.trap_badge")}
+          </StatusBadge>
+        )}
         {question.input_type && question.input_type !== "input" && (
           <span className="text-xs rounded border px-1.5 py-0.5 text-muted-foreground shrink-0">
             {t(`admin.challenge.question.input_type_${question.input_type}`)}
           </span>
         )}
-        <span className="text-xs text-muted-foreground shrink-0">
-          {question.points} pts
-          {question.malus !== null && <span className="text-destructive"> −{question.malus}</span>}
-        </span>
+        <PointsBadges points={question.points} malus={question.malus} />
         <span className="text-xs text-muted-foreground shrink-0">
           {question.solution_count} solution
           {question.solution_count !== 1 ? "s" : ""}
@@ -1244,7 +1269,9 @@ function QuestionCard({
                     className="flex items-center gap-2 rounded-md border px-3 py-1.5"
                   >
                     <span className="flex-1 text-sm">{hint.title}</span>
-                    <span className="text-xs text-muted-foreground">{hint.cost} pts</span>
+                    <span className="text-xs text-muted-foreground">
+                      {t("common.points", { value: hint.cost })}
+                    </span>
                     <div className="flex items-center gap-1">
                       <EditHintDialog hint={hint} onSaved={() => void refetchHints()} />
                       <DeleteButton

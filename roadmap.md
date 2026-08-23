@@ -25,6 +25,9 @@
 ## 0.8.0
 - [x] Admin rework/cleanup
 
+## 0.9.0
+- [x] Trap flags
+
 ## Before v1.0 release
 - [ ] Event import/export/sync
 - [ ] Plugins workflow
