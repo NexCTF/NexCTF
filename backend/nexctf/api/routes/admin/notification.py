@@ -6,9 +6,8 @@ from fastapi_toolsets.schemas import PaginatedResponse, Response
 
 from nexctf import crud
 from nexctf.api.dep import RedisDep, SessionDep
-from nexctf.exceptions import InternalServerError
 from nexctf.model import Notification
-from nexctf.module.notification import publish_notification
+from nexctf.module.notification import create_and_publish
 from nexctf.schema.notification import (
     AdminNotificationCreate,
     AdminNotificationRead,
@@ -37,15 +36,7 @@ async def create_notification(
     redis: RedisDep,
     obj: AdminNotificationCreate,
 ) -> Response[AdminNotificationReadDetail]:
-    response = await crud.NotificationCrud.create(
-        session=session, obj=obj, schema=AdminNotificationReadDetail
-    )
-    if response.data is None:
-        raise InternalServerError()
-    await publish_notification(
-        redis, obj.is_broadcast, obj.team_ids, response.data.model_dump_json()
-    )
-    return response
+    return await create_and_publish(session, redis, obj)
 
 
 @notification_router.get("/{uuid}")

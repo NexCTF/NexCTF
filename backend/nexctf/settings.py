@@ -4,6 +4,8 @@ Labels and descriptions are i18n keys — the frontend resolves them.
 Add new settings here.
 """
 
+from zoneinfo import available_timezones
+
 from nexctf.core.appconfig import ConfigDef, ConfigRegistry, ConfigType
 
 config = ConfigRegistry()
@@ -46,6 +48,14 @@ def _competition():
             default="",
             description="config.ctf.freeze_time.description",
             type=ConfigType.DATETIME,
+        ),
+        ConfigDef(
+            key="ctf.timezone",
+            label="config.ctf.timezone.label",
+            default="UTC",
+            description="config.ctf.timezone.description",
+            type=ConfigType.CHOICE,
+            choices=sorted(available_timezones()),
         ),
         ConfigDef(
             key="ctf.hide_challenges_before_start",

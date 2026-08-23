@@ -1,15 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Play, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { CronInput } from "@/components/cron-input";
+import { type Column, DataTable, useTableState } from "@/components/data-table";
 import { DetailPageShell, DetailSection, InfoRow } from "@/components/detail-page";
 import { IdCell } from "@/components/id-cell";
-import { JobStatusBadge } from "@/components/scheduler-status";
+import { JobStatusBadge, TaskStatusBadge } from "@/components/scheduler-status";
 import { SchemaFields } from "@/components/schema-form";
-import { EmptyCell } from "@/components/table-cells";
+import { DateCell, EmptyCell } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Input } from "@/components/ui/input";
@@ -18,50 +20,24 @@ import {
   apiErrorMessage,
   deleteAdminSchedulerJob,
   getAdminSchedulerJob,
+  getAdminSchedulerJobTasks,
   getAdminSchedulerJobTypes,
   runAdminSchedulerJob,
   type SchedulerTask,
   updateAdminSchedulerJob,
 } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin/scheduler_/$jobId")({
   component: SchedulerJobDetailPage,
 });
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Task status badge
-// ---------------------------------------------------------------------------
-
-const TASK_STATUS_STYLES = {
-  pending: "bg-yellow-500/10 text-yellow-600",
-  success: "bg-green-500/10 text-green-600",
-  failed: "bg-red-500/10 text-red-600",
-} as const;
-
-function TaskStatusBadge({ status }: { status: SchedulerTask["status"] }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-        TASK_STATUS_STYLES[status],
-      )}
-    >
-      {status}
-    </span>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
-
 function SchedulerJobDetailPage() {
   const { t } = useTranslation();
+
+  const scheduleLabel = (cron: string | null) =>
+    cron?.trim()
+      ? t("admin.scheduler.field_next_run", { defaultValue: "Next run" })
+      : t("admin.scheduler.field_scheduled_at", { defaultValue: "Scheduled at" });
   const { jobId } = Route.useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -74,35 +50,74 @@ function SchedulerJobDetailPage() {
   const { data: jobTypes = [] } = useQuery({
     queryKey: ["admin", "scheduler", "types"],
     queryFn: getAdminSchedulerJobTypes,
-    enabled: !!job,
   });
 
   const updateSchema = jobTypes.find((jt) => jt.type_name === job?.job_type)?.update_schema;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: job?.tasks tracks only the tasks array
-  const sortedTasks = useMemo(
-    () =>
-      job
-        ? [...job.tasks].sort(
-            (a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime(),
-          )
-        : [],
-    [job?.tasks],
-  );
+  function refreshJob() {
+    for (const queryKey of [
+      ["admin", "scheduler", "job", jobId],
+      ["admin", "scheduler", "jobs"],
+      ["admin", "scheduler", "tasks", jobId],
+    ]) {
+      void queryClient.invalidateQueries({ queryKey });
+    }
+  }
+
+  const taskTable = useTableState();
+  const {
+    data: tasks,
+    isLoading: tasksLoading,
+    isFetching: tasksFetching,
+    refetch: refetchTasks,
+  } = useQuery({
+    queryKey: ["admin", "scheduler", "tasks", jobId, taskTable.queryString],
+    queryFn: () => getAdminSchedulerJobTasks(jobId, taskTable.queryString),
+    placeholderData: (prev) => prev,
+  });
+
+  const taskColumns: Column<SchedulerTask>[] = [
+    {
+      key: "status",
+      header: t("admin.scheduler.col_task_status", { defaultValue: "Status" }),
+      cell: (task) => <TaskStatusBadge status={task.status} />,
+    },
+    {
+      key: "started_at",
+      header: t("admin.scheduler.col_task_started", { defaultValue: "Started" }),
+      sortable: true,
+      cell: (task) => <DateCell value={task.started_at} />,
+    },
+    {
+      key: "completed_at",
+      header: t("admin.scheduler.col_task_completed", { defaultValue: "Completed" }),
+      cell: (task) => <DateCell value={task.completed_at} />,
+    },
+    {
+      key: "error",
+      header: t("admin.scheduler.col_task_error", { defaultValue: "Error" }),
+      cell: (task) =>
+        task.error ? (
+          <span className="text-destructive text-xs font-mono">{task.error}</span>
+        ) : (
+          <EmptyCell />
+        ),
+    },
+  ];
 
   const [editForm, setEditForm] = useState<{
     name: string;
     scheduled_at: string;
+    cron_expression: string;
     params: Record<string, unknown>;
   } | null>(null);
-
-  const isEditing = editForm !== null;
 
   function startEdit() {
     if (!job) return;
     setEditForm({
       name: job.name,
       scheduled_at: job.scheduled_at,
+      cron_expression: job.cron_expression ?? "",
       params: { ...job.params },
     });
   }
@@ -111,22 +126,23 @@ function SchedulerJobDetailPage() {
     setEditForm(null);
   }
 
+  function dateEdited(): boolean {
+    if (!editForm || !job) return false;
+    return new Date(editForm.scheduled_at).getTime() !== new Date(job.scheduled_at).getTime();
+  }
+
   const saveMutation = useMutation({
     mutationFn: () =>
       updateAdminSchedulerJob(jobId, {
         name: editForm?.name,
-        scheduled_at: editForm?.scheduled_at,
+        scheduled_at: dateEdited() ? editForm?.scheduled_at : undefined,
+        cron_expression: editForm?.cron_expression.trim() || null,
         params: editForm?.params,
       }),
     onSuccess: () => {
       toast.success(t("admin.scheduler.saved", { defaultValue: "Job saved" }));
       cancelEdit();
-      void queryClient.invalidateQueries({
-        queryKey: ["admin", "scheduler", "job", jobId],
-      });
-      void queryClient.invalidateQueries({
-        queryKey: ["admin", "scheduler", "jobs"],
-      });
+      refreshJob();
     },
     onError: (err) =>
       toast.error(
@@ -147,12 +163,7 @@ function SchedulerJobDetailPage() {
           ? t("admin.scheduler.enabled", { defaultValue: "Job enabled" })
           : t("admin.scheduler.disabled", { defaultValue: "Job disabled" }),
       );
-      void queryClient.invalidateQueries({
-        queryKey: ["admin", "scheduler", "job", jobId],
-      });
-      void queryClient.invalidateQueries({
-        queryKey: ["admin", "scheduler", "jobs"],
-      });
+      refreshJob();
     },
     onError: (err) =>
       toast.error(
@@ -175,9 +186,7 @@ function SchedulerJobDetailPage() {
             })
           : t("admin.scheduler.run_success", { defaultValue: "Job executed" }),
       );
-      void queryClient.invalidateQueries({
-        queryKey: ["admin", "scheduler", "job", jobId],
-      });
+      refreshJob();
     },
     onError: (err) =>
       toast.error(
@@ -292,18 +301,18 @@ function SchedulerJobDetailPage() {
                   label={t("admin.scheduler.col_last_run", {
                     defaultValue: "Last run",
                   })}
-                  value={job.last_run ? new Date(job.last_run).toLocaleString() : <EmptyCell />}
+                  value={<DateCell value={job.last_run} />}
                 />
                 <InfoRow
                   label={t("admin.scheduler.field_created_at", {
                     defaultValue: "Created at",
                   })}
-                  value={new Date(job.created_at).toLocaleString()}
+                  value={<DateCell value={job.created_at} />}
                 />
               </div>
 
               {/* Editable fields */}
-              {isEditing ? (
+              {editForm !== null ? (
                 <div className="space-y-4 rounded-lg border p-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="edit-name">
@@ -313,22 +322,26 @@ function SchedulerJobDetailPage() {
                     </Label>
                     <Input
                       id="edit-name"
-                      value={editForm?.name ?? ""}
-                      onChange={(e) => setEditForm((f) => f && { ...f, name: e.target.value })}
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                       required
                     />
                   </div>
 
                   <DateTimePicker
-                    label={t("admin.scheduler.field_scheduled_at", {
-                      defaultValue: "Scheduled at",
-                    })}
-                    value={editForm?.scheduled_at ?? ""}
-                    onChange={(v) => setEditForm((f) => f && { ...f, scheduled_at: v })}
+                    label={scheduleLabel(editForm.cron_expression)}
+                    value={editForm.scheduled_at}
+                    onChange={(v) => setEditForm({ ...editForm, scheduled_at: v })}
                     required
                   />
 
-                  {updateSchema && editForm && (
+                  <CronInput
+                    id="edit-cron"
+                    value={editForm.cron_expression}
+                    onChange={(v) => setEditForm({ ...editForm, cron_expression: v })}
+                  />
+
+                  {updateSchema && (
                     <div className="space-y-1.5">
                       <p className="text-sm font-medium">
                         {t("admin.scheduler.field_params", {
@@ -340,13 +353,10 @@ function SchedulerJobDetailPage() {
                           schema={updateSchema}
                           values={editForm.params}
                           onChange={(key, val) =>
-                            setEditForm(
-                              (f) =>
-                                f && {
-                                  ...f,
-                                  params: { ...f.params, [key]: val },
-                                },
-                            )
+                            setEditForm({
+                              ...editForm,
+                              params: { ...editForm.params, [key]: val },
+                            })
                           }
                         />
                       </div>
@@ -377,10 +387,22 @@ function SchedulerJobDetailPage() {
                     value={job.name}
                   />
                   <InfoRow
-                    label={t("admin.scheduler.field_scheduled_at", {
-                      defaultValue: "Scheduled at",
+                    label={scheduleLabel(job.cron_expression)}
+                    value={<DateCell value={job.scheduled_at} />}
+                  />
+                  <InfoRow
+                    label={t("admin.scheduler.field_cron", {
+                      defaultValue: "Repeat (cron)",
                     })}
-                    value={new Date(job.scheduled_at).toLocaleString()}
+                    value={
+                      job.cron_expression ? (
+                        <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
+                          {job.cron_expression}
+                        </code>
+                      ) : (
+                        <EmptyCell />
+                      )
+                    }
                   />
                   <InfoRow
                     label={t("admin.scheduler.field_params", {
@@ -394,7 +416,7 @@ function SchedulerJobDetailPage() {
                   />
                   <div className="px-4 py-3">
                     <Button size="sm" variant="outline" onClick={startEdit}>
-                      Edit
+                      {t("common.edit", { defaultValue: "Edit" })}
                     </Button>
                   </div>
                 </div>
@@ -408,64 +430,15 @@ function SchedulerJobDetailPage() {
               defaultValue: "Execution history",
             })}
           >
-            {job.tasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground px-1">
-                {t("admin.scheduler.tasks_empty", {
-                  defaultValue: "No executions yet.",
-                })}
-              </p>
-            ) : (
-              <div className="rounded-lg border overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">
-                        {t("admin.scheduler.col_task_status", {
-                          defaultValue: "Status",
-                        })}
-                      </th>
-                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">
-                        {t("admin.scheduler.col_task_started", {
-                          defaultValue: "Started",
-                        })}
-                      </th>
-                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">
-                        {t("admin.scheduler.col_task_completed", {
-                          defaultValue: "Completed",
-                        })}
-                      </th>
-                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">
-                        {t("admin.scheduler.col_task_error", {
-                          defaultValue: "Error",
-                        })}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {sortedTasks.map((task) => (
-                      <tr key={task.id}>
-                        <td className="px-4 py-2.5">
-                          <TaskStatusBadge status={task.status} />
-                        </td>
-                        <td className="px-4 py-2.5 tabular-nums text-muted-foreground">
-                          {new Date(task.started_at).toLocaleString()}
-                        </td>
-                        <td className="px-4 py-2.5 tabular-nums text-muted-foreground">
-                          {task.completed_at ? new Date(task.completed_at).toLocaleString() : "—"}
-                        </td>
-                        <td className="px-4 py-2.5">
-                          {task.error ? (
-                            <span className="text-destructive text-xs font-mono">{task.error}</span>
-                          ) : (
-                            <EmptyCell />
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <DataTable
+              columns={taskColumns}
+              response={tasks}
+              table={taskTable}
+              isLoading={tasksLoading}
+              isFetching={tasksFetching}
+              rowKey={(task) => task.id}
+              onRefresh={() => void refetchTasks()}
+            />
           </DetailSection>
         </>
       )}
