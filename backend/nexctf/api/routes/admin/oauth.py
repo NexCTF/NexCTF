@@ -2,7 +2,9 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
+from fastapi_toolsets.exceptions import ConflictError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
+from sqlalchemy.exc import IntegrityError
 
 from nexctf import crud
 from nexctf.api.dep import SessionDep
@@ -33,9 +35,12 @@ async def create_oauth_provider(
     session: SessionDep,
     obj: AdminOAuthProviderCreate,
 ) -> Response[AdminOAuthProviderRead]:
-    return await crud.OAuthProviderCrud.create(
-        session=session, obj=obj, schema=AdminOAuthProviderRead
-    )
+    try:
+        return await crud.OAuthProviderCrud.create(
+            session=session, obj=obj, schema=AdminOAuthProviderRead
+        )
+    except IntegrityError:
+        raise ConflictError(detail="Provider slug already taken")
 
 
 @oauth_router.get("/{uuid}")
@@ -56,12 +61,15 @@ async def update_oauth_provider(
     uuid: UUID,
     obj: AdminOAuthProviderUpdate,
 ) -> Response[AdminOAuthProviderRead]:
-    return await crud.OAuthProviderCrud.update(
-        session=session,
-        filters=[OAuthProvider.id == uuid],
-        obj=obj,
-        schema=AdminOAuthProviderRead,
-    )
+    try:
+        return await crud.OAuthProviderCrud.update(
+            session=session,
+            filters=[OAuthProvider.id == uuid],
+            obj=obj,
+            schema=AdminOAuthProviderRead,
+        )
+    except IntegrityError:
+        raise ConflictError(detail="Provider slug already taken")
 
 
 @oauth_router.delete("/{uuid}")

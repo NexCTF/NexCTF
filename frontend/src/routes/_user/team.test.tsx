@@ -6,10 +6,12 @@ import {
   ApiError,
   createTeam,
   getMyTeam,
+  getMyTeamProfile,
   getPublicInfo,
   joinTeam,
   leaveTeam,
   rotateInviteCode,
+  updateMyTeamProfile,
 } from "@/lib/api";
 import type { AuthContext } from "@/lib/auth";
 import { publicInfo, publicInfoWith, team, user } from "@/test/fixtures";
@@ -27,6 +29,8 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   joinTeam: vi.fn(),
   leaveTeam: vi.fn(),
   rotateInviteCode: vi.fn(),
+  getMyTeamProfile: vi.fn(),
+  updateMyTeamProfile: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
@@ -143,4 +147,49 @@ it("sends an anonymous visitor to the login page", async () => {
 
   await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
   expect(getMyTeam).not.toHaveBeenCalled();
+});
+
+const teamProfile = {
+  name: "Alpha",
+  country: null,
+  links: [],
+  custom_fields: [
+    {
+      definition_id: "d1",
+      label: "School",
+      field_type: "string" as const,
+      is_required: false,
+      value: null,
+    },
+  ],
+};
+
+it("saves the team profile when customization is on", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(publicInfoWith({ allow_team_customization: true }));
+  vi.mocked(getMyTeam).mockResolvedValue(team());
+  vi.mocked(getMyTeamProfile).mockResolvedValue(teamProfile);
+  vi.mocked(updateMyTeamProfile).mockResolvedValue(teamProfile);
+  renderTeam();
+
+  await userEvent.type(await screen.findByLabelText("Country"), "fr");
+  await userEvent.type(screen.getByLabelText("School"), "ENSEA");
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+  await waitFor(() =>
+    expect(updateMyTeamProfile).toHaveBeenCalledWith({
+      name: "Alpha",
+      country: "FR",
+      links: [],
+      custom_fields: { d1: "ENSEA" },
+    }),
+  );
+});
+
+it("hides the team profile form when customization is off", async () => {
+  vi.mocked(getMyTeam).mockResolvedValue(team());
+  vi.mocked(getMyTeamProfile).mockResolvedValue(teamProfile);
+  renderTeam();
+
+  await screen.findByText("Invite Code");
+  expect(screen.queryByText("Team profile")).toBeNull();
 });

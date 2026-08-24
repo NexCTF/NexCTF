@@ -190,6 +190,37 @@ class InvalidInviteCodeError(TeamError):
     )
 
 
+class ProfileError(ApiException, abstract=True):
+    """Base for self-service profile editing errors."""
+
+
+class CustomizationDisabledError(ProfileError):
+    api_error = ApiError(
+        code=403,
+        msg="Customization disabled",
+        desc="Editing this profile is currently disabled.",
+        err_code="PROFILE-403-DISABLED",
+    )
+
+
+class UnknownCustomFieldError(ProfileError):
+    api_error = ApiError(
+        code=422,
+        msg="Unknown custom field",
+        desc="A custom field does not exist or does not apply to this profile.",
+        err_code="PROFILE-422-FIELD",
+    )
+
+
+class InvalidCustomFieldValueError(ProfileError):
+    api_error = ApiError(
+        code=422,
+        msg="Invalid custom field value",
+        desc="A custom field value does not match its declared type.",
+        err_code="PROFILE-422-VALUE",
+    )
+
+
 class CaptchaError(ApiException, abstract=True):
     """Base for captcha verification errors."""
 

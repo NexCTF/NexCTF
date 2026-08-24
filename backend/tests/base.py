@@ -1,4 +1,4 @@
-"""Shared permission-guard mixins for admin CRUD test classes.
+"""Shared helpers and permission-guard mixins for API test classes.
 
 Each mixin requires the subclass to define a ``PREFIX: str`` class variable.
 Auth is checked before request-body validation, so minimal/empty payloads
@@ -6,10 +6,21 @@ are sufficient to trigger a 403 without needing a valid body.
 """
 
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.model import User
+from nexctf.model import Team, User
 
 NULL_UUID = "00000000-0000-0000-0000-000000000000"
+
+
+async def put_in_team(db_session: AsyncSession, user: User) -> Team:
+    """Create a team and move *user* into it."""
+    team = Team(name="MyTeam", invite_code="MYTEAM01")
+    db_session.add(team)
+    await db_session.flush()
+    user.team_id = team.id
+    await db_session.flush()
+    return team
 
 
 class ListGuardMixin:

@@ -220,6 +220,8 @@ export interface CompetitionInfo {
   allow_team_creation: boolean;
   require_email: boolean;
   allow_team_changes: boolean;
+  allow_user_customization: boolean;
+  allow_team_customization: boolean;
   enable_challenge_feedback: boolean;
   team_size: number;
 }
@@ -415,6 +417,7 @@ export interface PublicCustomField {
 export interface PublicTeamMember {
   id: string;
   username: string;
+  links: Link[];
   custom_fields: PublicCustomField[];
 }
 
@@ -423,6 +426,7 @@ export interface PublicTeam {
   name: string;
   country: string | null;
   bracket: string | null;
+  links: Link[];
   members: PublicTeamMember[] | null;
   member_count: number;
   challenge_stats: TeamChallengeStats[];
@@ -464,6 +468,57 @@ export async function leaveTeam(): Promise<void> {
 
 export async function rotateInviteCode(): Promise<string> {
   return request<string>("/me/team/invite-code", { method: "POST" });
+}
+
+export interface EditableCustomField {
+  definition_id: string;
+  label: string;
+  field_type: CustomFieldDefinition["field_type"];
+  is_required: boolean;
+  value: string | null;
+}
+
+export interface MyProfile {
+  links: Link[];
+  custom_fields: EditableCustomField[];
+}
+
+export interface MyTeamProfile extends MyProfile {
+  name: string;
+  country: string | null;
+}
+
+/** Values keyed by definition id; an empty string clears the field. */
+export type CustomFieldValues = Record<string, string>;
+
+export async function getMyProfile(): Promise<MyProfile> {
+  return request<MyProfile>("/me/profile");
+}
+
+export async function updateMyProfile(body: {
+  links: Link[];
+  custom_fields: CustomFieldValues;
+}): Promise<MyProfile> {
+  return request<MyProfile>("/me/profile", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function getMyTeamProfile(): Promise<MyTeamProfile> {
+  return request<MyTeamProfile>("/me/team/profile");
+}
+
+export async function updateMyTeamProfile(body: {
+  name: string;
+  country: string | null;
+  links: Link[];
+  custom_fields: CustomFieldValues;
+}): Promise<MyTeamProfile> {
+  return request<MyTeamProfile>("/me/team/profile", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
 }
 
 // ---------------------------------------------------------------------------

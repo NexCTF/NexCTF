@@ -19,6 +19,7 @@ import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ConfirmDialog, DeleteButton } from "@/components/confirm-dialog";
+import { ProfileFormSections, useProfileForm } from "@/components/profile-form";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,6 +43,7 @@ import {
   deleteMySession,
   deleteMyToken,
   getMyOAuthAccounts,
+  getMyProfile,
   getMySessions,
   getMyTokens,
   getPublicInfo,
@@ -53,6 +55,7 @@ import {
   totpSetup,
   type User,
   type UserSession,
+  updateMyProfile,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { copyToClipboard } from "@/lib/utils";
@@ -772,6 +775,64 @@ function OAuthSection() {
 
 // ── Password Section ──────────────────────────────────────────────────────────
 
+function ProfileSection() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const { data: info } = useQuery({
+    queryKey: ["info", "public"],
+    queryFn: getPublicInfo,
+    staleTime: 5 * 60 * 1000,
+  });
+  const enabled = info?.competition.allow_user_customization === true;
+  const { data: profile } = useQuery({
+    queryKey: ["my-profile"],
+    queryFn: getMyProfile,
+    enabled,
+  });
+  const form = useProfileForm(profile);
+
+  const mutation = useMutation({
+    mutationFn: () => updateMyProfile({ links: form.links, custom_fields: form.customFields }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["my-profile"], data);
+      toast.success(t("profile.saved", { defaultValue: "Profile saved" }));
+    },
+    onError: (err) =>
+      toast.error(
+        apiErrorMessage(err, t("profile.save_error", { defaultValue: "Failed to save profile" })),
+      ),
+  });
+
+  if (!enabled || !profile) return null;
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    mutation.mutate();
+  }
+
+  return (
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-base font-semibold">
+          {t("profile.section_title", { defaultValue: "Profile" })}
+        </h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {t("profile.section_hint", {
+            defaultValue: "Shown next to your name on your team's public page.",
+          })}
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border px-4 py-4">
+        <ProfileFormSections profile={profile} form={form} />
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? t("common.saving") : t("common.save")}
+        </Button>
+      </form>
+    </section>
+  );
+}
+
 function PasswordSection() {
   const { t } = useTranslation();
   const [current, setCurrent] = useState("");
@@ -928,6 +989,8 @@ function SettingsPage() {
         <h1 className="text-2xl font-bold">{t("settings.title")}</h1>
         <p className="text-muted-foreground text-sm mt-1">{t("settings.subtitle")}</p>
       </div>
+
+      <ProfileSection />
 
       {user.has_password && <PasswordSection />}
 

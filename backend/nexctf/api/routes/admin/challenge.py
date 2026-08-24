@@ -3,7 +3,9 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
+from fastapi_toolsets.exceptions import ConflictError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
+from sqlalchemy.exc import IntegrityError
 
 from nexctf import crud
 from nexctf.api.dep import (
@@ -61,7 +63,12 @@ async def create_challenge(
     challenge_type: str,
 ):
     entry = challenge_registry.get(challenge_type)
-    return await entry.crud.create(session=session, obj=obj, schema=entry.read_schema)
+    try:
+        return await entry.crud.create(
+            session=session, obj=obj, schema=entry.read_schema
+        )
+    except IntegrityError:
+        raise ConflictError(detail="Challenge title already taken")
 
 
 @challenge_router.get("/{uuid}", response_model=Response[Any])
@@ -85,12 +92,15 @@ async def update_challenge(
 ):
     crud_inst, update_schema, read_schema = ctx
     obj = await validate_body(update_schema, request)
-    return await crud_inst.update(
-        session=session,
-        filters=[crud_inst.model.id == uuid],
-        obj=obj,
-        schema=read_schema,
-    )
+    try:
+        return await crud_inst.update(
+            session=session,
+            filters=[crud_inst.model.id == uuid],
+            obj=obj,
+            schema=read_schema,
+        )
+    except IntegrityError:
+        raise ConflictError(detail="Challenge title already taken")
 
 
 @challenge_router.delete("/{uuid}")

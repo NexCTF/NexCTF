@@ -15,7 +15,7 @@ from nexctf.model import (
     Submission,
     Team,
 )
-from nexctf.module.custom_field import create_custom_field_values
+from nexctf.module.custom_field import replace_custom_field_values
 from nexctf.module.scoreboard.cache import invalidate as invalidate_scoreboard
 from nexctf.module.scoreboard.compute import compute_team_score
 from nexctf.module.stats import compute_admin_team_challenge_stats
@@ -63,7 +63,7 @@ async def create_team(
     except IntegrityError:
         raise ConflictError(detail="Team name already taken")
     if result.data is not None:
-        await create_custom_field_values(
+        await replace_custom_field_values(
             session, obj.custom_fields, team_id=result.data.id
         )
     return result
@@ -180,12 +180,15 @@ async def update_team(
     uuid: UUID,
     obj: AdminTeamUpdate,
 ) -> Response[AdminTeamRead]:
-    result = await crud.TeamCrud.update(
-        session=session,
-        filters=[Team.id == uuid],
-        obj=obj,
-        schema=AdminTeamRead,
-    )
+    try:
+        result = await crud.TeamCrud.update(
+            session=session,
+            filters=[Team.id == uuid],
+            obj=obj,
+            schema=AdminTeamRead,
+        )
+    except IntegrityError:
+        raise ConflictError(detail="Team name already taken")
     # name/bracket changes affect scoreboard entries; drop this team's cached views
     if obj.name is not None or obj.bracket is not None:
         await invalidate_scoreboard(redis, team_id=uuid)

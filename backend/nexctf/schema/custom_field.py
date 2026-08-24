@@ -61,3 +61,13 @@ class AdminCustomFieldValueRead(PydanticBase):
     user_id: UUID | None
     team_id: UUID | None
     value: str | None
+
+
+class EditableCustomField(PydanticBase):
+    """One definition for a profile's target, carrying the owner's current value."""
+
+    definition_id: UUID
+    label: str
+    field_type: CustomFieldType
+    is_required: bool
+    value: str | None = None

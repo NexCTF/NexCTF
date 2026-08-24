@@ -17,7 +17,7 @@ from nexctf.api.security import (
 )
 from nexctf.model import CustomFieldValue, User
 from nexctf.model.event import Event
-from nexctf.module.custom_field import create_custom_field_values
+from nexctf.module.custom_field import replace_custom_field_values
 from nexctf.module.events import emit
 from nexctf.module.session import live_sessions
 from nexctf.schema.custom_field import AdminCustomFieldValueRead
@@ -74,7 +74,7 @@ async def create_user(
     except IntegrityError:
         raise ConflictError(detail="Username or email already taken")
     if result.data is not None:
-        await create_custom_field_values(
+        await replace_custom_field_values(
             session, obj.custom_fields, user_id=result.data.id
         )
         await emit(
@@ -169,12 +169,15 @@ async def update_user(
                 filters=[User.id == uuid],
                 obj=UserEmailVerifiedUpdate(id=uuid, email_verified=False),
             )
-    result = await crud.UserCrud.update(
-        session=session,
-        filters=[User.id == uuid],
-        obj=obj,
-        schema=PublicUserRead,
-    )
+    try:
+        result = await crud.UserCrud.update(
+            session=session,
+            filters=[User.id == uuid],
+            obj=obj,
+            schema=PublicUserRead,
+        )
+    except IntegrityError:
+        raise ConflictError(detail="Username or email already taken")
     changes = obj.model_dump(exclude={"id"}, exclude_unset=True)
     await emit(
         session,

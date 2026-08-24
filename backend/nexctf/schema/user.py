@@ -5,8 +5,8 @@ from fastapi_toolsets.schemas import PydanticBase
 from pydantic import EmailStr
 
 from nexctf.model import UserRole
-from nexctf.schema.custom_field import AdminCustomFieldValueRead
-from nexctf.schema.team import Link
+from nexctf.schema.custom_field import AdminCustomFieldValueRead, EditableCustomField
+from nexctf.schema.team import Link, LinkListInput
 
 
 class AdminUserUpdate(PydanticBase):
@@ -16,7 +16,7 @@ class AdminUserUpdate(PydanticBase):
     is_active: bool | None = None
     role: UserRole | None = None
     team_id: UUID | None = None
-    links: list[Link] | None = None
+    links: LinkListInput | None = None
 
 
 class AdminUserCreate(PydanticBase):
@@ -153,3 +153,15 @@ class TotpEnableRequest(PydanticBase):
 
 class TotpDisableRequest(PydanticBase):
     code: str
+
+
+class MyProfileUpdate(PydanticBase):
+    """Full replacement of the user fields a player may edit."""
+
+    links: LinkListInput = []
+    custom_fields: dict[UUID, str | None] = {}
+
+
+class MyProfileRead(PydanticBase):
+    links: list[Link] = []
+    custom_fields: list[EditableCustomField] = []

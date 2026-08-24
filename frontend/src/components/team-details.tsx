@@ -2,7 +2,13 @@ import { Check, ChevronRight, Lightbulb, Users, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChallengeLink, DateCell, EmptyCell, SignedPoints } from "@/components/table-cells";
-import type { PublicCustomField, PublicTeam, TeamChallengeStats, TeamScoreDetail } from "@/lib/api";
+import type {
+  Link,
+  PublicCustomField,
+  PublicTeam,
+  TeamChallengeStats,
+  TeamScoreDetail,
+} from "@/lib/api";
 
 // ── Badges ────────────────────────────────────────────────────────────────────
 
@@ -15,23 +21,37 @@ function TeamBadge({ label, children }: { label: string; children: ReactNode }) 
   );
 }
 
+/** Renders an http(s) URL as a link, anything else as plain text. */
+function SafeUrl({ href, children }: { href: string; children: ReactNode }) {
+  if (!/^https?:\/\//i.test(href)) return children;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-primary hover:underline underline-offset-2"
+    >
+      {children}
+    </a>
+  );
+}
+
 function CustomFieldBadges({ fields }: { fields: PublicCustomField[] }) {
   return fields
     .filter((f): f is PublicCustomField & { value: string } => Boolean(f.value))
     .map((f) => (
       <TeamBadge key={f.name} label={f.label}>
-        {f.field_type === "url" && /^https?:\/\//i.test(f.value) ? (
-          <a
-            href={f.value}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline underline-offset-2"
-          >
-            {f.value}
-          </a>
-        ) : (
-          f.value
-        )}
+        {f.field_type === "url" ? <SafeUrl href={f.value}>{f.value}</SafeUrl> : f.value}
+      </TeamBadge>
+    ));
+}
+
+function LinkBadges({ links }: { links: Link[] }) {
+  return links
+    .filter((l) => /^https?:\/\//i.test(l.url))
+    .map((l) => (
+      <TeamBadge key={l.url} label="">
+        <SafeUrl href={l.url}>{l.label || l.url}</SafeUrl>
       </TeamBadge>
     ));
 }
@@ -39,7 +59,7 @@ function CustomFieldBadges({ fields }: { fields: PublicCustomField[] }) {
 export function TeamBadges({ team }: { team: PublicTeam }) {
   const { t } = useTranslation();
   const hasFields = team.custom_fields.some((f) => Boolean(f.value));
-  if (!team.country && !team.bracket && !hasFields) return null;
+  if (!team.country && !team.bracket && !hasFields && team.links.length === 0) return null;
 
   return (
     <div className="flex flex-wrap gap-1.5 mt-3">
@@ -50,6 +70,7 @@ export function TeamBadges({ team }: { team: PublicTeam }) {
         </TeamBadge>
       )}
       <CustomFieldBadges fields={team.custom_fields} />
+      <LinkBadges links={team.links} />
     </div>
   );
 }
@@ -176,6 +197,7 @@ export function MembersList({ members }: { members: PublicTeam["members"] }) {
             </div>
             <span className="text-sm">{m.username}</span>
             <CustomFieldBadges fields={m.custom_fields} />
+            <LinkBadges links={m.links} />
           </div>
         ))}
       </div>
