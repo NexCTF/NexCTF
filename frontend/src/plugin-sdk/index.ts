@@ -4,7 +4,9 @@
  * Copy this file into your plugin's frontend/src/ as sdk.ts.
  *
  * React and ReactDOM are provided by the host via window.__nexctf__ at runtime.
- * Mark them as external in your build (see the vite.config.ts template).
+ * Mark them as external in your build — see the vite config in README.md
+ * under "Writing a plugin". Ship the built bundle in your wheel; the host
+ * never builds plugin frontends.
  *
  * Slots (v1):
  *   challenge_panel — rendered between challenge header and questions.

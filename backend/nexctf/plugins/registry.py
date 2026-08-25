@@ -1,3 +1,5 @@
+"""Registries plugins register their polymorphic types and scheduler jobs with."""
+
 from __future__ import annotations
 
 import dataclasses
@@ -43,12 +45,7 @@ def _auto_load_options(model: Any) -> list[Any]:
 
 
 class PolymorphicRegistry:
-    """Maps a polymorphic type name to its CrudFactory and Pydantic schemas.
-
-    Plugins call :meth:`register` at import time and routes call :meth:`get` at
-    request time. Use :meth:`register_load_option` to add eager-load options and
-    :meth:`apply` to patch a base CRUD class with all of them.
-    """
+    """Maps a polymorphic type name to its CrudFactory and Pydantic schemas."""
 
     def __init__(self) -> None:
         self._entries: dict[str, RegistryEntry] = {}
@@ -100,9 +97,6 @@ class PolymorphicRegistry:
     def register_load_option(self, option: Any) -> None:
         """Register an extra SQLAlchemy load option for the base CRUD query.
 
-        Use this to eagerly load relationships on polymorphic subclasses so they
-        appear in list responses.
-
         Args:
             option: A SQLAlchemy load option (e.g. ``selectinload(...)``).
         """
@@ -110,8 +104,6 @@ class PolymorphicRegistry:
 
     def apply(self, crud_class: Any) -> None:
         """Patch a base CRUD class with all registered load options.
-
-        Idempotent — subsequent calls are no-ops (safe in tests).
 
         Args:
             crud_class: The base CRUD class to patch in place.

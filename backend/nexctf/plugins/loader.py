@@ -1,27 +1,14 @@
-"""Plugin discovery, loading, and FastAPI wiring.
-
-Builtin plugins
-    Discovered by scanning every ``plugins/builtin/*/pyproject.toml`` for
-    ``[project.entry-points."nexctf.plugins"]`` entries and importing the
-    declared modules.
-
-Store (user-provided) plugins
-    Placed manually in ``plugins_store/``. Their dependencies are installed and
-    migrations run by ``scripts/start.sh`` at container start; this loader then
-    builds the frontend and imports the entry point.
-
-Call ``init_plugins(app, session)`` from the FastAPI lifespan after
-``nexctf.core.appconfig.sync_to_redis``.
-"""
+"""Plugin discovery, loading, and FastAPI wiring."""
 
 from __future__ import annotations
 
 import importlib
+import importlib.metadata
 import logging
+import re
 import sys
-import tomllib
-from collections.abc import Iterable
 from dataclasses import dataclass
+from email.utils import getaddresses
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING
@@ -32,11 +19,16 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_ENTRY_POINT_GROUP = "nexctf.plugins"
+_BUILTINS = {
+    "challenge": "nexctf.plugins.builtin.challenge",
+    "solution": "nexctf.plugins.builtin.solution",
+}
+
 _loaded: dict[str, ModuleType] = {}
-_BUILTIN_DIR = Path(__file__).parent / "builtin"
-_STORE_DIR = Path(__file__).parent.parent.parent / "plugins_store"
 _plugin_tables: set[str] = set()
 _plugin_metadata: dict[str, PluginMeta] = {}
+_plugin_migrations: dict[str, tuple[Path, frozenset[str]]] = {}
 
 
 @dataclass
@@ -56,110 +48,129 @@ class PluginMeta:
     load_error: str | None = None
 
 
-def read_pyproject(path: Path) -> dict:
-    """Load and parse a plugin's ``pyproject.toml``.
+def plugin_key(dist_name: str) -> str:
+    """Normalise a distribution name into the key a plugin is tracked under.
 
     Args:
-        path: Path to the ``pyproject.toml`` file.
+        dist_name: The installed distribution name, e.g. ``"nexctf-sandbox"``.
 
     Returns:
-        The parsed TOML document.
+        The normalised key, e.g. ``"nexctf_sandbox"``.
     """
-    with path.open("rb") as f:
-        return tomllib.load(f)
+    return re.sub(r"[-_.]+", "_", dist_name).lower()
 
 
-def get_entry_points(data: dict) -> dict[str, str]:
-    """Extract the ``nexctf.plugins`` entry points from pyproject data.
+def version_table(key: str) -> str:
+    """Return the Alembic version table a plugin's migrations are tracked in.
 
     Args:
-        data: A parsed ``pyproject.toml`` document.
+        key: The plugin key, as returned by :func:`plugin_key`.
 
     Returns:
-        A mapping of entry-point name to dotted module path.
+        The version table name, e.g. ``"alembic_version_nexctf_sandbox"``.
     """
-    return data.get("project", {}).get("entry-points", {}).get("nexctf.plugins", {})
+    return f"alembic_version_{key}"
 
 
-def parse_plugin_metadata(
+def _display_name(dist_name: str) -> str:
+    """Derive a human-readable name from a distribution name."""
+    stem = re.sub(r"^nexctf[-_](plugin[-_])?", "", dist_name, flags=re.IGNORECASE)
+    return re.sub(r"[-_.]+", " ", stem).title() or dist_name
+
+
+def _authors(metadata) -> list[str]:
+    """Collect author names from ``Author`` and ``Author-email`` headers."""
+    names = [a.strip() for a in metadata.get_all("Author") or [] if a.strip()]
+    names += [n for n, _ in getaddresses(metadata.get_all("Author-email") or []) if n]
+    return list(dict.fromkeys(names))
+
+
+def _project_urls(metadata) -> dict[str, str]:
+    """Parse ``Project-URL`` headers into a lowercased label → URL mapping."""
+    urls = {}
+    for raw in metadata.get_all("Project-URL") or []:
+        label, _, url = raw.partition(",")
+        urls[label.strip().lower()] = url.strip()
+    return urls
+
+
+def _builtin_metadata(key: str) -> PluginMeta:
+    """Build metadata for an in-tree builtin from the nexctf distribution."""
+    try:
+        meta = _installed_metadata(key, importlib.metadata.distribution("nexctf"))
+    except importlib.metadata.PackageNotFoundError:
+        meta = PluginMeta(
+            key=key,
+            name=key,
+            display_name=key,
+            version=None,
+            description=None,
+            authors=[],
+            repo_url=None,
+            homepage_url=None,
+            is_builtin=True,
+        )
+    meta.name = f"nexctf-plugin-{key}"
+    meta.display_name = _display_name(key)
+    meta.description = f"Built-in {key} types for NexCTF"
+    meta.is_builtin = True
+    return meta
+
+
+def _installed_metadata(
     key: str,
-    data: dict,
+    dist: importlib.metadata.Distribution,
     *,
-    is_builtin: bool,
     is_active: bool = True,
     load_error: str | None = None,
 ) -> PluginMeta:
-    """Build a :class:`PluginMeta` from a parsed ``pyproject.toml`` document.
+    """Build metadata for an installed plugin from its distribution metadata.
 
     Args:
-        key: Entry-point name used as the plugin's key.
-        data: A parsed ``pyproject.toml`` document.
-        is_builtin: Whether the plugin ships in-tree.
+        key: The plugin key the distribution is tracked under.
+        dist: The installed distribution providing the entry point.
         is_active: Whether the plugin loaded successfully.
         load_error: Error message captured when loading failed, if any.
 
     Returns:
         The assembled metadata.
     """
-    project = data.get("project", {})
-    nexctf = data.get("tool", {}).get("nexctf", {})
-    urls = project.get("urls", {})
-    authors_raw = project.get("authors", [])
-    authors = [
-        a.get("name", "") for a in authors_raw if isinstance(a, dict) and a.get("name")
-    ]
-    name = project.get("name", key)
-    display_name = nexctf.get("display_name", name)
+    metadata = dist.metadata
+    urls = _project_urls(metadata)
     return PluginMeta(
         key=key,
-        name=name,
-        display_name=display_name,
-        version=project.get("version"),
-        description=project.get("description"),
-        authors=authors,
-        repo_url=urls.get("Repository") or urls.get("repository"),
-        homepage_url=urls.get("Homepage") or urls.get("homepage"),
-        is_builtin=is_builtin,
+        name=metadata["Name"] or key,
+        display_name=_display_name(metadata["Name"] or key),
+        version=metadata["Version"],
+        description=metadata["Summary"],
+        authors=_authors(metadata),
+        repo_url=urls.get("repository") or urls.get("source"),
+        homepage_url=urls.get("homepage"),
+        is_builtin=False,
         is_active=is_active,
         load_error=load_error,
     )
 
 
-def register_plugin_tables(*table_names: str) -> None:
-    """Register table names owned by a plugin.
+def derive_owned_tables(package: str) -> frozenset[str]:
+    """Derive the table names a plugin owns from its mapped models.
 
     Args:
-        *table_names: Table names the main Alembic autogenerate must ignore.
-    """
-    _plugin_tables.update(table_names)
-
-
-def derive_owned_tables(model_modules: Iterable[str]) -> frozenset[str]:
-    """Derive the table names a plugin owns from its model modules.
-
-    Imports each module so its mapped classes register with SQLAlchemy, then
-    collects the table name of every mapper defined in those modules. This makes
-    a model's ``__tablename__`` the single source of truth, so plugin authors
-    never restate table names in ``pyproject.toml``.
-
-    Args:
-        model_modules: Dotted paths to the plugin's model modules (the
-            ``[tool.nexctf.migrations].models`` pyproject entries).
+        package: The plugin's root package name, e.g. ``"nexctf_sandbox"``.
 
     Returns:
-        The set of table names declared by models in those modules.
+        The set of table names declared by models inside that package.
     """
     from sqlalchemy import Table
 
     from nexctf.model import Base
 
-    modules = set(model_modules)
-    for module in modules:
-        importlib.import_module(module)
+    prefix = f"{package}."
     return frozenset(
         mapper.local_table.name
         for mapper in Base.registry.mappers
-        if mapper.class_.__module__ in modules and isinstance(mapper.local_table, Table)
+        if f"{mapper.class_.__module__}.".startswith(prefix)
+        and isinstance(mapper.local_table, Table)
     )
 
 
@@ -176,90 +187,63 @@ def get_plugin_metadata() -> dict[str, PluginMeta]:
     """Return metadata for all loaded plugins.
 
     Returns:
-        A mapping of entry-point name to :class:`PluginMeta`.
+        A mapping of plugin key to :class:`PluginMeta`.
     """
     return _plugin_metadata
 
 
-def _load_plugins_from_dir(
-    directory: Path,
-    *,
-    is_builtin: bool,
-    build_frontend: bool = False,
-) -> None:
-    """Scan ``directory/*/pyproject.toml``, build frontends, and import entry points.
+def get_plugin_migrations() -> dict[str, tuple[Path, frozenset[str]]]:
+    """Return the migrations of every loaded plugin that ships some.
 
-    Builtin (in-tree) load failures propagate — they are code bugs and must be
-    fatal. A store plugin that fails any step is instead recorded in the metadata
-    with ``is_active=False`` and a ``load_error`` so the admin UI can surface it.
-
-    Args:
-        directory: Directory whose immediate subdirectories hold plugins.
-        is_builtin: Whether the directory holds in-tree builtin plugins.
-        build_frontend: Whether to build each plugin's frontend bundle.
+    Returns:
+        A mapping of plugin key to its ``(versions directory, owned tables)``.
     """
-    if not directory.exists():
-        return
-    for pyproject_path in sorted(directory.glob("*/pyproject.toml")):
-        plugin_dir = pyproject_path.parent
-        data = read_pyproject(pyproject_path)
-        entry_points = get_entry_points(data)
-        try:
-            if build_frontend:
-                from nexctf.plugins.frontend import build_plugin_frontend
-
-                plugin_name = data.get("project", {}).get("name", plugin_dir.name)
-                build_plugin_frontend(plugin_dir, plugin_name)
-            for ep_name, module_path in entry_points.items():
-                if ep_name not in _loaded:
-                    logger.debug("plugin.load name=%s module=%s", ep_name, module_path)
-                    _loaded[ep_name] = importlib.import_module(module_path)
-                    _plugin_metadata[ep_name] = parse_plugin_metadata(
-                        ep_name, data, is_builtin=is_builtin
-                    )
-            migrations = data.get("tool", {}).get("nexctf", {}).get("migrations", {})
-            register_plugin_tables(*derive_owned_tables(migrations.get("models", [])))
-        except Exception as exc:
-            if is_builtin:
-                raise
-            logger.exception("plugin.load_failed dir=%s", plugin_dir)
-            for key in list(entry_points) or [plugin_dir.name]:
-                if key not in _plugin_metadata:
-                    _plugin_metadata[key] = parse_plugin_metadata(
-                        key,
-                        data,
-                        is_builtin=is_builtin,
-                        is_active=False,
-                        load_error=str(exc),
-                    )
+    return _plugin_migrations
 
 
 def load_builtin_plugins() -> None:
-    """Scan ``plugins/builtin/`` and import every declared entry point."""
-    _load_plugins_from_dir(_BUILTIN_DIR, is_builtin=True)
+    """Import the in-tree builtin plugins and register their types."""
+    for key, module_path in _BUILTINS.items():
+        if key in _loaded:
+            continue
+        logger.debug("plugin.load name=%s module=%s builtin=true", key, module_path)
+        _loaded[key] = importlib.import_module(module_path)
+        _plugin_metadata[key] = _builtin_metadata(key)
 
 
-def _load_store_plugins() -> None:
-    """Build frontends and import plugins placed in ``plugins_store/``.
-
-    Dependency installation and migrations are handled by ``scripts/start.sh``.
-    """
-    if not _STORE_DIR.exists():
-        return
-    if str(_STORE_DIR) not in sys.path:
-        sys.path.insert(0, str(_STORE_DIR))
-    _load_plugins_from_dir(_STORE_DIR, is_builtin=False, build_frontend=True)
+def _load_installed_plugins() -> None:
+    """Import every installed distribution declaring a ``nexctf.plugins`` entry point."""
+    for ep in importlib.metadata.entry_points(group=_ENTRY_POINT_GROUP):
+        if ep.dist is None:
+            continue
+        key = plugin_key(ep.dist.name)
+        if key in _loaded or key in _plugin_metadata:
+            continue
+        try:
+            logger.debug("plugin.load name=%s module=%s", key, ep.module)
+            _loaded[key] = importlib.import_module(ep.module)
+            _plugin_metadata[key] = _installed_metadata(key, ep.dist)
+            # Resolve from the root package, not the entry-point module, so an
+            # entry point aimed at a submodule still finds models and migrations.
+            root = ep.module.split(".")[0]
+            owned = derive_owned_tables(root)
+            _plugin_tables.update(owned)
+            versions = (
+                Path(sys.modules[root].__file__ or "").parent / "alembic" / "versions"
+            )
+            if versions.is_dir():
+                _plugin_migrations[key] = (versions, owned)
+        except Exception as exc:
+            logger.exception("plugin.load_failed name=%s", key)
+            _plugin_metadata[key] = _installed_metadata(
+                key, ep.dist, is_active=False, load_error=str(exc)
+            )
 
 
 def load_plugin_registries() -> None:
-    """Populate the plugin registries by importing builtin and store plugins.
-
-    Shared by the API lifespan (via :func:`init_plugins`) and the worker, which
-    calls it as its sole initialization step. It performs no API-specific work
-    (route mounting, CRUD patching) so it is safe for background job execution.
-    """
+    """Populate the plugin registries by importing builtin and installed plugins."""
     load_builtin_plugins()
-    _load_store_plugins()
+    _load_installed_plugins()
 
 
 def _patch_crud_classes() -> None:
@@ -273,8 +257,6 @@ def _patch_crud_classes() -> None:
 
 def mount_plugin_routes(app: FastAPI) -> None:
     """Mount plugin-registered routers onto the FastAPI app.
-
-    Call after all plugins are loaded so every registered route is included.
 
     Args:
         app: The FastAPI application to mount the routers on.
@@ -302,12 +284,6 @@ def mount_plugin_routes(app: FastAPI) -> None:
 
 async def init_plugins(app: FastAPI, session: AsyncSession) -> None:
     """Load all plugins, patch CRUD classes, reconcile configs, and mount routes.
-
-    Calls :func:`load_plugin_registries` then performs the API-specific steps
-    (CRUD patching, config reconciliation, route mounting). Idempotent — safe to
-    call multiple times (e.g. in tests).
-
-    Call from the FastAPI lifespan after ``nexctf.core.appconfig.sync_to_redis``.
 
     Args:
         app: The FastAPI application to wire plugin routes into.

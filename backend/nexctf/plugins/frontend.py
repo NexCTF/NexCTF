@@ -1,8 +1,8 @@
+"""Registry of plugin-provided frontend bundles."""
+
 from __future__ import annotations
 
 import logging
-import shutil
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,6 +18,7 @@ class FrontendEntry:
     slots: list[str]
     challenge_types: list[str] | None = None
     entry_file: str = "bundle.js"
+    has_bundle: bool = True
 
 
 class FrontendRegistry:
@@ -43,7 +44,7 @@ class FrontendRegistry:
         challenge_types: list[str] | None = None,
         entry_file: str = "bundle.js",
     ) -> None:
-        """Register a plugin's compiled frontend bundle.
+        """Register a plugin's prebuilt frontend bundle.
 
         Args:
             key: Unique key identifying the plugin's frontend.
@@ -52,12 +53,21 @@ class FrontendRegistry:
             challenge_types: Challenge types the bundle applies to, or ``None`` for all.
             entry_file: Bundle entry file name within ``dist_dir``.
         """
+        has_bundle = (dist_dir / entry_file).is_file()
+        if not has_bundle:
+            logger.warning(
+                "plugin.frontend.missing key=%s path=%s "
+                "(build the bundle and ship frontend/dist as package data)",
+                key,
+                dist_dir / entry_file,
+            )
         self._entries[key] = FrontendEntry(
             key=key,
-            dist_dir=dist_dir,
+            dist_dir=dist_dir.resolve(),
             slots=slots,
             challenge_types=challenge_types,
             entry_file=entry_file,
+            has_bundle=has_bundle,
         )
 
     def get_all(self) -> list[FrontendEntry]:
@@ -77,64 +87,3 @@ class FrontendRegistry:
 
 
 frontend_registry = FrontendRegistry()
-
-
-def build_plugin_frontend(plugin_dir: Path, plugin_name: str) -> None:
-    """Build a plugin's frontend bundle if a ``frontend/`` directory is present.
-
-    Args:
-        plugin_dir: The plugin's root directory.
-        plugin_name: The plugin name used for logging.
-    """
-    frontend_dir = plugin_dir / "frontend"
-    if not frontend_dir.exists():
-        return
-
-    logger.info("plugin.frontend.install name=%s", plugin_name)
-    node_modules = frontend_dir / "node_modules"
-    result = subprocess.run(
-        ["npm", "install", "--prefer-offline"],
-        cwd=str(frontend_dir),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        logger.warning(
-            "plugin.frontend.install offline failed, retrying clean name=%s",
-            plugin_name,
-        )
-        if node_modules.exists():
-            shutil.rmtree(node_modules)
-        result = subprocess.run(
-            ["npm", "install"],
-            cwd=str(frontend_dir),
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    if result.returncode != 0:
-        logger.error(
-            "plugin.frontend.install failed name=%s\n%s",
-            plugin_name,
-            result.stderr or result.stdout,
-        )
-        return
-
-    logger.info("plugin.frontend.build name=%s", plugin_name)
-    result = subprocess.run(
-        ["npm", "run", "build"],
-        cwd=str(frontend_dir),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        logger.error(
-            "plugin.frontend.build failed name=%s\n%s",
-            plugin_name,
-            result.stderr or result.stdout,
-        )
-        return
-
-    logger.info("plugin.frontend.build complete name=%s", plugin_name)

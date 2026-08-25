@@ -8,11 +8,12 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from nexctf.core.config import settings
 from nexctf.model import Base
-from nexctf.plugins import get_plugin_tables, load_builtin_plugins
-
-load_builtin_plugins()  # register built-in plugin models with SQLAlchemy metadata
+from nexctf.plugins import get_plugin_tables, load_plugin_registries
 
 config = context.config
+
+if getattr(config.cmd_opts, "autogenerate", False):
+    load_plugin_registries()
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -21,7 +22,10 @@ target_metadata = Base.metadata
 
 
 def include_object(obj, name, type_, reflected, compare_to):
-    return not (type_ == "table" and name in get_plugin_tables())
+    """Leave plugin-owned tables, and every plugin's version table, to the plugin."""
+    if type_ != "table":
+        return True
+    return not (name in get_plugin_tables() or name.startswith("alembic_version"))
 
 
 def get_url() -> str:

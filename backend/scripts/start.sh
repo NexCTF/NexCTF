@@ -7,25 +7,18 @@ export APP_DIR="${APP_DIR:-$(pwd)}"
 
 log() { echo "[start] $*"; }
 
-# --- Prepare (dev + prod): install store plugins, migrate, load fixtures ---
-for plugin in "$APP_DIR"/plugins_store/*/; do
-    if [ -f "$plugin/pyproject.toml" ]; then
-        plugin_name="$(basename "$plugin")"
-        log "installing plugin: $plugin_name"
-        uv pip install -e "$plugin"
-    fi
-done
+# --- Prepare (dev + prod): install plugins, migrate, load fixtures ---
+if [ -n "${NEXCTF_PLUGINS:-}" ]; then
+    log "installing plugins: $NEXCTF_PLUGINS"
+    # shellcheck disable=SC2046 # word splitting is how the list becomes arguments
+    uv pip install $(echo "$NEXCTF_PLUGINS" | tr ',' ' ')
+fi
 
 log "running core migrations"
 alembic upgrade head
 
-for plugin in "$APP_DIR"/plugins_store/*/; do
-    if [ -d "$plugin/alembic/versions" ]; then
-        plugin_name="$(basename "$plugin")"
-        log "running migrations for plugin: $plugin_name"
-        python "$APP_DIR/scripts/run_plugin_migration.py" "$plugin" upgrade head
-    fi
-done
+log "running plugin migrations"
+nexctf-plugins upgrade
 
 log "loading fixtures (environment=${ENVIRONMENT:-production})"
 manager fixtures load "${ENVIRONMENT:-production}" --strategy skip_existing

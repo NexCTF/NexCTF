@@ -22,7 +22,7 @@ async def get_plugin_manifest() -> list[PluginManifestEntry]:
             challenge_types=entry.challenge_types,
         )
         for entry in frontend_registry.get_all()
-        if (entry.dist_dir / entry.entry_file).exists()
+        if entry.has_bundle
     ]
 
 
@@ -33,7 +33,7 @@ async def serve_plugin_frontend(plugin_key: str, file_path: str) -> FileResponse
         raise NotFoundError()
     target = (entry.dist_dir / file_path).resolve()
     # Guard against path traversal
-    if not target.is_relative_to(entry.dist_dir.resolve()):
+    if not target.is_relative_to(entry.dist_dir):
         raise NotFoundError()
     if not target.exists() or not target.is_file():
         raise NotFoundError()
