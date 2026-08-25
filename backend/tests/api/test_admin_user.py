@@ -204,6 +204,21 @@ class TestUpdateUser(UpdateGuardMixin):
         assert resp.status_code == 200
         assert resp.json()["data"]["username"] == "new-name"
 
+    async def test_update_duplicate_username(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_user_members: list[User],
+    ) -> None:
+        """The unique index rejects the rename as a 409, not an unhandled 500."""
+        c, _ = admin_client
+        taken, target = fixture_user_members[0], fixture_user_members[1]
+
+        resp = await c.put(
+            f"{self.PREFIX}/{target.id}",
+            json={"id": str(target.id), "username": taken.username},
+        )
+        assert resp.status_code == 409
+
     async def test_update_role(
         self,
         admin_client: tuple[AsyncClient, User],

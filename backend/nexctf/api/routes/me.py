@@ -1,13 +1,17 @@
 """Current-user self-management endpoints."""
 
+from collections.abc import AsyncGenerator
 from uuid import UUID
 
 import pyotp
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response as RawResponse
 from fastapi_multiauth import hash_token
+from fastapi_toolsets.db import transaction
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, PaginationType, Response
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from nexctf import crud
@@ -29,6 +33,7 @@ from nexctf.core import appconfig
 from nexctf.exceptions import (
     AlreadyInTeamError,
     CannotUnlinkLastOAuthError,
+    CustomizationDisabledError,
     InvalidCredentialsError,
     InvalidInviteCodeError,
     InvalidOtpError,
@@ -41,7 +46,9 @@ from nexctf.exceptions import (
 )
 from nexctf.model import OAuthAccount, Team, User, UserSession, UserToken
 from nexctf.model.user import gen_invite_code
+from nexctf.module.custom_field import load_editable_fields, replace_custom_field_values
 from nexctf.module.events import emit
+from nexctf.module.scoreboard.cache import invalidate as invalidate_scoreboard
 from nexctf.module.session import live_sessions, revoke_user_sessions
 from nexctf.module.team import load_team_read
 from nexctf.schema import (
@@ -52,8 +59,16 @@ from nexctf.schema import (
     UserTeamUpdate,
     UserTotpUpdate,
 )
-from nexctf.schema.team import MyTeamRead, TeamCreate, TeamJoinRequest
+from nexctf.schema.team import (
+    MyTeamProfileRead,
+    MyTeamProfileUpdate,
+    MyTeamRead,
+    TeamCreate,
+    TeamJoinRequest,
+)
 from nexctf.schema.user import (
+    MyProfileRead,
+    MyProfileUpdate,
     PasswordChangeRequest,
     TotpDisableRequest,
     TotpEnableRequest,
@@ -397,6 +412,18 @@ async def totp_disable(
     )
 
 
+async def _my_team(session: AsyncSession, user: User) -> Team:
+    """The caller's team, or a 4xx when they have none."""
+    if user.team_id is None:
+        raise NotInTeamError()
+    team = await crud.TeamCrud.first(
+        session, [Team.id == user.team_id], load_options=[]
+    )
+    if team is None:
+        raise NotFoundError()
+    return team
+
+
 @me_router.get("/team")
 async def get_my_team(
     session: SessionDep,
@@ -433,10 +460,11 @@ async def create_team(
         raise TeamCreationDisabledError()
     if user.team_id is not None:
         raise AlreadyInTeamError()
-    if await crud.TeamCrud.first(session=session, filters=[Team.name == body.name]):
-        raise ConflictError(detail="Team name already taken")
 
-    team = await crud.TeamCrud.create(session, body)
+    try:
+        team = await crud.TeamCrud.create(session, body)
+    except IntegrityError:
+        raise ConflictError(detail="Team name already taken")
     await crud.UserCrud.update(
         session, UserTeamUpdate(team_id=team.id), [User.id == user.id]
     )
@@ -543,12 +571,107 @@ async def rotate_invite_code(
 ) -> Response[str]:
     if not appconfig.get_with_overrides("ctf.allow_team_changes", overrides):
         raise TeamChangesDisabledError()
-    if user.team_id is None:
-        raise NotInTeamError()
-    team = await crud.TeamCrud.first(
-        session, [Team.id == user.team_id], load_options=[]
-    )
-    if team is None:
-        raise NotFoundError()
+    team = await _my_team(session, user)
     team.invite_code = gen_invite_code()
     return Response(data=team.invite_code)
+
+
+@me_router.get("/profile")
+async def get_my_profile(
+    session: SessionDep,
+    user: CurrentUserDep,
+) -> Response[MyProfileRead]:
+    """The current user's editable profile: links and custom field values."""
+    return Response(
+        data=MyProfileRead(
+            links=user.links or [],
+            custom_fields=await load_editable_fields(session, user_id=user.id),
+        )
+    )
+
+
+@me_router.put("/profile")
+async def update_my_profile(
+    session: SessionDep,
+    overrides: ConfigDep,
+    body: MyProfileUpdate,
+    user: CurrentUserDep,
+) -> Response[MyProfileRead]:
+    if not appconfig.get_with_overrides("ctf.allow_user_customization", overrides):
+        raise CustomizationDisabledError()
+    user.links = [link.model_dump() for link in body.links]
+    return Response(
+        data=MyProfileRead(
+            links=user.links,
+            custom_fields=await replace_custom_field_values(
+                session, body.custom_fields, user_id=user.id
+            ),
+        )
+    )
+
+
+@me_router.get("/team/profile")
+async def get_my_team_profile(
+    session: SessionDep,
+    user: CurrentUserDep,
+) -> Response[MyTeamProfileRead]:
+    """The current user's team profile, as an editable form payload."""
+    team = await _my_team(session, user)
+    return Response(
+        data=MyTeamProfileRead(
+            name=team.name,
+            country=team.country,
+            links=team.links or [],
+            custom_fields=await load_editable_fields(session, team_id=team.id),
+        )
+    )
+
+
+async def _invalidate_renamed_team(
+    request: Request, redis: RedisDep
+) -> AsyncGenerator[None]:
+    """Drop the renamed team's scoreboard entries once the write has committed."""
+    try:
+        yield
+    finally:
+        team_id = getattr(request.state, "renamed_team_id", None)
+        if team_id is not None:
+            await invalidate_scoreboard(redis, team_id=team_id)
+
+
+@me_router.put("/team/profile", dependencies=[Depends(_invalidate_renamed_team)])
+async def update_my_team_profile(
+    request: Request,
+    session: SessionDep,
+    overrides: ConfigDep,
+    body: MyTeamProfileUpdate,
+    user: CurrentUserDep,
+) -> Response[MyTeamProfileRead]:
+    """Any member may edit the team, as any member may already rotate its code."""
+    if not appconfig.get_with_overrides("ctf.allow_team_customization", overrides):
+        raise CustomizationDisabledError()
+    team = await _my_team(session, user)
+    team_id = team.id
+    renamed = body.name != team.name
+    links = [link.model_dump() for link in body.links]
+
+    try:
+        async with transaction(session):
+            team.name = body.name
+            team.country = body.country
+            team.links = links
+    except IntegrityError:
+        raise ConflictError(detail="Team name already taken")
+    if renamed:
+        # The scoreboard caches team names; let the route dep drop them post-commit.
+        request.state.renamed_team_id = team_id
+    return Response(
+        data=MyTeamProfileRead(
+            name=body.name,
+            country=body.country,
+            links=links,
+            custom_fields=await replace_custom_field_values(
+                session, body.custom_fields, team_id=team_id
+            ),
+        )
+    )

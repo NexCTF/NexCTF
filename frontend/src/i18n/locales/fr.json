@@ -587,6 +587,14 @@
         "description": "Permettre aux joueurs de créer des équipes et générer des codes d'invitation",
         "label": "Autoriser la création d'équipe"
       },
+      "allow_team_customization": {
+        "description": "Permet aux membres de modifier le nom, le pays, les liens et les champs personnalisés de l'équipe",
+        "label": "Autoriser la personnalisation d'équipe"
+      },
+      "allow_user_customization": {
+        "description": "Permet aux joueurs de modifier leurs propres liens et champs personnalisés",
+        "label": "Autoriser la personnalisation du profil"
+      },
       "description": {
         "description": "Courte description affichée sur la page d'accueil",
         "label": "Description du CTF"
@@ -804,6 +812,13 @@
       "unit_s": "s"
     }
   },
+  "profile": {
+    "fields_title": "Détails",
+    "save_error": "Échec de l'enregistrement du profil",
+    "saved": "Profil enregistré",
+    "section_hint": "Affiché à côté de votre nom sur la page publique de votre équipe.",
+    "section_title": "Profil"
+  },
   "register": {
     "email": "Email (optionnel)",
     "email_required": "Email",
@@ -993,6 +1008,7 @@
     "code_label": "Code d'invitation",
     "code_placeholder": "ex. ABC12345",
     "country_label": "Pays",
+    "country_placeholder": "ex. FR",
     "create_btn": "Créer l'équipe",
     "create_error": "Échec de la création de l'équipe",
     "create_section": "Créer une équipe",
@@ -1019,7 +1035,11 @@
     "no_team_hint": "Vous avez besoin d'une équipe pour soumettre des réponses. Créez-en une ou rejoignez-en une avec un code d'invitation.",
     "partial": "{{solved}}/{{total}}",
     "profile_back": "Retour au classement",
+    "profile_hint": "Affiché sur la page publique de votre équipe.",
     "profile_load_error": "Échec du chargement de l'équipe",
+    "profile_save_error": "Échec de l'enregistrement du profil d'équipe",
+    "profile_saved": "Profil d'équipe enregistré",
+    "profile_section": "Profil de l'équipe",
     "progress_col_challenge": "Challenge",
     "progress_col_points": "Points",
     "progress_col_progress": "Progression",

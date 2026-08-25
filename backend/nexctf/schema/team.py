@@ -7,6 +7,7 @@ from pydantic import Field
 
 from nexctf.schema.custom_field import (
     AdminCustomFieldValueRead,
+    EditableCustomField,
     PublicCustomFieldValue,
 )
 from nexctf.schema.stats import TeamChallengeStats
@@ -21,6 +22,16 @@ class Link(PydanticBase):
     url: str
 
 
+class LinkInput(Link):
+    """A link accepted from a client: http(s) only, so no ``javascript:`` hrefs."""
+
+    label: Annotated[str, Field(max_length=64)]
+    url: Annotated[str, Field(pattern=r"^https?://", max_length=512)]
+
+
+LinkListInput = Annotated[list[LinkInput], Field(max_length=10)]
+
+
 class TeamCreate(PydanticBase):
     name: str
 
@@ -29,7 +40,7 @@ class AdminTeamCreate(PydanticBase):
     name: str
     country: CountryCode | None = None
     bracket: Label = None
-    links: list[Link] = []
+    links: LinkListInput = []
 
 
 class AdminTeamCreateRequest(AdminTeamCreate):
@@ -41,7 +52,7 @@ class AdminTeamUpdate(PydanticBase):
     name: str | None = None
     country: CountryCode | None = None
     bracket: Label = None
-    links: list[Link] | None = None
+    links: LinkListInput | None = None
 
 
 class AdminTeamRead(PydanticBase):
@@ -71,6 +82,7 @@ class AdminTeamDetailRead(AdminTeamRead):
 class PublicTeamMember(PydanticBase):
     id: UUID
     username: str
+    links: list[Link] = []
     custom_fields: list[PublicCustomFieldValue] = []
 
 
@@ -79,6 +91,7 @@ class PublicTeamRead(PydanticBase):
     name: str
     country: str | None
     bracket: str | None
+    links: list[Link] = []
     members: list[PublicTeamMember] | None
     member_count: int
     challenge_stats: list[TeamChallengeStats]
@@ -94,3 +107,19 @@ class MyTeamRead(PublicTeamRead):
 
 class TeamJoinRequest(PydanticBase):
     code: str
+
+
+class MyTeamProfileUpdate(PydanticBase):
+    """Full replacement of the team fields a member may edit."""
+
+    name: str
+    country: CountryCode | None = None
+    links: LinkListInput = []
+    custom_fields: dict[UUID, str | None] = {}
+
+
+class MyTeamProfileRead(PydanticBase):
+    name: str
+    country: str | None
+    links: list[Link] = []
+    custom_fields: list[EditableCustomField] = []

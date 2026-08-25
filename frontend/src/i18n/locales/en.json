@@ -585,6 +585,14 @@
         "description": "Allow players to create teams and generate invite codes",
         "label": "Allow Team Creation"
       },
+      "allow_team_customization": {
+        "description": "Let team members edit the team name, country, links and custom fields",
+        "label": "Allow Team Customization"
+      },
+      "allow_user_customization": {
+        "description": "Let players edit their own links and custom fields",
+        "label": "Allow Profile Customization"
+      },
       "description": {
         "description": "Short description displayed on the home page",
         "label": "CTF Description"
@@ -802,6 +810,13 @@
       "unit_s": "s"
     }
   },
+  "profile": {
+    "fields_title": "Details",
+    "save_error": "Failed to save profile",
+    "saved": "Profile saved",
+    "section_hint": "Shown next to your name on your team's public page.",
+    "section_title": "Profile"
+  },
   "register": {
     "email": "Email (optional)",
     "email_required": "Email",
@@ -989,6 +1004,7 @@
     "code_label": "Invite code",
     "code_placeholder": "e.g. ABC12345",
     "country_label": "Country",
+    "country_placeholder": "e.g. FR",
     "create_btn": "Create team",
     "create_error": "Failed to create team",
     "create_section": "Create a team",
@@ -1014,7 +1030,11 @@
     "no_team_hint": "You need a team to submit answers. Create one or join with an invite code.",
     "partial": "{{solved}}/{{total}}",
     "profile_back": "Back to Scoreboard",
+    "profile_hint": "Shown on your team's public page.",
     "profile_load_error": "Failed to load team",
+    "profile_save_error": "Failed to save team profile",
+    "profile_saved": "Team profile saved",
+    "profile_section": "Team profile",
     "progress_col_challenge": "Challenge",
     "progress_col_points": "Points",
     "progress_col_progress": "Progress",

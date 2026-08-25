@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { ProfileFormSections, useProfileForm } from "@/components/profile-form";
 import {
   ChallengeProgressTable,
   MembersList,
@@ -19,12 +20,14 @@ import {
   apiErrorMessage,
   createTeam,
   getMyTeam,
+  getMyTeamProfile,
   getPublicInfo,
   getTeamScore,
   joinTeam,
   leaveTeam,
   type MyTeam,
   rotateInviteCode,
+  updateMyTeamProfile,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { copyToClipboard } from "@/lib/utils";
@@ -156,6 +159,98 @@ function NoTeamView({
   );
 }
 
+// ── Team profile ──────────────────────────────────────────────────────────────
+
+/** Any member may edit, as any member may already rotate the invite code. */
+function TeamProfileSection() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const { data: info } = useQuery({
+    queryKey: ["info", "public"],
+    queryFn: getPublicInfo,
+    staleTime: 5 * 60 * 1000,
+  });
+  const enabled = info?.competition.allow_team_customization === true;
+  const { data: profile } = useQuery({
+    queryKey: ["my-team-profile"],
+    queryFn: getMyTeamProfile,
+    enabled,
+  });
+  const form = useProfileForm(profile);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      updateMyTeamProfile({
+        name: form.name,
+        country: form.country || null,
+        links: form.links,
+        custom_fields: form.customFields,
+      }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["my-team-profile"], data);
+      // The header and public badges read the team payload, not this one.
+      void queryClient.invalidateQueries({ queryKey: ["my-team"] });
+      toast.success(t("team.profile_saved", { defaultValue: "Team profile saved" }));
+    },
+    onError: (err) =>
+      toast.error(
+        apiErrorMessage(
+          err,
+          t("team.profile_save_error", { defaultValue: "Failed to save team profile" }),
+        ),
+      ),
+  });
+
+  if (!enabled || !profile) return null;
+
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-base font-semibold">
+          {t("team.profile_section", { defaultValue: "Team profile" })}
+        </h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {t("team.profile_hint", { defaultValue: "Shown on your team's public page." })}
+        </p>
+      </div>
+
+      <form
+        className="space-y-4 rounded-lg border px-4 py-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          mutation.mutate();
+        }}
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="team-name">{t("team.name_label", { defaultValue: "Name" })}</Label>
+          <Input
+            id="team-name"
+            required
+            value={form.name}
+            onChange={(e) => form.setName(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="team-country">{t("team.country_label")}</Label>
+          <Input
+            id="team-country"
+            value={form.country}
+            onChange={(e) => form.setCountry(e.target.value.toUpperCase())}
+            maxLength={2}
+            pattern="[A-Za-z]{2}"
+            placeholder={t("team.country_placeholder", { defaultValue: "e.g. FR" })}
+            className="w-24"
+          />
+        </div>
+        <ProfileFormSections profile={profile} form={form} />
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? t("common.saving") : t("common.save")}
+        </Button>
+      </form>
+    </section>
+  );
+}
+
 // ── Team view ─────────────────────────────────────────────────────────────────
 
 function TeamView({
@@ -227,6 +322,8 @@ function TeamView({
       <TeamStatsSummary team={team} />
 
       <MembersList members={team.members} />
+
+      <TeamProfileSection />
 
       {/* Invite code */}
       {allowChanges && (

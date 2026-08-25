@@ -98,7 +98,10 @@ async def load_team_read(
         )
         members = [
             PublicTeamMember(
-                id=u.id, username=u.username, custom_fields=member_fields.get(u.id, [])
+                id=u.id,
+                username=u.username,
+                links=u.links or [],
+                custom_fields=member_fields.get(u.id, []),
             )
             for u in team.users
         ]
@@ -116,6 +119,7 @@ async def load_team_read(
         name=team.name,
         country=team.country,
         bracket=team.bracket,
+        links=team.links or [],
         members=members,
         member_count=len(team.users),
         challenge_stats=stats,

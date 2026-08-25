@@ -11,13 +11,15 @@ import {
   deleteMySession,
   deleteMyToken,
   getMyOAuthAccounts,
+  getMyProfile,
   getMySessions,
   getMyTokens,
   getPublicInfo,
   totpSetup,
+  updateMyProfile,
 } from "@/lib/api";
 import type { AuthContext } from "@/lib/auth";
-import { paginated, publicInfo, user, userSession } from "@/test/fixtures";
+import { paginated, publicInfo, publicInfoWith, user, userSession } from "@/test/fixtures";
 import { clickAndCancel, clickAndConfirm, renderRoute } from "@/test/render";
 import { Route } from "./settings";
 
@@ -37,6 +39,8 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   deleteMyOAuthAccount: vi.fn(),
   changePassword: vi.fn(),
   totpSetup: vi.fn(),
+  getMyProfile: vi.fn(),
+  updateMyProfile: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
@@ -284,4 +288,42 @@ it("keeps the session out of the list when revocation fails", async () => {
   );
 
   await waitFor(() => expect(toast.error).toHaveBeenCalledWith("boom"));
+});
+
+const myProfile = {
+  links: [],
+  custom_fields: [
+    {
+      definition_id: "d1",
+      label: "Discord",
+      field_type: "string" as const,
+      is_required: false,
+      value: null,
+    },
+  ],
+};
+
+it("saves the profile when customization is on", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(publicInfoWith({ allow_user_customization: true }));
+  vi.mocked(getMyProfile).mockResolvedValue(myProfile);
+  vi.mocked(updateMyProfile).mockResolvedValue(myProfile);
+  renderSettings();
+
+  await userEvent.type(await screen.findByLabelText("Discord"), "player#1");
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+  await waitFor(() =>
+    expect(updateMyProfile).toHaveBeenCalledWith({
+      links: [],
+      custom_fields: { d1: "player#1" },
+    }),
+  );
+});
+
+it("hides the profile form when customization is off", async () => {
+  vi.mocked(getMyProfile).mockResolvedValue(myProfile);
+  renderSettings();
+
+  await screen.findByText("API Tokens");
+  expect(screen.queryByText("Profile")).toBeNull();
 });

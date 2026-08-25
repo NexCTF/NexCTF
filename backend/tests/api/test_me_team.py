@@ -8,15 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nexctf.model import Submission, Team, User
 from nexctf.model.question import Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
-
-
-async def _put_in_team(db_session: AsyncSession, user: User) -> Team:
-    team = Team(name="MyTeam", invite_code="MYTEAM01")
-    db_session.add(team)
-    await db_session.flush()
-    user.team_id = team.id
-    await db_session.flush()
-    return team
+from tests.base import put_in_team
 
 
 class TestTeamSize:
@@ -61,6 +53,22 @@ class TestTeamSize:
         assert user.team_id is None
 
 
+class TestTeamCreation:
+    async def test_create_rejects_a_taken_name(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        """The unique index rejects the create as a 409, not an unhandled 500."""
+        client, user = user_client
+        db_session.add(Team(name="Taken", invite_code="TAKEN001"))
+        await db_session.flush()
+
+        resp = await client.post("/me/team", json={"name": "Taken"})
+        assert resp.status_code == 409
+        assert user.team_id is None
+
+
 class TestTeamChanges:
     async def test_leave(
         self,
@@ -68,7 +76,7 @@ class TestTeamChanges:
         db_session: AsyncSession,
     ) -> None:
         client, user = user_client
-        await _put_in_team(db_session, user)
+        await put_in_team(db_session, user)
 
         resp = await client.post("/me/team/leave")
         assert resp.status_code == 204
@@ -81,7 +89,7 @@ class TestTeamChanges:
         config_overrides: dict[str, str],
     ) -> None:
         client, user = user_client
-        team = await _put_in_team(db_session, user)
+        team = await put_in_team(db_session, user)
         config_overrides["ctf.allow_team_changes"] = "false"
 
         resp = await client.post("/me/team/leave")
@@ -110,7 +118,7 @@ class TestTeamChanges:
         config_overrides: dict[str, str],
     ) -> None:
         client, user = user_client
-        team = await _put_in_team(db_session, user)
+        team = await put_in_team(db_session, user)
         config_overrides["ctf.allow_team_changes"] = "false"
 
         resp = await client.post("/me/team/invite-code")
@@ -166,7 +174,7 @@ class TestMyTeamStaysLive:
         """The freeze hides progress from rivals, not from a team's own members."""
         config_overrides["ctf.freeze_time"] = "2020-06-01T00:00:00+00:00"
         client, user = user_client
-        team = await _put_in_team(db_session, user)
+        team = await put_in_team(db_session, user)
         challenge = StandardChallenge(title="Frozen", is_active=True)
         db_session.add(challenge)
         await db_session.flush()

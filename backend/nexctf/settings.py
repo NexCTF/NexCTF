@@ -88,6 +88,18 @@ def _competition():
             description="config.ctf.allow_team_changes.description",
         ),
         ConfigDef(
+            key="ctf.allow_user_customization",
+            label="config.ctf.allow_user_customization.label",
+            default=True,
+            description="config.ctf.allow_user_customization.description",
+        ),
+        ConfigDef(
+            key="ctf.allow_team_customization",
+            label="config.ctf.allow_team_customization.label",
+            default=True,
+            description="config.ctf.allow_team_customization.description",
+        ),
+        ConfigDef(
             key="ctf.enable_challenge_feedback",
             label="config.ctf.enable_challenge_feedback.label",
             default=True,
