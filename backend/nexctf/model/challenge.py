@@ -44,15 +44,6 @@ class Challenge(Base):
         ForeignKey("users.id"), nullable=True
     )
 
-    async def on_start(self, user: User) -> None:
-        """Called when a user opens the challenge (e.g. provision a container)."""
-        logger.info(
-            "challenge.start type=%s challenge=%s user=%s",
-            self.challenge_type,
-            self.id,
-            user.id,
-        )
-
     async def on_submit(self, user: User, question: Question, submission: str) -> None:
         """Called on every flag submission, before the result is determined."""
         logger.info(
@@ -103,13 +94,4 @@ class Challenge(Base):
             hint.id,
             user.id,
             hint.cost,
-        )
-
-    async def on_stop(self, user: User) -> None:
-        """Called when a challenge session ends (e.g. tear down a container)."""
-        logger.info(
-            "challenge.stop type=%s challenge=%s user=%s",
-            self.challenge_type,
-            self.id,
-            user.id,
         )

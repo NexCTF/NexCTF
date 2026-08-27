@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Callable
+import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 async def call_maybe_async(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
@@ -11,3 +14,11 @@ async def call_maybe_async(fn: Callable[..., Any], *args: Any, **kwargs: Any) ->
     if inspect.isawaitable(result):
         return await result
     return result
+
+
+async def dispatch_hook(hook: Awaitable[None]) -> None:
+    """Await a lifecycle hook, logging and swallowing any failure."""
+    try:
+        await hook
+    except Exception:
+        logger.exception("hook failed")
