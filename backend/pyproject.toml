@@ -1,6 +1,6 @@
 [project]
 name = "nexctf"
-version = "0.8.0"
+version = "0.9.0"
 description = "Next generation of capture the flag platform"
 authors = [
     { name = "NexCTF", email = "contact@nexctf.dev" }
