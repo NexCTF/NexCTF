@@ -414,7 +414,7 @@ async def submit_answer(
         if question.malus is not None:
             points_earned = max(0, points_earned - question.malus * wrong_count_before)
 
-    await dispatch_hook(challenge.on_submit(user, question, answer))
+    await dispatch_hook(session, challenge.on_submit(user, question, answer))
 
     session.add(
         Submission(
@@ -431,15 +431,15 @@ async def submit_answer(
 
     challenge_completed = False
     if is_correct:
-        await dispatch_hook(challenge.on_solve(user, question))
+        await dispatch_hook(session, challenge.on_solve(user, question))
         all_solved = await _solved_ids(
             session, user, [q.id for q in challenge.questions]
         )
         if len(all_solved) == len(challenge.questions):
             challenge_completed = True
-            await dispatch_hook(challenge.on_complete(user))
+            await dispatch_hook(session, challenge.on_complete(user))
     else:
-        await dispatch_hook(challenge.on_fail(user, question, answer))
+        await dispatch_hook(session, challenge.on_fail(user, question, answer))
 
     # Emit events before commit so they're part of the same transaction
     client_ip = get_client_ip(request)
@@ -556,7 +556,7 @@ async def unlock_hint(
         .returning(HintUnlock.id)
     )
     if inserted.scalar_one_or_none() is not None:
-        await dispatch_hook(challenge.on_hint_unlock(user, hint))
+        await dispatch_hook(session, challenge.on_hint_unlock(user, hint))
         await emit_event(
             session,
             redis,

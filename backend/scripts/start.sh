@@ -10,8 +10,8 @@ log() { echo "[start] $*"; }
 # --- Prepare (dev + prod): install plugins, migrate, load fixtures ---
 if [ -n "${NEXCTF_PLUGINS:-}" ]; then
     log "installing plugins: $NEXCTF_PLUGINS"
-    # shellcheck disable=SC2046 # word splitting is how the list becomes arguments
-    uv pip install $(echo "$NEXCTF_PLUGINS" | tr ',' ' ')
+    # shellcheck disable=SC2086 # word splitting is how the list becomes arguments
+    uv pip install ${NEXCTF_PLUGINS//,/ }
 fi
 
 log "running core migrations"

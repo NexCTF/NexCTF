@@ -16,25 +16,6 @@ interface PluginManifestEntry {
   challenge_types: string[] | null;
 }
 
-// ---------------------------------------------------------------------------
-// Global declarations for plugin IIFE bundles
-// ---------------------------------------------------------------------------
-
-declare global {
-  interface Window {
-    __nexctf__: {
-      React: typeof React;
-      ReactDOM: typeof ReactDOM;
-      jsxRuntime: typeof jsxRuntime;
-    };
-    __nexctf_register__: (plugin: PluginRegistration) => void;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Registry
-// ---------------------------------------------------------------------------
-
 const pluginRegistry: Record<string, PluginRegistration> = {};
 
 window.__nexctf__ = { React, ReactDOM, jsxRuntime };

@@ -62,7 +62,7 @@ def _parse_args() -> argparse.Namespace:
     up.add_argument("revision", nargs="?", default="head")
 
     dn = sub.add_parser("downgrade", help="Revert migrations", parents=[common])
-    dn.add_argument("revision", default="-1")
+    dn.add_argument("revision")
 
     rev = sub.add_parser("revision", help="Generate a new migration", parents=[common])
     rev.add_argument("-m", "--message", required=True)

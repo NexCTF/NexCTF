@@ -10,10 +10,9 @@ from nexctf.core.config import settings
 from nexctf.model import Base
 from nexctf.plugins import get_plugin_tables, load_plugin_registries
 
-config = context.config
+load_plugin_registries()  # register plugin models with the metadata
 
-if getattr(config.cmd_opts, "autogenerate", False):
-    load_plugin_registries()
+config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

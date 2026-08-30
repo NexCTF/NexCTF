@@ -6,11 +6,9 @@ import importlib
 import importlib.metadata
 import logging
 import re
-import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from email.utils import getaddresses
 from pathlib import Path
-from types import ModuleType
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -25,7 +23,6 @@ _BUILTINS = {
     "solution": "nexctf.plugins.builtin.solution",
 }
 
-_loaded: dict[str, ModuleType] = {}
 _plugin_tables: set[str] = set()
 _plugin_metadata: dict[str, PluginMeta] = {}
 _plugin_migrations: dict[str, tuple[Path, frozenset[str]]] = {}
@@ -61,14 +58,7 @@ def plugin_key(dist_name: str) -> str:
 
 
 def version_table(key: str) -> str:
-    """Return the Alembic version table a plugin's migrations are tracked in.
-
-    Args:
-        key: The plugin key, as returned by :func:`plugin_key`.
-
-    Returns:
-        The version table name, e.g. ``"alembic_version_nexctf_sandbox"``.
-    """
+    """Return the Alembic version table a plugin's migrations are tracked in."""
     return f"alembic_version_{key}"
 
 
@@ -78,43 +68,31 @@ def _display_name(dist_name: str) -> str:
     return re.sub(r"[-_.]+", " ", stem).title() or dist_name
 
 
-def _authors(metadata) -> list[str]:
+def _authors(dist: importlib.metadata.Distribution) -> list[str]:
     """Collect author names from ``Author`` and ``Author-email`` headers."""
+    metadata = dist.metadata
     names = [a.strip() for a in metadata.get_all("Author") or [] if a.strip()]
     names += [n for n, _ in getaddresses(metadata.get_all("Author-email") or []) if n]
     return list(dict.fromkeys(names))
 
 
-def _project_urls(metadata) -> dict[str, str]:
+def _project_urls(dist: importlib.metadata.Distribution) -> dict[str, str]:
     """Parse ``Project-URL`` headers into a lowercased label → URL mapping."""
     urls = {}
-    for raw in metadata.get_all("Project-URL") or []:
+    for raw in dist.metadata.get_all("Project-URL") or []:
         label, _, url = raw.partition(",")
         urls[label.strip().lower()] = url.strip()
     return urls
 
 
 def _builtin_metadata(key: str) -> PluginMeta:
-    """Build metadata for an in-tree builtin from the nexctf distribution."""
-    try:
-        meta = _installed_metadata(key, importlib.metadata.distribution("nexctf"))
-    except importlib.metadata.PackageNotFoundError:
-        meta = PluginMeta(
-            key=key,
-            name=key,
-            display_name=key,
-            version=None,
-            description=None,
-            authors=[],
-            repo_url=None,
-            homepage_url=None,
-            is_builtin=True,
-        )
-    meta.name = f"nexctf-plugin-{key}"
-    meta.display_name = _display_name(key)
-    meta.description = f"Built-in {key} types for NexCTF"
-    meta.is_builtin = True
-    return meta
+    """Build metadata for an in-tree builtin, borrowing the nexctf distribution's."""
+    return replace(
+        _installed_metadata(key, importlib.metadata.distribution("nexctf")),
+        display_name=_display_name(key),
+        description=f"Built-in {key} types for NexCTF",
+        is_builtin=True,
+    )
 
 
 def _installed_metadata(
@@ -136,14 +114,14 @@ def _installed_metadata(
         The assembled metadata.
     """
     metadata = dist.metadata
-    urls = _project_urls(metadata)
+    urls = _project_urls(dist)
     return PluginMeta(
         key=key,
         name=metadata["Name"] or key,
         display_name=_display_name(metadata["Name"] or key),
         version=metadata["Version"],
         description=metadata["Summary"],
-        authors=_authors(metadata),
+        authors=_authors(dist),
         repo_url=urls.get("repository") or urls.get("source"),
         homepage_url=urls.get("homepage"),
         is_builtin=False,
@@ -204,10 +182,10 @@ def get_plugin_migrations() -> dict[str, tuple[Path, frozenset[str]]]:
 def load_builtin_plugins() -> None:
     """Import the in-tree builtin plugins and register their types."""
     for key, module_path in _BUILTINS.items():
-        if key in _loaded:
+        if key in _plugin_metadata:
             continue
         logger.debug("plugin.load name=%s module=%s builtin=true", key, module_path)
-        _loaded[key] = importlib.import_module(module_path)
+        importlib.import_module(module_path)
         _plugin_metadata[key] = _builtin_metadata(key)
 
 
@@ -217,22 +195,23 @@ def _load_installed_plugins() -> None:
         if ep.dist is None:
             continue
         key = plugin_key(ep.dist.name)
-        if key in _loaded or key in _plugin_metadata:
+        if key in _plugin_metadata:
             continue
         try:
             logger.debug("plugin.load name=%s module=%s", key, ep.module)
-            _loaded[key] = importlib.import_module(ep.module)
+            importlib.import_module(ep.module)
             _plugin_metadata[key] = _installed_metadata(key, ep.dist)
-            # Resolve from the root package, not the entry-point module, so an
-            # entry point aimed at a submodule still finds models and migrations.
-            root = ep.module.split(".")[0]
-            owned = derive_owned_tables(root)
+            # Models and migrations live in the root package, not the entry-point module
+            root = importlib.import_module(ep.module.split(".")[0])
+            owned = derive_owned_tables(root.__name__)
             _plugin_tables.update(owned)
-            versions = (
-                Path(sys.modules[root].__file__ or "").parent / "alembic" / "versions"
-            )
+            versions = Path(root.__file__ or "").parent / "alembic" / "versions"
             if versions.is_dir():
                 _plugin_migrations[key] = (versions, owned)
+            elif owned:
+                logger.warning(
+                    "plugin.migrations.missing key=%s path=%s", key, versions
+                )
         except Exception as exc:
             logger.exception("plugin.load_failed name=%s", key)
             _plugin_metadata[key] = _installed_metadata(

@@ -8,7 +8,6 @@ import textwrap
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from types import ModuleType
 
 import pytest
 
@@ -16,30 +15,11 @@ from nexctf.plugins import loader
 
 
 @pytest.fixture(autouse=True)
-def _isolate_loader_state() -> Iterator[None]:
-    """Reset the loader's module-global registries around each test.
-
-    The loader records imported modules, metadata, and table names in
-    module-level containers; isolating them keeps tests independent and stops
-    fake plugins from leaking into other tests.
-    """
-    saved_loaded = dict(loader._loaded)
-    saved_meta = dict(loader._plugin_metadata)
-    saved_tables = set(loader._plugin_tables)
-    saved_migrations = dict(loader._plugin_migrations)
-    loader._loaded.clear()
-    loader._plugin_metadata.clear()
-    loader._plugin_tables.clear()
-    loader._plugin_migrations.clear()
-    yield
-    loader._loaded.clear()
-    loader._loaded.update(saved_loaded)
-    loader._plugin_metadata.clear()
-    loader._plugin_metadata.update(saved_meta)
-    loader._plugin_tables.clear()
-    loader._plugin_tables.update(saved_tables)
-    loader._plugin_migrations.clear()
-    loader._plugin_migrations.update(saved_migrations)
+def _isolate_loader_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Give each test fresh loader registries so fake plugins cannot leak out."""
+    monkeypatch.setattr(loader, "_plugin_metadata", {})
+    monkeypatch.setattr(loader, "_plugin_tables", set())
+    monkeypatch.setattr(loader, "_plugin_migrations", {})
 
 
 @pytest.fixture
@@ -143,10 +123,10 @@ def test_load_imports_entry_point_and_keys_on_distribution_name(
 
     loader._load_installed_plugins()
 
-    assert "nexctf_good" in loader._loaded
     meta = loader._plugin_metadata["nexctf_good"]
     assert meta.name == "nexctf-good"
     assert meta.is_active is True
+    assert sys.modules["good_pkg"].value == 1
 
 
 def test_two_plugins_get_separate_keys(
@@ -165,8 +145,7 @@ def test_two_plugins_get_separate_keys(
     loader._load_installed_plugins()
 
     assert set(loader._plugin_metadata) == {"nexctf_one", "nexctf_two"}
-    assert loader._loaded["nexctf_one"].__name__ == "one_pkg"
-    assert loader._loaded["nexctf_two"].__name__ == "two_pkg"
+    assert {"one_pkg", "two_pkg"} <= set(sys.modules)
 
 
 def test_installed_plugin_failure_is_captured_not_raised(
@@ -184,7 +163,6 @@ def test_installed_plugin_failure_is_captured_not_raised(
 
     loader._load_installed_plugins()
 
-    assert "nexctf_bad" not in loader._loaded
     meta = loader._plugin_metadata["nexctf_bad"]
     assert meta.is_active is False
     assert meta.load_error  # carries the import error text
@@ -194,8 +172,8 @@ def test_already_loaded_plugin_is_not_reimported(
     plugins_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A key already loaded is skipped (first loader wins)."""
-    sentinel = ModuleType("dup_sentinel")
-    loader._loaded["nexctf_dup"] = sentinel
+    sentinel = loader._builtin_metadata("nexctf_dup")
+    loader._plugin_metadata["nexctf_dup"] = sentinel
     _write_package(plugins_root, "dup_pkg")
     _install(
         monkeypatch,
@@ -204,15 +182,14 @@ def test_already_loaded_plugin_is_not_reimported(
 
     loader._load_installed_plugins()
 
-    assert loader._loaded["nexctf_dup"] is sentinel
-    assert "nexctf_dup" not in loader._plugin_metadata
+    assert loader._plugin_metadata["nexctf_dup"] is sentinel
+    assert "dup_pkg" not in sys.modules
 
 
 def test_no_installed_plugins_is_noop(monkeypatch: pytest.MonkeyPatch) -> None:
     _install(monkeypatch)
     loader._load_installed_plugins()
     assert loader._plugin_metadata == {}
-    assert loader._loaded == {}
 
 
 def test_derive_owned_tables_from_package() -> None:
