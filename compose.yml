@@ -26,6 +26,16 @@ x-app-env: &app-env
   BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-}
   FRONTEND_HOST: ${FRONTEND_HOST:-}
   TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT:-1}
+  # Comma-separated uv specifiers installed at start, e.g.
+  #   NEXCTF_PLUGINS=nexctf-sandbox==1.2.0,git+https://github.com/org/plug@v1.0
+  NEXCTF_PLUGINS: ${NEXCTF_PLUGINS:-}
+  # Private index, credentials, or a custom CA for plugin installs — uv reads
+  # its own variables, so pass through only the ones you need:
+  # UV_INDEX: ${UV_INDEX:-}
+  # UV_INDEX_MYORG_USERNAME: ${UV_INDEX_MYORG_USERNAME:-}
+  # UV_INDEX_MYORG_PASSWORD: ${UV_INDEX_MYORG_PASSWORD:-}
+  # UV_NATIVE_TLS: "1"
+  # SSL_CERT_FILE: /certs/ca.pem
 
 services:
   db:
@@ -82,7 +92,10 @@ services:
       - "127.0.0.1:8443:443"
     volumes:
       - caddy-data:/data
-      # Uncomment and set CERTS_PATH to use custom TLS certificates:
+      # Plugin downloads are cached here, so a restart works without network
+      - uv-cache:/home/nexctf/.cache/uv
+      # Uncomment and set CERTS_PATH to use custom TLS certificates
+      # (also holds the CA bundle for SSL_CERT_FILE, if you need one):
       # - ${CERTS_PATH:-/dev/null}:/certs:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://127.0.0.1:8000/api/v1/info"]
@@ -113,3 +126,4 @@ volumes:
   app-s3-data:
   app-redis-data:
   caddy-data:
+  uv-cache:

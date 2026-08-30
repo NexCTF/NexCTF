@@ -58,6 +58,7 @@ from nexctf.schema.feedback import FeedbackBody, FeedbackUpsert, PublicFeedbackR
 from nexctf.schema.file import PublicFileRead
 from nexctf.schema.hint import PublicHintRead
 from nexctf.schema.question import PublicQuestionRead
+from nexctf.util.async_utils import dispatch_hook
 from nexctf.util.datetime import is_config_dt_past
 from nexctf.util.ip import get_client_ip
 
@@ -413,7 +414,7 @@ async def submit_answer(
         if question.malus is not None:
             points_earned = max(0, points_earned - question.malus * wrong_count_before)
 
-    await challenge.on_submit(user, question, obj.answer)
+    await dispatch_hook(session, challenge.on_submit(user, question, answer))
 
     session.add(
         Submission(
@@ -430,15 +431,15 @@ async def submit_answer(
 
     challenge_completed = False
     if is_correct:
-        await challenge.on_solve(user, question)
+        await dispatch_hook(session, challenge.on_solve(user, question))
         all_solved = await _solved_ids(
             session, user, [q.id for q in challenge.questions]
         )
         if len(all_solved) == len(challenge.questions):
             challenge_completed = True
-            await challenge.on_complete(user)
+            await dispatch_hook(session, challenge.on_complete(user))
     else:
-        await challenge.on_fail(user, question, obj.answer)
+        await dispatch_hook(session, challenge.on_fail(user, question, answer))
 
     # Emit events before commit so they're part of the same transaction
     client_ip = get_client_ip(request)
@@ -555,7 +556,7 @@ async def unlock_hint(
         .returning(HintUnlock.id)
     )
     if inserted.scalar_one_or_none() is not None:
-        await challenge.on_hint_unlock(user, hint)
+        await dispatch_hook(session, challenge.on_hint_unlock(user, hint))
         await emit_event(
             session,
             redis,

@@ -4,7 +4,8 @@
  * Copy this file into your plugin's frontend/src/ as sdk.ts.
  *
  * React and ReactDOM are provided by the host via window.__nexctf__ at runtime.
- * Mark them as external in your build (see the vite.config.ts template).
+ * Mark them as external in your build and register with window.__nexctf_register__.
+ * Ship the built bundle in your wheel; the host never builds plugin frontends.
  *
  * Slots (v1):
  *   challenge_panel — rendered between challenge header and questions.
@@ -13,6 +14,17 @@
  */
 
 import type { ComponentType } from "react";
+
+declare global {
+  interface Window {
+    __nexctf__: {
+      React: typeof import("react");
+      ReactDOM: typeof import("react-dom");
+      jsxRuntime: typeof import("react/jsx-runtime");
+    };
+    __nexctf_register__: (plugin: PluginRegistration) => void;
+  }
+}
 
 export interface PublicChallenge {
   id: string;

@@ -1,4 +1,3 @@
-FROM node:22-slim AS node
 FROM oven/bun:alpine AS frontend-builder
 
 WORKDIR /app
@@ -26,12 +25,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends --no-install-su
     && rm -rf /var/lib/apt/lists/* \
     && addgroup --gid 1000 nexctf \
     && adduser --uid 1000 --gid 1000 --disabled-password --gecos "" nexctf \
-    && mkdir -p /app /data /etc/caddy \
-    && chown nexctf:nexctf /app /data /etc/caddy
-
-COPY --from=node /usr/local/bin/node /usr/local/bin/node
-COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules/
-RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
+    && mkdir -p /app /data /etc/caddy /home/nexctf/.cache/uv \
+    && chown nexctf:nexctf /app /data /etc/caddy \
+    && chown -R nexctf:nexctf /home/nexctf/.cache
 
 COPY --from=caddy-bin /usr/bin/caddy /usr/bin/caddy
 # Allow caddy to bind to ports < 1024 without root
@@ -43,6 +39,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.11.3 /uv /uvx /bin/
 
 # Place executables in the environment at the front of the path
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#using-the-environment
+ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Compile bytecode
@@ -66,18 +63,20 @@ RUN --mount=type=cache,uid=1000,gid=1000,target=/home/nexctf/.cache/uv \
 ENV PYTHONPATH=/app
 ENV WORKERS=4
 
-COPY --chown=nexctf:nexctf backend/scripts/start.sh backend/scripts/run_plugin_migration.py /app/scripts/
-COPY --chown=nexctf:nexctf backend/scripts/plugin_alembic /app/scripts/plugin_alembic
+COPY --chown=nexctf:nexctf backend/scripts/start.sh /app/scripts/
 COPY --chown=nexctf:nexctf docker/with-prefix.sh /app/scripts/with-prefix.sh
 RUN chmod +x /app/scripts/start.sh /app/scripts/with-prefix.sh
 COPY --chown=nexctf:nexctf backend/pyproject.toml backend/uv.lock backend/alembic.ini /app/
 COPY --chown=nexctf:nexctf backend/nexctf /app/nexctf
-COPY --chown=nexctf:nexctf backend/plugins_store /app/plugins_store
 
 # Sync the project
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#intermediate-layers
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/nexctf/.cache/uv \
     uv sync --frozen --no-dev
+
+# Pin core dependencies for plugin installs, so a plugin cannot move them
+RUN uv export --frozen --no-dev --no-hashes --no-emit-project -o /app/constraints.txt
+ENV UV_CONSTRAINT=/app/constraints.txt
 
 COPY --chown=nexctf:nexctf docker/supervisord.conf /app/supervisord.conf
 COPY --chown=nexctf:nexctf --from=frontend-builder /app/dist /app/frontend/dist

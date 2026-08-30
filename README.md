@@ -80,6 +80,7 @@ The app is available at **https://localhost:8443** (`admin`/`admin` by default).
 - Scheduler — one-shot or cron-based jobs
 - Custom Markdown pages and external navigation links
 - **Plugins** — register custom challenge types, solution strategies, scheduler jobs, and frontend components
+  - Installed with uv from a package index, a git repository, or a local path
   - Plugins own their DB tables with Alembic migrations
   - Plugin-scoped config keys auto-prefixed and merged with core config
 

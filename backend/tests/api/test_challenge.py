@@ -6,13 +6,15 @@ from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func, select, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_object_session
 
 from nexctf.api.routes.challenge import _writeup_visible
 from nexctf.model import HintUnlock, Team, User
 from nexctf.model.question import Hint, Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
+from nexctf.plugins.builtin.solution.match.model import MatchSolution
+from tests.base import put_in_team
 
 NULL_UUID = "00000000-0000-0000-0000-000000000000"
 
@@ -291,3 +293,72 @@ class TestHintUnlockChargesOnce:
             .where(HintUnlock.team_id == team.id)
         )
         assert count == 1
+
+
+# ── lifecycle hooks ────────────────────────────────────────────────────────────
+
+
+async def _solvable(
+    db_session: AsyncSession, user: User, flag: str
+) -> tuple[StandardChallenge, Question]:
+    """Create an active challenge with one question the flag solves."""
+    await put_in_team(db_session, user)
+    challenge = StandardChallenge(title="Hook Test", is_active=True)
+    db_session.add(challenge)
+    await db_session.flush()
+    question = Question(label="Q", points=100, challenge_id=challenge.id)
+    db_session.add(question)
+    await db_session.flush()
+    db_session.add(MatchSolution(value=flag, question_id=question.id))
+    return challenge, question
+
+
+class TestHookFailure:
+    async def test_raising_hook_does_not_break_submit(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Hooks are best-effort: an override that raises still scores the flag."""
+        flag = "NexCTF{hook_test}"
+        c, user = user_client
+        challenge, question = await _solvable(db_session, user, flag)
+
+        async def _boom(*_args: object, **_kwargs: object) -> None:
+            raise RuntimeError("plugin exploded")
+
+        monkeypatch.setattr(StandardChallenge, "on_submit", _boom)
+        monkeypatch.setattr(StandardChallenge, "on_solve", _boom)
+
+        resp = await c.post(
+            f"/challenges/{challenge.id}/{question.id}/submit", json={"answer": flag}
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["data"]["is_correct"] is True
+
+    async def test_hook_db_error_does_not_break_submit(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A hook that aborts the transaction must not cost the user the flag."""
+        flag = "NexCTF{hook_sql}"
+        c, user = user_client
+        challenge, question = await _solvable(db_session, user, flag)
+
+        async def _bad_sql(self: StandardChallenge, *_a: object, **_kw: object) -> None:
+            session = async_object_session(self)
+            assert session is not None
+            await session.execute(text("SELECT 1 / 0"))
+
+        monkeypatch.setattr(StandardChallenge, "on_submit", _bad_sql)
+
+        resp = await c.post(
+            f"/challenges/{challenge.id}/{question.id}/submit", json={"answer": flag}
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["data"]["is_correct"] is True

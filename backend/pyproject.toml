@@ -23,8 +23,12 @@ dependencies = [
     "cronsim>=2.7",
 ]
 
+[project.urls]
+Repository = "https://github.com/NexCTF/NexCTF"
+
 [project.scripts]
 backend = "backend:main"
+nexctf-plugins = "nexctf.plugins.migrate:main"
 
 [build-system]
 requires = ["uv_build>=0.12.3,<0.13.0"]
@@ -52,9 +56,6 @@ db_context = "nexctf.core.db:get_db_context"
 [tool.ruff.lint]
 extend-select = ["E402"]
 ignore = ["RUF012"]
-
-[tool.ty.src]
-exclude = ["plugins_store/nexctf_sandbox"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

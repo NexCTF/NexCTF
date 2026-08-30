@@ -29,10 +29,10 @@
 - [x] Trap flags
 - [x] Scheduler rework
 - [x] User/team profile customisation
+- [x] Plugins workflow
 
 ## Before v1.0 release
 - [ ] Event import/export/sync
-- [ ] Plugins workflow
 - [ ] Documentation
 - [ ] Frontend tests
 - [ ] Add more metrics
