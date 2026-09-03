@@ -26,6 +26,9 @@ x-app-env: &app-env
   BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-}
   FRONTEND_HOST: ${FRONTEND_HOST:-}
   TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT:-1}
+  # Set to "true" to seed example challenges, teams and submissions on start.
+  # The demo accounts have no password; the admin comes from DEFAULT_ADMIN_*.
+  DEMO_DATA: ${DEMO_DATA:-}
   # Comma-separated uv specifiers installed at start, e.g.
   #   NEXCTF_PLUGINS=nexctf-sandbox==1.2.0,git+https://github.com/org/plug@v1.0
   NEXCTF_PLUGINS: ${NEXCTF_PLUGINS:-}

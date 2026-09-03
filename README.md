@@ -47,6 +47,8 @@ docker compose up -d
 
 The app is available at **https://localhost:8443** (`admin`/`admin` by default).
 
+Start it with `DEMO_DATA=true` to seed example challenges, teams and submissions.
+
 ## Features
 ### 🎯 Challenges & Scoring
 - Sequential challenges with prerequisite enforcement

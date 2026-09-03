@@ -20,8 +20,12 @@ alembic upgrade head
 log "running plugin migrations"
 nexctf-plugins upgrade
 
-log "loading fixtures (environment=${ENVIRONMENT:-production})"
-manager fixtures load "${ENVIRONMENT:-production}" --strategy skip_existing
+FIXTURE_CONTEXTS="${ENVIRONMENT:-production}"
+[ "${DEMO_DATA:-}" = "true" ] && FIXTURE_CONTEXTS="$FIXTURE_CONTEXTS demo"
+
+log "loading fixtures (contexts: $FIXTURE_CONTEXTS)"
+# shellcheck disable=SC2086 # word splitting is how the list becomes arguments
+manager fixtures load $FIXTURE_CONTEXTS --strategy skip_existing
 
 log "creating default admin account (if missing)"
 manager create-admin

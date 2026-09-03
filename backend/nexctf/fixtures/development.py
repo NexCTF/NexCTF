@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi_toolsets.fixtures import FixtureRegistry
 from fastapi_toolsets.fixtures.enum import Context
 
+from nexctf.core.config import settings
 from nexctf.fixtures import utils
 from nexctf.model import (
     ChallengeFeedback,
@@ -32,10 +33,10 @@ def _t(minutes: int) -> datetime:
     return _CTF_START + timedelta(minutes=minutes)
 
 
-fixtures = FixtureRegistry(contexts=[Context.DEVELOPMENT])
+fixtures = FixtureRegistry(contexts=[Context.DEVELOPMENT, "demo"])
 
 
-@fixtures.register()
+@fixtures.register(contexts=[Context.DEVELOPMENT])
 def config() -> list[ConfigEntry]:
     """Point email at mailpit and captcha at the CAP site, both from compose.dev.yml."""
     stored = utils.stored_config_keys()
@@ -439,7 +440,7 @@ def team() -> list[Team]:
     ]
 
 
-@fixtures.register(depends_on=["team"])
+@fixtures.register(depends_on=["team"], contexts=[Context.DEVELOPMENT])
 def user() -> list[User]:
     def _tid(name: str) -> UUID:
         return fixtures.field("team", "name", name)
@@ -523,7 +524,18 @@ def user() -> list[User]:
     return users
 
 
-@fixtures.register(depends_on=["user"])
+@fixtures.register(depends_on=["team"], name="user", contexts=["demo"])
+def demo_user() -> list[User]:
+    """The development accounts, stripped of credentials, for demo deployments."""
+    users = user()
+    for u in users:
+        u.hashed_password = None
+        if u.username == settings.DEFAULT_ADMIN_USERNAME:
+            u.username = f"demo_{u.username}"
+    return users
+
+
+@fixtures.register(depends_on=["user"], contexts=[Context.DEVELOPMENT])
 def token() -> list[UserToken]:
     return [
         UserToken(
