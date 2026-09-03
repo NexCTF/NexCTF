@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from uuid import UUID
 
 import regex
@@ -15,6 +16,10 @@ from nexctf.model.solution import Solution
 logger = logging.getLogger(__name__)
 
 _MATCH_TIMEOUT_SECONDS = 1.0
+_MATCH_WORKERS = 4
+_MATCH_POOL = ThreadPoolExecutor(
+    max_workers=_MATCH_WORKERS, thread_name_prefix="regex-match"
+)
 
 
 def _resolve_flags(flags: list[str] | None) -> int:
@@ -52,8 +57,11 @@ class RegexSolution(Solution):
             SolutionTimeoutError: If the match exceeds the timeout.
         """
         re_flags = _resolve_flags(self.flags)
+        loop = asyncio.get_running_loop()
         try:
-            return await asyncio.to_thread(self._fullmatch, submission, re_flags)
+            return await loop.run_in_executor(
+                _MATCH_POOL, self._fullmatch, submission, re_flags
+            )
         except TimeoutError as exc:
             logger.warning(
                 "Regex solution %s exceeded the %.1fs match timeout.",

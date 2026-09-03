@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import threading
 import time
 
 import pytest
@@ -56,3 +58,28 @@ async def test_unknown_flag_raises() -> None:
     solution = RegexSolution(pattern=r"flag", flags=["__doc__"])
     with pytest.raises(ValueError, match="Unknown regex flag"):
         await solution.verify("flag")
+
+
+async def test_matching_is_capped_at_the_pool_size(monkeypatch) -> None:
+    """A flood cannot take more threads than the match pool holds."""
+    lock = threading.Lock()
+    running = 0
+    peak = 0
+
+    def _slow_match(self, submission: str, re_flags: int) -> bool:
+        nonlocal running, peak
+        with lock:
+            running += 1
+            peak = max(peak, running)
+        time.sleep(0.05)
+        with lock:
+            running -= 1
+        return True
+
+    monkeypatch.setattr(RegexSolution, "_fullmatch", _slow_match)
+    solution = RegexSolution(pattern=r".*")
+    await asyncio.gather(
+        *(solution.verify("x") for _ in range(regex_model._MATCH_WORKERS + 3))
+    )
+
+    assert peak <= regex_model._MATCH_WORKERS
