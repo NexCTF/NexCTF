@@ -362,3 +362,37 @@ class TestHookFailure:
 
         assert resp.status_code == 200
         assert resp.json()["data"]["is_correct"] is True
+
+
+class TestInvalidConfigValues:
+    """Unusable config values fail closed instead of opening or crashing."""
+
+    @pytest.mark.parametrize(
+        "key,path",
+        [
+            ("visibility.challenges", "/challenges"),
+            ("visibility.scoreboard", "/scoreboard"),
+        ],
+    )
+    async def test_unknown_visibility_is_refused(
+        self,
+        http_client: AsyncClient,
+        config_overrides: dict[str, str],
+        key: str,
+        path: str,
+    ) -> None:
+        """A typo must not leave the surface at its (possibly public) default."""
+        config_overrides[key] = "hiden"
+        resp = await http_client.get(path)
+        assert resp.status_code == 403
+
+    async def test_malformed_start_time_does_not_500(
+        self,
+        user_client: tuple[AsyncClient, User],
+        config_overrides: dict[str, str],
+    ) -> None:
+        config_overrides["ctf.start_time"] = "yesterday"
+        config_overrides["ctf.hide_challenges_before_start"] = "true"
+        c, _ = user_client
+        resp = await c.get("/challenges")
+        assert resp.status_code == 200

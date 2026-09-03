@@ -15,9 +15,12 @@ from __future__ import annotations
 import enum
 import logging
 import os
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
+from datetime import datetime
 from typing import Any, cast
+from urllib.parse import urlparse
 
 from redis.asyncio import Redis
 from sqlalchemy import select
@@ -191,19 +194,30 @@ def _cast(value: str, type_: ConfigType | None) -> str | int | float | bool:
     if type_ == ConfigType.FLOAT:
         return float(value)
     if type_ == ConfigType.BOOL:
-        return value.lower() in ("1", "true", "yes")
+        return value.lower() in ("1", "true", "yes", "on")
     return value
 
 
-def get_with_overrides(key: str, overrides: dict[str, str]) -> str | int | float | bool:
+_warned: set[str] = set()
+
+
+def get_with_overrides(
+    key: str, overrides: dict[str, str], *, sanitize: bool = True
+) -> str | int | float | bool:
     """Resolve a value: Redis snapshot > ENV > code default."""
     def_ = _DEFS[key]
-    if key in overrides:
-        return _cast(overrides[key], def_.type)
-    env_val = os.environ.get(_env_key(key))
-    if env_val is not None:
-        return _cast(env_val, def_.type)
-    return _cast(cast(str, def_.default), def_.type)
+    raw = overrides.get(key)
+    if raw is None:
+        raw = os.environ.get(_env_key(key))
+    if raw is not None and sanitize:
+        try:
+            _validate(key, raw)
+        except ValueError as exc:
+            if key not in _warned:
+                _warned.add(key)
+                logger.warning("invalid config %s (%s), using default", key, exc)
+            raw = None
+    return _cast(cast(str, def_.default) if raw is None else raw, def_.type)
 
 
 async def fetch_overrides(redis: Redis) -> dict[str, str]:
@@ -238,25 +252,21 @@ def _validate(key: str, value: str) -> None:
         "false",
         "yes",
         "no",
+        "on",
+        "off",
     ):
         raise ValueError(f"Invalid boolean: {value!r}")
     elif def_.type == ConfigType.CHOICE and value not in def_.choices:
         raise ValueError(f"Invalid choice: {value!r}, expected one of {def_.choices}")
     elif def_.type == ConfigType.DATETIME and value:
-        from datetime import datetime
-
         try:
             datetime.fromisoformat(value)
         except ValueError:
             raise ValueError(f"Invalid datetime: {value!r}, expected ISO 8601")
     elif def_.type == ConfigType.COLOR and value:
-        import re
-
         if not re.fullmatch(r"#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?", value):
             raise ValueError(f"Invalid color: {value!r}, expected #RRGGBB or #RRGGBBAA")
     elif def_.type == ConfigType.URL and value:
-        from urllib.parse import urlparse
-
         parsed = urlparse(value)
         if not parsed.scheme or not parsed.netloc:
             raise ValueError(f"Invalid URL: {value!r}")

@@ -73,10 +73,12 @@ def check_visibility(user: User | None, overrides: dict[str, str], key: str) -> 
     """Raise unless *user* may see the surface gated by the *key* config."""
     if user is not None and user.role in (UserRole.admin, UserRole.moderator):
         return
-    visibility = str(appconfig.get_with_overrides(key, overrides))
-    if visibility == "hidden":
+    visibility = str(appconfig.get_with_overrides(key, overrides, sanitize=False))
+    if visibility == "public":
+        return
+    if visibility != "authenticated":
         raise ForbiddenError()
-    if visibility == "authenticated" and user is None:
+    if user is None:
         raise UnauthorizedError()
 
 

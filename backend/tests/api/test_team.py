@@ -46,13 +46,16 @@ class TestGetTeamProfile:
         assert data["rank"] == 1
         assert data["team_count"] == 1
 
+    @pytest.mark.parametrize("configured", ["false", "nope"])
     async def test_members_hidden(
         self,
         http_client: AsyncClient,
         db_session: AsyncSession,
         monkeypatch: pytest.MonkeyPatch,
+        configured: str,
     ) -> None:
-        monkeypatch.setenv("NEXCTF_VISIBILITY_SHOW_TEAM_MEMBERS", "false")
+        """An unusable value hides members just like a false one."""
+        monkeypatch.setenv("NEXCTF_VISIBILITY_SHOW_TEAM_MEMBERS", configured)
         team = Team(name="HiddenMembers")
         db_session.add(team)
         await db_session.flush()

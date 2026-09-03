@@ -1,4 +1,4 @@
-"""Tests for the config store's Redis mirror."""
+"""Tests for the config store's Redis mirror and value resolution."""
 
 from unittest.mock import AsyncMock
 
@@ -25,3 +25,32 @@ class TestSyncToRedis:
         await_args = mock_redis.hset.await_args
         assert await_args is not None
         assert await_args.kwargs["mapping"]["ctf.team_size"] == "7"
+
+
+class TestGetWithOverrides:
+    """Values that fail validation resolve to the code default."""
+
+    def test_unusable_value_falls_back(self) -> None:
+        assert appconfig.get_with_overrides(
+            "ctf.team_size", {"ctf.team_size": "x"}
+        ) == (appconfig.get_with_overrides("ctf.team_size", {}))
+
+    def test_raw_value_is_kept_without_sanitize(self) -> None:
+        overrides = {"visibility.scoreboard": "hiden"}
+        value = appconfig.get_with_overrides(
+            "visibility.scoreboard", overrides, sanitize=False
+        )
+        assert value == "hiden"
+
+    def test_on_off_are_understood(self) -> None:
+        """NEXCTF-14: on/off must not fall back to the opposite default."""
+        assert (
+            appconfig.get_with_overrides(
+                "ctf.allow_registration", {"ctf.allow_registration": "off"}
+            )
+            is False
+        )
+        assert (
+            appconfig.get_with_overrides("captcha.enabled", {"captcha.enabled": "on"})
+            is True
+        )

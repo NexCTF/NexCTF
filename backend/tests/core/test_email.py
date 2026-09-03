@@ -53,7 +53,6 @@ async def test_send_email_disabled_raises():
         {**CONFIGURED, "email.smtp_host": ""},
         {**CONFIGURED, "email.from_address": ""},
         {**CONFIGURED, "email.smtp_port": "0"},
-        {**CONFIGURED, "email.smtp_port": "not-a-number"},
     ],
 )
 async def test_send_email_missing_required_raises(missing):
@@ -65,6 +64,17 @@ async def test_send_email_missing_required_raises(missing):
     ):
         await send_email(AsyncMock(), "to@example.com", "Hi", text="body")
     mock_send.assert_not_called()
+
+
+async def test_send_email_unparsable_port_uses_the_default():
+    """An unusable port resolves to the code default (587) instead of blocking the send."""
+    with (
+        _patch_overrides({**CONFIGURED, "email.smtp_port": "not-a-number"}),
+        _patch_smtp() as mock_send,
+    ):
+        await send_email(AsyncMock(), "to@example.com", "Hi", text="body")
+    assert mock_send.await_args is not None
+    assert mock_send.await_args.kwargs["port"] == 587
 
 
 async def test_send_email_success_passes_resolved_config():

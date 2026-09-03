@@ -60,10 +60,7 @@ async def send_email(
     ).strip()
     from_name = str(appconfig.get_with_overrides("email.from_name", overrides)).strip()
 
-    try:
-        port = int(appconfig.get_with_overrides("email.smtp_port", overrides))
-    except TypeError, ValueError:
-        port = 0
+    port = int(appconfig.get_with_overrides("email.smtp_port", overrides))
 
     if not host or not from_address or port < 1:
         logger.error(
