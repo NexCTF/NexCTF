@@ -584,6 +584,15 @@ def custom_field_definition() -> list[CustomFieldDefinition]:
             target=CustomFieldTarget.user,
             is_public=False,
         ),
+        CustomFieldDefinition(
+            id=UUID("a2000000-0000-4000-8000-000000000006"),
+            name="verified",
+            label="Verified",
+            field_type=CustomFieldType.boolean,
+            target=CustomFieldTarget.user,
+            is_public=False,
+            is_self_editable=False,
+        ),
     ]
 
 

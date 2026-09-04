@@ -36,6 +36,7 @@ class CustomFieldDefinition(Base):
     target: Mapped[CustomFieldTarget] = mapped_column(Enum(CustomFieldTarget))
     is_required: Mapped[bool] = mapped_column(default=False)
     is_public: Mapped[bool] = mapped_column(default=True)
+    is_self_editable: Mapped[bool] = mapped_column(default=True)
     show_in_scoreboard: Mapped[bool] = mapped_column(default=False)
 
     values: Mapped[list[CustomFieldValue]] = relationship(

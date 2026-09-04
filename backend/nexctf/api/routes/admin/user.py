@@ -75,7 +75,7 @@ async def create_user(
         raise ConflictError(detail="Username or email already taken")
     if result.data is not None:
         await replace_custom_field_values(
-            session, obj.custom_fields, user_id=result.data.id
+            session, obj.custom_fields, user_id=result.data.id, self_service=False
         )
         await emit(
             session,

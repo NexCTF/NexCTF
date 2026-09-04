@@ -12,12 +12,15 @@ async def _definition(
     db_session: AsyncSession,
     target: CustomFieldTarget,
     field_type: CustomFieldType = CustomFieldType.string,
+    *,
+    is_self_editable: bool = True,
 ) -> CustomFieldDefinition:
     definition = CustomFieldDefinition(
         name=f"{target.value}_{field_type.value}",
         label="Field",
         field_type=field_type,
         target=target,
+        is_self_editable=is_self_editable,
     )
     db_session.add(definition)
     await db_session.flush()
@@ -122,6 +125,48 @@ class TestUserProfile:
             json={"links": [{"label": "xss", "url": "javascript:alert(1)"}]},
         )
         assert resp.status_code == 422
+
+    async def test_hides_a_non_editable_definition(
+        self, user_client: tuple[AsyncClient, User], db_session: AsyncSession
+    ) -> None:
+        client, _ = user_client
+        await _definition(db_session, CustomFieldTarget.user, is_self_editable=False)
+
+        resp = await client.get("/me/profile")
+        assert resp.status_code == 200
+        assert resp.json()["data"]["custom_fields"] == []
+
+    async def test_rejects_a_non_editable_definition(
+        self, user_client: tuple[AsyncClient, User], db_session: AsyncSession
+    ) -> None:
+        client, _ = user_client
+        definition = await _definition(
+            db_session, CustomFieldTarget.user, is_self_editable=False
+        )
+
+        resp = await client.put(
+            "/me/profile", json={"custom_fields": {str(definition.id): "x"}}
+        )
+        assert resp.status_code == 422
+
+    async def test_keeps_a_non_editable_value(
+        self, user_client: tuple[AsyncClient, User], db_session: AsyncSession
+    ) -> None:
+        """An admin annotation survives a profile save that omits it."""
+        client, user = user_client
+        definition = await _definition(
+            db_session, CustomFieldTarget.user, is_self_editable=False
+        )
+        row = CustomFieldValue(
+            definition_id=definition.id, user_id=user.id, value="paid"
+        )
+        db_session.add(row)
+        await db_session.flush()
+
+        resp = await client.put("/me/profile", json={})
+        assert resp.status_code == 200
+        await db_session.refresh(row)
+        assert row.value == "paid"
 
     async def test_rejects_a_mistyped_value(
         self, user_client: tuple[AsyncClient, User], db_session: AsyncSession

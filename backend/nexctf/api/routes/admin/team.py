@@ -64,7 +64,7 @@ async def create_team(
         raise ConflictError(detail="Team name already taken")
     if result.data is not None:
         await replace_custom_field_values(
-            session, obj.custom_fields, team_id=result.data.id
+            session, obj.custom_fields, team_id=result.data.id, self_service=False
         )
     return result
 

@@ -581,6 +581,7 @@ export interface CustomFieldDefinition {
   target: "user" | "team";
   is_required: boolean;
   is_public: boolean;
+  is_self_editable: boolean;
   show_in_scoreboard: boolean;
 }
 

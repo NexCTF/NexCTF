@@ -41,12 +41,15 @@ def validate_value(field_type: CustomFieldType, value: str) -> None:
 
 
 async def _definitions_for(
-    session: AsyncSession, target: CustomFieldTarget
+    session: AsyncSession, target: CustomFieldTarget, *, self_service: bool
 ) -> list[CustomFieldDefinition]:
+    filters = [CustomFieldDefinition.target == target]
+    if self_service:
+        filters.append(CustomFieldDefinition.is_self_editable.is_(True))
     return list(
         await crud.CustomFieldDefinitionCrud.get_multi(
             session=session,
-            filters=[CustomFieldDefinition.target == target],
+            filters=filters,
             order_by=CustomFieldDefinition.name,
         )
     )
@@ -73,9 +76,9 @@ async def load_editable_fields(
     user_id: UUID | None = None,
     team_id: UUID | None = None,
 ) -> list[EditableCustomField]:
-    """Return every definition for an owner's target, with that owner's values."""
+    """Return an owner's self-editable definitions, with that owner's values."""
     target, value_filter = owner_scope(user_id=user_id, team_id=team_id)
-    definitions = await _definitions_for(session, target)
+    definitions = await _definitions_for(session, target, self_service=True)
     rows = await crud.CustomFieldValueCrud.get_multi(
         session=session, filters=[value_filter]
     )
@@ -88,10 +91,11 @@ async def replace_custom_field_values(
     *,
     user_id: UUID | None = None,
     team_id: UUID | None = None,
+    self_service: bool = True,
 ) -> list[EditableCustomField]:
     """Replace an owner's custom field values with *values*, returning the result."""
     target, value_filter = owner_scope(user_id=user_id, team_id=team_id)
-    definitions = await _definitions_for(session, target)
+    definitions = await _definitions_for(session, target, self_service=self_service)
     by_id = {d.id: d for d in definitions}
     if not set(values) <= set(by_id):
         raise UnknownCustomFieldError()

@@ -122,6 +122,7 @@
       "field_public": "Public",
       "field_required": "Requis",
       "field_scoreboard": "Afficher sur le classement",
+      "field_self_editable": "",
       "field_target": "Cible",
       "field_type": "Type",
       "name_hint": "Clé lisible par machine, ex: school",

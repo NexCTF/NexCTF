@@ -12,6 +12,7 @@ class AdminCustomFieldCreate(PydanticBase):
     target: CustomFieldTarget
     is_required: bool = False
     is_public: bool = True
+    is_self_editable: bool = True
     show_in_scoreboard: bool = False
 
 
@@ -22,6 +23,7 @@ class AdminCustomFieldUpdate(PydanticBase):
     field_type: CustomFieldType | None = None
     is_required: bool | None = None
     is_public: bool | None = None
+    is_self_editable: bool | None = None
     show_in_scoreboard: bool | None = None
 
 
@@ -33,6 +35,7 @@ class AdminCustomFieldRead(PydanticBase):
     target: CustomFieldTarget
     is_required: bool
     is_public: bool
+    is_self_editable: bool
     show_in_scoreboard: bool
 
 
