@@ -33,7 +33,7 @@ services:
       - MAXIO_DEFAULT_BUCKETS=${S3_BUCKET}
 
   cache:
-    image: valkey/valkey:9.1.1-alpine@sha256:de31910896150d5e754a07d57d227cfdde4e258ddd0d1aa4607f2d2f95843715
+    image: valkey/valkey:9.1.2-alpine@sha256:ccfa19b0d743e48927e1c8c14e39e0acb97b5cea347fef0bfe340247fea920cd
     restart: always
     ports:
       - "6379:6379"
@@ -50,7 +50,7 @@ services:
       $( [ -n '${REDIS_PASSWORD}' ] && echo '--requirepass ${REDIS_PASSWORD}' )"
 
   cap:
-    image: tiago2/cap:3.1.10@sha256:d785f851d6b09f8df575bd2a9630e7da1363a48fdaa0d0ec1097ad70afac0b0a
+    image: tiago2/cap:3.1.11@sha256:c29417b6270d1fddc6a0603c08d972f89a12de81889d09c3f97a0915422fba5e
     restart: always
     ports:
       - "3000:3000"
