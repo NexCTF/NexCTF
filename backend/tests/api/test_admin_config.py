@@ -2,9 +2,13 @@
 
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.model import User
+from nexctf.model.config import ConfigEntry
 
 
 def _patch_invalidate():
@@ -38,3 +42,37 @@ class TestFreezeTimeInvalidation:
             resp = await c.put("/admin/config", json={"items": {"ctf.name": "NexCTF"}})
         assert resp.status_code == 200
         invalidate.assert_not_awaited()
+
+
+class TestSecretRedaction:
+    """Secrets are masked on read and the mask is never written back."""
+
+    @pytest.fixture
+    def config_overrides(self) -> dict[str, str]:
+        return {"email.smtp_password": "hunter2", "captcha.cap_site_key": "public"}
+
+    async def test_secret_masked_on_read(
+        self,
+        admin_client: tuple[AsyncClient, User],
+    ) -> None:
+        c, _ = admin_client
+        resp = await c.get("/admin/config")
+        items = {i["key"]: i["value"] for i in resp.json()["data"]}
+        assert items["email.smtp_password"] == "***"
+        assert items["captcha.cap_secret_key"] == ""  # unset stays distinguishable
+        assert items["captcha.cap_site_key"] == "public"
+
+    async def test_mask_echoed_back_is_not_stored(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        c, _ = admin_client
+        resp = await c.put(
+            "/admin/config", json={"items": {"email.smtp_password": "***"}}
+        )
+        assert resp.status_code == 200
+        stored = await db_session.execute(
+            select(ConfigEntry).where(ConfigEntry.key == "email.smtp_password")
+        )
+        assert stored.scalar_one_or_none() is None
