@@ -39,10 +39,8 @@ async def _compute() -> VersionInfo:
             data = resp.json()
             latest = data["tag_name"]
             release_url = data["html_url"]
-    except httpx.HTTPError, KeyError, ValueError:
-        # ponytail: GitHub unreachable or no release published yet -> skip the
-        # check for this TTL window, retry on next cache expiry.
-        logger.warning("Could not check for a new NexCTF release", exc_info=True)
+    except (httpx.HTTPError, KeyError, ValueError) as exc:
+        logger.warning("Could not check for a new NexCTF release: %r", exc)
 
     update_available = bool(latest and _parse(latest) > _parse(CURRENT_VERSION))
     return VersionInfo(
