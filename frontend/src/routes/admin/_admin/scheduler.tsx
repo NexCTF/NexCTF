@@ -230,9 +230,7 @@ function CreateJobDialog({ onCreated }: { onCreated: () => void }) {
               {t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
             <Button type="submit" disabled={mutation.isPending || !canSubmit}>
-              {mutation.isPending
-                ? t("common.saving", { defaultValue: "Saving…" })
-                : t("common.save", { defaultValue: "Save" })}
+              {mutation.isPending ? t("common.saving") : t("common.save", { defaultValue: "Save" })}
             </Button>
           </DialogFooter>
         </form>

@@ -155,9 +155,7 @@ function CreateLinkDialog({ onCreated }: { onCreated: () => void }) {
               {t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending
-                ? t("common.saving", { defaultValue: "Creating…" })
-                : t("admin.links.create", { defaultValue: "Create" })}
+              {mutation.isPending ? t("common.creating") : t("common.create")}
             </Button>
           </DialogFooter>
         </form>
@@ -217,9 +215,7 @@ function EditLinkDialog({ link, onSaved }: { link: AdminLink; onSaved: () => voi
               {t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending
-                ? t("common.saving", { defaultValue: "Saving…" })
-                : t("common.save", { defaultValue: "Save" })}
+              {mutation.isPending ? t("common.saving") : t("common.save", { defaultValue: "Save" })}
             </Button>
           </DialogFooter>
         </form>

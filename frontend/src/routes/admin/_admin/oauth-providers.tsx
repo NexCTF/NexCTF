@@ -59,15 +59,16 @@ function ProviderFormFields({
   onChange: (patch: Partial<ProviderForm>) => void;
   secretPlaceholder?: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label>Name *</Label>
+          <Label>{t("admin.oauth_provider.field_name", { defaultValue: "Name" })} *</Label>
           <Input value={form.name} onChange={(e) => onChange({ name: e.target.value })} required />
         </div>
         <div className="space-y-1.5">
-          <Label>Slug *</Label>
+          <Label>{t("admin.oauth_provider.field_slug", { defaultValue: "Slug" })} *</Label>
           <Input
             value={form.slug}
             onChange={(e) => onChange({ slug: e.target.value })}
@@ -77,7 +78,7 @@ function ProviderFormFields({
         </div>
       </div>
       <div className="space-y-1.5">
-        <Label>Discovery URL *</Label>
+        <Label>{t("admin.oauth_provider.col_discovery_url")} *</Label>
         <Input
           value={form.discovery_url}
           onChange={(e) => onChange({ discovery_url: e.target.value })}
@@ -87,7 +88,9 @@ function ProviderFormFields({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label>Client ID *</Label>
+          <Label>
+            {t("admin.oauth_provider.field_client_id", { defaultValue: "Client ID" })} *
+          </Label>
           <Input
             value={form.client_id}
             onChange={(e) => onChange({ client_id: e.target.value })}
@@ -96,7 +99,14 @@ function ProviderFormFields({
           />
         </div>
         <div className="space-y-1.5">
-          <Label>Client Secret {secretPlaceholder ? "(leave blank to keep)" : "*"}</Label>
+          <Label>
+            {t("admin.oauth_provider.field_client_secret", { defaultValue: "Client Secret" })}{" "}
+            {secretPlaceholder
+              ? t("admin.oauth_provider.secret_keep_hint", {
+                  defaultValue: "(leave blank to keep)",
+                })
+              : "*"}
+          </Label>
           <Input
             type="password"
             value={form.client_secret}
@@ -108,7 +118,7 @@ function ProviderFormFields({
         </div>
       </div>
       <div className="space-y-1.5">
-        <Label>Scopes</Label>
+        <Label>{t("admin.oauth_provider.field_scopes", { defaultValue: "Scopes" })}</Label>
         <Input
           value={form.scopes}
           onChange={(e) => onChange({ scopes: e.target.value })}
@@ -116,7 +126,7 @@ function ProviderFormFields({
         />
       </div>
       <div className="space-y-1.5">
-        <Label>Icon URL</Label>
+        <Label>{t("admin.oauth_provider.field_icon_url", { defaultValue: "Icon URL" })}</Label>
         <Input
           value={form.icon_url}
           onChange={(e) => onChange({ icon_url: e.target.value })}
@@ -124,7 +134,9 @@ function ProviderFormFields({
         />
       </div>
       <div className="flex items-center justify-between rounded-lg border px-3 py-2.5">
-        <p className="text-sm font-medium">Active</p>
+        <p className="text-sm font-medium">
+          {t("admin.oauth_provider.field_active", { defaultValue: "Active" })}
+        </p>
         <Switch checked={form.is_active} onCheckedChange={(v) => onChange({ is_active: v })} />
       </div>
     </div>
@@ -145,6 +157,7 @@ const EMPTY_FORM: ProviderForm = {
 };
 
 function CreateProviderDialog({ onCreated }: { onCreated: () => void }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<ProviderForm>({ ...EMPTY_FORM });
 
@@ -155,12 +168,18 @@ function CreateProviderDialog({ onCreated }: { onCreated: () => void }) {
         icon_url: form.icon_url || null,
       }),
     onSuccess: () => {
-      toast.success("Provider created");
+      toast.success(t("admin.oauth_provider.created", { defaultValue: "Provider created" }));
       setOpen(false);
       setForm({ ...EMPTY_FORM });
       onCreated();
     },
-    onError: (err) => toast.error(apiErrorMessage(err, "Failed to create provider")),
+    onError: (err) =>
+      toast.error(
+        apiErrorMessage(
+          err,
+          t("admin.oauth_provider.create_error", { defaultValue: "Failed to create provider" }),
+        ),
+      ),
   });
 
   return (
@@ -169,13 +188,15 @@ function CreateProviderDialog({ onCreated }: { onCreated: () => void }) {
         render={
           <Button>
             <Plus className="size-4" />
-            New Provider
+            {t("admin.oauth_provider.new", { defaultValue: "New Provider" })}
           </Button>
         }
       />
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>New OAuth provider</DialogTitle>
+          <DialogTitle>
+            {t("admin.oauth_provider.new_title", { defaultValue: "New OAuth provider" })}
+          </DialogTitle>
         </DialogHeader>
         <form
           onSubmit={(e) => {
@@ -187,10 +208,10 @@ function CreateProviderDialog({ onCreated }: { onCreated: () => void }) {
           <ProviderFormFields form={form} onChange={(p) => setForm((f) => ({ ...f, ...p }))} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Creating…" : "Create"}
+              {mutation.isPending ? t("common.creating") : t("common.create")}
             </Button>
           </DialogFooter>
         </form>
@@ -208,6 +229,7 @@ function EditProviderDialog({
   provider: AdminOAuthProvider;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<ProviderForm>({
     slug: provider.slug,
@@ -235,11 +257,17 @@ function EditProviderDialog({
       return updateAdminOAuthProvider(provider.id, patch);
     },
     onSuccess: () => {
-      toast.success("Provider saved");
+      toast.success(t("admin.oauth_provider.saved", { defaultValue: "Provider saved" }));
       setOpen(false);
       onSaved();
     },
-    onError: (err) => toast.error(apiErrorMessage(err, "Failed to save provider")),
+    onError: (err) =>
+      toast.error(
+        apiErrorMessage(
+          err,
+          t("admin.oauth_provider.save_error", { defaultValue: "Failed to save provider" }),
+        ),
+      ),
   });
 
   return (
@@ -253,7 +281,9 @@ function EditProviderDialog({
       />
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit OAuth provider</DialogTitle>
+          <DialogTitle>
+            {t("admin.oauth_provider.edit_title", { defaultValue: "Edit OAuth provider" })}
+          </DialogTitle>
         </DialogHeader>
         <form
           onSubmit={(e) => {
@@ -269,10 +299,10 @@ function EditProviderDialog({
           />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Saving…" : "Save"}
+              {mutation.isPending ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </form>
@@ -358,10 +388,16 @@ function OAuthProvidersPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteAdminOAuthProvider(id),
     onSuccess: () => {
-      toast.success("Provider deleted");
+      toast.success(t("admin.oauth_provider.deleted", { defaultValue: "Provider deleted" }));
       invalidate();
     },
-    onError: (err) => toast.error(apiErrorMessage(err, "Failed to delete provider")),
+    onError: (err) =>
+      toast.error(
+        apiErrorMessage(
+          err,
+          t("admin.oauth_provider.delete_error", { defaultValue: "Failed to delete provider" }),
+        ),
+      ),
   });
 
   return (

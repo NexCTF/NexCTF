@@ -370,7 +370,7 @@ function SchedulerJobDetailPage() {
                       disabled={saveMutation.isPending}
                     >
                       {saveMutation.isPending
-                        ? t("common.saving", { defaultValue: "Saving…" })
+                        ? t("common.saving")
                         : t("common.save", { defaultValue: "Save" })}
                     </Button>
                     <Button size="sm" variant="outline" onClick={cancelEdit}>

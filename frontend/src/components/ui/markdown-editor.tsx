@@ -1,6 +1,7 @@
 import { Eye, Pencil } from "lucide-react";
 import type * as React from "react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Markdown } from "@/components/markdown";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ export function MarkdownEditor({
   placeholder,
   ref,
 }: MarkdownEditorProps) {
+  const { t } = useTranslation();
   const [previewing, setPreviewing] = useState(false);
 
   return (
@@ -41,7 +43,7 @@ export function MarkdownEditor({
           )}
         >
           <Pencil className="size-3" />
-          Write
+          {t("markdown.write", { defaultValue: "Write" })}
         </button>
         <button
           type="button"
@@ -54,7 +56,7 @@ export function MarkdownEditor({
           )}
         >
           <Eye className="size-3" />
-          Preview
+          {t("markdown.preview", { defaultValue: "Preview" })}
         </button>
         <span className="ml-auto text-xs text-muted-foreground">Markdown</span>
       </div>
@@ -65,7 +67,9 @@ export function MarkdownEditor({
           {value.trim() ? (
             <Markdown>{value}</Markdown>
           ) : (
-            <p className="text-sm text-muted-foreground italic">Nothing to preview.</p>
+            <p className="text-sm text-muted-foreground italic">
+              {t("markdown.nothing_to_preview", { defaultValue: "Nothing to preview." })}
+            </p>
           )}
         </div>
       ) : (

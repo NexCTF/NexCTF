@@ -189,9 +189,7 @@ function CreateNotificationDialog({ onCreated }: { onCreated: () => void }) {
               type="submit"
               disabled={mutation.isPending || (!form.is_broadcast && form.team_ids.length === 0)}
             >
-              {mutation.isPending
-                ? t("common.saving", { defaultValue: "Saving…" })
-                : t("common.save", { defaultValue: "Save" })}
+              {mutation.isPending ? t("common.saving") : t("common.save", { defaultValue: "Save" })}
             </Button>
           </DialogFooter>
         </form>

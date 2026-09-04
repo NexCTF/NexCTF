@@ -102,7 +102,14 @@
     },
     "challenges": {
       "col_questions": "Questions",
-      "col_sequential": "Séquentiel"
+      "col_sequential": "Séquentiel",
+      "create_error": "Échec de la création du challenge",
+      "created": "Challenge créé",
+      "new": "Nouveau challenge",
+      "new_typed_title": "Nouveau challenge {{type}}",
+      "no_types": "Aucun type de challenge enregistré",
+      "select_type": "Choisir un type de challenge",
+      "type_hint": "Type de challenge"
     },
     "custom_fields": {
       "col_key": "Clé",
@@ -122,7 +129,7 @@
       "field_public": "Public",
       "field_required": "Requis",
       "field_scoreboard": "Afficher sur le classement",
-      "field_self_editable": "",
+      "field_self_editable": "Modifiable par l'utilisateur",
       "field_target": "Cible",
       "field_type": "Type",
       "name_hint": "Clé lisible par machine, ex: school",
@@ -174,11 +181,16 @@
       "name_placeholder": "Nom convivial",
       "new_version": "Nouvelle version (optionnel)",
       "new_version_hint": "Envoyer un nouveau fichier pour remplacer la version actuelle sans changer l'ID.",
+      "no_preview": "Aucun aperçu disponible pour ce type de fichier.",
+      "preview": "Aperçu",
+      "text_load_error": "Impossible de charger le texte — vérifiez la configuration CORS de S3.",
       "update_error": "Échec de la mise à jour",
       "updated": "Fichier mis à jour",
       "upload": "Envoyer un fichier",
+      "upload_btn": "Envoyer",
       "upload_error": "Échec de l'envoi",
-      "uploaded": "Fichier envoyé"
+      "uploaded": "Fichier envoyé",
+      "uploading": "Envoi…"
     },
     "labels": {
       "noun_bracket": "catégorie",
@@ -206,7 +218,9 @@
       "visibility_public": "Public"
     },
     "nav": {
+      "api_docs": "Docs API",
       "back_to_site": "Retour au site",
+      "badge": "Admin",
       "challenges": "Challenges",
       "custom_fields": "Champs personnalisés",
       "dashboard": "Tableau de bord",
@@ -283,9 +297,28 @@
     },
     "oauth_provider": {
       "col_discovery_url": "URL de découverte",
-      "delete_confirm": "Supprimer le fournisseur «\u00a0{{name}}\u00a0»\u202f?"
+      "create_error": "Échec de la création du fournisseur",
+      "created": "Fournisseur créé",
+      "delete_confirm": "Supprimer le fournisseur «\u00a0{{name}}\u00a0»\u202f?",
+      "delete_error": "Échec de la suppression du fournisseur",
+      "deleted": "Fournisseur supprimé",
+      "edit_title": "Modifier le fournisseur OAuth",
+      "field_active": "Actif",
+      "field_client_id": "Client ID",
+      "field_client_secret": "Secret client",
+      "field_icon_url": "URL de l'icône",
+      "field_name": "Nom",
+      "field_scopes": "Scopes",
+      "field_slug": "Slug",
+      "new": "Nouveau fournisseur",
+      "new_title": "Nouveau fournisseur OAuth",
+      "save_error": "Échec de l'enregistrement du fournisseur",
+      "saved": "Fournisseur enregistré",
+      "secret_keep_hint": "(laisser vide pour conserver)"
     },
     "pages": {
+      "available_variables": "Variables disponibles",
+      "click_to_insert": "Cliquer pour insérer",
       "col_nav": "Navigation",
       "col_slug": "Slug",
       "create": "Nouvelle page",
@@ -295,6 +328,7 @@
       "delete_error": "Échec de la suppression",
       "deleted": "Page supprimée",
       "draft": "Brouillon",
+      "field_content": "Contenu",
       "field_nav": "Afficher dans la navigation",
       "field_published": "Publié",
       "field_slug": "Slug",
@@ -315,6 +349,14 @@
       "view_live": "Voir en ligne →",
       "will_make_public": "sera rendu public"
     },
+    "plugins": {
+      "active": "Actif",
+      "builtin": "Intégré",
+      "empty": "Aucun plugin chargé.",
+      "external": "Externe",
+      "inactive": "Inactif",
+      "official": "Officiel"
+    },
     "scheduler": {
       "active_hint": "Activer la tâche pour qu'elle s'exécute à l'heure prévue",
       "col_last_run": "Dernière exécution",
@@ -325,10 +367,10 @@
       "create": "Nouvelle tâche",
       "create_error": "Échec de la création",
       "created": "Tâche créée",
-      "cron_check_failed": "",
-      "cron_hint": "",
-      "cron_invalid": "",
-      "cron_preview": "",
+      "cron_check_failed": "Impossible de vérifier cette expression pour le moment.",
+      "cron_hint": "Laisser vide pour une tâche qui ne s'exécute qu'une fois. Les planifications sont lues dans le fuseau horaire de l'événement (Paramètres → Compétition).",
+      "cron_invalid": "Expression cron invalide.",
+      "cron_preview": "Lu en {{zone}} · prochaines exécutions, dans votre fuseau horaire : {{runs}}",
       "delete_confirm": "Supprimer la tâche « {{name}} » ?",
       "delete_error": "Échec de la suppression",
       "deleted": "Tâche supprimée",
@@ -339,11 +381,11 @@
       "enabled": "Tâche activée",
       "field_active": "Active",
       "field_created_at": "Créée le",
-      "field_cron": "",
-      "field_first_run": "",
+      "field_cron": "Répétition (cron)",
+      "field_first_run": "Première exécution (optionnel)",
       "field_id": "ID",
       "field_name": "Nom",
-      "field_next_run": "",
+      "field_next_run": "Prochaine exécution",
       "field_params": "Paramètres",
       "field_scheduled_at": "Planifiée à",
       "field_type": "Type de tâche",
@@ -439,7 +481,7 @@
       "events_title": "Activité récente",
       "field_email": "Email",
       "field_id": "ID",
-      "field_ips": "",
+      "field_ips": "Adresses IP",
       "field_last_login_at": "Dernière connexion",
       "field_links": "Liens",
       "field_password": "Mot de passe",
@@ -524,6 +566,7 @@
     "delete": "Supprimer",
     "done": "Terminé",
     "edit": "Modifier",
+    "false": "faux",
     "loading": "Chargement…",
     "malus_hint": "Points retirés de la récompense à chaque mauvaise réponse.",
     "points": "{{value}} pts",
@@ -532,7 +575,8 @@
     "saved": "Enregistré",
     "saving": "Enregistrement…",
     "search": "Rechercher…",
-    "sign_out": "Se déconnecter"
+    "sign_out": "Se déconnecter",
+    "true": "vrai"
   },
   "config": {
     "appearance": {
@@ -755,6 +799,9 @@
   "home": {
     "welcome": "Bienvenue, {{username}}"
   },
+  "language": {
+    "change": "Changer de langue"
+  },
   "login": {
     "disabled_message": "Votre compte a été désactivé. Veuillez contacter un administrateur.",
     "disabled_title": "Compte désactivé",
@@ -773,6 +820,11 @@
     "username": "Nom d'utilisateur",
     "verify_message": "Veuillez confirmer votre adresse email avant de vous connecter. Entrez votre email pour recevoir un nouveau lien de vérification.",
     "verify_title": "Vérifiez votre email"
+  },
+  "markdown": {
+    "nothing_to_preview": "Rien à prévisualiser.",
+    "preview": "Aperçu",
+    "write": "Écrire"
   },
   "nav": {
     "admin": "Admin",
@@ -846,6 +898,9 @@
     "success_title": "Mot de passe mis à jour",
     "token_invalid": "Ce lien de réinitialisation est invalide ou a expiré."
   },
+  "schema_form": {
+    "no_items": "Aucun élément."
+  },
   "scoreboard": {
     "bracket_global": "Global",
     "bracket_label": "Catégorie",
@@ -889,23 +944,23 @@
       "wrong_current": "Le mot de passe actuel est incorrect"
     },
     "session": {
-      "all_revoke_error": "",
-      "all_revoked": "",
-      "current": "",
-      "device_on": "",
-      "device_unknown": "",
-      "last_seen": "",
-      "now_used_from": "",
-      "revoke": "",
-      "revoke_all": "",
-      "revoke_all_confirm": "",
-      "revoke_confirm": "",
-      "revoke_error": "",
-      "revoked": "",
-      "section_hint": "",
-      "section_title": "",
-      "signed_in_from": "",
-      "signed_in_from_unknown": ""
+      "all_revoke_error": "Impossible de déconnecter les autres appareils",
+      "all_revoked": "Déconnecté sur tous les appareils",
+      "current": "Cet appareil",
+      "device_on": "{{browser}} sur {{os}}",
+      "device_unknown": "Appareil inconnu",
+      "last_seen": "Dernière activité {{when}}",
+      "now_used_from": "désormais utilisé depuis {{ip}}",
+      "revoke": "Déconnecter cet appareil",
+      "revoke_all": "Se déconnecter partout",
+      "revoke_all_confirm": "Se déconnecter sur tous les appareils ? Vous serez également déconnecté ici.",
+      "revoke_confirm": "Déconnecter {{device}} ?",
+      "revoke_error": "Impossible de déconnecter cette session",
+      "revoked": "Session déconnectée",
+      "section_hint": "Appareils actuellement connectés à votre compte.",
+      "section_title": "Sessions actives",
+      "signed_in_from": "Connecté depuis {{ip}}",
+      "signed_in_from_unknown": "Connecté depuis une IP inconnue"
     },
     "subtitle": "Gérez les paramètres de votre compte.",
     "title": "Paramètres",
@@ -969,7 +1024,7 @@
     "col_ip": "IP",
     "col_last_run": "Dernière exécution",
     "col_name": "Nom",
-    "col_next_run": "",
+    "col_next_run": "Prochaine exécution",
     "col_points": "Points",
     "col_public": "Public",
     "col_question": "Question",
@@ -981,6 +1036,7 @@
     "col_type": "Type",
     "col_user": "Utilisateur",
     "col_username": "Nom d'utilisateur",
+    "copy_id": "Copier l'ID",
     "filter_all": "Tous",
     "n_selected_one": "{{count}} sélectionné(s)",
     "n_selected_many": "{{count}} sélectionné(s)",
@@ -1051,6 +1107,12 @@
     "solve_points_label": "Points des questions",
     "title": "Équipe",
     "total_label": "Total"
+  },
+  "theme": {
+    "dark": "Sombre",
+    "light": "Clair",
+    "system": "Système",
+    "toggle": "Changer de thème"
   },
   "verify_email": {
     "checking": "Vérification de votre email…",

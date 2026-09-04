@@ -113,9 +113,7 @@ function CreatePageDialog({ onCreated }: { onCreated: (id: string) => void }) {
               {t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
             <Button type="submit" disabled={mutation.isPending || !title || !slug}>
-              {mutation.isPending
-                ? t("common.saving", { defaultValue: "Creating…" })
-                : t("admin.pages.create", { defaultValue: "Create" })}
+              {mutation.isPending ? t("common.creating") : t("common.create")}
             </Button>
           </DialogFooter>
         </form>

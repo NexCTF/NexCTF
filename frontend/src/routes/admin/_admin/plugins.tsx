@@ -20,29 +20,31 @@ function VersionBadge({ version }: { version: string | null }) {
 }
 
 function StatusBadge({ plugin }: { plugin: Plugin }) {
+  const { t } = useTranslation();
   if (plugin.is_builtin) {
     return (
       <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
-        Built-in
+        {t("admin.plugins.builtin", { defaultValue: "Built-in" })}
       </span>
     );
   }
   return plugin.is_active ? (
     <span className="inline-flex items-center rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
-      Active
+      {t("admin.plugins.active", { defaultValue: "Active" })}
     </span>
   ) : (
     <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-      Inactive
+      {t("admin.plugins.inactive", { defaultValue: "Inactive" })}
     </span>
   );
 }
 
 function OfficialBadge() {
+  const { t } = useTranslation();
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
       <ShieldCheck className="size-3" />
-      Official
+      {t("admin.plugins.official", { defaultValue: "Official" })}
     </span>
   );
 }
@@ -150,14 +152,22 @@ function PluginsPage() {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-24">
-          <p className="text-muted-foreground text-sm">Loading…</p>
+          <p className="text-muted-foreground text-sm">{t("common.loading")}</p>
         </div>
       ) : (
         <div className="space-y-10">
-          <PluginSection title="Built-in" plugins={builtin} />
-          <PluginSection title="External" plugins={external} />
+          <PluginSection
+            title={t("admin.plugins.builtin", { defaultValue: "Built-in" })}
+            plugins={builtin}
+          />
+          <PluginSection
+            title={t("admin.plugins.external", { defaultValue: "External" })}
+            plugins={external}
+          />
           {plugins.length === 0 && (
-            <p className="text-muted-foreground text-sm">No plugins loaded.</p>
+            <p className="text-muted-foreground text-sm">
+              {t("admin.plugins.empty", { defaultValue: "No plugins loaded." })}
+            </p>
           )}
         </div>
       )}

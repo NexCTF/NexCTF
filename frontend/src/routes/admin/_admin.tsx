@@ -159,7 +159,7 @@ function AdminLayout() {
             <span className="font-bold tracking-tight truncate">{name}</span>
           )}
           <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary uppercase tracking-wider shrink-0">
-            Admin
+            {t("admin.nav.badge", { defaultValue: "Admin" })}
           </span>
         </div>
 
@@ -204,7 +204,7 @@ function AdminLayout() {
             className={`${BASE_CLS} ${INACTIVE_CLS}`}
           >
             <BookOpen className="h-4 w-4" />
-            API Docs
+            {t("admin.nav.api_docs", { defaultValue: "API Docs" })}
           </a>
 
           <button

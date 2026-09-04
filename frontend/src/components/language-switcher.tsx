@@ -14,13 +14,13 @@ const LANGUAGES = [
 ] as const;
 
 export function LanguageSwitcher() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className={buttonVariants({ variant: "ghost", size: "icon" })}>
         <Globe />
-        <span className="sr-only">Change language</span>
+        <span className="sr-only">{t("language.change", { defaultValue: "Change language" })}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {LANGUAGES.map((lang) => (

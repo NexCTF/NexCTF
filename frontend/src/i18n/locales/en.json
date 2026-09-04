@@ -101,7 +101,14 @@
     },
     "challenges": {
       "col_questions": "Questions",
-      "col_sequential": "Sequential"
+      "col_sequential": "Sequential",
+      "create_error": "Failed to create challenge",
+      "created": "Challenge created",
+      "new": "New Challenge",
+      "new_typed_title": "New {{type}} challenge",
+      "no_types": "No challenge types registered",
+      "select_type": "Select challenge type",
+      "type_hint": "Challenge type"
     },
     "custom_fields": {
       "col_key": "Key",
@@ -173,11 +180,16 @@
       "name_placeholder": "Friendly name",
       "new_version": "New version (optional)",
       "new_version_hint": "Upload a new file to replace the current version without changing the ID.",
+      "no_preview": "No preview available for this file type.",
+      "preview": "Preview",
+      "text_load_error": "Could not load text — check S3 CORS configuration.",
       "update_error": "Update failed",
       "updated": "File updated",
       "upload": "Upload file",
+      "upload_btn": "Upload",
       "upload_error": "Upload failed",
-      "uploaded": "File uploaded"
+      "uploaded": "File uploaded",
+      "uploading": "Uploading…"
     },
     "labels": {
       "noun_bracket": "bracket",
@@ -205,7 +217,9 @@
       "visibility_public": "Public"
     },
     "nav": {
+      "api_docs": "API Docs",
       "back_to_site": "Back to site",
+      "badge": "Admin",
       "challenges": "Challenges",
       "custom_fields": "Custom Fields",
       "dashboard": "Dashboard",
@@ -281,9 +295,28 @@
     },
     "oauth_provider": {
       "col_discovery_url": "Discovery URL",
-      "delete_confirm": "Delete provider \"{{name}}\"?"
+      "create_error": "Failed to create provider",
+      "created": "Provider created",
+      "delete_confirm": "Delete provider \"{{name}}\"?",
+      "delete_error": "Failed to delete provider",
+      "deleted": "Provider deleted",
+      "edit_title": "Edit OAuth provider",
+      "field_active": "Active",
+      "field_client_id": "Client ID",
+      "field_client_secret": "Client Secret",
+      "field_icon_url": "Icon URL",
+      "field_name": "Name",
+      "field_scopes": "Scopes",
+      "field_slug": "Slug",
+      "new": "New Provider",
+      "new_title": "New OAuth provider",
+      "save_error": "Failed to save provider",
+      "saved": "Provider saved",
+      "secret_keep_hint": "(leave blank to keep)"
     },
     "pages": {
+      "available_variables": "Available variables",
+      "click_to_insert": "Click to insert",
       "col_nav": "Navigation",
       "col_slug": "Slug",
       "create": "New page",
@@ -293,6 +326,7 @@
       "delete_error": "Delete failed",
       "deleted": "Page deleted",
       "draft": "Draft",
+      "field_content": "Content",
       "field_nav": "Show in navigation",
       "field_published": "Published",
       "field_slug": "Slug",
@@ -312,6 +346,14 @@
       "title_placeholder": "About us",
       "view_live": "View live →",
       "will_make_public": "will be made public"
+    },
+    "plugins": {
+      "active": "Active",
+      "builtin": "Built-in",
+      "empty": "No plugins loaded.",
+      "external": "External",
+      "inactive": "Inactive",
+      "official": "Official"
     },
     "scheduler": {
       "active_hint": "Enable the job to fire at the scheduled time",
@@ -522,6 +564,7 @@
     "delete": "Delete",
     "done": "Done",
     "edit": "Edit",
+    "false": "false",
     "loading": "Loading…",
     "malus_hint": "Points lost from the reward for each wrong answer.",
     "points": "{{value}} pts",
@@ -530,7 +573,8 @@
     "saved": "Saved",
     "saving": "Saving…",
     "search": "Search…",
-    "sign_out": "Sign out"
+    "sign_out": "Sign out",
+    "true": "true"
   },
   "config": {
     "appearance": {
@@ -753,6 +797,9 @@
   "home": {
     "welcome": "Welcome, {{username}}"
   },
+  "language": {
+    "change": "Change language"
+  },
   "login": {
     "disabled_message": "Your account has been disabled. Please contact an administrator.",
     "disabled_title": "Account Disabled",
@@ -771,6 +818,11 @@
     "username": "Username",
     "verify_message": "Please confirm your email address before signing in. Enter your email to receive a new verification link.",
     "verify_title": "Verify your email"
+  },
+  "markdown": {
+    "nothing_to_preview": "Nothing to preview.",
+    "preview": "Preview",
+    "write": "Write"
   },
   "nav": {
     "admin": "Admin",
@@ -843,6 +895,9 @@
     "success_desc": "Your password has been changed. You can now sign in.",
     "success_title": "Password updated",
     "token_invalid": "This reset link is invalid or has expired."
+  },
+  "schema_form": {
+    "no_items": "No items yet."
   },
   "scoreboard": {
     "bracket_global": "Global",
@@ -979,6 +1034,7 @@
     "col_type": "Type",
     "col_user": "User",
     "col_username": "Username",
+    "copy_id": "Copy ID",
     "filter_all": "All",
     "n_selected_one": "{{count}} selected",
     "n_selected_other": "{{count}} selected",
@@ -1046,6 +1102,12 @@
     "solve_points_label": "Question points",
     "title": "Team",
     "total_label": "Total"
+  },
+  "theme": {
+    "dark": "Dark",
+    "light": "Light",
+    "system": "System",
+    "toggle": "Toggle theme"
   },
   "verify_email": {
     "checking": "Verifying your email…",

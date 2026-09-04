@@ -68,6 +68,7 @@ const EMPTY_BASE = {
 };
 
 function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<CreateStep>(1);
   const [selectedType, setSelectedType] = useState<string | null>(null);
@@ -86,11 +87,17 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
     mutationFn: ({ type, data }: { type: string; data: Record<string, unknown> }) =>
       createChallenge(type, data),
     onSuccess: (challenge) => {
-      toast.success("Challenge created");
+      toast.success(t("admin.challenges.created", { defaultValue: "Challenge created" }));
       handleClose();
       onCreated(challenge.id);
     },
-    onError: (err) => toast.error(apiErrorMessage(err, "Failed to create challenge")),
+    onError: (err) =>
+      toast.error(
+        apiErrorMessage(
+          err,
+          t("admin.challenges.create_error", { defaultValue: "Failed to create challenge" }),
+        ),
+      ),
   });
 
   function handleClose() {
@@ -106,13 +113,13 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
 
   function handleTypeSelect(typeName: string) {
     // biome-ignore lint/style/noNonNullAssertion: typeName comes from types selection UI
-    const typeInfo = types.find((t) => t.type_name === typeName)!;
+    const typeInfo = types.find((ct) => ct.type_name === typeName)!;
     setSelectedType(typeName);
     setForm({ ...EMPTY_BASE, ...initExtras(typeInfo) });
     setStep(2);
   }
 
-  const selectedSchema = types.find((t) => t.type_name === selectedType)?.create_schema;
+  const selectedSchema = types.find((ct) => ct.type_name === selectedType)?.create_schema;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -130,14 +137,19 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
         render={
           <Button>
             <Plus className="size-4" />
-            New Challenge
+            {t("admin.challenges.new", { defaultValue: "New Challenge" })}
           </Button>
         }
       />
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {step === 1 ? "Select challenge type" : `New ${selectedType} challenge`}
+            {step === 1
+              ? t("admin.challenges.select_type", { defaultValue: "Select challenge type" })
+              : t("admin.challenges.new_typed_title", {
+                  defaultValue: "New {{type}} challenge",
+                  type: selectedType,
+                })}
           </DialogTitle>
         </DialogHeader>
 
@@ -145,28 +157,32 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
           <div className="grid grid-cols-2 gap-3 mt-2">
             {types.length === 0 && (
               <p className="col-span-2 text-center text-sm text-muted-foreground py-8">
-                No challenge types registered
+                {t("admin.challenges.no_types", {
+                  defaultValue: "No challenge types registered",
+                })}
               </p>
             )}
-            {types.map((t) => (
+            {types.map((ct) => (
               <button
-                key={t.type_name}
+                key={ct.type_name}
                 type="button"
-                onClick={() => handleTypeSelect(t.type_name)}
+                onClick={() => handleTypeSelect(ct.type_name)}
                 className="flex flex-col items-start gap-1 rounded-lg border p-4 text-left hover:border-primary hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <Puzzle className="size-4 text-muted-foreground" />
-                  <span className="font-medium capitalize">{t.type_name}</span>
+                  <span className="font-medium capitalize">{ct.type_name}</span>
                 </div>
-                <span className="text-xs text-muted-foreground">Challenge type</span>
+                <span className="text-xs text-muted-foreground">
+                  {t("admin.challenges.type_hint", { defaultValue: "Challenge type" })}
+                </span>
               </button>
             ))}
           </div>
         ) : selectedSchema ? (
           <form onSubmit={handleSubmit} className="space-y-4 mt-2">
             <div className="space-y-1.5">
-              <Label htmlFor="ch-title">Title *</Label>
+              <Label htmlFor="ch-title">{t("admin.challenge.field_title")} *</Label>
               <Input
                 id="ch-title"
                 value={String(form.title ?? "")}
@@ -176,7 +192,7 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="ch-desc">Description</Label>
+              <Label htmlFor="ch-desc">{t("admin.challenge.field_description")}</Label>
               <MarkdownEditor
                 id="ch-desc"
                 rows={4}
@@ -186,10 +202,9 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="ch-writeup">Writeup</Label>
+              <Label htmlFor="ch-writeup">{t("admin.challenge.field_writeup")}</Label>
               <p className="text-xs text-muted-foreground">
-                Markdown, shown to players once they complete the challenge (or after the event
-                ends, if enabled)
+                {t("admin.challenge.field_writeup_hint")}
               </p>
               <MarkdownEditor
                 id="ch-writeup"
@@ -200,10 +215,10 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="ch-category">Category</Label>
+              <Label htmlFor="ch-category">{t("admin.challenge.field_category")}</Label>
               <LabelInput
                 id="ch-category"
-                placeholder="No category"
+                placeholder={t("admin.challenge.no_category")}
                 noun="category"
                 suggestions={categories}
                 value={String(form.category ?? "")}
@@ -212,7 +227,7 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
             </div>
 
             <div className="space-y-1.5">
-              <Label>Tags</Label>
+              <Label>{t("admin.challenge.field_tags")}</Label>
               <TagMultiSelect
                 value={(form.tags as string[]) ?? []}
                 onChange={(tags) => update({ tags })}
@@ -223,8 +238,10 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
             <div className="flex gap-3">
               <div className="flex flex-1 items-center justify-between rounded-lg border px-3 py-2.5">
                 <div>
-                  <p className="text-sm font-medium">Active</p>
-                  <p className="text-xs text-muted-foreground">Visible to players</p>
+                  <p className="text-sm font-medium">{t("admin.challenge.active_label")}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("admin.challenge.active_hint")}
+                  </p>
                 </div>
                 <Switch
                   checked={Boolean(form.is_active)}
@@ -233,8 +250,10 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
               </div>
               <div className="flex flex-1 items-center justify-between rounded-lg border px-3 py-2.5">
                 <div>
-                  <p className="text-sm font-medium">Sequential</p>
-                  <p className="text-xs text-muted-foreground">Ordered questions</p>
+                  <p className="text-sm font-medium">{t("admin.challenge.sequential_label")}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("admin.challenge.sequential_hint")}
+                  </p>
                 </div>
                 <Switch
                   checked={Boolean(form.sequential)}
@@ -252,10 +271,10 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setStep(1)}>
-                Back
+                {t("common.back")}
               </Button>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Creating…" : "Create"}
+                {mutation.isPending ? t("common.creating") : t("common.create")}
               </Button>
             </DialogFooter>
           </form>

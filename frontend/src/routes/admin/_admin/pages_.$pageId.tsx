@@ -155,6 +155,7 @@ function FilePicker({ onInsert }: { onInsert: (markdown: string) => void }) {
 // ---------------------------------------------------------------------------
 
 function PageContentEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useTranslation();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   function insertAtCursor(text: string) {
@@ -176,12 +177,12 @@ function PageContentEditor({ value, onChange }: { value: string; onChange: (v: s
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label>Content</Label>
+        <Label>{t("admin.pages.field_content", { defaultValue: "Content" })}</Label>
         <FilePicker onInsert={insertAtCursor} />
       </div>
       <details className="text-xs border rounded-md">
         <summary className="px-3 py-1.5 cursor-pointer text-muted-foreground hover:text-foreground select-none">
-          Available variables
+          {t("admin.pages.available_variables", { defaultValue: "Available variables" })}
         </summary>
         <div className="px-3 pb-3 pt-1 grid grid-cols-1 gap-1.5">
           {MAGIC_VAR_DOCS.map((v) => (
@@ -190,7 +191,7 @@ function PageContentEditor({ value, onChange }: { value: string; onChange: (v: s
                 type="button"
                 className="font-mono bg-muted px-1 py-0.5 rounded text-xs shrink-0 cursor-pointer hover:bg-muted/70"
                 onClick={() => insertAtCursor(`{{${v.key}}}`)}
-                title="Click to insert"
+                title={t("admin.pages.click_to_insert", { defaultValue: "Click to insert" })}
               >
                 {`{{${v.key}}}`}
               </button>
@@ -361,9 +362,7 @@ function PageEditorPage() {
       {/* Save */}
       <div className="flex items-center gap-3 pt-2">
         <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
-          {mutation.isPending
-            ? t("common.saving", { defaultValue: "Saving…" })
-            : t("common.save", { defaultValue: "Save" })}
+          {mutation.isPending ? t("common.saving") : t("common.save", { defaultValue: "Save" })}
         </Button>
         {effectivePublished && (
           <a

@@ -6,6 +6,7 @@
  */
 
 import { Plus, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { TeamMultiSelect } from "@/components/team-multi-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,6 +125,7 @@ function ArrayField({
   value: Record<string, unknown>[];
   onChange: (v: Record<string, unknown>[]) => void;
 }) {
+  const { t } = useTranslation();
   const items = value ?? [];
   const isStringArray = !itemSchema.properties && itemSchema.type === "string";
   const itemProps = Object.entries(itemSchema.properties ?? {});
@@ -152,10 +154,14 @@ function ArrayField({
           }
         >
           <Plus className="size-3" />
-          Add
+          {t("common.add")}
         </Button>
       </div>
-      {items.length === 0 && <p className="text-xs text-muted-foreground py-1">No items yet.</p>}
+      {items.length === 0 && (
+        <p className="text-xs text-muted-foreground py-1">
+          {t("schema_form.no_items", { defaultValue: "No items yet." })}
+        </p>
+      )}
       {isStringArray
         ? items.map((item, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: schema array items have no stable id

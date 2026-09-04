@@ -121,8 +121,8 @@ function UploadFileDialog({ onCreated }: { onCreated: () => void }) {
             </Button>
             <Button type="submit" disabled={mutation.isPending || !file}>
               {mutation.isPending
-                ? t("common.saving", { defaultValue: "Uploading…" })
-                : t("admin.files.upload", { defaultValue: "Upload" })}
+                ? t("admin.files.uploading", { defaultValue: "Uploading…" })
+                : t("admin.files.upload_btn", { defaultValue: "Upload" })}
             </Button>
           </DialogFooter>
         </form>
@@ -167,7 +167,7 @@ function EditFileDialog({ file, onUpdated }: { file: StoredFile; onUpdated: () =
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button variant="ghost" size="icon" title="Edit">
+          <Button variant="ghost" size="icon" title={t("common.edit")}>
             <Pencil className="size-4" />
           </Button>
         }
@@ -210,9 +210,7 @@ function EditFileDialog({ file, onUpdated }: { file: StoredFile; onUpdated: () =
               {t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
             <Button type="submit" disabled={mutation.isPending || unchanged}>
-              {mutation.isPending
-                ? t("common.saving", { defaultValue: "Saving…" })
-                : t("common.save", { defaultValue: "Save" })}
+              {mutation.isPending ? t("common.saving") : t("common.save", { defaultValue: "Save" })}
             </Button>
           </DialogFooter>
         </form>
@@ -254,6 +252,7 @@ function PreviewContent({
   url: string;
   filename: string;
 }) {
+  const { t } = useTranslation();
   const [text, setText] = useState<string | null>(null);
   const [textError, setTextError] = useState(false);
 
@@ -288,10 +287,13 @@ function PreviewContent({
     if (textError)
       return (
         <p className="text-sm text-destructive">
-          Could not load text — check S3 CORS configuration.
+          {t("admin.files.text_load_error", {
+            defaultValue: "Could not load text — check S3 CORS configuration.",
+          })}
         </p>
       );
-    if (text === null) return <p className="text-sm text-muted-foreground">Loading…</p>;
+    if (text === null)
+      return <p className="text-sm text-muted-foreground">{t("common.loading")}</p>;
     return (
       <pre className="overflow-auto rounded border bg-muted/40 p-3 text-xs max-h-[60vh] whitespace-pre-wrap break-all">
         {text}
@@ -302,7 +304,9 @@ function PreviewContent({
   return (
     <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
       <FileText className="size-12 opacity-40" />
-      <p className="text-sm">No preview available for this file type.</p>
+      <p className="text-sm">
+        {t("admin.files.no_preview", { defaultValue: "No preview available for this file type." })}
+      </p>
     </div>
   );
 }
@@ -323,7 +327,11 @@ function PreviewButton({ file }: { file: StoredFile }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button variant="ghost" size="icon" title="Preview">
+          <Button
+            variant="ghost"
+            size="icon"
+            title={t("admin.files.preview", { defaultValue: "Preview" })}
+          >
             <Eye className="size-4" />
           </Button>
         }
