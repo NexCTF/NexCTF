@@ -76,9 +76,15 @@ class TestCreateUser(CreateGuardMixin):
         c, _ = admin_client
         dresp = await c.post(
             "/admin/custom-field",
-            json={"name": "discord", "label": "Discord", "target": "user"},
+            json={
+                "name": "discord",
+                "label": "Discord",
+                "target": "user",
+                "is_self_editable": False,
+            },
         )
         assert dresp.status_code == 200
+        assert dresp.json()["data"]["is_self_editable"] is False
         definition_id = dresp.json()["data"]["id"]
 
         resp = await c.post(
@@ -96,6 +102,24 @@ class TestCreateUser(CreateGuardMixin):
         assert [(v["definition"]["id"], v["value"]) for v in values] == [
             (definition_id, "player#1")
         ]
+
+    async def test_update_round_trips_is_self_editable(
+        self, admin_client: tuple[AsyncClient, User]
+    ) -> None:
+        """The admin edit form saves the flag through AdminCustomFieldUpdate."""
+        c, _ = admin_client
+        dresp = await c.post(
+            "/admin/custom-field",
+            json={"name": "paid", "label": "Paid", "target": "user"},
+        )
+        definition_id = dresp.json()["data"]["id"]
+
+        resp = await c.put(
+            f"/admin/custom-field/{definition_id}",
+            json={"id": definition_id, "is_self_editable": False},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["data"]["is_self_editable"] is False
 
 
 class TestListUsers(ListGuardMixin):

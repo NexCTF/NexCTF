@@ -45,6 +45,7 @@ interface FieldForm {
   target: FieldTarget;
   is_required: boolean;
   is_public: boolean;
+  is_self_editable: boolean;
   show_in_scoreboard: boolean;
 }
 
@@ -55,6 +56,7 @@ const EMPTY_FORM: FieldForm = {
   target: "user",
   is_required: false,
   is_public: true,
+  is_self_editable: true,
   show_in_scoreboard: false,
 };
 
@@ -143,6 +145,15 @@ function FieldFormFields({
           />
           {t("admin.custom_fields.field_public")}
         </label>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.is_self_editable}
+            onChange={(e) => onChange({ is_self_editable: e.target.checked })}
+            className="rounded border-input"
+          />
+          {t("admin.custom_fields.field_self_editable", { defaultValue: "Self-editable" })}
+        </label>
         {form.target === "team" && (
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input
@@ -227,6 +238,7 @@ function EditFieldDialog({
     target: field.target,
     is_required: field.is_required,
     is_public: field.is_public,
+    is_self_editable: field.is_self_editable,
     show_in_scoreboard: field.show_in_scoreboard,
   });
 
@@ -238,6 +250,7 @@ function EditFieldDialog({
         field_type: form.field_type,
         is_required: form.is_required,
         is_public: form.is_public,
+        is_self_editable: form.is_self_editable,
         show_in_scoreboard: form.show_in_scoreboard,
       }),
     onSuccess: () => {
@@ -347,6 +360,11 @@ function CustomFieldsPage() {
       key: "is_public",
       header: t("table.col_public", { defaultValue: "Public" }),
       cell: (f) => <BoolCell value={f.is_public} />,
+    },
+    {
+      key: "is_self_editable",
+      header: t("admin.custom_fields.field_self_editable"),
+      cell: (f) => <BoolCell value={f.is_self_editable} />,
     },
     {
       key: "show_in_scoreboard",

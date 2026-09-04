@@ -121,6 +121,7 @@
       "field_public": "Public",
       "field_required": "Required",
       "field_scoreboard": "Show on scoreboard",
+      "field_self_editable": "Self-editable",
       "field_target": "Target",
       "field_type": "Type",
       "name_hint": "Machine-readable key, e.g. school",
