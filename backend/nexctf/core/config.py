@@ -31,9 +31,25 @@ class Settings(BaseSettings):
     )
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = secrets.token_urlsafe(32)
+    DOMAIN: str | None = None
     BACKEND_HOST: str = "http://localhost:8000"
     FRONTEND_HOST: str = "http://localhost:5173"
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
+
+    @model_validator(mode="after")
+    def derive_hosts_from_domain(self) -> Settings:
+        """Fill the public URLs from DOMAIN, matching the Caddyfile in start.sh."""
+        if not self.DOMAIN:
+            return self
+        derived = {
+            "BACKEND_HOST": f"https://{self.DOMAIN}",
+            "FRONTEND_HOST": f"https://{self.DOMAIN}",
+            "S3_PUBLIC_URL": f"https://s3.{self.DOMAIN}",
+        }
+        for field, value in derived.items():
+            if field not in self.model_fields_set or not getattr(self, field):
+                setattr(self, field, value)
+        return self
 
     DEFAULT_ADMIN_USERNAME: str = "admin"
     DEFAULT_ADMIN_PASSWORD: str = "admin"

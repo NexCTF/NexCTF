@@ -19,26 +19,38 @@ x-s3-env: &s3-env
   S3_REGION: ${S3_REGION:-us-east-1}
 
 x-app-env: &app-env
-  DOMAIN: ${DOMAIN:-localhost}
   WORKERS: ${WORKERS:-4}
   ENVIRONMENT: production
+
+  # CHANGE THIS: python -c "import secrets; print(secrets.token_urlsafe(32))"
   SECRET_KEY: ${SECRET_KEY:-fcJkuDpgLBVQRsyMWnxm9XEFTwPuXlY1WLR2Zr5Pw4o}
+
+  # Extra browser origins allowed to call the API, comma-separated.
   BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-}
-  FRONTEND_HOST: ${FRONTEND_HOST:-}
+
+  # Number of proxies in front of the app, used to pick the client IP out of
+  # X-Forwarded-For for rate limits and the audit log. 1 is the bundled Caddy;
+  # add one per extra hop.
   TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT:-1}
+
+  # The only URL you need to set: the app is served at https://${DOMAIN} and
+  # challenge files at https://s3.${DOMAIN} — both need a DNS record, and a
+  # custom cert (CERTS_PATH below) must list both names or downloads break.
+  DOMAIN: ${DOMAIN:-localhost
+
+  # Derived from DOMAIN when left empty. Override only when the public URL is
+  # not https://${DOMAIN} — e.g. the default 8443 port mapping below.
+  FRONTEND_HOST: ${FRONTEND_HOST:-}
+  BACKEND_HOST: ${BACKEND_HOST:-}
+  S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
+
   # Set to "true" to seed example challenges, teams and submissions on start.
   # The demo accounts have no password; the admin comes from DEFAULT_ADMIN_*.
   DEMO_DATA: ${DEMO_DATA:-}
+
   # Comma-separated uv specifiers installed at start, e.g.
   #   NEXCTF_PLUGINS=nexctf-sandbox==1.2.0,git+https://github.com/org/plug@v1.0
   NEXCTF_PLUGINS: ${NEXCTF_PLUGINS:-}
-  # Private index, credentials, or a custom CA for plugin installs — uv reads
-  # its own variables, so pass through only the ones you need:
-  # UV_INDEX: ${UV_INDEX:-}
-  # UV_INDEX_MYORG_USERNAME: ${UV_INDEX_MYORG_USERNAME:-}
-  # UV_INDEX_MYORG_PASSWORD: ${UV_INDEX_MYORG_PASSWORD:-}
-  # UV_NATIVE_TLS: "1"
-  # SSL_CERT_FILE: /certs/ca.pem
 
 services:
   db:
@@ -91,8 +103,8 @@ services:
     image: ghcr.io/nexctf/nexctf:0.9.0
     restart: always
     ports:
-      - "127.0.0.1:8080:80"
-      - "127.0.0.1:8443:443"
+      - "8080:80"
+      - "8443:443"
     volumes:
       - caddy-data:/data
       # Plugin downloads are cached here, so a restart works without network
