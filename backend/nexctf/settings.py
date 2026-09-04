@@ -178,7 +178,7 @@ def _security():
             label="config.captcha.cap_secret_key.label",
             default="",
             description="config.captcha.cap_secret_key.description",
-            type=ConfigType.STRING,
+            type=ConfigType.SECRET,
         ),
     ]
 
@@ -217,7 +217,7 @@ def _email():
             label="config.email.smtp_password.label",
             default="",
             description="config.email.smtp_password.description",
-            type=ConfigType.STRING,
+            type=ConfigType.SECRET,
         ),
         ConfigDef(
             key="email.security",

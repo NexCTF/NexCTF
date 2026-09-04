@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { type ConfigItem, getConfig, updateConfig } from "@/lib/api";
+import { type ConfigItem, getConfig, SECRET_MASK, updateConfig } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin/settings")({
@@ -305,6 +305,22 @@ function ConfigField({
           </div>
         </FieldWrapper>
       );
+    case "secret": {
+      // The server sends "***" when a secret is set; never show it in the
+      // input or the admin can append to the mask and store it verbatim.
+      const isSet = value === SECRET_MASK;
+      return (
+        <FieldWrapper label={label} description={description}>
+          <Input
+            type="password"
+            autoComplete="new-password"
+            value={isSet ? "" : value}
+            placeholder={isSet ? "••••••••" : ""}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        </FieldWrapper>
+      );
+    }
     case "url":
       return (
         <FieldWrapper label={label} description={description}>

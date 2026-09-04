@@ -43,6 +43,7 @@ class ConfigType(str, enum.Enum):
     COLOR = "color"
     URL = "url"
     TEXT = "text"  # multiline string
+    SECRET = "secret"  # write-only string, masked on read
 
 
 @dataclass(frozen=True)

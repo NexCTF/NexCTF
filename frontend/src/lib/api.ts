@@ -525,9 +525,22 @@ export async function updateMyTeamProfile(body: {
 // Config
 // ---------------------------------------------------------------------------
 
+/** Placeholder the API returns in place of a set secret value. */
+export const SECRET_MASK = "***";
+
 export interface ConfigItem {
   key: string;
-  type: "string" | "int" | "float" | "bool" | "choice" | "datetime" | "color" | "url" | "text";
+  type:
+    | "string"
+    | "int"
+    | "float"
+    | "bool"
+    | "choice"
+    | "datetime"
+    | "color"
+    | "url"
+    | "text"
+    | "secret";
   value: string | number | boolean;
   default: string;
   label: string;
