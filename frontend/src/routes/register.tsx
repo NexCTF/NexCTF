@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCaptcha } from "@/hooks/use-captcha";
-import { ApiError, register as apiRegister, getPublicInfo } from "@/lib/api";
+import { ApiError, register as apiRegister, CAPTCHA_CHALLENGE_URL, getPublicInfo } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
 
@@ -37,14 +37,8 @@ function RegisterPage() {
   const allowRegistration = publicInfo?.competition?.allow_registration ?? true;
   const emailRequired = publicInfo?.competition?.require_email ?? false;
 
-  const {
-    captchaEnabled,
-    captchaWidgetEndpoint,
-    captchaToken,
-    capWidgetRef,
-    resetCaptcha,
-    captchaSolved,
-  } = useCaptcha(publicInfo);
+  const { captchaEnabled, captchaToken, widgetRef, resetCaptcha, captchaSolved } =
+    useCaptcha(publicInfo);
 
   if (user) return <Navigate to="/" />;
   if (publicInfo && !allowRegistration) return <Navigate to="/login" />;
@@ -129,12 +123,13 @@ function RegisterPage() {
               />
             </div>
 
-            {captchaEnabled && captchaWidgetEndpoint && (
-              <cap-widget
+            {captchaEnabled && (
+              <altcha-widget
                 ref={(el: HTMLElement | null) => {
-                  capWidgetRef.current = el;
+                  widgetRef.current = el;
                 }}
-                data-cap-api-endpoint={captchaWidgetEndpoint}
+                challenge={CAPTCHA_CHALLENGE_URL}
+                auto="onload"
                 style={{ display: "none" }}
               />
             )}

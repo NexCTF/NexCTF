@@ -64,14 +64,6 @@ async def _compute(session: AsyncSession, redis: Redis) -> PublicInfo:
     )
 
     captcha_enabled = bool(appconfig.get_with_overrides("captcha.enabled", overrides))
-    if captcha_enabled:
-        cap_api_url = get("captcha.cap_api_url").rstrip("/")
-        cap_site_key = get("captcha.cap_site_key")
-        widget_endpoint = (
-            f"{cap_api_url}/{cap_site_key}/" if cap_api_url and cap_site_key else ""
-        )
-    else:
-        widget_endpoint = ""
 
     links = await crud.LinkCrud.get_multi(
         session,
@@ -82,7 +74,7 @@ async def _compute(session: AsyncSession, redis: Redis) -> PublicInfo:
         branding=branding,
         competition=competition,
         oauth_providers=[PublicOAuthProviderRead.model_validate(p) for p in providers],
-        captcha=CaptchaInfo(enabled=captcha_enabled, widget_endpoint=widget_endpoint),
+        captcha=CaptchaInfo(enabled=captcha_enabled),
         links=[PublicLinkRead.model_validate(link) for link in links],
     )
 

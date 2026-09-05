@@ -159,27 +159,6 @@ def _security():
             default=False,
             description="config.captcha.enabled.description",
         ),
-        ConfigDef(
-            key="captcha.cap_api_url",
-            label="config.captcha.cap_api_url.label",
-            default="",
-            description="config.captcha.cap_api_url.description",
-            type=ConfigType.URL,
-        ),
-        ConfigDef(
-            key="captcha.cap_site_key",
-            label="config.captcha.cap_site_key.label",
-            default="",
-            description="config.captcha.cap_site_key.description",
-            type=ConfigType.STRING,
-        ),
-        ConfigDef(
-            key="captcha.cap_secret_key",
-            label="config.captcha.cap_secret_key.label",
-            default="",
-            description="config.captcha.cap_secret_key.description",
-            type=ConfigType.SECRET,
-        ),
     ]
 
 

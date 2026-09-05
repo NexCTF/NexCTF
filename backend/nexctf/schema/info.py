@@ -30,7 +30,6 @@ class CompetitionInfo(PydanticBase):
 
 class CaptchaInfo(PydanticBase):
     enabled: bool
-    widget_endpoint: str
 
 
 class PublicInfo(PydanticBase):

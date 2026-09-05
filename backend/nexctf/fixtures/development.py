@@ -38,7 +38,7 @@ fixtures = FixtureRegistry(contexts=[Context.DEVELOPMENT, "demo"])
 
 @fixtures.register(contexts=[Context.DEVELOPMENT])
 def config() -> list[ConfigEntry]:
-    """Point email at mailpit and captcha at the CAP site, both from compose.dev.yml."""
+    """Point email at mailpit (from compose.dev.yml) and turn the captcha on."""
     stored = utils.stored_config_keys()
     values = {
         "email.enabled": "true",
@@ -47,12 +47,8 @@ def config() -> list[ConfigEntry]:
         "email.security": "none",
         "email.from_address": "ctf@nexctf.lan",
         "email.from_name": "NexCTF",
+        "captcha.enabled": "false",
     }
-
-    if "captcha.cap_site_key" not in stored and (site := utils.provision_cap_site()):
-        values["captcha.enabled"] = "true"
-        values["captcha.cap_api_url"] = utils.cap_api_url()
-        values["captcha.cap_site_key"], values["captcha.cap_secret_key"] = site
 
     return [
         ConfigEntry(key=key, value=value)

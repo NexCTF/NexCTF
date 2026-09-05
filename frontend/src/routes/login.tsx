@@ -11,7 +11,13 @@ import { Label } from "@/components/ui/label";
 import { OtpFieldInput, OtpFieldRoot } from "@/components/ui/otp-field";
 import { Separator } from "@/components/ui/separator";
 import { useCaptcha } from "@/hooks/use-captcha";
-import { ApiError, logout as apiLogout, getPublicInfo, oauthAuthorizeUrl } from "@/lib/api";
+import {
+  ApiError,
+  logout as apiLogout,
+  CAPTCHA_CHALLENGE_URL,
+  getPublicInfo,
+  oauthAuthorizeUrl,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
 
@@ -54,14 +60,8 @@ function LoginPage() {
   const providers = publicInfo?.oauth_providers ?? [];
   const allowRegistration = publicInfo?.competition?.allow_registration ?? false;
 
-  const {
-    captchaEnabled,
-    captchaWidgetEndpoint,
-    captchaToken,
-    capWidgetRef,
-    resetCaptcha,
-    captchaSolved,
-  } = useCaptcha(publicInfo);
+  const { captchaEnabled, captchaToken, widgetRef, resetCaptcha, captchaSolved } =
+    useCaptcha(publicInfo);
 
   if (user) return <Navigate to="/" />;
 
@@ -246,12 +246,13 @@ function LoginPage() {
               </>
             )}
 
-            {captchaEnabled && captchaWidgetEndpoint && (
-              <cap-widget
+            {captchaEnabled && (
+              <altcha-widget
                 ref={(el: HTMLElement | null) => {
-                  capWidgetRef.current = el;
+                  widgetRef.current = el;
                 }}
-                data-cap-api-endpoint={captchaWidgetEndpoint}
+                challenge={CAPTCHA_CHALLENGE_URL}
+                auto="onload"
                 style={{ display: "none" }}
               />
             )}

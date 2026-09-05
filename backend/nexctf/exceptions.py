@@ -243,15 +243,6 @@ class CaptchaInvalidError(CaptchaError):
     )
 
 
-class CaptchaMisconfiguredError(CaptchaError):
-    api_error = ApiError(
-        code=500,
-        msg="Captcha misconfigured",
-        desc="The captcha service is not properly configured. Contact an administrator.",
-        err_code="CAPTCHA-500",
-    )
-
-
 class EmailError(ApiException, abstract=True):
     """Base for SMTP / email delivery errors."""
 

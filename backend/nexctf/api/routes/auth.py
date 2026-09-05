@@ -42,7 +42,7 @@ from nexctf.api.security import (
     verify_password,
 )
 from nexctf.core import appconfig
-from nexctf.core.captcha import verify_captcha
+from nexctf.core.captcha import create_challenge, verify_captcha
 from nexctf.core.config import settings
 from nexctf.core.email import dispatch_email
 from nexctf.core.email_render import (
@@ -130,6 +130,16 @@ async def _send_verification_email(
     )
 
 
+@auth_router.get("/captcha/challenge")
+async def captcha_challenge(request: Request, redis: RedisDep) -> dict:
+    """Issue an ALTCHA challenge for the login and register widgets."""
+    client_ip = get_client_ip(request) or "unknown"
+    await check_rate_limit(
+        redis, f"rl:captcha:{client_ip}", window_seconds=60, max_requests=30
+    )
+    return create_challenge()
+
+
 @auth_router.post("/register", status_code=201)
 async def register(
     request: Request,
@@ -141,7 +151,7 @@ async def register(
 ):
     if not appconfig.get_with_overrides("ctf.allow_registration", overrides):
         raise RegistrationDisabledError()
-    await verify_captcha(overrides, obj.cap_token)
+    await verify_captcha(redis, overrides, obj.captcha_token)
     client_ip = get_client_ip(request) or "unknown"
     await check_rate_limit(
         redis, f"rl:register:{client_ip}", window_seconds=60, max_requests=5
@@ -215,9 +225,9 @@ async def login(
     username: Annotated[str, Form()],
     password: Annotated[str, Form()],
     totp_code: Annotated[str | None, Form()] = None,
-    cap_token: Annotated[str | None, Form()] = None,
+    captcha_token: Annotated[str | None, Form()] = None,
 ):
-    await verify_captcha(overrides, cap_token)
+    await verify_captcha(redis, overrides, captcha_token)
     client_ip = get_client_ip(request) or "unknown"
     await check_config_rate_limit(
         redis, overrides, name="login", key=f"rl:login:{client_ip}"

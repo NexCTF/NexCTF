@@ -108,9 +108,6 @@ class TestRegister:
     ):
         """Enabling captcha via config makes register demand a token."""
         config_overrides["captcha.enabled"] = "true"
-        config_overrides["captcha.cap_api_url"] = "http://cap.test"
-        config_overrides["captcha.cap_site_key"] = "site"
-        config_overrides["captcha.cap_secret_key"] = "secret"
         resp = await http_client.post(
             "/auth/register",
             json={"username": "newuser", "password": "strongpass"},
@@ -129,7 +126,7 @@ class TestRegister:
                 json={
                     "username": "newuser",
                     "password": "strongpass",
-                    "cap_token": "bad",
+                    "captcha_token": "bad",
                 },
             )
         assert resp.status_code == 400

@@ -592,21 +592,9 @@
       }
     },
     "captcha": {
-      "cap_api_url": {
-        "description": "Base URL of your self-hosted CAP instance (e.g. https://cap.example.com)",
-        "label": "CAP Backend URL"
-      },
-      "cap_secret_key": {
-        "description": "Secret key used for server-side token verification",
-        "label": "CAP Secret Key"
-      },
-      "cap_site_key": {
-        "description": "Site key from your CAP dashboard",
-        "label": "CAP Site Key"
-      },
       "enabled": {
         "description": "Require captcha verification on login and registration",
-        "label": "Enable Captcha (CAP)"
+        "label": "Enable Captcha"
       }
     },
     "category": {

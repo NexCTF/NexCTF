@@ -30,7 +30,7 @@ export function publicInfo(overrides: Partial<PublicInfo> = {}): PublicInfo {
       team_size: 4,
     },
     oauth_providers: [],
-    captcha: { enabled: false, widget_endpoint: "" },
+    captcha: { enabled: false },
     links: [],
     ...overrides,
   };

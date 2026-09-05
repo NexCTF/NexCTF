@@ -32,7 +32,7 @@ class PublicRegisterRequest(PydanticBase):
     username: str
     password: str
     email: EmailStr | None = None
-    cap_token: str | None = None
+    captcha_token: str | None = None
 
 
 class PublicUserRead(PydanticBase):

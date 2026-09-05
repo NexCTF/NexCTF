@@ -4,6 +4,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { ApiError, getPublicInfo } from "@/lib/api";
 import { publicInfo, publicInfoWith, user } from "@/test/fixtures";
 import { renderRoute } from "@/test/render";
+import { solveCaptcha } from "@/test/setup";
 import { Route } from "./login";
 import { Route as ConsentRoute } from "./oauth.consent";
 
@@ -147,37 +148,27 @@ it("lists the OAuth providers", async () => {
 });
 
 it("gates submit on the captcha until the widget reports a token", async () => {
-  vi.mocked(getPublicInfo).mockResolvedValue(
-    publicInfo({ captcha: { enabled: true, widget_endpoint: "/api/v1/captcha/" } }),
-  );
+  vi.mocked(getPublicInfo).mockResolvedValue(publicInfo({ captcha: { enabled: true } }));
   const { container } = renderRoute(Route, { path: "/login" });
 
   const submit = await screen.findByRole("button", { name: "Sign in" });
   await waitFor(() => expect(submit).toHaveProperty("disabled", true));
 
-  const widget = container.querySelector("cap-widget");
-  // biome-ignore lint/style/noNonNullAssertion: rendered whenever the captcha is enabled
-  widget!.dispatchEvent(new CustomEvent("solve", { detail: { token: "cap-token" } }));
+  await waitFor(() => expect(container.querySelector("altcha-widget")).not.toBeNull());
+  solveCaptcha("altcha-payload");
 
   await waitFor(() => expect(submit).toHaveProperty("disabled", false));
 });
 
 it("passes the captcha token along with the credentials", async () => {
-  vi.mocked(getPublicInfo).mockResolvedValue(
-    publicInfo({ captcha: { enabled: true, widget_endpoint: "/api/v1/captcha/" } }),
-  );
+  vi.mocked(getPublicInfo).mockResolvedValue(publicInfo({ captcha: { enabled: true } }));
   const { container, auth } = renderRoute(Route, { path: "/login" });
 
-  const widget = await waitFor(() => {
-    const el = container.querySelector("cap-widget");
-    expect(el).not.toBeNull();
-    return el;
-  });
-  // biome-ignore lint/style/noNonNullAssertion: waitFor above rejects on null
-  widget!.dispatchEvent(new CustomEvent("solve", { detail: { token: "cap-token" } }));
+  await waitFor(() => expect(container.querySelector("altcha-widget")).not.toBeNull());
+  solveCaptcha("altcha-payload");
   await fillAndSubmit();
 
   await waitFor(() =>
-    expect(auth.login).toHaveBeenCalledWith("alice", "hunter2", undefined, "cap-token"),
+    expect(auth.login).toHaveBeenCalledWith("alice", "hunter2", undefined, "altcha-payload"),
   );
 });
