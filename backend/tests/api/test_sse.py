@@ -101,7 +101,7 @@ class TestEventBus:
             await asyncio.Event().wait()
 
         monkeypatch.setattr(eventbus, "read_events", _fake_reader)
-        monkeypatch.setattr(eventbus, "get_client", lambda: None)
+        monkeypatch.setattr(eventbus, "get_reader_client", lambda: None)
         streams = [_open(["config:update"]) for _ in range(5)]
         await asyncio.sleep(0.05)
 

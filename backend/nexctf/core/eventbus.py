@@ -11,7 +11,7 @@ from typing import cast
 
 from redis.asyncio import Redis
 
-from nexctf.core.cache import get_client
+from nexctf.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,8 @@ _STREAM_MAXLEN = 10_000
 _BLOCK_MS = 30_000
 _RECONNECT_DELAY = 1
 _QUEUE_MAXSIZE = 100
+# Must outlive the XREAD block.
+_READ_TIMEOUT = _BLOCK_MS / 1000 + 5
 
 # Shape of an xread reply, which redis-py leaves untyped: one entry per stream
 # read, each carrying (entry id, field mapping) pairs.
@@ -27,6 +29,20 @@ type _StreamRead = Sequence[tuple[str, Sequence[tuple[str, dict[str, str]]]]]
 
 _subscribers: dict[str, set[asyncio.Queue]] = defaultdict(set)
 _reader_task: asyncio.Task | None = None
+_reader_client: Redis | None = None
+
+
+def get_reader_client() -> Redis:
+    """This worker's stream-reader client, kept apart for its longer read timeout."""
+    global _reader_client
+    if _reader_client is None:
+        _reader_client = Redis.from_url(
+            str(settings.REDIS_URL),
+            decode_responses=True,
+            health_check_interval=30,
+            socket_timeout=_READ_TIMEOUT,
+        )
+    return _reader_client
 
 
 async def publish_event(redis: Redis, channels: Sequence[str], data: str) -> None:
@@ -90,4 +106,4 @@ def _ensure_reader() -> None:
     """Start this worker's stream reader on the first subscriber."""
     global _reader_task
     if _reader_task is None or _reader_task.done():
-        _reader_task = asyncio.create_task(read_events(get_client()))
+        _reader_task = asyncio.create_task(read_events(get_reader_client()))
