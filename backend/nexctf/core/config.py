@@ -103,6 +103,9 @@ class Settings(BaseSettings):
             )
         )
 
+    SSE_MAX_STREAMS: int = 1000
+    SSE_MAX_PUBLIC_STREAMS: int = 1000
+
     REDIS_HOST: str
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str = ""

@@ -9,6 +9,7 @@ from uuid import UUID
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nexctf.core.eventbus import publish_event
 from nexctf.model.event import Event
 
 # Maps a full ``event_type`` to the lens an admin reviews it through. Anything
@@ -100,5 +101,5 @@ async def emit(
                 "meta": meta or {},
             }
         )
-        await redis.publish("events:admin", payload)
+        await publish_event(redis, ["events:admin"], payload)
     return event

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from uuid import UUID
 
 from fastapi_toolsets.schemas import Response
@@ -8,6 +7,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
+from nexctf.core.eventbus import publish_event
 from nexctf.exceptions import InternalServerError
 from nexctf.schema.notification import (
     AdminNotificationCreate,
@@ -21,13 +21,9 @@ async def publish_notification(
     team_ids: list[UUID],
     notif_json: str,
 ) -> None:
-    publishes = []
-    if is_broadcast:
-        publishes.append(redis.publish("notifications:broadcast", notif_json))
-    for team_id in team_ids:
-        publishes.append(redis.publish(f"notifications:team:{team_id}", notif_json))
-    if publishes:
-        await asyncio.gather(*publishes)
+    channels = ["notifications:broadcast"] if is_broadcast else []
+    channels += [f"notifications:team:{team_id}" for team_id in team_ids]
+    await publish_event(redis, channels, notif_json)
 
 
 async def create_and_publish(
