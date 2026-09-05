@@ -49,7 +49,7 @@ class TestSecretRedaction:
 
     @pytest.fixture
     def config_overrides(self) -> dict[str, str]:
-        return {"email.smtp_password": "hunter2", "captcha.cap_site_key": "public"}
+        return {"email.smtp_password": "hunter2", "email.smtp_host": "smtp.test"}
 
     async def test_secret_masked_on_read(
         self,
@@ -59,8 +59,19 @@ class TestSecretRedaction:
         resp = await c.get("/admin/config")
         items = {i["key"]: i["value"] for i in resp.json()["data"]}
         assert items["email.smtp_password"] == "***"
-        assert items["captcha.cap_secret_key"] == ""  # unset stays distinguishable
-        assert items["captcha.cap_site_key"] == "public"
+        assert items["email.smtp_host"] == "smtp.test"
+
+    async def test_unset_secret_is_not_masked(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        config_overrides: dict[str, str],
+    ) -> None:
+        """An empty secret reads back empty, so admins can tell it is unset."""
+        del config_overrides["email.smtp_password"]
+        c, _ = admin_client
+        resp = await c.get("/admin/config")
+        items = {i["key"]: i["value"] for i in resp.json()["data"]}
+        assert items["email.smtp_password"] == ""
 
     async def test_mask_echoed_back_is_not_stored(
         self,

@@ -49,18 +49,6 @@ services:
       sh -c "valkey-server
       $( [ -n '${REDIS_PASSWORD}' ] && echo '--requirepass ${REDIS_PASSWORD}' )"
 
-  cap:
-    image: tiago2/cap:3.1.10@sha256:d785f851d6b09f8df575bd2a9630e7da1363a48fdaa0d0ec1097ad70afac0b0a
-    restart: always
-    ports:
-      - "3000:3000"
-    depends_on:
-      cache:
-        condition: service_healthy
-    environment:
-      - ADMIN_KEY=${CAP_ADMIN_KEY}
-      - REDIS_URL=redis://cache:6379/1
-
   mail:
     image: axllent/mailpit:v1.31.0@sha256:c96991d9bef73594c246d89ca81411d4e916f03e76a7d2d72fa2ab5dd3c9ce24
     restart: always

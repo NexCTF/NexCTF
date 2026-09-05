@@ -30,5 +30,21 @@ class InertEventSource {
 }
 globalThis.EventSource = InertEventSource as unknown as typeof EventSource;
 
+// jsdom does not load the altcha CDN script, so the custom element never
+// upgrades. Stub stands in for it: tests call solveCaptcha() to emit the
+// "verified" event the real widget fires once it has solved its challenge.
+export function solveCaptcha(payload: string) {
+  const el = document.querySelector("altcha-widget");
+  el?.dispatchEvent(new CustomEvent("verified", { detail: { payload } }));
+}
+
+class StubAltchaWidget extends HTMLElement {
+  verify() {
+    return Promise.resolve(null);
+  }
+  reset() {}
+}
+customElements.define("altcha-widget", StubAltchaWidget);
+
 // @testing-library/react only auto-cleans when vitest globals are on.
 afterEach(cleanup);

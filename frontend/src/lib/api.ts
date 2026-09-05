@@ -170,7 +170,7 @@ export async function login(
 ): Promise<void> {
   const body = new URLSearchParams({ username, password });
   if (totpCode) body.set("totp_code", totpCode);
-  if (captchaToken) body.set("cap_token", captchaToken);
+  if (captchaToken) body.set("captcha_token", captchaToken);
   const res = await fetch(`${BASE}/auth/token`, {
     method: "POST",
     credentials: "include",
@@ -195,7 +195,7 @@ export async function register(data: {
       username: data.username,
       password: data.password,
       email: data.email ?? null,
-      cap_token: data.captchaToken ?? null,
+      captcha_token: data.captchaToken ?? null,
     }),
   });
 }
@@ -228,8 +228,9 @@ export interface CompetitionInfo {
 
 export interface CaptchaInfo {
   enabled: boolean;
-  widget_endpoint: string;
 }
+
+export const CAPTCHA_CHALLENGE_URL = `${BASE}/auth/captcha/challenge`;
 
 export interface PublicLink {
   name: string;

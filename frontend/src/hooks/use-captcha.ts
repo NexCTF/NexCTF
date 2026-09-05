@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import type { PublicInfo } from "@/lib/api";
 
-type CapWidget = HTMLElement & {
-  solve?: () => void;
+type AltchaWidget = HTMLElement & {
+  verify?: () => Promise<{ payload: string } | null>;
   reset?: () => void;
 };
 
 declare module "react" {
   namespace JSX {
     interface IntrinsicElements {
-      "cap-widget": React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
-        "data-cap-api-endpoint"?: string;
+      "altcha-widget": React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
+        challenge?: string;
+        auto?: string;
         style?: React.CSSProperties;
       };
     }
@@ -19,14 +20,13 @@ declare module "react" {
 
 export function useCaptcha(publicInfo: PublicInfo | undefined) {
   const captchaEnabled = publicInfo?.captcha?.enabled ?? false;
-  const captchaWidgetEndpoint = publicInfo?.captcha?.widget_endpoint ?? "";
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const capWidgetRef = useRef<CapWidget | null>(null);
+  const widgetRef = useRef<AltchaWidget | null>(null);
 
-  // Load the cap-widget script once
+  // Load the altcha widget script once
   useEffect(() => {
     if (!captchaEnabled) return;
-    const src = "https://cdn.jsdelivr.net/npm/cap-widget";
+    const src = "https://cdn.jsdelivr.net/npm/altcha@3.2.2/dist/main/altcha.min.js";
     if (document.querySelector(`script[src="${src}"]`)) return;
     const script = document.createElement("script");
     script.src = src;
@@ -34,44 +34,40 @@ export function useCaptcha(publicInfo: PublicInfo | undefined) {
     document.head.appendChild(script);
   }, [captchaEnabled]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: captchaEnabled gates when cap-widget is in DOM
+  // The widget solves itself once it is ready (auto="onload") and reports the
+  // payload. Its own events are the only reliable readiness signal: the element
+  // upgrades before Svelte attaches verify(), so calling it directly races.
   useEffect(() => {
-    const el = capWidgetRef.current;
-    if (!el) return;
+    const el = widgetRef.current;
+    if (!captchaEnabled || !el) return;
 
-    const handler = (e: Event) => {
-      const token = (e as CustomEvent<{ token: string }>).detail?.token;
-      if (token) setCaptchaToken(token);
+    const onVerified = (e: Event) => {
+      setCaptchaToken((e as CustomEvent<{ payload: string }>).detail?.payload ?? null);
     };
-    el.addEventListener("solve", handler);
+    const onStateChange = (e: Event) => {
+      const { state } = (e as CustomEvent<{ state: string }>).detail ?? {};
+      if (state === "error" || state === "expired") {
+        console.error("captcha: challenge %s", state);
+        setCaptchaToken(null);
+      }
+    };
 
-    // Programmatic mode: trigger solving automatically once the widget is ready.
-    // The widget exposes a solve() method; we call it after a short delay to let
-    // the web component upgrade (customElements.define runs async).
-    const timer = setTimeout(() => el.solve?.(), 300);
-
+    el.addEventListener("verified", onVerified);
+    el.addEventListener("statechange", onStateChange);
     return () => {
-      el.removeEventListener("solve", handler);
-      clearTimeout(timer);
+      el.removeEventListener("verified", onVerified);
+      el.removeEventListener("statechange", onStateChange);
     };
   }, [captchaEnabled]);
 
   function resetCaptcha() {
     setCaptchaToken(null);
-    const el = capWidgetRef.current;
+    const el = widgetRef.current;
     el?.reset?.();
-    // Re-trigger solving automatically after reset
-    setTimeout(() => el?.solve?.(), 100);
+    void el?.verify?.();
   }
 
   const captchaSolved = !captchaEnabled || !!captchaToken;
 
-  return {
-    captchaEnabled,
-    captchaWidgetEndpoint,
-    captchaToken,
-    capWidgetRef,
-    resetCaptcha,
-    captchaSolved,
-  };
+  return { captchaEnabled, captchaToken, widgetRef, resetCaptcha, captchaSolved };
 }

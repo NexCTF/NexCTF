@@ -594,21 +594,9 @@
       }
     },
     "captcha": {
-      "cap_api_url": {
-        "description": "URL de base de votre instance CAP auto-hébergée (ex. https://cap.exemple.com)",
-        "label": "URL du backend CAP"
-      },
-      "cap_secret_key": {
-        "description": "Clé secrète utilisée pour la vérification côté serveur",
-        "label": "Clé secrète CAP"
-      },
-      "cap_site_key": {
-        "description": "Clé de site issue de votre tableau de bord CAP",
-        "label": "Clé de site CAP"
-      },
       "enabled": {
         "description": "Exiger la vérification captcha à la connexion et à l'inscription",
-        "label": "Activer le captcha (CAP)"
+        "label": "Activer le captcha"
       }
     },
     "category": {
