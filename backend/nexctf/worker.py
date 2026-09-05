@@ -11,6 +11,8 @@ from __future__ import annotations
 import asyncio
 import logging
 
+# Imported for its side effect: registers the config definitions.
+import nexctf.settings as _  # noqa: F401
 from nexctf.core.appconfig import sync_to_redis
 from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.db import get_db_context
@@ -27,8 +29,8 @@ async def main() -> None:
     redis = get_redis_client()
 
     async with get_db_context() as session:
-        await sync_to_redis(session, redis)
         load_plugin_registries()
+        await sync_to_redis(session, redis)
 
     logger.info("Scheduler worker started (tick every %ds)", _TICK_INTERVAL)
 
