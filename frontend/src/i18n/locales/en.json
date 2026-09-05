@@ -734,7 +734,7 @@
           "label": "Submit Rate Limit"
         },
         "max_requests": {
-          "description": "Maximum submissions per user per time window",
+          "description": "Maximum submissions per team per time window",
           "label": "Max Submissions"
         },
         "window_seconds": {

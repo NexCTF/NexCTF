@@ -736,7 +736,7 @@
           "label": "Limite de soumissions"
         },
         "max_requests": {
-          "description": "Nombre maximum de soumissions par utilisateur par fenêtre",
+          "description": "Nombre maximum de soumissions par équipe par fenêtre",
           "label": "Max soumissions"
         },
         "window_seconds": {

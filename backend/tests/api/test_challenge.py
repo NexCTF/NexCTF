@@ -146,6 +146,27 @@ class TestSubmitBeforeStart:
         assert resp.status_code == 403
 
 
+class TestSubmitRateLimitKey:
+    async def test_limit_is_keyed_on_the_team(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        mock_redis,
+    ) -> None:
+        """Flag brute-force is team-level, so the window must be shared per team."""
+        c, user = user_client
+        team = await put_in_team(db_session, user)
+
+        resp = await c.post(
+            f"/challenges/{NULL_UUID}/{NULL_UUID}/submit",
+            json={"answer": "flag"},
+        )
+        assert resp.status_code == 404
+
+        key = mock_redis.pipeline.return_value.zadd.call_args[0][0]
+        assert key == f"rl:submit:{team.id}"
+
+
 # ── writeup visibility ──────────────────────────────────────────────────────────
 
 

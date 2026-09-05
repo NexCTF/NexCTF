@@ -126,7 +126,7 @@ def _security():
         ConfigDef(
             key="rate_limit.submit.max_requests",
             label="config.rate_limit.submit.max_requests.label",
-            default=10,
+            default=20,
             description="config.rate_limit.submit.max_requests.description",
         ),
         ConfigDef(

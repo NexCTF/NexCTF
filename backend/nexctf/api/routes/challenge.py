@@ -355,7 +355,7 @@ async def submit_answer(
 ) -> Response[SubmitResult]:
     _check_challenge_visibility(user, overrides)
     await check_config_rate_limit(
-        redis, overrides, name="submit", key=f"rl:submit:{user.id}"
+        redis, overrides, name="submit", key=f"rl:submit:{user.team_id}"
     )
 
     challenge = await _get_active_challenge(session, challenge_id)
