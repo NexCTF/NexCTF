@@ -5,6 +5,7 @@ from fastapi_toolsets.schemas import Response
 
 from nexctf.api.dep import ConfigDep, RedisDep, SessionDep
 from nexctf.core import appconfig
+from nexctf.core.eventbus import publish_event
 from nexctf.exceptions import ConfigValidationError
 from nexctf.module.audit import REDACTED, audit_actor, redact
 from nexctf.module.events import emit
@@ -70,7 +71,7 @@ async def bulk_update_config(
         raise ConfigValidationError(errors)
 
     await appconfig.commit_and_store(session, redis, staged)
-    await redis.publish("config:update", "1")
+    await publish_event(redis, ["config:update"], "1")
 
     overrides = {**old_overrides, **staged}
 
