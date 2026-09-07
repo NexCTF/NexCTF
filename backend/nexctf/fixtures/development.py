@@ -785,7 +785,7 @@ def submission() -> list[Submission]:
             question_id=_qid("What shift was used?"),
             created_at=_t(210),
         ),
-        # Binary Q2: walked into a trap flag, so the question is blocked for good
+        # Binary Q2: submitted a decoy flag — scores nothing, flagged for review
         Submission(
             id=UUID("e1000000-0000-4000-8000-000000000043"),
             answer="nexctf{fake_salt_dont_submit}",

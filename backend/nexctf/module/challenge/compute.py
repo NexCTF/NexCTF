@@ -51,7 +51,6 @@ class QuestionStructure(BaseModel):
     tags: list[str]
     options: list[str] | None
     multi_select: bool
-    has_trap: bool
 
 
 class ChallengeListItem(BaseModel):
@@ -161,7 +160,6 @@ async def _question_structure(q: Question) -> QuestionStructure:
         tags=q.tags,
         options=options,
         multi_select=multi_select,
-        has_trap=bool(q.trap_flags),
     )
 
 

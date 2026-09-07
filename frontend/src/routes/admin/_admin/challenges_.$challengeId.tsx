@@ -1127,7 +1127,7 @@ function QuestionCard({
             icon={AlertTriangle}
             title={t("admin.challenge.question.field_trap_flags_help")}
           >
-            {t("challenge.trap_badge")}
+            {t("admin.challenge.question.trap_badge")}
           </StatusBadge>
         )}
         {question.input_type && question.input_type !== "input" && (

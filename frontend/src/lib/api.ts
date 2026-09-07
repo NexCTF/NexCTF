@@ -944,8 +944,6 @@ export interface PublicQuestion {
   label: string;
   description: string | null;
   is_locked: boolean;
-  is_blocked: boolean;
-  has_trap: boolean;
   points: number;
   malus: number | null;
   input_type: InputType;
@@ -985,7 +983,6 @@ export interface SubmitResult {
   is_correct: boolean;
   already_solved: boolean;
   points_earned: number;
-  is_blocked: boolean;
 }
 
 export async function getChallenges(): Promise<PublicChallenge[]> {

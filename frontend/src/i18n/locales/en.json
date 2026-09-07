@@ -65,7 +65,7 @@
         "field_points": "Points",
         "field_tags": "Tags",
         "field_trap_flags": "Trap flags",
-        "field_trap_flags_help": "A team submitting one of these is permanently blocked on this question and can never score it. Matching is case-insensitive.",
+        "field_trap_flags_help": "Decoy answers that never score. Submitting one is recorded and flagged for review, and the question stays playable. Matching is case-insensitive.",
         "field_trap_flags_placeholder": "One flag per line",
         "input_type_code": "Code",
         "input_type_input": "Short answer",
@@ -75,7 +75,8 @@
         "reorder_error": "Failed to reorder questions",
         "save_error": "Failed to save question",
         "saved": "Question saved",
-        "section_title": "Questions ({{n}})"
+        "section_title": "Questions ({{n}})",
+        "trap_badge": "Traps"
       },
       "save_changes": "Save changes",
       "save_error": "Failed to save challenge",
@@ -426,7 +427,7 @@
       "deleted": "Submission deleted",
       "dialog_title": "Submission",
       "trap": "Trap",
-      "trap_help": "This answer is a trap flag. The question is locked for this team and can never score."
+      "trap_help": "This answer is a decoy flag. It never scores and is flagged for review."
     },
     "tags": {
       "input_placeholder": "Add a tag…",
@@ -515,7 +516,6 @@
     "answer_label": "Answer",
     "answer_placeholder": "Enter your answer…",
     "back": "Back to challenges",
-    "blocked": "Your team submitted a trap flag. This question is locked and can no longer be scored.",
     "event_ended_banner": "The CTF has ended. Submissions are no longer accepted.",
     "feedback_error": "Could not save your feedback",
     "feedback_placeholder": "Anything you liked or would improve? (optional)",
@@ -541,8 +541,6 @@
     "submit_error": "Submission failed",
     "submit_wrong": "Wrong answer, try again.",
     "submitting": "Checking…",
-    "trap_badge": "Traps",
-    "trap_hint": "This question has trap flags. Submitting one locks it for good.",
     "writeup_title": "Writeup"
   },
   "common": {
@@ -586,6 +584,12 @@
         "label": "Primary Color"
       }
     },
+    "canary": {
+      "enabled": {
+        "description": "Plant a hidden marker in challenge text; submitting it is logged as a suspected AI-assisted answer",
+        "label": "Enable AI Canary"
+      }
+    },
     "captcha": {
       "enabled": {
         "description": "Require captcha verification on login and registration",
@@ -594,6 +598,7 @@
     },
     "category": {
       "appearance": "Appearance",
+      "beta": "Beta",
       "competition": "Competition",
       "email": "Email",
       "scoring": "Scoring",
