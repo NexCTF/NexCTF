@@ -13,10 +13,10 @@ FROM caddy:2-alpine AS caddy-bin
 
 FROM python:3.14-slim
 
-ARG VERSION=dev
 LABEL org.opencontainers.image.title="NexCTF" \
-      org.opencontainers.image.description="NexCTF CTF Platform" \
-      org.opencontainers.image.version=${VERSION}
+      org.opencontainers.image.description="Next generation of capture the flag platform" \
+      org.opencontainers.image.source="https://github.com/NexCTF/NexCTF" \
+      org.opencontainers.image.licenses="MIT"
 
 ENV PYTHONUNBUFFERED=1
 
