@@ -41,7 +41,6 @@ async def recalculate_question(
 
         wrong_count_by_team: dict[UUID, int] = {}
         solved_teams: set[UUID] = set()
-        blocked_teams: set[UUID] = set()
         affected_teams: set[UUID] = set()
         timed_out_solutions: set[UUID] = set()
 
@@ -50,13 +49,9 @@ async def recalculate_question(
             wrong_before = wrong_count_by_team.get(team_id, 0)
 
             new_is_trap = question.is_trap(sub.answer)
-            if new_is_trap:
-                blocked_teams.add(team_id)
-
-            blocked = team_id in blocked_teams
 
             new_is_correct = False
-            if not blocked:
+            if not new_is_trap:
                 for sol in question.solutions:
                     try:
                         if await sol.verify(sub.answer, team_id=team_id):

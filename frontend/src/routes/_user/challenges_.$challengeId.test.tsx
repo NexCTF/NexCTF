@@ -47,7 +47,6 @@ it("shows the challenge with its category, tags and progress", async () => {
 
 it("submits a typed answer and reports a correct solve", async () => {
   vi.mocked(submitAnswer).mockResolvedValue({
-    is_blocked: false,
     is_correct: true,
     already_solved: false,
     points_earned: 100,
@@ -63,7 +62,6 @@ it("submits a typed answer and reports a correct solve", async () => {
 
 it("reports a wrong answer without clearing the field", async () => {
   vi.mocked(submitAnswer).mockResolvedValue({
-    is_blocked: false,
     is_correct: false,
     already_solved: false,
     points_earned: 0,
@@ -93,7 +91,6 @@ it("sends multi-select answers as a sorted JSON array", async () => {
     }),
   );
   vi.mocked(submitAnswer).mockResolvedValue({
-    is_blocked: false,
     is_correct: true,
     already_solved: false,
     points_earned: 10,
@@ -131,29 +128,6 @@ it("hides the malus badge when the malus is zero", async () => {
 
   expect(await screen.findByText("50 pts")).toBeDefined();
   expect(screen.queryByText("0 pts")).toBeNull();
-});
-
-it("badges a question that carries trap flags", async () => {
-  vi.mocked(getChallenge).mockResolvedValue(
-    challengeDetail({ questions: [question({ has_trap: true })] }),
-  );
-  renderChallenge();
-
-  expect(await screen.findByText("Traps")).toBeDefined();
-  expect(screen.getByRole("button", { name: "Submit" })).toBeDefined();
-});
-
-it("replaces the form with a blocked marker once a trap is hit", async () => {
-  vi.mocked(getChallenge).mockResolvedValue(
-    challengeDetail({ questions: [question({ has_trap: true, is_blocked: true })] }),
-  );
-  renderChallenge();
-
-  await userEvent.click(await screen.findByText("What is the flag?"));
-
-  expect(screen.getByText(/This question is locked/)).toBeDefined();
-  expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
-  expect(screen.getByText("100 pts")).toBeDefined();
 });
 
 it("replaces the form with a solved marker", async () => {

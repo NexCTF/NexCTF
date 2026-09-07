@@ -66,8 +66,6 @@ class PublicQuestionRead(PydanticBase):
     input_type: InputType = InputType.INPUT
     is_solved: bool
     is_locked: bool = False
-    is_blocked: bool = False
-    has_trap: bool = False
     files: list[PublicFileRead] = []
     hints: list[PublicHintRead] = []
     tags: list[str] = []

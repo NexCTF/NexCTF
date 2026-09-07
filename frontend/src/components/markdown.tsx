@@ -13,6 +13,11 @@ interface MarkdownProps {
   className?: string;
 }
 
+// The backend plants an `nxv:` comment in player-facing text; react-markdown
+// renders raw HTML as literal text, so it is pulled out and re-rendered
+// off-screen instead.
+const CANARY = /\n*<!--\s*nxv:\s*(.*?)\s*-->/s;
+
 const YOUTUBE = /^https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/;
 const VIDEO_FILE = /\.(mp4|webm|mov)(\?|#|$)/i;
 const AUDIO_FILE = /\.(mp3|wav|flac|ogg|m4a)(\?|#|$)/i;
@@ -51,6 +56,8 @@ function MarkdownLink({ href, children }: { href?: string; children?: ReactNode 
 }
 
 export function Markdown({ children, className }: MarkdownProps) {
+  const canary = children.match(CANARY);
+
   return (
     <div
       className={cn(
@@ -72,8 +79,13 @@ export function Markdown({ children, className }: MarkdownProps) {
         rehypePlugins={[rehypeSlug, rehypeHighlight, rehypeKatex]}
         components={{ a: MarkdownLink }}
       >
-        {children}
+        {children.replace(CANARY, "")}
       </ReactMarkdown>
+      {canary && (
+        <span className="sr-only" aria-hidden="true">
+          {canary[1]}
+        </span>
+      )}
     </div>
   );
 }

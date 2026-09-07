@@ -1,4 +1,4 @@
-"""Tests for trap flags: wrong answers that permanently block a question."""
+"""Tests for trap flags: decoy answers that never score and are flagged."""
 
 from __future__ import annotations
 
@@ -59,10 +59,10 @@ def local_recalc(monkeypatch, db_session: AsyncSession):
 
 
 class TestTrapSubmission:
-    async def test_trap_blocks_the_question(
+    async def test_trap_scores_nothing_and_is_recorded(
         self, user_client: tuple[AsyncClient, User], db_session: AsyncSession
     ) -> None:
-        """Submitting a trap flag scores nothing and locks the question."""
+        """Submitting a trap flag scores nothing but leaves the question open."""
         c, user = user_client
         challenge, question = await _setup(db_session, user)
 
@@ -73,7 +73,6 @@ class TestTrapSubmission:
         assert resp.status_code == 200
         data = resp.json()["data"]
         assert data["is_correct"] is False
-        assert data["is_blocked"] is True
         assert data["points_earned"] == 0
 
         sub = await db_session.scalar(
@@ -89,17 +88,21 @@ class TestTrapSubmission:
         c, user = user_client
         challenge, question = await _setup(db_session, user)
 
-        resp = await c.post(
+        await c.post(
             f"/challenges/{challenge.id}/{question.id}/submit",
             json={"answer": TRAP.upper()},
         )
 
-        assert resp.json()["data"]["is_blocked"] is True
+        sub = await db_session.scalar(
+            select(Submission).where(Submission.question_id == question.id)
+        )
+        assert sub is not None
+        assert sub.is_trap is True
 
-    async def test_blocked_team_cannot_submit_the_real_flag(
+    async def test_team_can_still_score_after_a_trap(
         self, user_client: tuple[AsyncClient, User], db_session: AsyncSession
     ) -> None:
-        """Once blocked, even the correct answer is refused."""
+        """A trap costs the team the malus of a wrong answer, nothing more."""
         c, user = user_client
         challenge, question = await _setup(db_session, user)
         url = f"/challenges/{challenge.id}/{question.id}/submit"
@@ -107,13 +110,12 @@ class TestTrapSubmission:
         await c.post(url, json={"answer": TRAP})
         resp = await c.post(url, json={"answer": FLAG})
 
-        assert resp.status_code == 403
-        assert resp.json()["error_code"] == "SUB-403-BLOCKED"
+        assert resp.status_code == 200
+        assert resp.json()["data"]["is_correct"] is True
 
-    async def test_blocked_team_cannot_unlock_hints(
+    async def test_team_can_still_unlock_hints_after_a_trap(
         self, user_client: tuple[AsyncClient, User], db_session: AsyncSession
     ) -> None:
-        """A blocked question can never score, so its hints stop being for sale."""
         c, user = user_client
         challenge, question = await _setup(db_session, user)
         hint = Hint(title="H", content="secret", cost=30, question_id=question.id)
@@ -127,8 +129,7 @@ class TestTrapSubmission:
             f"/challenges/{challenge.id}/{question.id}/hints/{hint.id}/unlock"
         )
 
-        assert resp.status_code == 403
-        assert resp.json()["error_code"] == "SUB-403-BLOCKED"
+        assert resp.status_code == 200
 
     async def test_trap_wins_over_a_matching_solution(
         self, user_client: tuple[AsyncClient, User], db_session: AsyncSession
@@ -172,14 +173,14 @@ class TestTrapSurvivesRecalculation:
         assert sub.is_trap is True
         assert sub.points_earned == 0
 
-    async def test_dropping_the_trap_unblocks_the_team(
+    async def test_dropping_the_trap_clears_the_marker(
         self,
         user_client: tuple[AsyncClient, User],
         db_session: AsyncSession,
         mock_redis,
         local_recalc,
     ) -> None:
-        """Clearing trap_flags and recalculating lets the team play again."""
+        """Clearing trap_flags and recalculating unmarks past submissions."""
         c, user = user_client
         challenge, question = await _setup(db_session, user)
         url = f"/challenges/{challenge.id}/{question.id}/submit"
@@ -189,9 +190,11 @@ class TestTrapSurvivesRecalculation:
         await db_session.flush()
         await recalculate_question(db_session, mock_redis, question.id)
 
-        resp = await c.post(url, json={"answer": FLAG})
-        assert resp.status_code == 200
-        assert resp.json()["data"]["is_correct"] is True
+        sub = await db_session.scalar(
+            select(Submission).where(Submission.question_id == question.id)
+        )
+        assert sub is not None
+        assert sub.is_trap is False
 
 
 class TestAdminTrapEdit:
@@ -259,28 +262,26 @@ class TestAdminTrapEdit:
         assert calls == []
 
 
-class TestTrapBadge:
-    async def test_detail_flags_the_question_without_leaking_values(
+class TestTrapStaysHidden:
+    async def test_detail_leaks_neither_the_values_nor_their_presence(
         self, user_client: tuple[AsyncClient, User], db_session: AsyncSession
     ) -> None:
-        """Players learn a question has traps, never what they are."""
+        """A decoy only works while players cannot tell it is there."""
         c, user = user_client
         challenge, _ = await _setup(db_session, user)
 
         resp = await c.get(f"/challenges/{challenge.id}")
 
         assert resp.status_code == 200
-        question = resp.json()["data"]["questions"][0]
-        assert question["has_trap"] is True
-        assert question["is_blocked"] is False
         assert TRAP not in resp.text
+        assert "has_trap" not in resp.json()["data"]["questions"][0]
 
 
-class TestBlockedCompletion:
-    async def test_blocked_question_releases_the_writeup_and_feedback(
+class TestTrapDoesNotFinishAQuestion:
+    async def test_writeup_and_feedback_wait_for_a_real_solve(
         self, user_client: tuple[AsyncClient, User], db_session: AsyncSession
     ) -> None:
-        """A trap is terminal, so it must not withhold the writeup forever."""
+        """A trap leaves the question unsolved, so the challenge is unfinished."""
         c, user = user_client
         challenge, trapped = await _setup(db_session, user)
         challenge.writeup = "The answer was 42"
@@ -302,17 +303,15 @@ class TestBlockedCompletion:
             f"/challenges/{challenge.id}/feedback", json={"rating": 5}
         )
 
-        assert detail.json()["data"]["writeup"] == "The answer was 42"
-        assert feedback.status_code == 200
+        assert detail.json()["data"]["writeup"] is None
+        assert feedback.status_code == 403
 
-    async def test_sequential_challenge_stays_locked_behind_the_trap(
+    async def test_sequential_challenge_does_not_advance_on_a_trap(
         self, user_client: tuple[AsyncClient, User], db_session: AsyncSession
     ) -> None:
-        """A trap on a non-final sequential question locks the rest for good."""
         c, user = user_client
         challenge, trapped = await _setup(db_session, user)
         challenge.sequential = True
-        challenge.writeup = "The answer was 42"
         db_session.add(
             Question(label="Q2", points=100, index=1, challenge_id=challenge.id)
         )
@@ -324,4 +323,3 @@ class TestBlockedCompletion:
         detail = await c.get(f"/challenges/{challenge.id}")
 
         assert detail.json()["data"]["questions"][1]["is_locked"] is True
-        assert detail.json()["data"]["writeup"] is None

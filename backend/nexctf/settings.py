@@ -276,3 +276,15 @@ def _appearance():
             type=ConfigType.URL,
         ),
     ]
+
+
+@config.category("beta", "config.category.beta", icon="flask-conical")
+def _beta():
+    return [
+        ConfigDef(
+            key="canary.enabled",
+            label="config.canary.enabled.label",
+            default=False,
+            description="config.canary.enabled.description",
+        ),
+    ]

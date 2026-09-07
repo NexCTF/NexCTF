@@ -78,4 +78,3 @@ class SubmitResult(PydanticBase):
     is_correct: bool
     already_solved: bool
     points_earned: int
-    is_blocked: bool = False

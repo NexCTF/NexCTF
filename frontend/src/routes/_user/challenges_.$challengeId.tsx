@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   AlignLeft,
   ArrowLeft,
-  Ban,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -23,7 +22,6 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Markdown } from "@/components/markdown";
 import { PluginSlot } from "@/components/plugin-slot";
 import { PointsBadges } from "@/components/points-badge";
-import { StatusBadge } from "@/components/status-badge";
 import { TagBadge } from "@/components/tag-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -296,7 +294,7 @@ function QuestionCard({
   challengeId: string;
 }) {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(!q.is_solved && !q.is_locked && !q.is_blocked);
+  const [expanded, setExpanded] = useState(!q.is_solved && !q.is_locked);
   const queryClient = useQueryClient();
 
   function refetch() {
@@ -320,11 +318,7 @@ function QuestionCard({
   return (
     <div
       className={`rounded-xl border transition-colors ${
-        q.is_blocked
-          ? "border-red-500/40 bg-red-500/5"
-          : q.is_solved
-            ? "border-green-500/40 bg-green-500/5"
-            : "bg-card"
+        q.is_solved ? "border-green-500/40 bg-green-500/5" : "bg-card"
       }`}
     >
       {/* Question header */}
@@ -333,9 +327,7 @@ function QuestionCard({
         className="w-full flex items-center gap-3 px-5 py-4 text-left"
         onClick={() => setExpanded((v) => !v)}
       >
-        {q.is_blocked ? (
-          <Ban className="size-5 text-red-500 shrink-0" />
-        ) : q.is_solved ? (
+        {q.is_solved ? (
           <CheckCircle2 className="size-5 text-green-500 shrink-0" />
         ) : (
           <span className="size-5 shrink-0 flex items-center justify-center rounded-full border text-xs font-mono text-muted-foreground">
@@ -343,11 +335,6 @@ function QuestionCard({
           </span>
         )}
         <span className="flex-1 font-medium">{q.label}</span>
-        {q.has_trap && (
-          <StatusBadge tone="amber" icon={AlertTriangle} title={t("challenge.trap_hint")}>
-            {t("challenge.trap_badge")}
-          </StatusBadge>
-        )}
         {q.input_type === "code" && (
           <span className="shrink-0 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs text-muted-foreground font-mono">
             <Code2 className="size-3" />
@@ -423,11 +410,7 @@ function QuestionCard({
             />
           )}
 
-          {q.is_blocked ? (
-            <QuestionOutcome tone="text-red-600 dark:text-red-400">
-              {t("challenge.blocked")}
-            </QuestionOutcome>
-          ) : q.is_solved ? (
+          {q.is_solved ? (
             <QuestionOutcome tone="text-green-600 dark:text-green-400">
               {t("challenge.solved")}
             </QuestionOutcome>
@@ -533,8 +516,7 @@ function SubmitSection({
         setSelected([]);
         onSolved();
       } else {
-        toast.error(result.is_blocked ? t("challenge.blocked") : t("challenge.submit_wrong"));
-        if (result.is_blocked) onSolved();
+        toast.error(t("challenge.submit_wrong"));
       }
     },
     onError: (err) => toast.error(apiErrorMessage(err, t("challenge.submit_error"))),

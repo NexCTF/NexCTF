@@ -95,8 +95,6 @@ export function question(overrides: Partial<PublicQuestion> = {}): PublicQuestio
     label: "What is the flag?",
     description: null,
     is_locked: false,
-    is_blocked: false,
-    has_trap: false,
     points: 100,
     malus: null,
     input_type: "input",
