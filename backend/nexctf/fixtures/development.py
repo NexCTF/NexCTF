@@ -72,7 +72,9 @@ def challenge() -> list[StandardChallenge]:
                 "credentials `admin:admin` — the second flag is on that page.\n\n"
                 "```\n"
                 "curl -u admin:admin https://target/admin\n"
-                "```\n"
+                "```\n\n"
+                "### Video walkthrough\n\n"
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ\n"
             ),
             is_active=True,
             category="pentest",
@@ -98,7 +100,11 @@ def challenge() -> list[StandardChallenge]:
         StandardChallenge(
             id=UUID("a1000000-0000-4000-8000-000000000004"),
             title="Caesar Cipher",
-            description="Decrypt the intercepted ciphertext and identify the key.",
+            description=(
+                "Decrypt the intercepted ciphertext and identify the key.\n\n"
+                "Each letter is shifted by the same amount: "
+                "$c_i \\equiv p_i + k \\pmod{26}$."
+            ),
             is_active=True,
             category="cryptography",
             tags=["medium"],

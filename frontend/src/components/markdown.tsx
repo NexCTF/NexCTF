@@ -1,11 +1,53 @@
+import "katex/dist/katex.min.css";
+import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
+import rehypeKatex from "rehype-katex";
+import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import { cn } from "@/lib/utils";
 
 interface MarkdownProps {
   children: string;
   className?: string;
+}
+
+const YOUTUBE = /^https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/;
+const VIDEO_FILE = /\.(mp4|webm|mov)(\?|#|$)/i;
+const AUDIO_FILE = /\.(mp3|wav|flac|ogg|m4a)(\?|#|$)/i;
+
+function MarkdownLink({ href, children }: { href?: string; children?: ReactNode }) {
+  const youtube = href?.match(YOUTUBE);
+  if (youtube) {
+    return (
+      <iframe
+        title="YouTube video"
+        src={`https://www.youtube-nocookie.com/embed/${youtube[1]}`}
+        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        className="aspect-video w-full rounded-lg border-0"
+      />
+    );
+  }
+  if (href && VIDEO_FILE.test(href)) {
+    // biome-ignore lint/a11y/useMediaCaption: user-supplied video, no track available
+    return <video src={href} controls className="w-full rounded-lg" />;
+  }
+  if (href && AUDIO_FILE.test(href)) {
+    // biome-ignore lint/a11y/useMediaCaption: user-supplied audio, no track available
+    return <audio src={href} controls className="w-full" />;
+  }
+  const external = href ? /^https?:\/\//.test(href) : false;
+  return (
+    <a
+      href={href}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noreferrer" : undefined}
+    >
+      {children}
+    </a>
+  );
 }
 
 export function Markdown({ children, className }: MarkdownProps) {
@@ -25,7 +67,11 @@ export function Markdown({ children, className }: MarkdownProps) {
         className,
       )}
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeSlug, rehypeHighlight, rehypeKatex]}
+        components={{ a: MarkdownLink }}
+      >
         {children}
       </ReactMarkdown>
     </div>
