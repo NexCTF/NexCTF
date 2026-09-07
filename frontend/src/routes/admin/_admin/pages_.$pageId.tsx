@@ -1,20 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Image, Link2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MarkdownEditor } from "@/components/ui/markdown-editor";
+import { MarkdownEditor, type MarkdownEditorHandle } from "@/components/ui/markdown-editor";
 import {
   Select,
   SelectContent,
@@ -23,163 +16,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  apiErrorMessage,
-  getAdminFiles,
-  getAdminPage,
-  markFilePublic,
-  type StoredFile,
-  updateAdminPage,
-} from "@/lib/api";
+import { apiErrorMessage, getAdminPage, updateAdminPage } from "@/lib/api";
 import { MAGIC_VAR_DOCS } from "@/lib/magic-vars";
-import { formatBytes } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin/pages_/$pageId")({
   component: PageEditorPage,
 });
 
 // ---------------------------------------------------------------------------
-// File picker — lets admin insert an image/file URL into the markdown
-// ---------------------------------------------------------------------------
-
-function FilePicker({ onInsert }: { onInsert: (markdown: string) => void }) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-
-  const { data: filesResponse } = useQuery({
-    queryKey: ["admin", "files", "picker", search],
-    queryFn: () => getAdminFiles(search ? `search=${encodeURIComponent(search)}` : ""),
-    enabled: open,
-  });
-
-  const markPublicMutation = useMutation({
-    mutationFn: (fileId: string) => markFilePublic(fileId, true),
-    onError: (err) =>
-      toast.error(
-        apiErrorMessage(
-          err,
-          t("admin.pages.make_public_error", { defaultValue: "Failed to make file public" }),
-        ),
-      ),
-  });
-
-  async function handlePick(file: StoredFile) {
-    if (!file.is_public) {
-      try {
-        await markPublicMutation.mutateAsync(file.id);
-      } catch {
-        return;
-      }
-    }
-    const url = `/api/v1/file/${file.id}/view`;
-    const isImage = file.mime_type?.startsWith("image/");
-    const md = isImage ? `![${file.name}](${url})` : `[${file.name}](${url})`;
-    onInsert(md);
-    setOpen(false);
-    setSearch("");
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          <Button type="button" variant="outline" size="sm">
-            <Image className="size-3.5 mr-1.5" />
-            {t("admin.pages.insert_file", { defaultValue: "Insert file" })}
-          </Button>
-        }
-      />
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>
-            {t("admin.pages.pick_file", { defaultValue: "Pick a file to insert" })}
-          </DialogTitle>
-        </DialogHeader>
-        <Input
-          placeholder={t("common.search", { defaultValue: "Search…" })}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="mb-2"
-        />
-        <div className="max-h-80 overflow-y-auto divide-y rounded border">
-          {!filesResponse?.data?.length ? (
-            <p className="p-4 text-sm text-muted-foreground text-center">
-              {t("admin.pages.no_files", {
-                defaultValue: "No files found. Upload files first in the Files section.",
-              })}
-            </p>
-          ) : (
-            filesResponse.data.map((file) => (
-              <button
-                key={file.id}
-                type="button"
-                className="w-full flex items-start gap-3 px-3 py-2.5 text-left hover:bg-muted/60 transition-colors"
-                onClick={() => handlePick(file)}
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{file.name}</p>
-                  <p className="text-xs text-muted-foreground font-mono truncate">
-                    {file.original_filename}
-                  </p>
-                  {file.mime_type && (
-                    <p className="text-xs text-muted-foreground">
-                      {file.mime_type}
-                      {file.file_size ? ` · ${formatBytes(file.file_size)}` : ""}
-                      {!file.is_public && (
-                        <span className="ml-2 text-amber-600">
-                          {t("admin.pages.will_make_public", {
-                            defaultValue: "will be made public",
-                          })}
-                        </span>
-                      )}
-                    </p>
-                  )}
-                </div>
-                {file.mime_type?.startsWith("image/") ? (
-                  <Image className="size-4 shrink-0 text-muted-foreground mt-0.5" />
-                ) : (
-                  <Link2 className="size-4 shrink-0 text-muted-foreground mt-0.5" />
-                )}
-              </button>
-            ))
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Editor with file picker toolbar
+// Editor with magic variable helpers
 // ---------------------------------------------------------------------------
 
 function PageContentEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const { t } = useTranslation();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  function insertAtCursor(text: string) {
-    const ta = textareaRef.current;
-    if (ta) {
-      const start = ta.selectionStart;
-      const end = ta.selectionEnd;
-      const next = value.slice(0, start) + text + value.slice(end);
-      onChange(next);
-      setTimeout(() => {
-        ta.focus();
-        ta.setSelectionRange(start + text.length, start + text.length);
-      }, 0);
-    } else {
-      onChange(value + (value.endsWith("\n") ? "" : "\n") + text);
-    }
-  }
+  const editorRef = useRef<MarkdownEditorHandle>(null);
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label>{t("admin.pages.field_content", { defaultValue: "Content" })}</Label>
-        <FilePicker onInsert={insertAtCursor} />
-      </div>
+      <Label>{t("admin.pages.field_content", { defaultValue: "Content" })}</Label>
       <details className="text-xs border rounded-md">
         <summary className="px-3 py-1.5 cursor-pointer text-muted-foreground hover:text-foreground select-none">
           {t("admin.pages.available_variables", { defaultValue: "Available variables" })}
@@ -190,7 +44,7 @@ function PageContentEditor({ value, onChange }: { value: string; onChange: (v: s
               <button
                 type="button"
                 className="font-mono bg-muted px-1 py-0.5 rounded text-xs shrink-0 cursor-pointer hover:bg-muted/70"
-                onClick={() => insertAtCursor(`{{${v.key}}}`)}
+                onClick={() => editorRef.current?.insert(`{{${v.key}}}`)}
                 title={t("admin.pages.click_to_insert", { defaultValue: "Click to insert" })}
               >
                 {`{{${v.key}}}`}
@@ -200,7 +54,7 @@ function PageContentEditor({ value, onChange }: { value: string; onChange: (v: s
           ))}
         </div>
       </details>
-      <MarkdownEditor ref={textareaRef} value={value} onChange={onChange} rows={20} />
+      <MarkdownEditor ref={editorRef} value={value} onChange={onChange} rows={20} />
     </div>
   );
 }

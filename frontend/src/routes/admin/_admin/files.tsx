@@ -112,7 +112,7 @@ function UploadFileDialog({ onCreated }: { onCreated: () => void }) {
           <div className="flex items-center gap-2">
             <Switch id="upload-public" checked={isPublic} onCheckedChange={setIsPublic} />
             <Label htmlFor="upload-public">
-              {t("admin.files.field_public", { defaultValue: "Public (accessible from pages)" })}
+              {t("admin.files.field_public", { defaultValue: "Public (embeddable in markdown)" })}
             </Label>
           </div>
           <DialogFooter>

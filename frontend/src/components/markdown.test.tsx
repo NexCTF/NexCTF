@@ -39,3 +39,12 @@ it("gives headings an id so they can be deep-linked", () => {
   const { container } = render(<Markdown>{"## Scoring rules"}</Markdown>);
   expect(container.querySelector("h2")?.id).toBe("scoring-rules");
 });
+
+it("embeds a stored file whose type is only known from the url fragment", () => {
+  const { container } = render(
+    <Markdown>{"[clip](/api/v1/file/2b1f/view#body%20cam.mp4)"}</Markdown>,
+  );
+  expect(container.querySelector("video")?.getAttribute("src")).toBe(
+    "/api/v1/file/2b1f/view#body%20cam.mp4",
+  );
+});

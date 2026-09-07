@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
@@ -12,7 +13,11 @@ function Harness() {
 }
 
 it("keeps newlines and spaces typed into the trap flags field", async () => {
-  render(<Harness />);
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Harness />
+    </QueryClientProvider>,
+  );
 
   const field = screen.getByPlaceholderText("One flag per line");
   await userEvent.type(field, "nope one{enter}nope two");

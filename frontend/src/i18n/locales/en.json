@@ -174,7 +174,7 @@
       "edit": "Edit file",
       "field_file": "File",
       "field_name": "Name",
-      "field_public": "Public (accessible from pages)",
+      "field_public": "Public (embeddable in markdown)",
       "make_private": "Make private",
       "make_public": "Make public",
       "name_placeholder": "Friendly name",
@@ -332,20 +332,15 @@
       "field_slug": "Slug",
       "field_title": "Title",
       "home_hint": "Use slug 'home' to customize the index page.",
-      "insert_file": "Insert file",
-      "make_public_error": "Failed to make file public",
       "nav_footer": "Footer",
       "nav_none": "None",
       "nav_top": "Top nav",
-      "no_files": "No files found. Upload files first in the Files section.",
-      "pick_file": "Pick a file to insert",
       "published": "Published",
       "save_error": "Save failed",
       "saved": "Page saved",
       "slug_hint": "URL-friendly identifier. Accessible at /p/{slug}. Use 'home' to customize the index page.",
       "title_placeholder": "About us",
-      "view_live": "View live →",
-      "will_make_public": "will be made public"
+      "view_live": "View live →"
     },
     "plugins": {
       "active": "Active",
@@ -808,8 +803,13 @@
     "verify_title": "Verify your email"
   },
   "markdown": {
+    "insert_file": "Insert file",
+    "make_public_error": "Failed to make file public",
+    "no_files": "No files found. Upload files first in the Files section.",
     "nothing_to_preview": "Nothing to preview.",
+    "pick_file": "Pick a file to insert",
     "preview": "Preview",
+    "will_make_public": "will be made public",
     "write": "Write"
   },
   "nav": {

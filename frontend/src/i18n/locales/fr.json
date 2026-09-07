@@ -175,7 +175,7 @@
       "edit": "Modifier le fichier",
       "field_file": "Fichier",
       "field_name": "Nom",
-      "field_public": "Public (accessible depuis les pages)",
+      "field_public": "Public (intégrable dans le markdown)",
       "make_private": "Rendre privé",
       "make_public": "Rendre public",
       "name_placeholder": "Nom convivial",
@@ -334,20 +334,15 @@
       "field_slug": "Slug",
       "field_title": "Titre",
       "home_hint": "Utilisez le slug 'home' pour personnaliser la page d'accueil.",
-      "insert_file": "Insérer un fichier",
-      "make_public_error": "Impossible de rendre le fichier public",
       "nav_footer": "Pied de page",
       "nav_none": "Aucune",
       "nav_top": "Barre de nav",
-      "no_files": "Aucun fichier trouvé. Uploadez des fichiers dans la section Fichiers.",
-      "pick_file": "Choisir un fichier à insérer",
       "published": "Publié",
       "save_error": "Échec de l'enregistrement",
       "saved": "Page enregistrée",
       "slug_hint": "Identifiant URL. Accessible à /p/{slug}. Utilisez 'home' pour personnaliser la page d'accueil.",
       "title_placeholder": "À propos",
-      "view_live": "Voir en ligne →",
-      "will_make_public": "sera rendu public"
+      "view_live": "Voir en ligne →"
     },
     "plugins": {
       "active": "Actif",
@@ -810,8 +805,13 @@
     "verify_title": "Vérifiez votre email"
   },
   "markdown": {
+    "insert_file": "Insérer un fichier",
+    "make_public_error": "Impossible de rendre le fichier public",
+    "no_files": "Aucun fichier trouvé. Uploadez des fichiers dans la section Fichiers.",
     "nothing_to_preview": "Rien à prévisualiser.",
+    "pick_file": "Choisir un fichier à insérer",
     "preview": "Aperçu",
+    "will_make_public": "sera rendu public",
     "write": "Écrire"
   },
   "nav": {
