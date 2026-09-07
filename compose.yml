@@ -36,7 +36,7 @@ x-app-env: &app-env
   # The only URL you need to set: the app is served at https://${DOMAIN} and
   # challenge files at https://s3.${DOMAIN} — both need a DNS record, and a
   # custom cert (CERTS_PATH below) must list both names or downloads break.
-  DOMAIN: ${DOMAIN:-localhost
+  DOMAIN: ${DOMAIN:-localhost}
 
   # Derived from DOMAIN when left empty. Override only when the public URL is
   # not https://${DOMAIN} — e.g. the default 8443 port mapping below.
