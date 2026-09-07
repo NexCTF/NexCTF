@@ -1,5 +1,5 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Eye, Image, Link2, Paperclip, Pencil } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Eye, Image, Link2, Paperclip, Pencil, Upload } from "lucide-react";
 import type * as React from "react";
 import { useImperativeHandle, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -14,8 +14,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { apiErrorMessage, getAdminFiles, markFilePublic, type StoredFile } from "@/lib/api";
+import {
+  apiErrorMessage,
+  getAdminFiles,
+  markFilePublic,
+  type StoredFile,
+  uploadAdminFile,
+} from "@/lib/api";
 import { cn, formatBytes } from "@/lib/utils";
 
 export interface MarkdownEditorHandle {
@@ -32,7 +39,7 @@ interface MarkdownEditorProps {
   ref?: React.Ref<MarkdownEditorHandle>;
 }
 
-function fileMarkdown(file: StoredFile): string {
+export function fileMarkdown(file: StoredFile): string {
   const url = `/api/v1/file/${file.id}/view`;
   if (file.mime_type?.startsWith("image/")) return `![${file.name}](${url})`;
   // The view URL has no extension, so media files carry their filename in the
@@ -44,8 +51,11 @@ function fileMarkdown(file: StoredFile): string {
 
 function FilePicker({ onInsert }: { onInsert: (markdown: string) => void }) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [pending, setPending] = useState<{ file: File; name: string } | null>(null);
+  const uploadRef = useRef<HTMLInputElement>(null);
 
   const { data: filesResponse } = useQuery({
     queryKey: ["admin", "files", "picker", search],
@@ -64,6 +74,25 @@ function FilePicker({ onInsert }: { onInsert: (markdown: string) => void }) {
       ),
   });
 
+  function pick(file: StoredFile) {
+    onInsert(fileMarkdown(file));
+    setOpen(false);
+    setSearch("");
+    setPending(null);
+  }
+
+  const uploadMutation = useMutation({
+    mutationFn: ({ file, name }: { file: File; name: string }) => uploadAdminFile(name, file, true),
+    onSuccess: (file) => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "files"] });
+      pick(file);
+    },
+    onError: (err) =>
+      toast.error(
+        apiErrorMessage(err, t("admin.files.upload_error", { defaultValue: "Upload failed" })),
+      ),
+  });
+
   async function handlePick(file: StoredFile) {
     if (!file.is_public) {
       try {
@@ -72,9 +101,7 @@ function FilePicker({ onInsert }: { onInsert: (markdown: string) => void }) {
         return;
       }
     }
-    onInsert(fileMarkdown(file));
-    setOpen(false);
-    setSearch("");
+    pick(file);
   }
 
   return (
@@ -93,53 +120,103 @@ function FilePicker({ onInsert }: { onInsert: (markdown: string) => void }) {
             {t("markdown.pick_file", { defaultValue: "Pick a file to insert" })}
           </DialogTitle>
         </DialogHeader>
-        <Input
-          placeholder={t("common.search", { defaultValue: "Search…" })}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="mb-2"
+        <input
+          ref={uploadRef}
+          type="file"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) setPending({ file, name: file.name });
+          }}
         />
-        <div className="max-h-80 overflow-y-auto divide-y rounded border">
-          {!filesResponse?.data?.length ? (
-            <p className="p-4 text-sm text-muted-foreground text-center">
-              {t("markdown.no_files", {
-                defaultValue: "No files found. Upload files first in the Files section.",
-              })}
-            </p>
-          ) : (
-            filesResponse.data.map((file) => (
-              <button
-                key={file.id}
-                type="button"
-                className="w-full flex items-start gap-3 px-3 py-2.5 text-left hover:bg-muted/60 transition-colors"
-                onClick={() => handlePick(file)}
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{file.name}</p>
-                  <p className="text-xs text-muted-foreground font-mono truncate">
-                    {file.original_filename}
-                  </p>
-                  {file.mime_type && (
-                    <p className="text-xs text-muted-foreground">
-                      {file.mime_type}
-                      {file.file_size ? ` · ${formatBytes(file.file_size)}` : ""}
-                      {!file.is_public && (
-                        <span className="ml-2 text-amber-600">
-                          {t("markdown.will_make_public", { defaultValue: "will be made public" })}
-                        </span>
+        {pending ? (
+          <form
+            className="space-y-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              uploadMutation.mutate(pending);
+            }}
+          >
+            <Label htmlFor="picker-upload-name">
+              {t("admin.files.field_name", { defaultValue: "Name" })}
+            </Label>
+            <Input
+              id="picker-upload-name"
+              value={pending.name}
+              onChange={(e) => setPending({ ...pending, name: e.target.value })}
+              required
+            />
+            <p className="text-xs text-muted-foreground font-mono truncate">{pending.file.name}</p>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setPending(null)}>
+                {t("common.cancel", { defaultValue: "Cancel" })}
+              </Button>
+              <Button type="submit" disabled={uploadMutation.isPending}>
+                {uploadMutation.isPending
+                  ? t("admin.files.uploading", { defaultValue: "Uploading…" })
+                  : t("admin.files.upload_btn", { defaultValue: "Upload" })}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <div className="flex gap-2 mb-2">
+              <Input
+                placeholder={t("common.search", { defaultValue: "Search…" })}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <Button type="button" variant="outline" onClick={() => uploadRef.current?.click()}>
+                <Upload className="size-3.5 mr-1.5" />
+                {t("markdown.upload_file", { defaultValue: "Upload" })}
+              </Button>
+            </div>
+            <div className="max-h-80 overflow-y-auto divide-y rounded border">
+              {!filesResponse?.data?.length ? (
+                <p className="p-4 text-sm text-muted-foreground text-center">
+                  {t("markdown.no_files", {
+                    defaultValue: "No files found. Upload files first in the Files section.",
+                  })}
+                </p>
+              ) : (
+                filesResponse.data.map((file) => (
+                  <button
+                    key={file.id}
+                    type="button"
+                    className="w-full flex items-start gap-3 px-3 py-2.5 text-left hover:bg-muted/60 transition-colors"
+                    onClick={() => handlePick(file)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{file.name}</p>
+                      <p className="text-xs text-muted-foreground font-mono truncate">
+                        {file.original_filename}
+                      </p>
+                      {file.mime_type && (
+                        <p className="text-xs text-muted-foreground">
+                          {file.mime_type}
+                          {file.file_size ? ` · ${formatBytes(file.file_size)}` : ""}
+                          {!file.is_public && (
+                            <span className="ml-2 text-amber-600">
+                              {t("markdown.will_make_public", {
+                                defaultValue: "will be made public",
+                              })}
+                            </span>
+                          )}
+                        </p>
                       )}
-                    </p>
-                  )}
-                </div>
-                {file.mime_type?.startsWith("image/") ? (
-                  <Image className="size-4 shrink-0 text-muted-foreground mt-0.5" />
-                ) : (
-                  <Link2 className="size-4 shrink-0 text-muted-foreground mt-0.5" />
-                )}
-              </button>
-            ))
-          )}
-        </div>
+                    </div>
+                    {file.mime_type?.startsWith("image/") ? (
+                      <Image className="size-4 shrink-0 text-muted-foreground mt-0.5" />
+                    ) : (
+                      <Link2 className="size-4 shrink-0 text-muted-foreground mt-0.5" />
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
