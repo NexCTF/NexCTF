@@ -456,3 +456,12 @@ class InternalServerError(ApiException):
         desc="An unexpected error occurred.",
         err_code="INTERNAL-500",
     )
+
+
+class BackupFailedError(ApiException):
+    api_error = ApiError(
+        code=400,
+        msg="Backup operation failed",
+        desc="The database backup or restore could not be carried out.",
+        err_code="BACKUP-400",
+    )

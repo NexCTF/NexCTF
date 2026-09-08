@@ -11,9 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
 from nexctf.api.security import TOKEN_PREFIX, _hash_token, hash_password
+from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.config import settings
 from nexctf.core.db import get_db_context
 from nexctf.model import User, UserRole, UserToken
+from nexctf.module import backup
 
 cli = typer.Typer(
     name="manager",
@@ -74,3 +76,28 @@ async def create_admin() -> None:
         console.print(f"Created admin user {username!r}.")
     else:
         console.print(f"Admin user {username!r} already exists; skipping.")
+
+
+@cli.command("restore")
+@async_command
+async def restore_backup(
+    key: str,
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation."),
+) -> None:
+    """Replace the database with a backup from S3. Stop the app before running."""
+    if not yes:
+        typer.confirm(
+            f"Restore {key}? This overwrites the current database and logs out "
+            "every user. The current database is dumped to S3 first.",
+            abort=True,
+        )
+
+    try:
+        await backup.restore(key)
+    except backup.BackupError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    # Drop every cached structure describing the replaced database.
+    await get_redis_client().flushdb()
+
+    console.print(f"Restored {key!r}. Restart the backend and scheduler.")

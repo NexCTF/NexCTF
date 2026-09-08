@@ -90,6 +90,7 @@ export function DeleteButton({
           disabled={disabled}
           onClick={(e) => e.stopPropagation()}
           aria-label={label ?? t("common.delete")}
+          title={label ?? t("common.delete")}
         >
           <Trash2 className={size === "icon-xs" ? "size-3" : "size-3.5"} />
         </Button>

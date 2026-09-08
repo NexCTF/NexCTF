@@ -5,6 +5,7 @@ from nexctf.module.challenge import invalidate as invalidate_challenges
 from nexctf.module.info import invalidate as invalidate_info
 from nexctf.module.scoreboard import invalidate as invalidate_scoreboard
 
+from .backup import backup_router
 from .challenge import challenge_router
 from .config import config_router
 from .custom_field import custom_field_router, custom_field_value_router
@@ -41,6 +42,7 @@ _invalidate_challenges = [Depends(invalidate_on_write(invalidate_challenges))]
 _invalidate_info = [Depends(invalidate_on_write(invalidate_info))]
 _invalidate_scoreboard = [Depends(invalidate_on_write(invalidate_scoreboard))]
 
+admin_router.include_router(router=backup_router)
 admin_router.include_router(
     router=challenge_router, dependencies=_invalidate_challenges
 )

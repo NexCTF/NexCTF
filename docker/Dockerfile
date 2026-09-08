@@ -21,7 +21,13 @@ LABEL org.opencontainers.image.title="NexCTF" \
 ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
-        ca-certificates git curl supervisor libcap2-bin \
+        git curl supervisor libcap2-bin ca-certificates \
+    && install -d /etc/apt/keyrings \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /etc/apt/keyrings/pgdg.asc \
+    && echo "deb [signed-by=/etc/apt/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
+        postgresql-client-18 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 1000 nexctf \
     && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash nexctf \
@@ -70,9 +76,9 @@ RUN --mount=type=cache,uid=1000,gid=1000,target=/home/nexctf/.cache/uv \
 ENV PYTHONPATH=/app
 ENV WORKERS=4
 
-COPY --chown=nexctf:nexctf backend/scripts/start.sh /app/scripts/
+COPY --chown=nexctf:nexctf backend/scripts/start.sh backend/scripts/restore.sh /app/scripts/
 COPY --chown=nexctf:nexctf docker/with-prefix.sh /app/scripts/with-prefix.sh
-RUN chmod +x /app/scripts/start.sh /app/scripts/with-prefix.sh
+RUN chmod +x /app/scripts/start.sh /app/scripts/restore.sh /app/scripts/with-prefix.sh
 COPY --chown=nexctf:nexctf backend/pyproject.toml backend/uv.lock backend/alembic.ini /app/
 COPY --chown=nexctf:nexctf backend/nexctf /app/nexctf
 
