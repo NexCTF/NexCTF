@@ -38,21 +38,21 @@ export function useSubmissionColumns({
     ...(showTeam
       ? [
           {
-            key: "team_name",
+            key: "team__name",
             header: t("table.col_team", { defaultValue: "Team" }),
             cell: (sub: AdminSubmission) => <TeamLink id={sub.team_id} name={sub.team_name} />,
           },
         ]
       : []),
     {
-      key: "question_challenge_title",
+      key: "question__challenge__title",
       header: t("table.col_challenge", { defaultValue: "Challenge" }),
       cell: (sub) => (
         <ChallengeLink id={sub.question_challenge_id} name={sub.question_challenge_title} />
       ),
     },
     {
-      key: "question_label",
+      key: "question__label",
       header: t("table.col_question", { defaultValue: "Question" }),
       cell: (sub) =>
         sub.question_label ? (

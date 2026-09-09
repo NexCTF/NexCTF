@@ -71,7 +71,7 @@ export function useEventColumns(): Column<AdminEvent>[] {
       className: "w-36",
     },
     {
-      key: "actor_username",
+      key: "actor__username",
       header: t("table.col_user", { defaultValue: "User" }),
       sortable: true,
       cell: (e) => <UserLink id={e.actor_id} name={e.actor_username} />,

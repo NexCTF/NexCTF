@@ -117,7 +117,7 @@ export function useTableState(defaults?: Partial<TableState>) {
     params.set("items_per_page", state.perPage.toString());
     if (state.search) {
       params.set("search", state.search);
-      if (state.searchColumn) params.set("search_by", state.searchColumn);
+      if (state.searchColumn) params.set("search_column", state.searchColumn);
     }
     if (state.sortColumn) {
       params.set("order_by", state.sortColumn);

@@ -35,14 +35,14 @@ export function useFeedbackColumns({
   return [
     idColumn<AdminFeedback>(t),
     {
-      key: "challenge_title",
+      key: "challenge__title",
       header: t("table.col_challenge", { defaultValue: "Challenge" }),
       cell: (fb) => <ChallengeLink id={fb.challenge_id} name={fb.challenge_title} />,
     },
     ...(showTeam
       ? [
           {
-            key: "team_name",
+            key: "team__name",
             header: t("table.col_team", { defaultValue: "Team" }),
             cell: (fb: AdminFeedback) => <TeamLink id={fb.team_id} name={fb.team_name} />,
           },

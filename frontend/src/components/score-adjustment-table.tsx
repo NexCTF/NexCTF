@@ -35,7 +35,7 @@ export function useScoreAdjustmentColumns({
     ...(showTeam
       ? [
           {
-            key: "team_name",
+            key: "team__name",
             header: t("table.col_team", { defaultValue: "Team" }),
             cell: (adj: ScoreAdjustment) => <TeamLink id={adj.team_id} name={adj.team_name} />,
           },
@@ -52,12 +52,12 @@ export function useScoreAdjustmentColumns({
       header: t("admin.scoreboard.col_reason"),
     },
     {
-      key: "challenge_title",
+      key: "challenge__title",
       header: t("table.col_challenge", { defaultValue: "Challenge" }),
       cell: (adj) => <ChallengeLink id={adj.challenge_id} name={adj.challenge_title} />,
     },
     {
-      key: "created_by_username",
+      key: "created_by__username",
       header: t("table.col_created_by", { defaultValue: "Created by" }),
       cell: (adj) => <UserLink id={adj.created_by_id} name={adj.created_by_username} />,
     },

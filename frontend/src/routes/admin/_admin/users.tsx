@@ -218,7 +218,7 @@ function UsersPage() {
         u.email ? <span className="text-muted-foreground">{u.email}</span> : <EmptyCell />,
     },
     {
-      key: "team",
+      key: "team__name",
       header: t("table.col_team", { defaultValue: "Team" }),
       cell: (u) => <TeamLink id={u.team_id} name={u.team_name} />,
     },

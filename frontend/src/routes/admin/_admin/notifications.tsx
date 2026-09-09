@@ -226,7 +226,7 @@ function NotificationsPage() {
         ),
     },
     {
-      key: "created_by_username",
+      key: "created_by__username",
       header: t("table.col_created_by", { defaultValue: "Created by" }),
       cell: (n) => <UserLink id={n.created_by_id} name={n.created_by_username} />,
     },

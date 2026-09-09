@@ -34,7 +34,12 @@ class TeamCrud(AsyncCrud[Team]):
     cursor_column = Team.created_at
     searchable_fields = [Team.name]
     facet_fields = [Team.bracket]
-    order_fields = [Team.name]
+    order_fields = [
+        Team.name,
+        Team.country,
+        Team.bracket,
+        Team.created_at,
+    ]
     default_load_options = [
         selectinload(Team.users),
         selectinload(Team.submissions),
@@ -50,6 +55,13 @@ class CustomFieldDefinitionCrud(AuditedCrud[CustomFieldDefinition]):
     order_fields = [
         CustomFieldDefinition.name,
         CustomFieldDefinition.target,
+        CustomFieldDefinition.label,
+        CustomFieldDefinition.field_type,
+        CustomFieldDefinition.is_public,
+        CustomFieldDefinition.is_self_editable,
+        CustomFieldDefinition.show_in_scoreboard,
+        CustomFieldDefinition.is_required,
+        CustomFieldDefinition.created_at,
     ]
     default_load_options = []
 
@@ -74,6 +86,7 @@ class UserCrud(AsyncCrud[User]):
         User.role,
         User.is_active,
         (User.team, Team.name),
+        User.created_at,
     ]
     default_load_options = [joinedload(User.team)]
 
@@ -83,7 +96,11 @@ class UserTokenCrud(AsyncCrud[UserToken]):
     cursor_column = UserToken.created_at
     searchable_fields = [UserToken.name]
     facet_fields = []
-    order_fields = [UserToken.name, (UserToken.user, User.username)]
+    order_fields = [
+        UserToken.name,
+        (UserToken.user, User.username),
+        UserToken.created_at,
+    ]
     default_load_options = [joinedload(UserToken.user)]
 
 
@@ -92,7 +109,10 @@ class UserSessionCrud(AsyncCrud[UserSession]):
     cursor_column = UserSession.created_at
     searchable_fields = []
     facet_fields = []
-    order_fields = [UserSession.last_seen_at]
+    order_fields = [
+        UserSession.last_seen_at,
+        UserSession.created_at,
+    ]
     default_load_options = []
 
 
@@ -105,7 +125,12 @@ class OAuthProviderCrud(AuditedCrud[OAuthProvider]):
         OAuthProvider.discovery_url,
     ]
     facet_fields = [OAuthProvider.is_active]
-    order_fields = [OAuthProvider.name, OAuthProvider.is_active]
+    order_fields = [
+        OAuthProvider.name,
+        OAuthProvider.is_active,
+        OAuthProvider.discovery_url,
+        OAuthProvider.created_at,
+    ]
     default_load_options = []
 
 
@@ -122,6 +147,7 @@ class OAuthAccountCrud(AsyncCrud[OAuthAccount]):
         OAuthAccount.subject,
         (OAuthAccount.user, User.username),
         (OAuthAccount.provider, OAuthProvider.name),
+        OAuthAccount.created_at,
     ]
     default_load_options = [
         joinedload(OAuthAccount.user),
@@ -149,6 +175,7 @@ class ChallengeCrud(AuditedCrud[Challenge]):
         Challenge.challenge_type,
         Challenge.is_active,
         Challenge.category,
+        Challenge.created_at,
     ]
     default_load_options = [selectinload(Challenge.questions)]
 
@@ -163,6 +190,7 @@ class QuestionCrud(AuditedCrud[Question]):
         Question.points,
         Question.label,
         (Question.challenge, Challenge.title),
+        Question.created_at,
     ]
     default_load_options = [
         selectinload(Question.hints),
@@ -178,7 +206,13 @@ class HintCrud(AuditedCrud[Hint]):
     cursor_column = Hint.created_at
     searchable_fields = [Hint.title]
     facet_fields = [Hint.question_id]
-    order_fields = [Hint.order, Hint.cost, Hint.title, (Hint.question, Question.label)]
+    order_fields = [
+        Hint.order,
+        Hint.cost,
+        Hint.title,
+        (Hint.question, Question.label),
+        Hint.created_at,
+    ]
     default_load_options = [selectinload(Hint.question)]
 
 
@@ -187,7 +221,13 @@ class LinkCrud(AuditedCrud[Link]):
     cursor_column = Link.created_at
     searchable_fields = [Link.name, Link.url]
     facet_fields = [Link.visibility, Link.is_enabled]
-    order_fields = [Link.name, Link.url]
+    order_fields = [
+        Link.name,
+        Link.url,
+        Link.visibility,
+        Link.is_enabled,
+        Link.created_at,
+    ]
     default_load_options = []
 
 
@@ -196,7 +236,11 @@ class SolutionCrud(AsyncCrud[Solution]):
     cursor_column = Solution.created_at
     searchable_fields = [Solution.solve_type]
     facet_fields = [Solution.solve_type, Solution.question_id]
-    order_fields = [Solution.solve_type, (Solution.question, Question.label)]
+    order_fields = [
+        Solution.solve_type,
+        (Solution.question, Question.label),
+        Solution.created_at,
+    ]
     default_load_options = [joinedload(Solution.question)]
 
 
@@ -209,6 +253,7 @@ class NotificationCrud(AuditedCrud[Notification]):
         Notification.title,
         Notification.is_broadcast,
         (Notification.created_by, User.username),
+        Notification.created_at,
     ]
     default_load_options = [
         selectinload(Notification.teams),
@@ -234,6 +279,8 @@ class SubmissionCrud(AsyncCrud[Submission]):
         Submission.points_earned,
         (Submission.team, Team.name),
         (Submission.question, Question.label),
+        (Submission.question, Question.challenge, Challenge.title),
+        Submission.created_at,
     ]
     default_load_options = [
         joinedload(Submission.team),
@@ -258,6 +305,7 @@ class ChallengeFeedbackCrud(AsyncCrud[ChallengeFeedback]):
         ChallengeFeedback.rating,
         (ChallengeFeedback.team, Team.name),
         (ChallengeFeedback.challenge, Challenge.title),
+        ChallengeFeedback.created_at,
     ]
     default_load_options = [
         joinedload(ChallengeFeedback.team),
@@ -270,7 +318,14 @@ class FileCrud(AsyncCrud[File]):
     cursor_column = File.created_at
     searchable_fields = [File.name, File.original_filename, File.mime_type]
     facet_fields = [File.mime_type]
-    order_fields = [File.name, File.original_filename, File.file_size, File.mime_type]
+    order_fields = [
+        File.name,
+        File.original_filename,
+        File.file_size,
+        File.mime_type,
+        File.is_public,
+        File.created_at,
+    ]
     default_load_options = []
 
 
@@ -284,6 +339,7 @@ class ScoreAdjustmentCrud(AsyncCrud[ScoreAdjustment]):
         (ScoreAdjustment.team, Team.name),
         (ScoreAdjustment.challenge, Challenge.title),
         (ScoreAdjustment.created_by, User.username),
+        ScoreAdjustment.created_at,
     ]
     default_load_options = [
         joinedload(ScoreAdjustment.team),
@@ -297,7 +353,12 @@ class OAuthServerClientCrud(AuditedCrud[OAuthServerClient]):
     cursor_column = OAuthServerClient.created_at
     searchable_fields = [OAuthServerClient.name, OAuthServerClient.client_id]
     facet_fields = [OAuthServerClient.is_active]
-    order_fields = [OAuthServerClient.name, OAuthServerClient.is_active]
+    order_fields = [
+        OAuthServerClient.name,
+        OAuthServerClient.is_active,
+        OAuthServerClient.client_id,
+        OAuthServerClient.created_at,
+    ]
     default_load_options = []
 
 
@@ -311,6 +372,7 @@ class SchedulerJobCrud(AsyncCrud[SchedulerJob]):
         SchedulerJob.job_type,
         SchedulerJob.scheduled_at,
         SchedulerJob.is_active,
+        SchedulerJob.created_at,
     ]
     default_load_options = []
 
@@ -320,7 +382,12 @@ class SchedulerTaskCrud(AsyncCrud[SchedulerTask]):
     cursor_column = SchedulerTask.created_at
     searchable_fields = [SchedulerTask.status]
     facet_fields = [SchedulerTask.status]
-    order_fields = [SchedulerTask.started_at, SchedulerTask.status]
+    order_fields = [
+        SchedulerTask.started_at,
+        SchedulerTask.status,
+        SchedulerTask.completed_at,
+        SchedulerTask.created_at,
+    ]
     default_load_options = []
 
 
@@ -329,7 +396,13 @@ class PageCrud(AuditedCrud[CustomPage]):
     cursor_column = CustomPage.created_at
     searchable_fields = [CustomPage.title, CustomPage.slug]
     facet_fields = [CustomPage.is_published, CustomPage.nav_placement]
-    order_fields = [CustomPage.title, CustomPage.slug, CustomPage.is_published]
+    order_fields = [
+        CustomPage.title,
+        CustomPage.slug,
+        CustomPage.is_published,
+        CustomPage.nav_placement,
+        CustomPage.created_at,
+    ]
     default_load_options = []
 
 
@@ -351,6 +424,7 @@ class EventCrud(AsyncCrud[Event]):
         Event.event_type,
         Event.target_type,
         (Event.actor, User.username),
+        Event.created_at,
     ]
     default_load_options = [
         joinedload(Event.actor),
