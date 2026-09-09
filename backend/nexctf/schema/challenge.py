@@ -4,6 +4,7 @@ from fastapi_toolsets.schemas import PydanticBase
 
 from nexctf.schema.feedback import PublicFeedbackRead
 from nexctf.schema.question import PublicQuestionRead
+from nexctf.schema.score_adjustment import PublicScoreAdjustmentRead
 from nexctf.util.pydantic import Label, Labels
 
 
@@ -61,6 +62,7 @@ class PublicChallengeDetail(PublicChallengeRead):
     questions: list[PublicQuestionRead]
     completed: bool = False
     my_feedback: PublicFeedbackRead | None = None
+    score_adjustments: list[PublicScoreAdjustmentRead] = []
 
 
 class AdminChallengeTypeInfo(PydanticBase):

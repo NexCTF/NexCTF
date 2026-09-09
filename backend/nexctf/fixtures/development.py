@@ -1086,14 +1086,25 @@ def challenge_feedback() -> list[ChallengeFeedback]:
     ]
 
 
-@fixtures.register(depends_on=["team", "user"])
+@fixtures.register(depends_on=["team", "user", "challenge"])
 def score_adjustment() -> list[ScoreAdjustment]:
+    def _cid(title: str) -> UUID:
+        return fixtures.field("challenge", "title", title)
+
     return [
         ScoreAdjustment(
             id=UUID("f2000000-0000-4000-8000-000000000001"),
             amount=50,
             reason="Bonus for first blood on OSINT Starter",
             team_id=_TEAM4_ID,
+            created_by_id=_ADMIN_ID,
+        ),
+        ScoreAdjustment(
+            id=UUID("f2000000-0000-4000-8000-000000000003"),
+            amount=25,
+            reason="Bonus for the cleanest writeup on Caesar Cipher",
+            team_id=_TEAM1_ID,
+            challenge_id=_cid("Caesar Cipher"),
             created_by_id=_ADMIN_ID,
         ),
         ScoreAdjustment(

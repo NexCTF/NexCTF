@@ -18,6 +18,13 @@ class AdminScoreAdjustmentUpdate(PydanticBase):
     id: UUID
     amount: int | None = None
     reason: str | None = None
+    challenge_id: UUID | None = None
+
+
+class PublicScoreAdjustmentRead(PydanticBase):
+    id: UUID
+    amount: int
+    reason: str
 
 
 class AdminScoreAdjustmentRead(PydanticBase):

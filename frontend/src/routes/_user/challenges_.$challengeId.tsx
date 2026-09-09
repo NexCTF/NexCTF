@@ -22,6 +22,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Markdown } from "@/components/markdown";
 import { PluginSlot } from "@/components/plugin-slot";
 import { PointsBadges } from "@/components/points-badge";
+import { SignedPoints } from "@/components/table-cells";
 import { TagBadge } from "@/components/tag-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -199,6 +200,22 @@ function ChallengeView({ challenge }: { challenge: PublicChallengeDetail }) {
         challengeType={challenge.challenge_type}
         context={pluginContext}
       />
+
+      {challenge.score_adjustments.length > 0 && (
+        <div className="rounded-xl border bg-card p-5 space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            {t("challenge.adjustments_title", { defaultValue: "Score adjustments" })}
+          </h2>
+          <ul className="space-y-1.5">
+            {challenge.score_adjustments.map((adj) => (
+              <li key={adj.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">{adj.reason}</span>
+                <SignedPoints amount={adj.amount} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="space-y-4">
         {challenge.questions.map((q, i) => (

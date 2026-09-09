@@ -410,6 +410,7 @@
       "amount_placeholder": "e.g. 100 or -50",
       "cache_invalidate_error": "Failed to invalidate cache",
       "cache_invalidated": "Cache invalidated",
+      "challenge_hint": "Optional: ties the adjustment to a challenge.",
       "col_amount": "Amount",
       "col_last_solve": "Last solve",
       "col_reason": "Reason",
@@ -418,6 +419,7 @@
       "field_reason": "Reason",
       "field_team": "Team",
       "invalidate_cache": "Refresh cache",
+      "no_challenge": "None",
       "rankings_title": "Rankings",
       "reason_placeholder": "Reason for adjustment"
     },
@@ -513,6 +515,7 @@
     }
   },
   "challenge": {
+    "adjustments_title": "Score adjustments",
     "answer_label": "Answer",
     "answer_placeholder": "Enter your answer…",
     "back": "Back to challenges",

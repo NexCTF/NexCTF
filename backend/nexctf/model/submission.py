@@ -57,6 +57,9 @@ class ScoreAdjustment(Base):
     """Manual bonus or malus applied by an admin."""
 
     __tablename__ = "score_adjustments"
+    __table_args__ = (
+        Index("ix_score_adjustments_team_challenge", "team_id", "challenge_id"),
+    )
 
     amount: Mapped[int]
     reason: Mapped[str]

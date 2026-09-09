@@ -121,6 +121,7 @@ export function challengeDetail(
     questions: [question()],
     completed: false,
     my_feedback: null,
+    score_adjustments: [],
     ...overrides,
   };
 }

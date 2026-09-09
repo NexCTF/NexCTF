@@ -969,6 +969,12 @@ export interface PublicFeedback {
   comment: string | null;
 }
 
+export interface PublicScoreAdjustment {
+  id: string;
+  amount: number;
+  reason: string;
+}
+
 export interface PublicChallengeDetail extends PublicChallenge {
   challenge_type: string;
   description: string | null;
@@ -977,6 +983,7 @@ export interface PublicChallengeDetail extends PublicChallenge {
   questions: PublicQuestion[];
   completed: boolean;
   my_feedback: PublicFeedback | null;
+  score_adjustments: PublicScoreAdjustment[];
 }
 
 export interface SubmitResult {
@@ -1745,7 +1752,7 @@ export async function createAdminScoreAdjustment(data: {
 
 export async function updateAdminScoreAdjustment(
   id: string,
-  data: { amount?: number; reason?: string },
+  data: { amount?: number; reason?: string; challenge_id?: string | null },
 ): Promise<ScoreAdjustment> {
   return request<ScoreAdjustment>(`/admin/score-adjustment/${id}`, {
     method: "PUT",

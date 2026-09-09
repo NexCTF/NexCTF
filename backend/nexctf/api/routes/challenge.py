@@ -38,6 +38,7 @@ from nexctf.model import (
     ChallengeFeedback,
     HintUnlock,
     Question,
+    ScoreAdjustment,
     Submission,
     User,
 )
@@ -58,6 +59,7 @@ from nexctf.schema.feedback import FeedbackBody, FeedbackUpsert, PublicFeedbackR
 from nexctf.schema.file import PublicFileRead
 from nexctf.schema.hint import PublicHintRead
 from nexctf.schema.question import PublicQuestionRead
+from nexctf.schema.score_adjustment import PublicScoreAdjustmentRead
 from nexctf.util.async_utils import dispatch_hook
 from nexctf.util.datetime import is_config_dt_past
 from nexctf.util.ip import get_client_ip
@@ -216,6 +218,26 @@ def _assemble_question(
     )
 
 
+async def _my_adjustments(
+    session: SessionDep, user: User | None, challenge_id: UUID
+) -> list[PublicScoreAdjustmentRead]:
+    """Return the team's score adjustments tied to *challenge_id*."""
+    if user is None or user.team_id is None:
+        return []
+    rows = await session.execute(
+        select(ScoreAdjustment.id, ScoreAdjustment.amount, ScoreAdjustment.reason)
+        .where(
+            ScoreAdjustment.challenge_id == challenge_id,
+            ScoreAdjustment.team_id == user.team_id,
+        )
+        .order_by(ScoreAdjustment.created_at)
+    )
+    return [
+        PublicScoreAdjustmentRead(id=r.id, amount=r.amount, reason=r.reason)
+        for r in rows
+    ]
+
+
 @challenge_router.get("")
 async def list_challenges(
     session: SessionDep,
@@ -315,6 +337,7 @@ async def get_challenge(
             completed=challenge_completed,
             tags=list(structure.tags),
             my_feedback=my_feedback,
+            score_adjustments=await _my_adjustments(session, user, structure.id),
         )
     )
 

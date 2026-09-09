@@ -4,6 +4,7 @@ import { Plus, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ChallengeSelect } from "@/components/challenge-select";
 import { DataTable, useTableState } from "@/components/data-table";
 import { PageHeader } from "@/components/page-header";
 import { useScoreAdjustmentColumns } from "@/components/score-adjustment-table";
@@ -50,11 +51,9 @@ const EMPTY_FORM: AdjustmentFormState = {
 };
 
 function AddAdjustmentDialog({
-  open,
   onClose,
   onCreated,
 }: {
-  open: boolean;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -71,7 +70,6 @@ function AddAdjustmentDialog({
       }),
     onSuccess: () => {
       toast.success(t("admin.scoreboard.adjustment_created"));
-      setForm(EMPTY_FORM);
       onCreated();
       onClose();
     },
@@ -80,7 +78,7 @@ function AddAdjustmentDialog({
   });
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("admin.scoreboard.add_adjustment")}</DialogTitle>
@@ -114,6 +112,19 @@ function AddAdjustmentDialog({
               onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
             />
           </div>
+
+          <div className="space-y-1.5">
+            <Label>{t("table.col_challenge", { defaultValue: "Challenge" })}</Label>
+            <ChallengeSelect
+              value={form.challenge_id || null}
+              onChange={(id) => setForm((f) => ({ ...f, challenge_id: id ?? "" }))}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("admin.scoreboard.challenge_hint", {
+                defaultValue: "Optional: ties the adjustment to a challenge.",
+              })}
+            </p>
+          </div>
         </div>
 
         <DialogFooter>
@@ -144,9 +155,15 @@ function EditAdjustmentDialog({
   const { t } = useTranslation();
   const [amount, setAmount] = useState(String(adjustment.amount));
   const [reason, setReason] = useState(adjustment.reason);
+  const [challengeId, setChallengeId] = useState(adjustment.challenge_id);
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () => updateAdminScoreAdjustment(adjustment.id, { amount: Number(amount), reason }),
+    mutationFn: () =>
+      updateAdminScoreAdjustment(adjustment.id, {
+        amount: Number(amount),
+        reason,
+        challenge_id: challengeId,
+      }),
     onSuccess: () => {
       toast.success(t("admin.scoreboard.adjustment_saved"));
       onSaved();
@@ -177,6 +194,11 @@ function EditAdjustmentDialog({
           <div className="space-y-1.5">
             <Label>{t("admin.scoreboard.field_reason")}</Label>
             <Input value={reason} onChange={(e) => setReason(e.target.value)} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>{t("table.col_challenge", { defaultValue: "Challenge" })}</Label>
+            <ChallengeSelect value={challengeId} onChange={setChallengeId} />
           </div>
         </div>
 
@@ -252,14 +274,15 @@ function ScoreAdjustmentsPage() {
         onRefresh={() => void refetch()}
       />
 
-      <AddAdjustmentDialog
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        onCreated={() => {
-          void queryClient.invalidateQueries({ queryKey: ["admin", "score-adjustments"] });
-          void queryClient.invalidateQueries({ queryKey: ["admin", "scoreboard"] });
-        }}
-      />
+      {addOpen && (
+        <AddAdjustmentDialog
+          onClose={() => setAddOpen(false)}
+          onCreated={() => {
+            void queryClient.invalidateQueries({ queryKey: ["admin", "score-adjustments"] });
+            void queryClient.invalidateQueries({ queryKey: ["admin", "scoreboard"] });
+          }}
+        />
+      )}
 
       {editing && (
         <EditAdjustmentDialog
