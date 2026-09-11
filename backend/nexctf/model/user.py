@@ -106,6 +106,9 @@ class UserToken(Base):
     name: Mapped[str | None]
     token_hash: Mapped[str] = mapped_column(unique=True, index=True)
     expires_at: Mapped[datetime | None]
+    scopes: Mapped[list[str]] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )
 
     user: Mapped[User] = relationship(back_populates="tokens")
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))

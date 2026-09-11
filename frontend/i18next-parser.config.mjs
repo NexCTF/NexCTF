@@ -13,6 +13,7 @@ export default {
     /(^|:)admin\.challenge\.question\.input_type_/, // challenges_.$challengeId.tsx — INPUT_TYPES
     /(^|:)oauth_consent\.scope(\.|$)/, // routes/oauth.consent.tsx — scopes from the backend
     /(^|:)config(\.|$)/, // routes/admin/_admin/settings.tsx — labels declared in backend/nexctf/settings.py
+    /(^|:)settings\.token\.scope(\.|$)/, // routes/_user/settings.tsx — groups from the backend
   ],
   sort: true,
   createOldCatalogs: false,

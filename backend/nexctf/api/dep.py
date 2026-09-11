@@ -16,11 +16,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
+from nexctf.api.scope import VERB_OF_METHOD, current_token_scopes, enforce_token_scope
 from nexctf.api.security import auth, bearer_auth, cookie_auth
 from nexctf.core import appconfig
 from nexctf.core.cache import get_redis
 from nexctf.core.db import db
-from nexctf.exceptions import EventEndedError, EventNotStartedError, NoTeamError
+from nexctf.exceptions import (
+    EventEndedError,
+    EventNotStartedError,
+    NoTeamError,
+    UnscopableEndpointError,
+)
 from nexctf.model import Challenge, OAuthProvider, Solution, Team, User, UserRole
 from nexctf.module.audit import AuditContext, set_audit_context
 from nexctf.module.session import track_session_ip
@@ -42,6 +48,7 @@ async def _current_user(
     request: Request, session: SessionDep, user: _AuthedUser
 ) -> User:
     """Authenticate, refreshing the cookie session's current IP as a side effect."""
+    enforce_token_scope(request)
     sid = cookie_auth.session_id_of(request)
     if sid is not None:
         await track_session_ip(session, sid, get_client_ip(request))
@@ -66,7 +73,7 @@ async def _config_overrides(redis: RedisDep) -> dict[str, str]:
 
 ConfigDep = Annotated[dict[str, str], Depends(_config_overrides)]
 
-_WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+_WRITE_METHODS = frozenset(m for m, verb in VERB_OF_METHOD.items() if verb == "write")
 
 
 def check_visibility(user: User | None, overrides: dict[str, str], key: str) -> None:
@@ -144,9 +151,11 @@ async def _optional_auth(request: Request) -> User | None:
         credential = await source.extract(request)
         if credential is not None:
             try:
-                return await source.authenticate(credential)
+                user = await source.authenticate(credential)
             except Exception:  # noqa: BLE001
                 return None
+            enforce_token_scope(request)
+            return user
     return None
 
 
@@ -207,6 +216,16 @@ async def _event_active(
 EventStartedDep = Annotated[None, Depends(_event_started)]
 EventEndedDep = Annotated[None, Depends(_event_ended)]
 EventActiveDep = Annotated[None, Depends(_event_active)]
+
+
+async def _session_only(user: CurrentUserDep) -> User:
+    """Require a browser session: refuse an API token."""
+    if current_token_scopes() is not None:
+        raise UnscopableEndpointError()
+    return user
+
+
+SessionOnlyDep = Annotated[User, Depends(_session_only)]
 
 
 async def _require_team(user: CurrentUserDep) -> User:

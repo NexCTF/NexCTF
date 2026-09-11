@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
+import type { TFunction } from "i18next";
 import {
   BookOpen,
   Check,
   Copy,
+  Eye,
   KeyRound,
   Link2,
   Link2Off,
@@ -15,7 +17,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ConfirmDialog, DeleteButton } from "@/components/confirm-dialog";
@@ -42,6 +44,7 @@ import {
   deleteMyOAuthAccount,
   deleteMySession,
   deleteMyToken,
+  getGrantableScopes,
   getMyOAuthAccounts,
   getMyProfile,
   getMySessions,
@@ -96,28 +99,143 @@ function RowSkeleton() {
   );
 }
 
+// ── Token scopes ──────────────────────────────────────────────────────────────
+
+/** The groups on offer, from the backend catalogue. */
+function scopeGroups(grantable: string[]): string[] {
+  return [...new Set(grantable.map((scope) => scope.split(":")[1]))].sort();
+}
+
+const LEVELS = ["none", "read", "write"] as const;
+type ScopeLevel = (typeof LEVELS)[number];
+
+function levelLabel(t: TFunction, level: ScopeLevel): string {
+  switch (level) {
+    case "read":
+      return t("settings.token.level_read", { defaultValue: "Read" });
+    case "write":
+      return t("settings.token.level_write", { defaultValue: "Read & write" });
+    default:
+      return t("settings.token.level_none", { defaultValue: "No access" });
+  }
+}
+
+function bulkLabel(t: TFunction, level: ScopeLevel): string {
+  switch (level) {
+    case "read":
+      return t("settings.token.select_all_read", { defaultValue: "All read" });
+    case "write":
+      return t("settings.token.select_all_write", { defaultValue: "All read & write" });
+    default:
+      return t("settings.token.select_none", { defaultValue: "All no access" });
+  }
+}
+
+function verbLabel(t: TFunction, verb: string): string {
+  if (verb === "read") return t("settings.token.verb_read", { defaultValue: "Read" });
+  if (verb === "write") return t("settings.token.verb_write", { defaultValue: "Write" });
+  return verb;
+}
+
+function groupLabel(t: TFunction, group: string): string {
+  return t(`settings.token.scope.${group}`, { defaultValue: group });
+}
+
+/** The scopes a level grants: write implies read, so the UI never splits them. */
+function scopesForLevel(group: string, level: ScopeLevel): string[] {
+  if (level === "none") return [];
+  const read = `read:${group}`;
+  return level === "read" ? [read] : [read, `write:${group}`];
+}
+
+function ScopeRows({
+  groups,
+  levels,
+  onSelect,
+}: {
+  groups: string[];
+  levels: Record<string, ScopeLevel>;
+  onSelect: (group: string, level: ScopeLevel) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {groups.map((group) => {
+        const label = groupLabel(t, group);
+        const current = levels[group] ?? "none";
+        return (
+          <div key={group} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+            <span className="text-sm truncate">{label}</span>
+            <div className="inline-flex rounded-lg border bg-muted/40 p-0.5">
+              {LEVELS.map((level) => (
+                <label key={level} className="cursor-pointer">
+                  <input
+                    type="radio"
+                    name={`level-${group}`}
+                    className="peer sr-only"
+                    aria-label={`${label}: ${levelLabel(t, level)}`}
+                    checked={current === level}
+                    onChange={() => onSelect(group, level)}
+                  />
+                  <span className="block rounded-md px-2.5 py-1 text-xs whitespace-nowrap text-muted-foreground transition-colors peer-checked:bg-background peer-checked:text-foreground peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-ring">
+                    {levelLabel(t, level)}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 // ── Create token dialog ───────────────────────────────────────────────────────
 
 function CreateTokenDialog({ onCreated }: { onCreated: () => void }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [levels, setLevels] = useState<Record<string, ScopeLevel>>({});
   const [createdToken, setCreatedToken] = useState<ApiToken | null>(null);
 
+  const { data: grantable = [] } = useQuery({
+    queryKey: ["grantable-scopes"],
+    queryFn: getGrantableScopes,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const groups = useMemo(() => scopeGroups(grantable), [grantable]);
+  const playerGroups = groups.filter((group) => !group.startsWith("admin."));
+  const adminGroups = groups.filter((group) => group.startsWith("admin."));
+  const scopes = useMemo(
+    () => groups.flatMap((group) => scopesForLevel(group, levels[group] ?? "none")),
+    [groups, levels],
+  );
+
   const mutation = useMutation({
-    mutationFn: () => createMyToken(name),
+    mutationFn: () => createMyToken(name, scopes),
     onSuccess: (token) => {
       setCreatedToken(token);
       setName("");
+      setLevels({});
       onCreated();
     },
     onError: (err) => toast.error(apiErrorMessage(err, t("settings.token.create_error"))),
   });
 
+  function selectAll(level: ScopeLevel) {
+    setLevels(Object.fromEntries(groups.map((group) => [group, level])));
+  }
+
+  function selectLevel(group: string, level: ScopeLevel) {
+    setLevels((current) => ({ ...current, [group]: level }));
+  }
+
   function handleClose() {
     setOpen(false);
     setCreatedToken(null);
     setName("");
+    setLevels({});
   }
 
   return (
@@ -130,7 +248,7 @@ function CreateTokenDialog({ onCreated }: { onCreated: () => void }) {
           </Button>
         }
       />
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {createdToken ? t("settings.token.created_title") : t("settings.token.new_title")}
@@ -145,6 +263,7 @@ function CreateTokenDialog({ onCreated }: { onCreated: () => void }) {
               {/* biome-ignore lint/style/noNonNullAssertion: token is always present on a freshly-created token */}
               <CopyButton value={createdToken.token!} />
             </div>
+            <ScopeList scopes={createdToken.scopes} />
             <DialogFooter>
               <Button onClick={handleClose}>{t("settings.token.done")}</Button>
             </DialogFooter>
@@ -167,16 +286,99 @@ function CreateTokenDialog({ onCreated }: { onCreated: () => void }) {
                 autoFocus
               />
             </div>
+            <fieldset className="space-y-2 min-w-0">
+              <legend className="text-sm font-medium">
+                {t("settings.token.field_scopes", { defaultValue: "Permissions" })}
+              </legend>
+              <div className="flex flex-wrap gap-2">
+                {LEVELS.map((level) => (
+                  <Button
+                    key={level}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={level === "none" && scopes.length === 0}
+                    onClick={() => selectAll(level)}
+                  >
+                    {bulkLabel(t, level)}
+                  </Button>
+                ))}
+              </div>
+              <div className="space-y-2">
+                <ScopeRows groups={playerGroups} levels={levels} onSelect={selectLevel} />
+                {adminGroups.length > 0 && (
+                  <>
+                    <p className="text-xs font-medium text-muted-foreground pt-2">
+                      {t("settings.token.admin_section", { defaultValue: "Admin" })}
+                    </p>
+                    <ScopeRows groups={adminGroups} levels={levels} onSelect={selectLevel} />
+                  </>
+                )}
+              </div>
+            </fieldset>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose}>
                 {t("common.cancel")}
               </Button>
-              <Button type="submit" disabled={mutation.isPending}>
+              <Button type="submit" disabled={mutation.isPending || scopes.length === 0}>
                 {mutation.isPending ? t("common.saving") : t("common.save")}
               </Button>
             </DialogFooter>
           </form>
         )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ScopeList({ scopes }: { scopes: string[] }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1.5">
+      {[...scopes].sort().map((scope) => {
+        const [verb, group] = scope.split(":");
+        return (
+          <span
+            key={scope}
+            className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
+          >
+            {verbLabel(t, verb)} · {groupLabel(t, group)}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function TokenDetailsDialog({ token }: { token: ApiToken }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const displayName = token.name ?? t("settings.token.unnamed");
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label={t("settings.token.details", { defaultValue: "Token details" })}
+          >
+            <Eye />
+          </Button>
+        }
+      />
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{displayName}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm font-medium">
+          {t("settings.token.field_scopes", { defaultValue: "Permissions" })}
+        </p>
+        <ScopeList scopes={token.scopes} />
+        <DialogFooter>
+          <Button onClick={() => setOpen(false)}>{t("common.close")}</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -220,6 +422,7 @@ function TokenRow({ token, onDeleted }: { token: ApiToken; onDeleted: () => void
           })}
         </span>
       )}
+      <TokenDetailsDialog token={token} />
       <DeleteButton
         label={t("settings.token.revoke", { defaultValue: "Revoke token" })}
         description={t("settings.token.revoke_confirm", { name: displayName })}

@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from nexctf import crud
+from nexctf.api.scope import set_token_scopes, with_implied_reads
 from nexctf.core.config import settings
 from nexctf.core.db import get_db_context
 from nexctf.model import User, UserRole, UserToken
@@ -97,6 +98,7 @@ async def _verify_token(token: str, role: UserRole | None = None) -> User:
         if role is not None and user.role != role:
             raise ForbiddenError()
 
+        set_token_scopes(user_token.scopes)
         return user
 
 
@@ -162,6 +164,7 @@ async def issue_session_cookie(
 async def create_api_token(
     user_id: UUID,
     *,
+    scopes: list[str],
     name: str | None = None,
     expires_at: datetime | None = None,
 ) -> tuple[str, UserToken]:
@@ -174,6 +177,7 @@ async def create_api_token(
                 token_hash=_hash_token(raw),
                 name=name,
                 expires_at=expires_at,
+                scopes=with_implied_reads(scopes),
             ),
         )
     return raw, token_row

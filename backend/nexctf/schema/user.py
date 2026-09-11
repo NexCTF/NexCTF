@@ -64,12 +64,14 @@ class AdminUserDetailRead(PublicUserRead):
 class PublicApiTokenCreate(PydanticBase):
     name: str | None = None
     expires_at: datetime | None = None
+    scopes: list[str]
 
 
 class PublicApiTokenRead(PydanticBase):
     id: UUID
     name: str | None
     expires_at: datetime | None
+    scopes: list[str]
     created_at: datetime
     # Only populated on creation
     token: str | None = None
@@ -99,6 +101,7 @@ class UserTokenCreate(PydanticBase):
     token_hash: str
     name: str | None = None
     expires_at: datetime | None = None
+    scopes: list[str] = []
 
 
 class UserTotpUpdate(PydanticBase):

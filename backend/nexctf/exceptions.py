@@ -123,6 +123,46 @@ class TotpNotEnabledError(TotpError):
     )
 
 
+class TokenScopeError(ApiException, abstract=True):
+    """Base for API-token permission errors."""
+
+
+class InsufficientScopeError(TokenScopeError):
+    api_error = ApiError(
+        code=403,
+        msg="Insufficient token scope",
+        desc="This API token does not carry the permission this endpoint needs.",
+        err_code="SCOPE-403",
+    )
+
+    def __init__(self, required: str) -> None:
+        super().__init__(desc=f"This API token is missing the {required} scope.")
+
+
+class UnscopableEndpointError(TokenScopeError):
+    api_error = ApiError(
+        code=403,
+        msg="Not reachable with an API token",
+        desc="This endpoint can only be used from a signed-in browser session.",
+        err_code="SCOPE-403-SESSION",
+    )
+
+
+class UngrantableScopeError(TokenScopeError):
+    api_error = ApiError(
+        code=422,
+        msg="Scope not grantable",
+        desc="One or more requested scopes are not available to this account.",
+        err_code="SCOPE-422",
+    )
+
+    def __init__(self, scopes: list[str]) -> None:
+        if not scopes:
+            super().__init__(desc="Grant at least one scope.")
+            return
+        super().__init__(desc=f"Scopes not grantable: {', '.join(scopes)}.")
+
+
 class TeamError(ApiException, abstract=True):
     """Base for team membership and management errors."""
 

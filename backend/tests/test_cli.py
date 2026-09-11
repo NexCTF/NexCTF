@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nexctf.api.scope import grantable_scopes
 from nexctf.api.security import _hash_token, verify_password
 from nexctf.cli import create_default_admin
 from nexctf.core.config import settings
@@ -46,6 +47,8 @@ async def test_creates_admin_with_token(
     # Token is stored as a hash that matches the configured raw token, so the
     # configured value authenticates against the bearer source.
     assert token.token_hash == _hash_token("nexctf_seed_token")
+    assert set(token.scopes) == grantable_scopes(is_admin=True)
+    assert "write:admin.plugin" in token.scopes
 
 
 async def test_is_idempotent(db_session: AsyncSession, admin_settings) -> None:

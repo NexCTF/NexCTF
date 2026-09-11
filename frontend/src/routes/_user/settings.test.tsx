@@ -10,6 +10,7 @@ import {
   deleteMyOAuthAccount,
   deleteMySession,
   deleteMyToken,
+  getGrantableScopes,
   getMyOAuthAccounts,
   getMyProfile,
   getMySessions,
@@ -19,7 +20,14 @@ import {
   updateMyProfile,
 } from "@/lib/api";
 import type { AuthContext } from "@/lib/auth";
-import { paginated, publicInfo, publicInfoWith, user, userSession } from "@/test/fixtures";
+import {
+  apiToken,
+  paginated,
+  publicInfo,
+  publicInfoWith,
+  user,
+  userSession,
+} from "@/test/fixtures";
 import { clickAndCancel, clickAndConfirm, renderRoute } from "@/test/render";
 import { Route } from "./settings";
 
@@ -30,6 +38,7 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   getPublicInfo: vi.fn(),
   getMyTokens: vi.fn(),
+  getGrantableScopes: vi.fn(),
   getMyOAuthAccounts: vi.fn(),
   getMySessions: vi.fn(),
   createMyToken: vi.fn(),
@@ -48,6 +57,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.f
 beforeEach(() => {
   vi.mocked(getPublicInfo).mockResolvedValue(publicInfo());
   vi.mocked(getMyTokens).mockResolvedValue(paginated([]));
+  vi.mocked(getGrantableScopes).mockResolvedValue(["read:challenge", "write:challenge"]);
   vi.mocked(getMyOAuthAccounts).mockResolvedValue([]);
   vi.mocked(getMySessions).mockResolvedValue([]);
 });
@@ -125,11 +135,14 @@ it("shows an empty state when there are no API tokens", async () => {
 });
 
 it("lists tokens and asks before revoking one", async () => {
-  vi.mocked(getMyTokens).mockResolvedValue(
-    paginated([{ id: "tok1", name: "CI", created_at: "2026-01-01T00:00:00Z", expires_at: null }]),
-  );
+  vi.mocked(getMyTokens).mockResolvedValue(paginated([apiToken()]));
   vi.mocked(deleteMyToken).mockResolvedValue(undefined);
   renderSettings();
+
+  await userEvent.click(await screen.findByRole("button", { name: "Token details" }));
+  expect(await screen.findByText("Read · Scoreboard")).toBeDefined();
+  expect(screen.getByText("Write · Challenges and attachments")).toBeDefined();
+  await userEvent.click(screen.getByRole("button", { name: "Close" }));
 
   const revoke = await screen.findByRole("button", { name: "Revoke token" });
   await clickAndCancel(revoke);
@@ -140,20 +153,102 @@ it("lists tokens and asks before revoking one", async () => {
 });
 
 it("shows a freshly created token once, for copying", async () => {
-  vi.mocked(createMyToken).mockResolvedValue({
-    id: "tok1",
-    name: "CI",
-    created_at: "2026-01-01T00:00:00Z",
-    expires_at: null,
-    token: "nex_secret_value",
-  });
+  vi.mocked(createMyToken).mockResolvedValue(
+    apiToken({ scopes: ["read:challenge"], token: "nex_secret_value" }),
+  );
   renderSettings();
 
   await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
   await userEvent.type(await screen.findByLabelText("Name"), "CI");
+  await userEvent.click(
+    await screen.findByRole("radio", { name: "Challenges and attachments: Read" }),
+  );
   await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
+  await waitFor(() => expect(createMyToken).toHaveBeenCalledWith("CI", ["read:challenge"]));
   expect(await screen.findByText("nex_secret_value")).toBeDefined();
+});
+
+it("offers a three-level choice per catalogue group", async () => {
+  renderSettings();
+
+  await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
+  const radios = await screen.findAllByRole<HTMLInputElement>("radio");
+  expect(radios.map((r) => r.getAttribute("aria-label"))).toEqual([
+    "Challenges and attachments: No access",
+    "Challenges and attachments: Read",
+    "Challenges and attachments: Read & write",
+  ]);
+  expect(radios.filter((r) => r.checked).map((r) => r.getAttribute("aria-label"))).toEqual([
+    "Challenges and attachments: No access",
+  ]);
+});
+
+it("read & write on one group grants both scopes", async () => {
+  vi.mocked(createMyToken).mockResolvedValue(
+    apiToken({ name: "", scopes: [], token: "nex_secret_value" }),
+  );
+  renderSettings();
+
+  await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
+  await userEvent.click(
+    await screen.findByRole("radio", { name: "Challenges and attachments: Read & write" }),
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+  await waitFor(() =>
+    expect(createMyToken).toHaveBeenCalledWith("", ["read:challenge", "write:challenge"]),
+  );
+});
+
+it("selects and clears permissions in bulk", async () => {
+  vi.mocked(createMyToken).mockResolvedValue(apiToken({ scopes: [], token: "nex_secret_value" }));
+  renderSettings();
+
+  await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
+  await userEvent.click(await screen.findByRole("button", { name: "All read" }));
+
+  const read = screen.getByRole<HTMLInputElement>("radio", {
+    name: "Challenges and attachments: Read",
+  });
+  const write = screen.getByRole<HTMLInputElement>("radio", {
+    name: "Challenges and attachments: Read & write",
+  });
+  expect(read.checked).toBe(true);
+  expect(write.checked).toBe(false);
+
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(createMyToken).toHaveBeenCalledWith("", ["read:challenge"]));
+});
+
+it("all no access resets every group and disables save", async () => {
+  renderSettings();
+
+  await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
+  await userEvent.click(await screen.findByRole("button", { name: "All read & write" }));
+  expect(screen.getByRole("button", { name: "Save" })).toHaveProperty("disabled", false);
+
+  await userEvent.click(screen.getByRole("button", { name: "All no access" }));
+  const none = screen.getAllByRole<HTMLInputElement>("radio", { name: /: No access$/ });
+  expect(none.every((r) => r.checked)).toBe(true);
+  expect(screen.getByRole("button", { name: "Save" })).toHaveProperty("disabled", true);
+});
+
+it("labels the admin groups for an admin catalogue", async () => {
+  vi.mocked(getGrantableScopes).mockResolvedValue(["read:admin.team", "write:admin.team"]);
+  renderSettings();
+
+  await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
+  expect(await screen.findByText("Teams")).toBeDefined();
+  expect(screen.getByRole("radio", { name: "Teams: Read & write" })).toBeDefined();
+});
+
+it("cannot create a token with no permission selected", async () => {
+  renderSettings();
+
+  await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
+  await userEvent.type(await screen.findByLabelText("Name"), "CI");
+  expect(screen.getByRole("button", { name: "Save" })).toHaveProperty("disabled", true);
 });
 
 it("hides the OAuth section when the CTF has no providers", async () => {
