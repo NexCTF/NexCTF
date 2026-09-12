@@ -12,9 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.core import appconfig
 from nexctf.model.scheduler import SchedulerJob, SchedulerTask
+from nexctf.module import backup
 from nexctf.module.challenge import invalidate as invalidate_challenges
 from nexctf.module.notification import create_and_publish
 from nexctf.plugins.registry import SchedulerEntry, scheduler_registry
+from nexctf.schema.backup import BackupDatabaseParams
 from nexctf.schema.scheduler import (
     SendNotificationParams,
     TaskStatus,
@@ -61,6 +63,15 @@ async def handle_toggle_challenge(
         raise ValueError(f"challenge {params.challenge_id} not found")
     challenge.is_active = params.make_active
     await session.flush()
+
+
+async def handle_backup_database(
+    job: SchedulerJob, session: AsyncSession, redis: Redis
+) -> None:
+    """Dump the database to S3, then drop all but the newest ``keep_last`` dumps."""
+    params = BackupDatabaseParams.model_validate(job.params)
+    await backup.create()
+    await backup.prune(params.keep_last)
 
 
 async def _execute_job_task(
@@ -202,6 +213,12 @@ scheduler_registry.register(
     handler=handle_send_notification,
     create_schema=SendNotificationParams,
     update_schema=SendNotificationParams,
+)
+scheduler_registry.register(
+    type_name="backup_database",
+    handler=handle_backup_database,
+    create_schema=BackupDatabaseParams,
+    update_schema=BackupDatabaseParams,
 )
 scheduler_registry.register(
     type_name="toggle_challenge",

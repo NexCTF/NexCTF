@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ClipboardList,
   Clock,
+  DatabaseBackup,
   Files,
   Flag,
   KeyRound,
@@ -27,6 +28,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { AdminLinksNav } from "@/components/admin-links-nav";
+import { BetaBadge } from "@/components/beta-badge";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { NotificationToastListener } from "@/components/notification-toast-listener";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -43,6 +45,7 @@ type NavItem = {
   label: string;
   icon: React.ElementType;
   exact?: boolean;
+  beta?: boolean;
 };
 type NavSection = { heading: string; items: NavItem[] };
 
@@ -101,6 +104,7 @@ const NAV_SECTIONS: NavSection[] = [
     heading: "admin.nav.section.system",
     items: [
       { to: "/admin/plugins", label: "admin.nav.plugins", icon: Puzzle },
+      { to: "/admin/backups", label: "admin.nav.backups", icon: DatabaseBackup, beta: true },
       {
         to: "/admin/oauth-providers",
         label: "admin.nav.oauth_providers",
@@ -174,7 +178,7 @@ function AdminLayout() {
                 {t(heading)}
               </p>
               <div className="space-y-0.5">
-                {items.map(({ to, label, icon: Icon, exact }) => (
+                {items.map(({ to, label, icon: Icon, exact, beta }) => (
                   <Link
                     key={to}
                     to={to}
@@ -184,6 +188,7 @@ function AdminLayout() {
                   >
                     <Icon className="h-4 w-4 shrink-0" />
                     {t(label)}
+                    {beta && <BetaBadge />}
                   </Link>
                 ))}
               </div>

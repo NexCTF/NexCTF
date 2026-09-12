@@ -1995,6 +1995,46 @@ export async function getAdminPlugins(): Promise<Plugin[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Admin – Backups
+// ---------------------------------------------------------------------------
+
+export interface DatabaseBackup {
+  key: string;
+  size: number;
+  created_at: string;
+  revision: string | null;
+}
+
+export interface BackupListing {
+  backups: DatabaseBackup[];
+  /** Outcome of the last restore ("ok …" / "failed …"), or null if none ran. */
+  last_restore: string | null;
+}
+
+export async function getAdminBackups(): Promise<BackupListing> {
+  return request<BackupListing>("/admin/backup");
+}
+
+export async function createAdminBackup(): Promise<DatabaseBackup> {
+  return request<DatabaseBackup>("/admin/backup", { method: "POST" });
+}
+
+export async function restoreAdminBackup(key: string): Promise<void> {
+  await rawRequest(`/admin/backup/restore?key=${encodeURIComponent(key)}`, {
+    method: "POST",
+  });
+}
+
+export async function deleteAdminBackup(key: string): Promise<void> {
+  await rawRequest(`/admin/backup?key=${encodeURIComponent(key)}`, { method: "DELETE" });
+}
+
+/** URL of the authenticated endpoint streaming a dump; navigate to it to download. */
+export function adminBackupDownloadUrl(key: string): string {
+  return `${BASE}/admin/backup/download?key=${encodeURIComponent(key)}`;
+}
+
+// ---------------------------------------------------------------------------
 // Admin – Scheduler
 // ---------------------------------------------------------------------------
 

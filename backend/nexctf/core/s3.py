@@ -1,4 +1,5 @@
 import io
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import aioboto3
@@ -41,6 +42,42 @@ async def upload(key: str, data: bytes, content_type: str | None = None) -> None
         await client.upload_fileobj(
             io.BytesIO(data), settings.S3_BUCKET, key, ExtraArgs=extra
         )
+
+
+async def upload_file(key: str, path: str) -> None:
+    """Stream a local file to S3 without holding it in memory."""
+    async with _client() as client:
+        await client.upload_file(path, settings.S3_BUCKET, key)
+
+
+async def download_file(key: str, path: str) -> None:
+    """Stream an S3 object to a local file."""
+    async with _client() as client:
+        await client.download_file(settings.S3_BUCKET, key, path)
+
+
+@asynccontextmanager
+async def stream(key: str) -> AsyncIterator[AsyncIterator[bytes]]:
+    """Yield an S3 object's body in chunks, holding the client open throughout."""
+    async with _client() as client:
+        obj = await client.get_object(Bucket=settings.S3_BUCKET, Key=key)
+        yield obj["Body"].iter_chunks()
+
+
+async def head(key: str) -> dict:
+    """Return an object's HEAD response. Raises ClientError when the key is absent."""
+    async with _client() as client:
+        return await client.head_object(Bucket=settings.S3_BUCKET, Key=key)
+
+
+async def list_prefix(prefix: str) -> list[dict]:
+    """Return every object under a prefix as ``{Key, Size, LastModified}`` dicts."""
+    objects: list[dict] = []
+    async with _client() as client:
+        paginator = client.get_paginator("list_objects_v2")
+        async for page in paginator.paginate(Bucket=settings.S3_BUCKET, Prefix=prefix):
+            objects.extend(page.get("Contents", []))
+    return objects
 
 
 async def delete(key: str) -> None:
