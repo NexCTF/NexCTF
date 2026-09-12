@@ -143,6 +143,12 @@ cookie_auth = APIKeyCookieAuth(
 auth = MultiAuth(bearer_auth, cookie_auth)
 
 
+def current_sid_hash(request: Request) -> str | None:
+    """Hash of the cookie session id on *request*, to match against stored sessions."""
+    sid = cookie_auth.session_id_of(request)
+    return _hash_token(sid) if sid else None
+
+
 async def issue_session_cookie(
     db: AsyncSession, response: Response, user: User, request: Request
 ) -> None:

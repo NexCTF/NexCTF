@@ -58,6 +58,7 @@ import {
   updateMyProfile,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { describeDevice, formatLastSeen } from "@/lib/session";
 import { copyToClipboard } from "@/lib/utils";
 
 export const Route = createFileRoute("/_user/settings")({
@@ -229,47 +230,6 @@ function TokenRow({ token, onDeleted }: { token: ApiToken; onDeleted: () => void
   );
 }
 
-// ponytail: substring matching on the UA string, enough for a device label.
-// Swap in a real parser only if the labels start being wrong for real users.
-// Order is significant — first match wins, so narrower patterns come first.
-const BROWSERS: [RegExp, string][] = [
-  [/Edg\//, "Edge"],
-  [/OPR\/|Opera/, "Opera"],
-  [/Firefox\//, "Firefox"],
-  [/Chrome\//, "Chrome"],
-  [/Safari\//, "Safari"],
-];
-
-const OSES: [RegExp, string][] = [
-  [/Windows/, "Windows"],
-  [/Android/, "Android"],
-  [/iPhone|iPad|iPod/, "iOS"],
-  [/Mac OS X/, "macOS"],
-  [/Linux/, "Linux"],
-];
-
-const matchUa = (ua: string, table: [RegExp, string][]): string | null =>
-  table.find(([re]) => re.test(ua))?.[1] ?? null;
-
-function describeDevice(ua: string | null): { browser: string | null; os: string | null } {
-  if (!ua) return { browser: null, os: null };
-  return { browser: matchUa(ua, BROWSERS), os: matchUa(ua, OSES) };
-}
-
-function formatLastSeen(iso: string, locale: string): string {
-  const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-  const units: [Intl.RelativeTimeFormatUnit, number][] = [
-    ["day", 86400],
-    ["hour", 3600],
-    ["minute", 60],
-  ];
-  for (const [unit, secs] of units) {
-    if (seconds >= secs) return rtf.format(-Math.floor(seconds / secs), unit);
-  }
-  return rtf.format(-Math.max(seconds, 0), "second");
-}
-
 function SessionRow({ session, onRevoked }: { session: UserSession; onRevoked: () => void }) {
   const { t, i18n } = useTranslation();
 
@@ -288,7 +248,7 @@ function SessionRow({ session, onRevoked }: { session: UserSession; onRevoked: (
       ),
   });
 
-  const { browser, os } = describeDevice(session.user_agent);
+  const { browser, os, mobile } = describeDevice(session.user_agent);
   const label =
     browser && os
       ? t("settings.session.device_on", {
@@ -297,8 +257,7 @@ function SessionRow({ session, onRevoked }: { session: UserSession; onRevoked: (
           defaultValue: "{{browser}} on {{os}}",
         })
       : (browser ?? os ?? t("settings.session.device_unknown", { defaultValue: "Unknown device" }));
-  const isMobile = os === "Android" || os === "iOS";
-  const DeviceIcon = isMobile ? Smartphone : Monitor;
+  const DeviceIcon = mobile ? Smartphone : Monitor;
 
   return (
     <div className="flex items-center gap-4 rounded-lg border px-4 py-3">

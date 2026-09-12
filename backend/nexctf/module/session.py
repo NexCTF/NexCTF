@@ -86,6 +86,20 @@ async def revoke_session(db: AsyncSession, sid: str) -> None:
     )
 
 
+async def revoke_session_by_id(
+    db: AsyncSession, session_id: UUID, user_id: UUID
+) -> bool:
+    """Revoke one session, but only if *user_id* owns it. False when it does not."""
+    row = await crud.UserSessionCrud.first(
+        session=db,
+        filters=[UserSession.id == session_id, UserSession.user_id == user_id],
+    )
+    if row is None:
+        return False
+    await crud.UserSessionCrud.delete(session=db, filters=[UserSession.id == row.id])
+    return True
+
+
 async def revoke_user_sessions(db: AsyncSession, user: User) -> None:
     """Revoke every session for a user, on every device."""
     await crud.UserSessionCrud.delete(

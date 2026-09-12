@@ -6,7 +6,6 @@ from uuid import UUID
 import pyotp
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response as RawResponse
-from fastapi_multiauth import hash_token
 from fastapi_toolsets.db import transaction
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, PaginationType, Response
@@ -25,6 +24,7 @@ from nexctf.api.dep import (
 from nexctf.api.security import (
     cookie_auth,
     create_api_token,
+    current_sid_hash,
     hash_password,
     issue_session_cookie,
     verify_password,
@@ -44,18 +44,22 @@ from nexctf.exceptions import (
     TotpAlreadyEnabledError,
     TotpNotEnabledError,
 )
-from nexctf.model import OAuthAccount, Team, User, UserSession, UserToken
+from nexctf.model import OAuthAccount, Team, User, UserToken
 from nexctf.model.user import gen_invite_code
 from nexctf.module.custom_field import load_editable_fields, replace_custom_field_values
 from nexctf.module.events import emit
 from nexctf.module.scoreboard.cache import invalidate as invalidate_scoreboard
-from nexctf.module.session import live_sessions, revoke_user_sessions
+from nexctf.module.session import (
+    live_sessions,
+    revoke_session_by_id,
+    revoke_user_sessions,
+)
 from nexctf.module.team import load_team_read
 from nexctf.schema import (
     PublicApiTokenCreate,
     PublicApiTokenRead,
     PublicOAuthAccountRead,
-    PublicUserSessionRead,
+    UserSessionRead,
     UserTeamUpdate,
     UserTotpUpdate,
 )
@@ -158,14 +162,13 @@ async def list_sessions(
     request: Request,
     session: SessionDep,
     user: CurrentUserDep,
-) -> Response[list[PublicUserSessionRead]]:
+) -> Response[list[UserSessionRead]]:
     """List the user's live sessions, newest activity first."""
     rows = await live_sessions(session, user.id)
-    sid = cookie_auth.session_id_of(request)
-    this_hash = hash_token(sid) if sid else None
+    this_hash = current_sid_hash(request)
     return Response(
         data=[
-            PublicUserSessionRead(
+            UserSessionRead(
                 id=row.id,
                 ip=row.ip,
                 last_ip=row.last_ip,
@@ -187,15 +190,8 @@ async def revoke_one_session(
     user: CurrentUserDep,
 ):
     """Sign out one device."""
-    row = await crud.UserSessionCrud.first(
-        session=session,
-        filters=[UserSession.id == session_id, UserSession.user_id == user.id],
-    )
-    if not row:
+    if not await revoke_session_by_id(session, session_id, user.id):
         raise NotFoundError(detail="Session not found")
-    await crud.UserSessionCrud.delete(
-        session=session, filters=[UserSession.id == row.id]
-    )
     await emit(
         session,
         redis,

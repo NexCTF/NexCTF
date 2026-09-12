@@ -75,7 +75,7 @@ class PublicApiTokenRead(PydanticBase):
     token: str | None = None
 
 
-class PublicUserSessionRead(PydanticBase):
+class UserSessionRead(PydanticBase):
     id: UUID
     ip: str | None
     last_ip: str | None
