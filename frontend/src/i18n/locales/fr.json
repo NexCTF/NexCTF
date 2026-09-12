@@ -553,6 +553,7 @@
     "adding": "Ajout en cours…",
     "back": "Retour",
     "cancel": "Annuler",
+    "clear": "Effacer",
     "close": "Fermer",
     "confirm": "Confirmer",
     "confirm_title": "Êtes-vous sûr\u202f?",
@@ -572,16 +573,18 @@
     "saving": "Enregistrement…",
     "search": "Rechercher…",
     "sign_out": "Se déconnecter",
-    "true": "vrai"
+    "true": "vrai",
+    "upload": "Importer",
+    "uploading": "Import en cours…"
   },
   "config": {
     "appearance": {
       "favicon_url": {
-        "description": "URL du favicon affiché dans l'onglet du navigateur",
+        "description": "Favicon affiché dans l'onglet du navigateur. Importez un fichier ou collez une URL",
         "label": "URL du favicon"
       },
       "logo_url": {
-        "description": "URL du logo affiché dans la barre de navigation et la page d'accueil",
+        "description": "Logo affiché dans la barre de navigation et la page d'accueil. Importez un fichier ou collez une URL",
         "label": "URL du logo"
       },
       "primary_color": {

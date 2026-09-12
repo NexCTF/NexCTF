@@ -10,6 +10,7 @@ from __future__ import annotations
 from html import escape
 
 from nexctf.core import appconfig
+from nexctf.core.config import settings
 
 
 def _render(
@@ -70,6 +71,8 @@ def _branding(overrides: dict[str, str]) -> tuple[str, str]:
     logo_url = str(
         appconfig.get_with_overrides("appearance.logo_url", overrides)
     ).strip()
+    if logo_url.startswith("/"):
+        logo_url = settings.FRONTEND_HOST.rstrip("/") + logo_url
     return ctf_name, logo_url
 
 

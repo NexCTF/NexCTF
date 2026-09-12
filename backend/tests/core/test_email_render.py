@@ -1,5 +1,6 @@
 """Tests for branded email body rendering (nexctf.core.email_render)."""
 
+from nexctf.core.config import settings
 from nexctf.core.email_render import (
     _render,
     build_password_reset_email,
@@ -47,3 +48,12 @@ async def test_password_reset_email_carries_brand_and_link():
     )
     assert "MyCTF" in subject
     assert "https://app/reset-password?token=tok" in html
+
+
+async def test_uploaded_logo_is_made_absolute():
+    """A stored file path only resolves in a mail client once prefixed by the host."""
+    _subject, _text, html = await build_verification_email(
+        {"ctf.name": "MyCTF", "appearance.logo_url": "/api/v1/file/abc/view"},
+        "https://app/verify-email?token=tok",
+    )
+    assert f'src="{settings.FRONTEND_HOST}/api/v1/file/abc/view"' in html

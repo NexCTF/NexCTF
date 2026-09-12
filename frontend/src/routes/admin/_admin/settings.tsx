@@ -4,6 +4,7 @@ import * as LucideIcons from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ImageUploadInput } from "@/components/image-upload-input";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
@@ -330,6 +331,12 @@ function ConfigField({
             onChange={(e) => onChange(e.target.value)}
             placeholder="https://"
           />
+        </FieldWrapper>
+      );
+    case "image":
+      return (
+        <FieldWrapper label={label} description={description}>
+          <ImageUploadInput value={value} onChange={onChange} />
         </FieldWrapper>
       );
     case "text":

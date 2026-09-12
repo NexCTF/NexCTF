@@ -551,6 +551,7 @@
     "adding": "Adding…",
     "back": "Back",
     "cancel": "Cancel",
+    "clear": "Clear",
     "close": "Close",
     "confirm": "Confirm",
     "confirm_title": "Are you sure?",
@@ -570,16 +571,18 @@
     "saving": "Saving…",
     "search": "Search…",
     "sign_out": "Sign out",
-    "true": "true"
+    "true": "true",
+    "upload": "Upload",
+    "uploading": "Uploading…"
   },
   "config": {
     "appearance": {
       "favicon_url": {
-        "description": "URL of the favicon shown in the browser tab",
+        "description": "Favicon shown in the browser tab. Upload a file or paste a URL",
         "label": "Favicon URL"
       },
       "logo_url": {
-        "description": "URL of the logo displayed in the navbar and home page",
+        "description": "Logo displayed in the navbar and home page. Upload a file or paste a URL",
         "label": "Logo URL"
       },
       "primary_color": {

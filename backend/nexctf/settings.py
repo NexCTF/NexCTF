@@ -259,7 +259,7 @@ def _appearance():
             label="config.appearance.logo_url.label",
             default="",
             description="config.appearance.logo_url.description",
-            type=ConfigType.URL,
+            type=ConfigType.IMAGE,
         ),
         ConfigDef(
             key="appearance.primary_color",
@@ -273,7 +273,7 @@ def _appearance():
             label="config.appearance.favicon_url.label",
             default="",
             description="config.appearance.favicon_url.description",
-            type=ConfigType.URL,
+            type=ConfigType.IMAGE,
         ),
     ]
 

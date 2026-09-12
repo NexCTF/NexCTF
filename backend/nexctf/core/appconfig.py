@@ -42,6 +42,7 @@ class ConfigType(str, enum.Enum):
     DATETIME = "datetime"
     COLOR = "color"
     URL = "url"
+    IMAGE = "image"  # absolute URL or site-relative path to an image
     TEXT = "text"  # multiline string
     SECRET = "secret"  # write-only string, masked on read
 
@@ -238,6 +239,11 @@ async def sync_to_redis(session: AsyncSession, redis: Redis) -> None:
     logger.info("config synced to Redis (%d keys)", len(stored))
 
 
+def _is_site_path(value: str) -> bool:
+    """True for a same-origin path. "//host/x" is protocol-relative, not a path."""
+    return value.startswith("/") and not value.startswith("//")
+
+
 def _validate(key: str, value: str) -> None:
     """Raise ValueError if value is invalid for the key's type."""
     def_ = _DEFS[key]
@@ -271,6 +277,10 @@ def _validate(key: str, value: str) -> None:
         parsed = urlparse(value)
         if not parsed.scheme or not parsed.netloc:
             raise ValueError(f"Invalid URL: {value!r}")
+    elif def_.type == ConfigType.IMAGE and value and not _is_site_path(value):
+        parsed = urlparse(value)
+        if not parsed.scheme or not parsed.netloc:
+            raise ValueError(f"Invalid image URL: {value!r}")
 
 
 async def stage(session: AsyncSession, key: str, value: str) -> None:

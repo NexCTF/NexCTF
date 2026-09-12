@@ -54,3 +54,30 @@ class TestGetWithOverrides:
             appconfig.get_with_overrides("captcha.enabled", {"captcha.enabled": "on"})
             is True
         )
+
+
+class TestImageValidation:
+    """Image settings accept an absolute URL or a site-relative path."""
+
+    def test_uploaded_file_path_is_kept(self) -> None:
+        overrides = {"appearance.logo_url": "/api/v1/file/abc/view"}
+        assert (
+            appconfig.get_with_overrides("appearance.logo_url", overrides)
+            == "/api/v1/file/abc/view"
+        )
+
+    def test_absolute_url_is_kept(self) -> None:
+        overrides = {"appearance.favicon_url": "https://cdn/icon.png"}
+        assert (
+            appconfig.get_with_overrides("appearance.favicon_url", overrides)
+            == "https://cdn/icon.png"
+        )
+
+    def test_schemeless_value_falls_back(self) -> None:
+        overrides = {"appearance.logo_url": "cdn/logo.png"}
+        assert appconfig.get_with_overrides("appearance.logo_url", overrides) == ""
+
+    def test_protocol_relative_value_falls_back(self) -> None:
+        """A protocol-relative value is another origin, and breaks email logos."""
+        overrides = {"appearance.logo_url": "//cdn/logo.png"}
+        assert appconfig.get_with_overrides("appearance.logo_url", overrides) == ""

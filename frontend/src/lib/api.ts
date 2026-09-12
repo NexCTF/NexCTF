@@ -540,6 +540,7 @@ export interface ConfigItem {
     | "datetime"
     | "color"
     | "url"
+    | "image"
     | "text"
     | "secret";
   value: string | number | boolean;
@@ -1457,6 +1458,11 @@ export async function updateAdminFile(
 
 export async function deleteAdminFile(id: string): Promise<void> {
   await rawRequest(`/admin/file/${id}`, { method: "DELETE" });
+}
+
+/** Stable URL for a public file; redirects to a freshly presigned S3 URL. */
+export function publicFileUrl(id: string): string {
+  return `${BASE}/file/${id}/view`;
 }
 
 export async function markFilePublic(id: string, isPublic: boolean): Promise<StoredFile> {
