@@ -1,6 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Download, Eye, Files, FileText, Globe, Lock, Pencil, Plus } from "lucide-react";
+import {
+  Check,
+  Download,
+  Eye,
+  Files,
+  FileText,
+  Globe,
+  Link2,
+  Lock,
+  Pencil,
+  Plus,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -26,11 +37,12 @@ import {
   getAdminFile,
   getAdminFiles,
   markFilePublic,
+  publicFileUrl,
   type StoredFile,
   updateAdminFile,
   uploadAdminFile,
 } from "@/lib/api";
-import { formatBytes } from "@/lib/utils";
+import { copyToClipboard, formatBytes } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin/files")({
   component: FilesPage,
@@ -403,6 +415,33 @@ function PublicToggle({ file, onUpdated }: { file: StoredFile; onUpdated: () => 
 }
 
 // ---------------------------------------------------------------------------
+// Public link button
+// ---------------------------------------------------------------------------
+
+function PublicLinkButton({ file }: { file: StoredFile }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+
+  function copy() {
+    copyToClipboard(`${window.location.origin}${publicFileUrl(file.id)}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+    toast.success(t("admin.files.link_copied", { defaultValue: "Public link copied" }));
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      title={t("admin.files.copy_link", { defaultValue: "Copy public link" })}
+      onClick={copy}
+    >
+      {copied ? <Check className="size-4 text-green-600" /> : <Link2 className="size-4" />}
+    </Button>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Delete button
 // ---------------------------------------------------------------------------
 
@@ -502,12 +541,13 @@ function FilesPage() {
       sortable: false,
       cell: (f) => (
         <ActionsCell>
+          {f.is_public && <PublicLinkButton file={f} />}
           <PreviewButton file={f} />
           <EditFileDialog file={f} onUpdated={invalidate} />
           <DeleteFileButton file={f} onDeleted={invalidate} />
         </ActionsCell>
       ),
-      className: "w-32 text-right",
+      className: "w-40 text-right",
     },
   ];
 

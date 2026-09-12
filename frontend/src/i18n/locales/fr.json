@@ -169,6 +169,7 @@
     "files": {
       "col_filename": "Nom de fichier",
       "col_size": "Taille",
+      "copy_link": "Copier le lien public",
       "delete_confirm": "Supprimer le fichier «\u00a0{{name}}\u00a0»\u202f?",
       "delete_error": "Échec de la suppression",
       "deleted": "Fichier supprimé",
@@ -177,6 +178,7 @@
       "field_file": "Fichier",
       "field_name": "Nom",
       "field_public": "Public (intégrable dans le markdown)",
+      "link_copied": "Lien public copié",
       "make_private": "Rendre privé",
       "make_public": "Rendre public",
       "name_placeholder": "Nom convivial",

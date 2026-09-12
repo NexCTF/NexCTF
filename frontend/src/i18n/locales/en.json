@@ -168,6 +168,7 @@
     "files": {
       "col_filename": "Filename",
       "col_size": "Size",
+      "copy_link": "Copy public link",
       "delete_confirm": "Delete file \"{{name}}\"?",
       "delete_error": "Delete failed",
       "deleted": "File deleted",
@@ -176,6 +177,7 @@
       "field_file": "File",
       "field_name": "Name",
       "field_public": "Public (embeddable in markdown)",
+      "link_copied": "Public link copied",
       "make_private": "Make private",
       "make_public": "Make public",
       "name_placeholder": "Friendly name",

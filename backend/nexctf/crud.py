@@ -317,7 +317,7 @@ class FileCrud(AsyncCrud[File]):
     model = File
     cursor_column = File.created_at
     searchable_fields = [File.name, File.original_filename, File.mime_type]
-    facet_fields = [File.mime_type]
+    facet_fields = [File.mime_type, File.is_public]
     order_fields = [
         File.name,
         File.original_filename,
