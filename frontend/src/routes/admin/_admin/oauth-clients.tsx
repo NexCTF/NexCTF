@@ -115,7 +115,7 @@ function ClientFormFields({
         <Input
           value={form.allowed_roles}
           onChange={(e) => onChange({ allowed_roles: e.target.value })}
-          placeholder="admin moderator user"
+          placeholder="admin user"
           className="font-mono text-xs"
         />
         <p className="text-xs text-muted-foreground">{t("admin.oauth_client.roles_hint")}</p>

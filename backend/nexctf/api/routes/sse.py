@@ -45,7 +45,7 @@ def _user_channels(user: User) -> list[str]:
     channels = ["notifications:broadcast"]
     if user.team_id is not None:
         channels.append(f"notifications:team:{user.team_id}")
-    if user.role in (UserRole.admin, UserRole.moderator):
+    if user.role is UserRole.admin:
         channels.append("events:admin")
     return channels
 
@@ -77,7 +77,7 @@ async def event_stream(user: CurrentUserDep) -> AsyncIterable[ServerSentEvent]:
     Event types emitted:
     - ``notification``     — new notification visible to this user
     - ``config_update``    — admin saved new config values
-    - ``event``            — admin/moderator audit event
+    - ``event``            — admin audit event
     """
     channels = [*_user_channels(user), "config:update"]
     async for event in _sse_listener(channels, "authed"):

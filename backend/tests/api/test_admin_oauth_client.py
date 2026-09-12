@@ -79,10 +79,10 @@ class TestCreateOAuthClient(CreateGuardMixin):
     ) -> None:
         c, _ = admin_client
         resp = await c.post(
-            self.PREFIX, json={**_VALID_PAYLOAD, "allowed_roles": "admin moderator"}
+            self.PREFIX, json={**_VALID_PAYLOAD, "allowed_roles": "admin user"}
         )
         assert resp.status_code == 200
-        assert resp.json()["data"]["allowed_roles"] == "admin moderator"
+        assert resp.json()["data"]["allowed_roles"] == "admin user"
 
     async def test_create_invalid_role_rejected(
         self, admin_client: tuple[AsyncClient, User]

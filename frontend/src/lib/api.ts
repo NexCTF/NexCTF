@@ -141,7 +141,7 @@ export interface Link {
   url: string;
 }
 
-export const USER_ROLES = ["user", "moderator", "admin"] as const;
+export const USER_ROLES = ["user", "admin"] as const;
 
 export interface User {
   id: string;

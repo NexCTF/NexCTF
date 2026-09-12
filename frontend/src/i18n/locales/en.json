@@ -289,7 +289,7 @@
       "field_redirect_uris": "Redirect URIs",
       "new_title": "New OAuth Client",
       "redirect_uris_hint": "One URI per line. Must match exactly what the client sends.",
-      "roles_hint": "Space-separated. Leave empty to allow every role. Available: admin moderator user",
+      "roles_hint": "Space-separated. Leave empty to allow every role. Available: admin user",
       "save_error": "Failed to save client",
       "saved": "Client saved",
       "scopes_hint": "Space-separated. Available: openid profile email roles",

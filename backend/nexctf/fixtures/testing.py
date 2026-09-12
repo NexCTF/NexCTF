@@ -53,13 +53,14 @@ def user_members() -> list[User]:
 
 
 @fixtures.register()
-def user_moderator() -> list[User]:
+def user_standalone() -> list[User]:
+    """A user with no team and no owned rows, safe to delete in tests."""
     return [
         User(
             id=UUID("00000000-0000-4000-8001-000000000004"),
-            username="fx_moderator",
+            username="fx_standalone",
             hashed_password="x",
-            role=UserRole.moderator,
+            role=UserRole.user,
         ),
     ]
 

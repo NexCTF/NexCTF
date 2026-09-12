@@ -71,7 +71,7 @@ _WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 def check_visibility(user: User | None, overrides: dict[str, str], key: str) -> None:
     """Raise unless *user* may see the surface gated by the *key* config."""
-    if user is not None and user.role in (UserRole.admin, UserRole.moderator):
+    if user is not None and user.role is UserRole.admin:
         return
     visibility = str(appconfig.get_with_overrides(key, overrides, sanitize=False))
     if visibility == "public":
@@ -167,17 +167,14 @@ async def _require_scoreboard_visible(
 ScoreboardVisibleDep = Depends(_require_scoreboard_visible)
 
 
-_STAFF = (UserRole.admin, UserRole.moderator)
-
-
 def _is_staff(user: User | None) -> bool:
-    return user is not None and user.role in _STAFF
+    return user is not None and user.role is UserRole.admin
 
 
 async def _event_started(
     overrides: ConfigDep, user: OptionalCurrentUserDep = None
 ) -> None:
-    """Raise EventNotStartedError before the CTF starts. Admins/mods bypass."""
+    """Raise EventNotStartedError before the CTF starts. Admins bypass."""
     if _is_staff(user):
         return
     if not bool(
@@ -192,7 +189,7 @@ async def _event_started(
 async def _event_ended(
     overrides: ConfigDep, user: OptionalCurrentUserDep = None
 ) -> None:
-    """Raise EventEndedError after the CTF ends. Admins/mods bypass."""
+    """Raise EventEndedError after the CTF ends. Admins bypass."""
     if _is_staff(user):
         return
     if is_config_dt_past("ctf.end_time", overrides):
@@ -202,7 +199,7 @@ async def _event_ended(
 async def _event_active(
     overrides: ConfigDep, user: OptionalCurrentUserDep = None
 ) -> None:
-    """Raise if the CTF has not started or has already ended. Admins/mods bypass."""
+    """Raise if the CTF has not started or has already ended. Admins bypass."""
     await _event_started(overrides, user)
     await _event_ended(overrides, user)
 

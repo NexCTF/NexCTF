@@ -291,7 +291,7 @@
       "field_redirect_uris": "URIs de redirection",
       "new_title": "Nouveau client OAuth",
       "redirect_uris_hint": "Une URI par ligne. Doit correspondre exactement à ce que le client envoie.",
-      "roles_hint": "Séparés par des espaces. Laisser vide pour autoriser tous les rôles. Disponibles : admin moderator user",
+      "roles_hint": "Séparés par des espaces. Laisser vide pour autoriser tous les rôles. Disponibles : admin user",
       "save_error": "Échec de l'enregistrement du client",
       "saved": "Client enregistré",
       "scopes_hint": "Séparés par des espaces. Disponibles : openid profile email roles",

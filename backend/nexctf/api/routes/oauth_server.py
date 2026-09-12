@@ -42,7 +42,7 @@ _SCOPE_DESCRIPTIONS = {
     "openid": "Identify you with a unique user ID",
     "profile": "Read your username",
     "email": "Read your email address",
-    "roles": "Read your platform role (admin / moderator / user)",
+    "roles": "Read your platform role (admin / user)",
 }
 
 _CODE_PREFIX = "oauth:code:"

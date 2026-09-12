@@ -163,23 +163,6 @@ async def admin_client(
 
 
 @pytest.fixture
-async def moderator_client(
-    client_factory,
-    db_session: AsyncSession,
-    override_db_context,
-) -> AsyncGenerator[tuple[AsyncClient, User]]:
-    """Authenticated client logged in as a moderator user."""
-    async with _role_client(
-        client_factory,
-        db_session,
-        "test_moderator",
-        "moderatorpass",
-        UserRole.moderator,
-    ) as item:
-        yield item
-
-
-@pytest.fixture
 async def user_client(
     client_factory,
     db_session: AsyncSession,
@@ -192,19 +175,15 @@ async def user_client(
         yield item
 
 
-@pytest.fixture(params=["admin", "moderator", "user"])
+@pytest.fixture(params=["admin", "user"])
 async def role_client(
     request,
     client_factory,
     db_session: AsyncSession,
     override_db_context,
 ) -> AsyncGenerator[tuple[AsyncClient, User]]:
-    """Parametrized fixture that runs tests once per role (admin, moderator, user)."""
-    role_map = {
-        "admin": UserRole.admin,
-        "moderator": UserRole.moderator,
-        "user": UserRole.user,
-    }
+    """Parametrized fixture that runs tests once per role (admin, user)."""
+    role_map = {"admin": UserRole.admin, "user": UserRole.user}
     role = role_map[request.param]
     username = f"test_{request.param}"
     password = f"{request.param}pass"

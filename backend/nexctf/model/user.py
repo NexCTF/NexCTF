@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 
 class UserRole(enum.Enum):
     admin = "admin"
-    moderator = "moderator"
     user = "user"
 
 

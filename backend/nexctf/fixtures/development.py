@@ -456,13 +456,6 @@ def user() -> list[User]:
             role=UserRole.admin,
         ),
         User(
-            id=UUID("c2d4e6f8-1a3b-4c5d-8e9f-0a1b2c3d4e5f"),
-            username="moderator",
-            email="moderator@nexctf.lan",
-            hashed_password="$argon2id$v=19$m=19456,t=2,p=1$MEyLsujIFTvOwJsra1sJgg$O0ZofHlUIWVADJqpkmEjlp/rEv5S93AFCQnFcRwu6z8",  # "moderator"
-            role=UserRole.moderator,
-        ),
-        User(
             id=UUID("1cd3b6dd-cd32-4984-aa25-fc2de4dd5544"),
             username="user1",
             email="user1@nexctf.lan",

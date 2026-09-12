@@ -33,13 +33,13 @@ class TestCreateUser(CreateGuardMixin):
             json={
                 "username": "made-by-admin",
                 "password": "s3cret-pass",
-                "role": "moderator",
+                "role": "admin",
             },
         )
         assert resp.status_code == 201
         data = resp.json()["data"]
         assert data["username"] == "made-by-admin"
-        assert data["role"] == "moderator"
+        assert data["role"] == "admin"
         # Admin hands the password over out of band, so the account is usable now.
         assert data["email_verified"] is True
         assert data["has_password"] is True
@@ -137,7 +137,7 @@ class TestListUsers(ListGuardMixin):
         admin_client: tuple[AsyncClient, User],
         fixture_user_admin: list[User],
         fixture_user_members: list[User],
-        fixture_user_moderator: list[User],
+        fixture_user_standalone: list[User],
     ) -> None:
         c, _ = admin_client
         resp = await c.get(self.PREFIX)
@@ -249,13 +249,13 @@ class TestUpdateUser(UpdateGuardMixin):
         fixture_user_members: list[User],
     ) -> None:
         c, _ = admin_client
-        u = fixture_user_members[0]  # regular user → promote to moderator
+        u = fixture_user_members[0]  # regular user → promote to admin
         resp = await c.put(
             f"{self.PREFIX}/{u.id}",
-            json={"id": str(u.id), "role": "moderator"},
+            json={"id": str(u.id), "role": "admin"},
         )
         assert resp.status_code == 200
-        assert resp.json()["data"]["role"] == "moderator"
+        assert resp.json()["data"]["role"] == "admin"
 
     async def test_deactivate_user(
         self,
@@ -423,10 +423,10 @@ class TestDeleteUser(DeleteGuardMixin):
     async def test_delete_success(
         self,
         admin_client: tuple[AsyncClient, User],
-        fixture_user_moderator: list[User],
+        fixture_user_standalone: list[User],
     ) -> None:
         c, _ = admin_client
-        u = fixture_user_moderator[0]  # fx_moderator — no FK dependencies
+        u = fixture_user_standalone[0]
         resp = await c.delete(f"{self.PREFIX}/{u.id}")
         assert resp.status_code == 200
 

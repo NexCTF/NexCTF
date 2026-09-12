@@ -50,18 +50,6 @@ class TestListChallengesBeforeStart:
         resp = await c.get("/challenges")
         assert resp.status_code == 200
 
-    async def test_moderator_bypasses_start_check(
-        self,
-        moderator_client: tuple[AsyncClient, User],
-        config_overrides: dict[str, str],
-    ) -> None:
-        """Moderators can list challenges before the CTF starts."""
-        config_overrides["ctf.start_time"] = FUTURE
-        config_overrides["ctf.hide_challenges_before_start"] = "true"
-        c, _ = moderator_client
-        resp = await c.get("/challenges")
-        assert resp.status_code == 200
-
     async def test_user_allowed_when_hide_disabled(
         self,
         user_client: tuple[AsyncClient, User],
