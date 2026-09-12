@@ -47,6 +47,7 @@ EVENT_CATEGORIES: dict[str, str] = {
     "score_adjustment.deleted": "admin",
     "admin.user_updated": "admin",
     "admin.user_totp_reset": "admin",
+    "admin.user_session_revoked": "admin",
     "admin.user_password_reset_token": "admin",
     "admin.user_deleted": "admin",
     "admin.submission_deleted": "admin",

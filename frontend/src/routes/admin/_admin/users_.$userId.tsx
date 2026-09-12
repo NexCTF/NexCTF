@@ -1,6 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Ban, ExternalLink, KeyRound, Pencil, ShieldCheck, ShieldOff } from "lucide-react";
+import {
+  Ban,
+  ExternalLink,
+  KeyRound,
+  LogOut,
+  Monitor,
+  Pencil,
+  ShieldCheck,
+  ShieldOff,
+  Smartphone,
+} from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -32,14 +42,142 @@ import {
   apiErrorMessage,
   getAdminUser,
   getAdminUserEvents,
+  getAdminUserSessions,
+  revokeAdminUserSession,
   setAdminCustomFieldValue,
   USER_ROLES,
+  type UserSession,
   updateAdminUser,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { describeDevice, formatLastSeen } from "@/lib/session";
 import { copyToClipboard } from "@/lib/utils";
 
 const CHIP = "rounded bg-muted px-1.5 py-0.5 text-xs font-mono";
+
+function SessionRow({
+  userId,
+  session,
+  onRevoked,
+}: {
+  userId: string;
+  session: UserSession;
+  onRevoked: () => void;
+}) {
+  const { t, i18n } = useTranslation();
+
+  const mutation = useMutation({
+    mutationFn: () => revokeAdminUserSession(userId, session.id),
+    onSuccess: () => {
+      toast.success(t("admin.users.session_revoked", { defaultValue: "Session signed out" }));
+      onRevoked();
+    },
+    onError: (err) =>
+      toast.error(
+        apiErrorMessage(
+          err,
+          t("admin.users.session_revoke_error", {
+            defaultValue: "Could not sign that session out",
+          }),
+        ),
+      ),
+  });
+
+  const { browser, os, mobile } = describeDevice(session.user_agent);
+  const label =
+    browser && os
+      ? t("admin.users.session_device_on", {
+          browser,
+          os,
+          defaultValue: "{{browser}} on {{os}}",
+        })
+      : (browser ??
+        os ??
+        t("admin.users.session_device_unknown", { defaultValue: "Unknown device" }));
+  const DeviceIcon = mobile ? Smartphone : Monitor;
+
+  return (
+    <div className="flex items-center gap-4 rounded-lg border px-4 py-3">
+      <DeviceIcon className="size-4 text-muted-foreground shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">
+          {label}
+          {session.current && (
+            <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary align-middle">
+              {t("admin.users.session_current", { defaultValue: "Your session" })}
+            </span>
+          )}
+        </p>
+        <p className="text-xs text-muted-foreground truncate">
+          <code className={CHIP}>{session.ip ?? "?"}</code>
+          {session.last_ip && session.last_ip !== session.ip && (
+            <code className={`${CHIP} ml-1 text-amber-600 dark:text-amber-500`}>
+              {`→ ${session.last_ip}`}
+            </code>
+          )}
+          {` · ${t("admin.users.session_last_seen", {
+            when: formatLastSeen(session.last_seen_at, i18n.language),
+            defaultValue: "Last active {{when}}",
+          })}`}
+        </p>
+      </div>
+      {!session.current && (
+        <ConfirmDialog
+          description={t("admin.users.session_revoke_confirm", {
+            device: label,
+            defaultValue: "Sign {{device}} out of this account?",
+          })}
+          confirmLabel={t("admin.users.session_revoke", { defaultValue: "Sign out" })}
+          onConfirm={() => mutation.mutate()}
+          trigger={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              disabled={mutation.isPending}
+              aria-label={t("admin.users.session_revoke", { defaultValue: "Sign out" })}
+            >
+              <LogOut className="size-3.5" />
+            </Button>
+          }
+        />
+      )}
+    </div>
+  );
+}
+
+function SessionsSection({ userId, onRevoked }: { userId: string; onRevoked: () => void }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+
+  const { data: sessions = [], isLoading } = useQuery({
+    queryKey: ["admin", "user-sessions", userId],
+    queryFn: () => getAdminUserSessions(userId),
+  });
+
+  function invalidate() {
+    void queryClient.invalidateQueries({ queryKey: ["admin", "user-sessions", userId] });
+    // The detail payload derives its "known addresses" from these same sessions.
+    onRevoked();
+  }
+
+  return (
+    <DetailSection title={t("admin.users.sessions_title", { defaultValue: "Active sessions" })}>
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+      ) : sessions.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {t("admin.users.sessions_empty", { defaultValue: "No device is signed in." })}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {sessions.map((session) => (
+            <SessionRow key={session.id} userId={userId} session={session} onRevoked={invalidate} />
+          ))}
+        </div>
+      )}
+    </DetailSection>
+  );
+}
 
 export const Route = createFileRoute("/admin/_admin/users_/$userId")({
   component: UserDetailPage,
@@ -400,7 +538,7 @@ function UserDetailPage() {
                 value={<StatusCell active={user.is_active} />}
               />
               <InfoRow
-                label={t("admin.users.field_ips", { defaultValue: "IP addresses" })}
+                label={t("admin.users.field_ips", { defaultValue: "Known addresses" })}
                 value={
                   user.ips.length > 0 ? (
                     <div className="flex flex-col items-start gap-1">
@@ -456,6 +594,16 @@ function UserDetailPage() {
               )}
             </div>
           </DetailSection>
+
+          <SessionsSection
+            userId={userId}
+            onRevoked={() =>
+              void queryClient.invalidateQueries({
+                queryKey: ["admin", "user", userId],
+                exact: true,
+              })
+            }
+          />
 
           <CustomFieldValuesList
             entityId={userId}

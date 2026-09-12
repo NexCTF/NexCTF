@@ -12,6 +12,7 @@ from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
 from nexctf.api.security import (
     PWD_RESET_KEY_PREFIX,
     PWD_RESET_TTL,
+    current_sid_hash,
     hash_password,
     issue_single_use_token,
 )
@@ -19,7 +20,7 @@ from nexctf.model import CustomFieldValue, User
 from nexctf.model.event import Event
 from nexctf.module.custom_field import replace_custom_field_values
 from nexctf.module.events import emit
-from nexctf.module.session import live_sessions
+from nexctf.module.session import live_sessions, revoke_session_by_id
 from nexctf.schema.custom_field import AdminCustomFieldValueRead
 from nexctf.schema.event import AdminEventRead
 from nexctf.schema.user import (
@@ -30,6 +31,7 @@ from nexctf.schema.user import (
     PublicUserRead,
     UserCreate,
     UserEmailVerifiedUpdate,
+    UserSessionRead,
     UserTotpUpdate,
 )
 from nexctf.util.ip import get_client_ip
@@ -134,6 +136,54 @@ async def get_user(
                 AdminCustomFieldValueRead.model_validate(cfv) for cfv in cfv_rows
             ],
         )
+    )
+
+
+@user_router.get("/{uuid}/sessions")
+async def get_user_sessions(
+    request: Request,
+    session: SessionDep,
+    uuid: UUID,
+) -> Response[list[UserSessionRead]]:
+    """A user's live sessions, most recently active first."""
+    this_hash = current_sid_hash(request)
+    return Response(
+        data=[
+            UserSessionRead(
+                id=row.id,
+                ip=row.ip,
+                last_ip=row.last_ip,
+                user_agent=row.user_agent,
+                last_seen_at=row.last_seen_at,
+                current=row.sid_hash == this_hash,
+            )
+            for row in await live_sessions(session, uuid)
+        ]
+    )
+
+
+@user_router.delete("/{uuid}/sessions/{session_id}", status_code=204)
+async def revoke_user_session(
+    request: Request,
+    session: SessionDep,
+    redis: RedisDep,
+    uuid: UUID,
+    session_id: UUID,
+    admin: CurrentUserDep,
+):
+    """Sign one of a user's devices out."""
+    target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
+    if not target:
+        raise NotFoundError()
+    if not await revoke_session_by_id(session, session_id, uuid):
+        raise NotFoundError(detail="Session not found")
+    await emit(
+        session,
+        redis,
+        event_type="admin.user_session_revoked",
+        actor_id=admin.id,
+        ip=get_client_ip(request),
+        meta={"target_user_id": str(uuid), "target_username": target.username},
     )
 
 

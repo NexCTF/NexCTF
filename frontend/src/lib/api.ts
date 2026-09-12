@@ -643,6 +643,14 @@ export async function updateAdminUser(
   });
 }
 
+export async function getAdminUserSessions(userId: string): Promise<UserSession[]> {
+  return request<UserSession[]>(`/admin/user/${userId}/sessions`);
+}
+
+export async function revokeAdminUserSession(userId: string, sessionId: string): Promise<void> {
+  await rawRequest(`/admin/user/${userId}/sessions/${sessionId}`, { method: "DELETE" });
+}
+
 export async function adminResetUserTotp(userId: string): Promise<void> {
   await rawRequest(`/admin/user/${userId}/totp/reset`, { method: "POST" });
 }
