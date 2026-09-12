@@ -243,6 +243,7 @@ def mount_plugin_routes(app: FastAPI) -> None:
     from fastapi import APIRouter
 
     from nexctf.api.dep import AdminAuthDep
+    from nexctf.api.scope import register_plugin_prefix
     from nexctf.core.config import settings
     from nexctf.plugins.routes import route_registry
 
@@ -254,8 +255,10 @@ def mount_plugin_routes(app: FastAPI) -> None:
 
     for r, prefix, tags in route_registry.get_routers(scope="admin"):
         _admin.include_router(r, prefix=prefix, tags=tags)
+        register_plugin_prefix(prefix, "admin")
     for r, prefix, tags in route_registry.get_routers(scope="public"):
         _public.include_router(r, prefix=prefix, tags=tags)
+        register_plugin_prefix(prefix, "public")
 
     app.include_router(_admin)
     app.include_router(_public)

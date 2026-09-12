@@ -284,6 +284,8 @@ export interface ApiToken {
   name: string | null;
   created_at: string;
   expires_at: string | null;
+  /** `<read|write>:<group>` permissions the token carries */
+  scopes: string[];
   /** Only present immediately after creation */
   token?: string;
 }
@@ -292,10 +294,15 @@ export async function getMyTokens(): Promise<PaginatedResponse<ApiToken>> {
   return requestPaginated<ApiToken>("/me/tokens");
 }
 
-export async function createMyToken(name: string): Promise<ApiToken> {
+/** The scopes this user is allowed to put on a token. */
+export async function getGrantableScopes(): Promise<string[]> {
+  return request<string[]>("/me/tokens/scopes");
+}
+
+export async function createMyToken(name: string, scopes: string[]): Promise<ApiToken> {
   return request<ApiToken>("/me/tokens", {
     method: "POST",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, scopes }),
   });
 }
 

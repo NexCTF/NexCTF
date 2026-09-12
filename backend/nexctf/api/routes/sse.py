@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 
 from nexctf.api.dep import CurrentUserDep
+from nexctf.api.scope import ADMIN_EVENTS_SCOPE, current_token_scopes
 from nexctf.core import eventbus
 from nexctf.core.config import settings
 from nexctf.model import User, UserRole
@@ -40,12 +41,18 @@ def _event_name(channel: str) -> str:
     return channel.split(":")[0].rstrip("s")
 
 
+def _may_read_admin_events() -> bool:
+    """Whether this request may receive the admin audit channel."""
+    granted = current_token_scopes()
+    return granted is None or ADMIN_EVENTS_SCOPE in granted
+
+
 def _user_channels(user: User) -> list[str]:
     """Return all event channels relevant to this user."""
     channels = ["notifications:broadcast"]
     if user.team_id is not None:
         channels.append(f"notifications:team:{user.team_id}")
-    if user.role is UserRole.admin:
+    if user.role is UserRole.admin and _may_read_admin_events():
         channels.append("events:admin")
     return channels
 

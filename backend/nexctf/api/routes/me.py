@@ -19,8 +19,10 @@ from nexctf.api.dep import (
     CurrentUserDep,
     RedisDep,
     SessionDep,
+    SessionOnlyDep,
     can_view_scoreboard,
 )
+from nexctf.api.scope import grantable_scopes
 from nexctf.api.security import (
     cookie_auth,
     create_api_token,
@@ -43,8 +45,9 @@ from nexctf.exceptions import (
     TeamFullError,
     TotpAlreadyEnabledError,
     TotpNotEnabledError,
+    UngrantableScopeError,
 )
-from nexctf.model import OAuthAccount, Team, User, UserToken
+from nexctf.model import OAuthAccount, Team, User, UserRole, UserToken
 from nexctf.model.user import gen_invite_code
 from nexctf.module.custom_field import load_editable_fields, replace_custom_field_values
 from nexctf.module.events import emit
@@ -84,6 +87,11 @@ from nexctf.util.ip import get_client_ip
 me_router = APIRouter(prefix="/me", tags=["me"])
 
 
+def _grantable_scopes(user: User) -> frozenset[str]:
+    """The scopes *user* may put on a token."""
+    return grantable_scopes(user.role is UserRole.admin)
+
+
 @me_router.get("/tokens")
 async def list_tokens(
     session: SessionDep,
@@ -99,16 +107,25 @@ async def list_tokens(
     )
 
 
+@me_router.get("/tokens/scopes")
+async def list_grantable_scopes(user: CurrentUserDep) -> Response[list[str]]:
+    """List the scopes this user may grant."""
+    return Response(data=sorted(_grantable_scopes(user)))
+
+
 @me_router.post("/tokens", status_code=201)
 async def create_token(
     request: Request,
     session: SessionDep,
     redis: RedisDep,
     obj: PublicApiTokenCreate,
-    user: CurrentUserDep,
+    user: SessionOnlyDep,
 ) -> Response[PublicApiTokenRead]:
+    unknown = sorted(set(obj.scopes) - _grantable_scopes(user))
+    if unknown or not obj.scopes:
+        raise UngrantableScopeError(unknown)
     raw, token_row = await create_api_token(
-        user.id, name=obj.name, expires_at=obj.expires_at
+        user.id, name=obj.name, expires_at=obj.expires_at, scopes=obj.scopes
     )
     await emit(
         session,
@@ -116,13 +133,14 @@ async def create_token(
         event_type="user.token_created",
         actor_id=user.id,
         ip=get_client_ip(request),
-        meta={"token_name": obj.name},
+        meta={"token_name": obj.name, "scopes": token_row.scopes},
     )
     return Response(
         data=PublicApiTokenRead(
             id=token_row.id,
             name=token_row.name,
             expires_at=token_row.expires_at,
+            scopes=token_row.scopes,
             created_at=token_row.created_at,
             token=raw,
         )
@@ -187,7 +205,7 @@ async def revoke_one_session(
     session: SessionDep,
     redis: RedisDep,
     session_id: UUID,
-    user: CurrentUserDep,
+    user: SessionOnlyDep,
 ):
     """Sign out one device."""
     if not await revoke_session_by_id(session, session_id, user.id):
@@ -207,7 +225,7 @@ async def revoke_all_sessions(
     session: SessionDep,
     redis: RedisDep,
     response: RawResponse,
-    user: CurrentUserDep,
+    user: SessionOnlyDep,
 ):
     """Sign out every device, including the one making the request.
 
@@ -255,7 +273,7 @@ async def unlink_oauth_account(
     session: SessionDep,
     redis: RedisDep,
     account_id: UUID,
-    user: CurrentUserDep,
+    user: SessionOnlyDep,
 ):
     """Unlink an OAuth provider from the current user's account.
 
@@ -299,7 +317,7 @@ async def change_password(
     redis: RedisDep,
     response: RawResponse,
     body: PasswordChangeRequest,
-    user: CurrentUserDep,
+    user: SessionOnlyDep,
 ):
     """Verify the current password, replace it, and log out other sessions."""
     if not user.hashed_password or not verify_password(
@@ -336,7 +354,7 @@ _TOTP_SETUP_TTL = 600  # 10 minutes
 @me_router.post("/totp/setup")
 async def totp_setup(
     redis: RedisDep,
-    user: CurrentUserDep,
+    user: SessionOnlyDep,
 ) -> Response[TotpSetupResponse]:
     """Generate a new TOTP secret and store it server-side (does not activate it yet)."""
     if user.totp_secret:
@@ -355,7 +373,7 @@ async def totp_enable(
     session: SessionDep,
     redis: RedisDep,
     body: TotpEnableRequest,
-    user: CurrentUserDep,
+    user: SessionOnlyDep,
 ):
     """Read the provisional secret from Redis, verify the OTP code, and enable TOTP."""
     if user.totp_secret:
@@ -387,7 +405,7 @@ async def totp_disable(
     session: SessionDep,
     redis: RedisDep,
     body: TotpDisableRequest,
-    user: CurrentUserDep,
+    user: SessionOnlyDep,
 ):
     """Verify OTP code and disable TOTP."""
     if not user.totp_secret:

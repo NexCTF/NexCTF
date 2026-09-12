@@ -1,4 +1,5 @@
 import type {
+  ApiToken,
   MyTeam,
   PaginatedResponse,
   PublicChallenge,
@@ -168,6 +169,17 @@ export function scoreboard(overrides: Partial<Scoreboard> = {}): Scoreboard {
     computed_at: "2026-01-01T12:00:00Z",
     brackets: [],
     custom_fields: [],
+    ...overrides,
+  };
+}
+
+export function apiToken(overrides: Partial<ApiToken> = {}): ApiToken {
+  return {
+    id: "tok1",
+    name: "CI",
+    created_at: "2026-01-01T00:00:00Z",
+    expires_at: null,
+    scopes: ["write:challenge", "read:scoreboard"],
     ...overrides,
   };
 }

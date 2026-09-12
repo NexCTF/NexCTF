@@ -10,6 +10,7 @@ from rich.console import Console
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
+from nexctf.api.scope import grantable_scopes
 from nexctf.api.security import TOKEN_PREFIX, _hash_token, hash_password
 from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.config import settings
@@ -55,6 +56,7 @@ async def create_default_admin(session: AsyncSession) -> bool:
                 user_id=admin.id,
                 token_hash=_hash_token(token),
                 name="default",
+                scopes=sorted(grantable_scopes(is_admin=True)),
             )
         )
 

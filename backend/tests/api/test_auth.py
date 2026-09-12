@@ -299,7 +299,9 @@ class TestLogout:
 class TestBearerAuth:
     async def test_bearer_token_authenticates(self, admin_client):
         c, _ = admin_client
-        create_resp = await c.post("/me/tokens", json={"name": "bearer-test"})
+        create_resp = await c.post(
+            "/me/tokens", json={"name": "bearer-test", "scopes": ["read:token"]}
+        )
         assert create_resp.status_code == 201
         raw_token = create_resp.json()["data"]["token"]
 
@@ -332,7 +334,7 @@ class TestTokens:
         c, _ = admin_client
         resp = await c.post(
             "/me/tokens",
-            json={"name": "test-token"},
+            json={"name": "test-token", "scopes": ["read:token"]},
         )
         assert resp.status_code == 201
         data = resp.json()["data"]
@@ -350,7 +352,7 @@ class TestTokens:
 
     async def test_list_tokens_after_create(self, admin_client):
         c, _ = admin_client
-        await c.post("/me/tokens", json={"name": "tok1"})
+        await c.post("/me/tokens", json={"name": "tok1", "scopes": ["read:token"]})
         resp = await c.get("/me/tokens")
         assert resp.status_code == 200
         data = resp.json()
@@ -361,7 +363,9 @@ class TestTokens:
 
     async def test_revoke_token(self, admin_client):
         c, _ = admin_client
-        create_resp = await c.post("/me/tokens", json={"name": "revoke-me"})
+        create_resp = await c.post(
+            "/me/tokens", json={"name": "revoke-me", "scopes": ["read:token"]}
+        )
         token_id = create_resp.json()["data"]["id"]
 
         resp = await c.delete(f"/me/tokens/{token_id}")
@@ -989,7 +993,9 @@ class TestTokenOwnership:
             )
 
             # User A creates a token
-            create_resp = await c_a.post("/me/tokens", json={"name": "a-token"})
+            create_resp = await c_a.post(
+                "/me/tokens", json={"name": "a-token", "scopes": ["read:token"]}
+            )
             assert create_resp.status_code == 201
             token_id = create_resp.json()["data"]["id"]
 
