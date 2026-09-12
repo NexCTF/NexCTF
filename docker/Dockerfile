@@ -11,7 +11,7 @@ RUN bun run build
 
 FROM caddy:2-alpine AS caddy-bin
 
-FROM python:3.14-slim
+FROM debian:trixie-slim
 
 LABEL org.opencontainers.image.title="NexCTF" \
       org.opencontainers.image.description="Next generation of capture the flag platform" \
@@ -21,10 +21,10 @@ LABEL org.opencontainers.image.title="NexCTF" \
 ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
-        git curl supervisor libcap2-bin \
+        ca-certificates git curl supervisor libcap2-bin \
     && rm -rf /var/lib/apt/lists/* \
-    && addgroup --gid 1000 nexctf \
-    && adduser --uid 1000 --gid 1000 --disabled-password --gecos "" nexctf \
+    && groupadd --gid 1000 nexctf \
+    && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash nexctf \
     && mkdir -p /app /data /etc/caddy /home/nexctf/.cache/uv \
     && chown nexctf:nexctf /app /data /etc/caddy \
     && chown -R nexctf:nexctf /home/nexctf/.cache
@@ -35,7 +35,7 @@ RUN setcap cap_net_bind_service=+ep /usr/bin/caddy
 
 # Install uv
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#installing-uv
-COPY --from=ghcr.io/astral-sh/uv:0.11.3 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.13 /uv /uvx /bin/
 
 # Place executables in the environment at the front of the path
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#using-the-environment
@@ -51,6 +51,13 @@ ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
 WORKDIR /app/
+
+# uv-managed CPython, built with BOLT, mimalloc and the tail-call interpreter
+ENV UV_PYTHON_INSTALL_DIR=/python \
+    UV_PYTHON_PREFERENCE=only-managed
+COPY --chown=nexctf:nexctf backend/.python-version ./
+RUN uv python install
+
 USER nexctf
 
 # Install dependencies (no dev tools in production image)
