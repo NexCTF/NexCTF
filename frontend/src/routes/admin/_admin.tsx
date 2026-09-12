@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate, Outlet, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Bell,
@@ -122,7 +122,7 @@ const BASE_CLS = "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transit
 
 function AdminLayout() {
   const { t } = useTranslation();
-  const { logout } = useAuth();
+  const { user, isLoading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
   const { name, logoUrl } = useBranding();
 
@@ -146,6 +146,9 @@ function AdminLayout() {
       duration: Infinity,
     });
   }, [version, t]);
+
+  if (authLoading) return null;
+  if (!user) return <Navigate to="/login" />;
 
   return (
     <div className="flex min-h-screen">
