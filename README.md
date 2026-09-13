@@ -61,27 +61,29 @@ Start it with `DEMO_DATA=true` to seed example challenges, teams and submissions
 - Challenge writeups
 - Challenge feedback
 - Live scoreboard with caching and SSE, freezable at a configurable time
-- Brackets — separate standings for sub-groups (students, pros, …)
+- Brackets: separate standings for sub-groups (students, pros, …)
 - First-blood tracking per question
 
 ### 👥 Users & Teams
-- Roles: admin, moderator, user
+- Roles: admin, user
 - Custom fields on users and teams (string, integer, boolean, URL)
 - Public team profiles with per-challenge progress and score breakdown
 - Registration and team creation can be enabled/disabled, optional CAPTCHA
-- **Security** — TOTP 2FA, multiple API tokens per user
+- **Security**: TOTP 2FA, multiple API tokens per user with per-group read/write scopes
   - Email verification and password reset over SMTP
   - OAuth2 / OpenID Connect login with configurable providers
   - Built-in OAuth2/OIDC server
 
 ### 🛠️ Administration
 - Dashboard with audit log and statistics
-- Competition settings (name, logo, colors, start/end/freeze times, rate limits)
+- Competition settings (name, colors, start/end/freeze times, rate limits)
+- User session management: list and revoke a user's active sessions
 - Full CRUD for challenges, questions, categories, hints, solutions, and tags
-- File manager and notification broadcast (global or per-team)
-- Scheduler — one-shot or cron-based jobs
+- File manager with public link sharing, and notification broadcast (global or per-team)
+- Scheduler: one-shot or cron-based jobs
+- Database backup and restore from the UI, stored on S3, schedulable with retention (beta)
 - Custom Markdown pages and external navigation links
-- **Plugins** — register custom challenge types, solution strategies, scheduler jobs, and frontend components
+- **Plugins**: register custom challenge types, solution strategies, scheduler jobs, and frontend components
   - Installed with uv from a package index, a git repository, or a local path
   - Plugins own their DB tables with Alembic migrations
   - Plugin-scoped config keys auto-prefixed and merged with core config

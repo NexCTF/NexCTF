@@ -31,6 +31,10 @@
 - [x] User/team profile customisation
 - [x] Plugins workflow
 
+## 0.10.0
+- [x] DB backup and restore from the UI
+- [x] Fine-grained API token
+
 ## Before v1.0 release
 - [ ] Event import/export/sync
 - [ ] Documentation
