@@ -27,6 +27,9 @@ def env(monkeypatch: pytest.MonkeyPatch):
             "BACKEND_HOST",
             "S3_PUBLIC_URL",
             "BACKEND_CORS_ORIGINS",
+            "LOG_FORMAT",
+            "LOG_FILES",
+            "LOG_DIR",
         ):
             monkeypatch.delenv(name, raising=False)
         for name, value in (REQUIRED | overrides).items():
@@ -61,3 +64,27 @@ def test_explicit_host_wins_over_domain(env) -> None:
     settings = env(DOMAIN="ctf.example.com", FRONTEND_HOST="https://play.example.com")
     assert settings.FRONTEND_HOST == "https://play.example.com"
     assert settings.BACKEND_HOST == "https://ctf.example.com"
+
+
+def test_development_logs_to_the_console_only(env) -> None:
+    settings = env(ENVIRONMENT="development")
+    assert settings.LOG_FORMAT == "console"
+    assert settings.LOG_FILES is False
+
+
+def test_production_logs_json_to_files_by_default(env) -> None:
+    settings = env(ENVIRONMENT="production")
+    assert settings.LOG_FORMAT == "json"
+    assert settings.LOG_FILES is True
+    assert settings.LOG_DIR == "/var/log/nexctf"
+
+
+def test_explicit_log_settings_win_in_production(env) -> None:
+    settings = env(ENVIRONMENT="production", LOG_FORMAT="console", LOG_FILES="false")
+    assert settings.LOG_FORMAT == "console"
+    assert settings.LOG_FILES is False
+
+
+def test_log_dir_can_be_moved(env) -> None:
+    settings = env(ENVIRONMENT="production", LOG_DIR="/srv/logs")
+    assert settings.LOG_DIR == "/srv/logs"

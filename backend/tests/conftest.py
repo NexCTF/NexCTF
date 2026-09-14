@@ -18,6 +18,7 @@ from pgqueuer.db import AsyncpgDriver
 from sqlalchemy.ext.asyncio import AsyncSession
 
 os.environ["NEXCTF_TEST_MODE"] = "1"
+os.environ["LOG_FILES"] = "false"
 
 from nexctf.core import appconfig
 from nexctf.core.cache import get_redis

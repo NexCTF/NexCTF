@@ -1,4 +1,5 @@
 import io
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -6,6 +7,8 @@ import aioboto3
 from botocore.config import Config
 
 from nexctf.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 _session = aioboto3.Session()
 _config = Config(signature_version="s3v4", s3={"addressing_style": "path"})
@@ -28,6 +31,16 @@ async def _client():
 
 
 @asynccontextmanager
+async def _logged(action: str, key: str) -> AsyncIterator[None]:
+    """Log the S3 call as a warning when it fails, then let the error propagate."""
+    try:
+        yield
+    except Exception:
+        logger.warning("s3 %s of %s failed", action, key)
+        raise
+
+
+@asynccontextmanager
 async def _public_client():
     """Client whose endpoint is embedded in presigned URLs — must be browser-accessible."""
     async with _session.client(
@@ -38,7 +51,7 @@ async def _public_client():
 
 async def upload(key: str, data: bytes, content_type: str | None = None) -> None:
     extra = {"ContentType": content_type} if content_type else {}
-    async with _client() as client:
+    async with _client() as client, _logged("upload", key):
         await client.upload_fileobj(
             io.BytesIO(data), settings.S3_BUCKET, key, ExtraArgs=extra
         )
@@ -46,7 +59,7 @@ async def upload(key: str, data: bytes, content_type: str | None = None) -> None
 
 async def upload_file(key: str, path: str) -> None:
     """Stream a local file to S3 without holding it in memory."""
-    async with _client() as client:
+    async with _client() as client, _logged("upload", key):
         await client.upload_file(path, settings.S3_BUCKET, key)
 
 
@@ -87,7 +100,7 @@ async def list_prefix(prefix: str) -> list[dict]:
 
 
 async def delete(key: str) -> None:
-    async with _client() as client:
+    async with _client() as client, _logged("delete", key):
         await client.delete_object(Bucket=settings.S3_BUCKET, Key=key)
 
 

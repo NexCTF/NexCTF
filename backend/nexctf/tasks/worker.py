@@ -26,16 +26,15 @@ import nexctf.settings as _  # noqa: F401
 from nexctf.core.appconfig import sync_to_redis
 from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.db import get_db_context
+from nexctf.core.logging import setup_logging
 from nexctf.plugins import load_plugin_registries
 from nexctf.plugins.declare import CronDef, TaskDef
-from nexctf.plugins.loader import get_plugin_packages
 from nexctf.plugins.registry import task_registry
 from nexctf.tasks.queue import DB_SETTINGS, build_queries, connect
 
 logger = logging.getLogger(__name__)
 
 _MAX_RETRY_DELAY = timedelta(minutes=5)
-_LOG_FORMAT = "%(asctime)s [%(name)s] %(levelname)s: %(message)s"
 
 
 @asynccontextmanager
@@ -111,19 +110,6 @@ def build_pgqueuer(driver: Driver) -> PgQueuer:
     return pgq
 
 
-def _configure_logging() -> None:
-    """Log NexCTF at INFO and other libraries at WARNING, pgqueuer only once."""
-    logging.basicConfig(level=logging.WARNING, format=_LOG_FORMAT)
-    logging.getLogger("nexctf").setLevel(logging.INFO)
-    logging.getLogger("pgqueuer").propagate = False
-
-
-def _log_plugins_at_info() -> None:
-    """Log each loaded plugin's package at INFO too, as NexCTF's own loggers."""
-    for package in get_plugin_packages().values():
-        logging.getLogger(package).setLevel(logging.INFO)
-
-
 async def _load_registries() -> None:
     """Register every enabled plugin's tasks and sync config, as the API does."""
     async with get_db_context() as session:
@@ -134,9 +120,8 @@ async def _load_registries() -> None:
 @asynccontextmanager
 async def factory() -> AsyncIterator[PgQueuer]:
     """Yield the worker's PgQueuer; the ``pgqueuer run`` CLI entry point."""
-    _configure_logging()
+    setup_logging("worker")
     await _load_registries()
-    _log_plugins_at_info()
     conn = await connect()
     try:
         yield build_pgqueuer(AsyncpgDriver(conn))

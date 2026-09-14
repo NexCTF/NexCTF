@@ -23,6 +23,7 @@ from nexctf.api.security import auth, cookie_auth
 from nexctf.core import appconfig
 from nexctf.core.cache import get_redis
 from nexctf.core.db import db
+from nexctf.core.logging import bind_user_context
 from nexctf.exceptions import (
     EventEndedError,
     EventNotStartedError,
@@ -52,6 +53,7 @@ async def _current_user(
 ) -> User:
     """Authenticate, refreshing the cookie session's current IP as a side effect."""
     enforce_token_scope(request)
+    bind_user_context(user.id, user.username)
     sid = cookie_auth.session_id_of(request)
     if sid is not None:
         await track_session_ip(session, sid, get_client_ip(request))

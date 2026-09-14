@@ -12,11 +12,11 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from alembic.util.exc import CommandError
-from sqlalchemy import text
 
 from nexctf.core import s3
 from nexctf.core.config import settings
 from nexctf.core.db import get_db_context
+from nexctf.module.info.version import current_revision
 from nexctf.schema.backup import BackupSource
 
 logger = logging.getLogger(__name__)
@@ -72,14 +72,14 @@ async def _run(program: str, *args: str) -> None:
     )
     _, stderr = await proc.communicate()
     if proc.returncode != 0:
-        raise BackupError(f"{program} failed: {stderr.decode(errors='replace')[-500:]}")
-
-
-async def current_revision() -> str | None:
-    """Read the Alembic revision the live database is stamped with."""
-    async with get_db_context() as session:
-        result = await session.execute(text("SELECT version_num FROM alembic_version"))
-        return result.scalar_one_or_none()
+        detail = stderr.decode(errors="replace")[-500:]
+        logger.error(
+            "%s exited with %s",
+            program,
+            proc.returncode,
+            extra={"program": program, "exit_code": proc.returncode, "stderr": detail},
+        )
+        raise BackupError(f"{program} failed: {detail}")
 
 
 def _known_revision(revision: str) -> bool:
@@ -121,7 +121,8 @@ def source_of(key: str) -> BackupSource | None:
 
 async def create(source: BackupSource) -> tuple[str, int]:
     """Dump the database to S3. Returns the object key and its size in bytes."""
-    revision = await current_revision()
+    async with get_db_context() as session:
+        revision = await current_revision(session)
     key = key_for(datetime.now(UTC), source, revision)
 
     with tempfile.TemporaryDirectory() as tmp:
