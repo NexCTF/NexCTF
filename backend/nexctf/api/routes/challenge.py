@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import random
 from typing import cast
 from uuid import UUID
@@ -68,6 +69,8 @@ from nexctf.schema.score_adjustment import PublicScoreAdjustmentRead
 from nexctf.util.async_utils import dispatch_hook
 from nexctf.util.datetime import is_config_dt_past
 from nexctf.util.ip import get_client_ip
+
+logger = logging.getLogger(__name__)
 
 challenge_router = APIRouter(prefix="/challenges", tags=["Challenges"])
 
@@ -451,6 +454,15 @@ async def submit_answer(
     )
     await session.flush()
 
+    verdict = (
+        "correct"
+        if is_correct
+        else "trap"
+        if is_trap
+        else "canary"
+        if is_canary
+        else "wrong"
+    )
     challenge_completed = False
     if is_correct:
         await dispatch_hook(session, challenge.on_solve(user, question))
@@ -520,17 +532,29 @@ async def submit_answer(
         await emit_event(
             session,
             redis,
-            event_type="submission.trap"
-            if is_trap
-            else "submission.canary"
-            if is_canary
-            else "submission.wrong",
+            event_type=f"submission.{verdict}",
             actor_id=user.id,
             target_type="challenges",
             target_id=challenge.id,
             target_label=challenge.title,
             ip=client_ip,
             meta={**event_meta_base, "team_id": str(user.team_id)},
+        )
+
+    level = logging.WARNING if is_trap or is_canary else logging.DEBUG
+    if logger.isEnabledFor(level):
+        logger.log(
+            level,
+            "submission %s for %s",
+            verdict,
+            challenge.title,
+            extra={
+                "verdict": verdict,
+                "challenge_id": str(challenge.id),
+                "question_id": str(question_id),
+                "team_id": str(user.team_id),
+                "points_earned": points_earned,
+            },
         )
 
     await session.commit()

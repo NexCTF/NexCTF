@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from fastapi_toolsets.logger import ContextFilter
 from fastapi_toolsets.pytest import (
     create_async_client,
     create_db_session,
@@ -18,6 +19,7 @@ from pgqueuer.db import AsyncpgDriver
 from sqlalchemy.ext.asyncio import AsyncSession
 
 os.environ["NEXCTF_TEST_MODE"] = "1"
+os.environ["LOG_FILES"] = "false"
 
 from nexctf.core import appconfig
 from nexctf.core.cache import get_redis
@@ -57,6 +59,13 @@ def isolated_plugins(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(frontend_registry, "_entries", {})
     monkeypatch.setattr(appconfig, "_DEFS", dict(appconfig._DEFS))
     monkeypatch.setattr(appconfig, "_CATEGORIES", dict(appconfig._CATEGORIES))
+
+
+@pytest.fixture
+def context_caplog(caplog: pytest.LogCaptureFixture) -> pytest.LogCaptureFixture:
+    """``caplog`` whose records carry the bound log context as attributes."""
+    caplog.handler.addFilter(ContextFilter())
+    return caplog
 
 
 @pytest.fixture

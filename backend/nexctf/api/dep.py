@@ -23,6 +23,7 @@ from nexctf.api.security import auth, client_of, cookie_auth
 from nexctf.core import appconfig
 from nexctf.core.cache import get_redis
 from nexctf.core.db import db
+from nexctf.core.logging import bind_user_context
 from nexctf.exceptions import (
     EventEndedError,
     EventNotStartedError,
@@ -49,11 +50,15 @@ _MaybeAuthedUser = Annotated[User | None, Security(auth.optional())]
 
 
 async def _on_authenticated(request: Request, redis: Redis, user: User) -> None:
-    """Enforce the token's scope and record the client, once per request."""
+    """Enforce the token's scope, bind the user to the logs and record the client.
+
+    Runs once per request.
+    """
     if getattr(request.state, "authenticated_hooks_ran", False):
         return
     request.state.authenticated_hooks_ran = True
     enforce_token_scope(request)
+    bind_user_context(user.id, user.username)
     await record_sighting(redis, user, client_of(request))
 
 

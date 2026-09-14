@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import pool
@@ -17,9 +16,6 @@ config = context.config
 
 _version_table: str = config.attributes["version_table"]
 _owned_tables: frozenset[str] = config.attributes["owned_tables"]
-
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
 

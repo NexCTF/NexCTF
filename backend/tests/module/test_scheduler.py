@@ -7,6 +7,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
+from fastapi_toolsets.logger import current_log_context, log_context
 from pgqueuer import Queries
 from pgqueuer.types import JobId
 from sqlalchemy import func, select, text, update
@@ -343,6 +344,27 @@ async def test_a_failed_run_is_rolled_back_recorded_and_reraised(
     assert task.completed_at is not None
     await db_session.refresh(job)
     assert job.name == "job"
+
+
+async def test_a_run_binds_its_job_to_the_log_context(
+    db_session: AsyncSession,
+    mock_redis: Any,
+    owner: User,
+    register_job_type: Callable[[Handler], str],
+) -> None:
+    """The worker's record of a failed run carries the job."""
+
+    async def handler(job: SchedulerJob, session: AsyncSession, redis: Any) -> None:
+        raise RuntimeError("boom")
+
+    job_type = register_job_type(handler)
+    job, task_id = await _queue_one(db_session, mock_redis, owner, job_type)
+    job_id = str(job.id)
+
+    with log_context():
+        with pytest.raises(RuntimeError):
+            await run_queued_job(db_session, mock_redis, task_id)
+        assert current_log_context() == {"job_id": job_id, "job_type": job_type}
 
 
 async def test_a_requeued_failed_run_runs_again(

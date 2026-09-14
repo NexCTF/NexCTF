@@ -31,8 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends --no-install-su
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 1000 nexctf \
     && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash nexctf \
-    && mkdir -p /app /data /etc/caddy /home/nexctf/.cache/uv \
-    && chown nexctf:nexctf /app /data /etc/caddy \
+    && mkdir -p /app /data /etc/caddy /var/log/nexctf /home/nexctf/.cache/uv \
+    && chown nexctf:nexctf /app /data /etc/caddy /var/log/nexctf \
     && chown -R nexctf:nexctf /home/nexctf/.cache
 
 COPY --from=caddy-bin /usr/bin/caddy /usr/bin/caddy
@@ -77,8 +77,7 @@ ENV PYTHONPATH=/app
 ENV WORKERS=4
 
 COPY --chown=nexctf:nexctf backend/scripts/start.sh backend/scripts/restore.sh /app/scripts/
-COPY --chown=nexctf:nexctf docker/with-prefix.sh /app/scripts/with-prefix.sh
-RUN chmod +x /app/scripts/start.sh /app/scripts/restore.sh /app/scripts/with-prefix.sh
+RUN chmod +x /app/scripts/start.sh /app/scripts/restore.sh
 COPY --chown=nexctf:nexctf backend/pyproject.toml backend/uv.lock backend/alembic.ini /app/
 COPY --chown=nexctf:nexctf backend/nexctf /app/nexctf
 
