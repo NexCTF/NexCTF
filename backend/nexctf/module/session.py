@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -13,6 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nexctf import crud
 from nexctf.model import User, UserSession
 from nexctf.util.ip import get_client_ip
+
+logger = logging.getLogger(__name__)
 
 SESSION_TTL = 86400  # 24 h
 USER_AGENT_MAX = 512
@@ -76,11 +79,22 @@ async def track_session_ip(db: AsyncSession, sid: str, ip: str | None) -> None:
         session=db, filters=[UserSession.sid_hash == hash_token(sid)]
     )
     if row is not None and row.last_ip != ip:
+        logger.info(
+            "session moved from %s to %s",
+            row.last_ip,
+            ip,
+            extra={
+                "user_id": str(row.user_id),
+                "previous_ip": row.last_ip,
+                "session_id": str(row.id),
+            },
+        )
         row.last_ip = ip
 
 
 async def revoke_session(db: AsyncSession, sid: str) -> None:
     """Revoke a single session by its cookie session id."""
+    logger.info("session revoked")
     await crud.UserSessionCrud.delete(
         session=db, filters=[UserSession.sid_hash == hash_token(sid)]
     )
@@ -96,12 +110,21 @@ async def revoke_session_by_id(
     )
     if row is None:
         return False
+    logger.info(
+        "session revoked",
+        extra={"user_id": str(user_id), "session_id": str(row.id)},
+    )
     await crud.UserSessionCrud.delete(session=db, filters=[UserSession.id == row.id])
     return True
 
 
 async def revoke_user_sessions(db: AsyncSession, user: User) -> None:
     """Revoke every session for a user, on every device."""
+    logger.info(
+        "all sessions revoked for %s",
+        user.username,
+        extra={"user_id": str(user.id), "username": user.username},
+    )
     await crud.UserSessionCrud.delete(
         session=db, filters=[UserSession.user_id == user.id]
     )

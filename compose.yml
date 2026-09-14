@@ -52,6 +52,15 @@ x-app-env: &app-env
   #   NEXCTF_PLUGINS=nexctf-sandbox==1.2.0,git+https://github.com/org/plug@v1.0
   NEXCTF_PLUGINS: ${NEXCTF_PLUGINS:-}
 
+  # Logging. Files land in the app-logs volume, one per process, each rotated
+  # at LOG_MAX_BYTES with LOG_BACKUPS kept. Set LOG_DIR empty for stdout only.
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_FORMAT: ${LOG_FORMAT:-json}
+  LOG_DIR: ${LOG_DIR:-/var/log/nexctf}
+  LOG_MAX_BYTES: ${LOG_MAX_BYTES:-50000000}
+  LOG_BACKUPS: ${LOG_BACKUPS:-5}
+  LOG_SQL: ${LOG_SQL:-false}
+
 services:
   db:
     image: postgres:18.6-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
@@ -107,6 +116,7 @@ services:
       - "8443:443"
     volumes:
       - caddy-data:/data
+      - app-logs:/var/log/nexctf
       # Plugin downloads are cached here, so a restart works without network
       - uv-cache:/home/nexctf/.cache/uv
       # Uncomment and set CERTS_PATH to use custom TLS certificates
@@ -141,4 +151,5 @@ volumes:
   app-s3-data:
   app-redis-data:
   caddy-data:
+  app-logs:
   uv-cache:

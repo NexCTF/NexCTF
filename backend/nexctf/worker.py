@@ -16,10 +16,11 @@ import nexctf.settings as _  # noqa: F401
 from nexctf.core.appconfig import sync_to_redis
 from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.db import get_db_context
+from nexctf.core.logging import setup_logging
 from nexctf.module.scheduler import process_scheduled_jobs
 from nexctf.plugins import load_plugin_registries
 
-logging.basicConfig(level=logging.INFO)
+setup_logging("scheduler")
 logger = logging.getLogger(__name__)
 
 _TICK_INTERVAL = 60  # seconds

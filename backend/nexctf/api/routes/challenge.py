@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import random
 from typing import cast
 from uuid import UUID
@@ -63,6 +64,8 @@ from nexctf.schema.score_adjustment import PublicScoreAdjustmentRead
 from nexctf.util.async_utils import dispatch_hook
 from nexctf.util.datetime import is_config_dt_past
 from nexctf.util.ip import get_client_ip
+
+logger = logging.getLogger(__name__)
 
 challenge_router = APIRouter(prefix="/challenges", tags=["Challenges"])
 
@@ -514,6 +517,29 @@ async def submit_answer(
             ip=client_ip,
             meta={**event_meta_base, "team_id": str(user.team_id)},
         )
+
+    verdict = (
+        "correct"
+        if is_correct
+        else "trap"
+        if is_trap
+        else "canary"
+        if is_canary
+        else "wrong"
+    )
+    log = logger.warning if is_trap or is_canary else logger.debug
+    log(
+        "submission %s for %s",
+        verdict,
+        challenge.title,
+        extra={
+            "verdict": verdict,
+            "challenge_id": str(challenge.id),
+            "question_id": str(question_id),
+            "team_id": str(user.team_id),
+            "points_earned": points_earned,
+        },
+    )
 
     await session.commit()
 

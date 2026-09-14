@@ -31,8 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends --no-install-su
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 1000 nexctf \
     && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash nexctf \
-    && mkdir -p /app /data /etc/caddy /home/nexctf/.cache/uv \
-    && chown nexctf:nexctf /app /data /etc/caddy \
+    && mkdir -p /app /data /etc/caddy /var/log/nexctf /home/nexctf/.cache/uv \
+    && chown nexctf:nexctf /app /data /etc/caddy /var/log/nexctf \
     && chown -R nexctf:nexctf /home/nexctf/.cache
 
 COPY --from=caddy-bin /usr/bin/caddy /usr/bin/caddy
