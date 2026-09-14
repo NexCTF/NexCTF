@@ -17,11 +17,17 @@ from sqlalchemy import text
 from nexctf.core import s3
 from nexctf.core.config import settings
 from nexctf.core.db import get_db_context
+from nexctf.schema.backup import BackupSource
 
 logger = logging.getLogger(__name__)
 
 PREFIX = "backups/"
-_KEY_RE = re.compile(r"^nexctf-(\d{8}T\d{6}Z)(?:-([0-9A-Za-z_]+))?\.dump$")
+_SOURCES = "|".join(BackupSource)
+_KEY_RE = re.compile(
+    rf"^nexctf-(?P<stamp>\d{{8}}T\d{{6}}Z)"
+    rf"(?:-(?P<source>{_SOURCES}))?"
+    rf"(?:-(?P<revision>[0-9A-Za-z_]+))?\.dump$"
+)
 _REVISION_RE = re.compile(r"[0-9A-Za-z_]+")
 _ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
 
@@ -86,11 +92,11 @@ def _known_revision(revision: str) -> bool:
         return False
 
 
-def key_for(now: datetime, revision: str | None = None) -> str:
-    """Build a backup key, carrying the revision in the name when it fits the syntax."""
+def key_for(now: datetime, source: BackupSource, revision: str | None = None) -> str:
+    """Build a backup key, carrying the source and revision the name can hold."""
     stamp = now.strftime("%Y%m%dT%H%M%SZ")
     suffix = f"-{revision}" if revision and _REVISION_RE.fullmatch(revision) else ""
-    return f"{PREFIX}nexctf-{stamp}{suffix}.dump"
+    return f"{PREFIX}nexctf-{stamp}-{source}{suffix}.dump"
 
 
 def validate_key(key: str) -> str:
@@ -103,13 +109,20 @@ def validate_key(key: str) -> str:
 def revision_of(key: str) -> str | None:
     """Read the Alembic revision a backup was taken at out of its key."""
     match = _KEY_RE.match(key.removeprefix(PREFIX))
-    return match.group(2) if match else None
+    return match.group("revision") if match else None
 
 
-async def create() -> tuple[str, int]:
+def source_of(key: str) -> BackupSource | None:
+    """Read what triggered a backup out of its key. None for pre-source backups."""
+    match = _KEY_RE.match(key.removeprefix(PREFIX))
+    source = match.group("source") if match else None
+    return BackupSource(source) if source else None
+
+
+async def create(source: BackupSource) -> tuple[str, int]:
     """Dump the database to S3. Returns the object key and its size in bytes."""
     revision = await current_revision()
-    key = key_for(datetime.now(UTC), revision)
+    key = key_for(datetime.now(UTC), source, revision)
 
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "dump"
@@ -132,7 +145,7 @@ async def restore(key: str) -> None:
             "NexCTF does not know. Upgrade NexCTF before restoring it."
         )
 
-    safety_key, _ = await create()
+    safety_key, _ = await create(BackupSource.PRE_RESTORE)
     logger.info("Pre-restore backup of the current database: %s", safety_key)
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -165,16 +178,20 @@ async def listing() -> list[dict]:
             "size": obj["Size"],
             "created_at": obj["LastModified"],
             "revision": revision_of(obj["Key"]),
+            "source": source_of(obj["Key"]),
         }
         for obj in objects
     ]
 
 
 async def prune(keep_last: int) -> int:
-    """Delete all but the newest ``keep_last`` backups. Returns the number deleted."""
+    """Delete all but the newest ``keep_last`` routine dumps."""
     if keep_last < 1:
         return 0
-    stale = (await listing())[keep_last:]
+    routine = [
+        obj for obj in await listing() if obj["source"] is not BackupSource.PRE_RESTORE
+    ]
+    stale = routine[keep_last:]
     for backup in stale:
         await s3.delete(backup["key"])
     return len(stale)

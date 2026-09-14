@@ -5,6 +5,7 @@
       "backup_now_hint": "Sauvegarder la base de données maintenant et la stocker dans S3",
       "col_name": "Sauvegarde",
       "col_revision": "Révision",
+      "col_source": "Source",
       "create_error": "Échec de la sauvegarde",
       "created": "Sauvegarde créée",
       "creating": "Sauvegarde en cours…",
@@ -22,8 +23,11 @@
       "restore_hint": "Remplacer la base de données par cette sauvegarde et redémarrer",
       "restoring": "Restauration de la base de données…",
       "restoring_hint": "La plateforme redémarre et tout le monde a été déconnecté. Cette page se recharge automatiquement.",
-      "schedule_hint": "Planifiez des sauvegardes récurrentes avec une tâche “backup_database” dans le planificateur. Son paramètre keep_last supprime les sauvegardes les plus anciennes.",
-      "scope_warning": "Les sauvegardes ne couvrent que la base de données, pas les fichiers téléversés. Restaurer une ancienne sauvegarde peut laisser des pièces jointes de challenges pointant vers des fichiers qui n'existent plus."
+      "schedule_hint": "Planifiez des sauvegardes récurrentes avec une tâche “backup_database” dans le planificateur. Son paramètre keep_last supprime les sauvegardes les plus anciennes ; les copies de pré-restauration sont toujours conservées.",
+      "scope_warning": "Les sauvegardes ne couvrent que la base de données, pas les fichiers téléversés. Restaurer une ancienne sauvegarde peut laisser des pièces jointes de challenges pointant vers des fichiers qui n'existent plus.",
+      "source_auto": "Planifiée",
+      "source_manual": "Manuelle",
+      "source_pre_restore": "Pré-restauration"
     },
     "challenge": {
       "active_hint": "Visible par les joueurs",

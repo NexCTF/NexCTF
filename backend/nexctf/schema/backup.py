@@ -1,7 +1,14 @@
 from datetime import datetime
+from enum import StrEnum
 
 from fastapi_toolsets.schemas import PydanticBase
 from pydantic import Field
+
+
+class BackupSource(StrEnum):
+    MANUAL = "manual"
+    AUTO = "auto"
+    PRE_RESTORE = "pre_restore"
 
 
 class AdminBackupRead(PydanticBase):
@@ -9,6 +16,7 @@ class AdminBackupRead(PydanticBase):
     size: int
     created_at: datetime
     revision: str | None
+    source: BackupSource | None
 
 
 class AdminBackupList(PydanticBase):

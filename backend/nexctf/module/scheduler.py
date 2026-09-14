@@ -16,7 +16,7 @@ from nexctf.module import backup
 from nexctf.module.challenge import invalidate as invalidate_challenges
 from nexctf.module.notification import create_and_publish
 from nexctf.plugins.registry import SchedulerEntry, scheduler_registry
-from nexctf.schema.backup import BackupDatabaseParams
+from nexctf.schema.backup import BackupDatabaseParams, BackupSource
 from nexctf.schema.scheduler import (
     SendNotificationParams,
     TaskStatus,
@@ -70,7 +70,7 @@ async def handle_backup_database(
 ) -> None:
     """Dump the database to S3, then drop all but the newest ``keep_last`` dumps."""
     params = BackupDatabaseParams.model_validate(job.params)
-    await backup.create()
+    await backup.create(BackupSource.AUTO)
     await backup.prune(params.keep_last)
 
 

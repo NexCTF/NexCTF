@@ -2005,11 +2005,15 @@ export async function getAdminPlugins(): Promise<Plugin[]> {
 // Admin – Backups
 // ---------------------------------------------------------------------------
 
+/** What triggered a dump; null for dumps taken before sources were recorded. */
+export type BackupSource = "manual" | "auto" | "pre_restore";
+
 export interface DatabaseBackup {
   key: string;
   size: number;
   created_at: string;
   revision: string | null;
+  source: BackupSource | null;
 }
 
 export interface BackupListing {

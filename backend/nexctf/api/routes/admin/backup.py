@@ -17,7 +17,7 @@ from nexctf.exceptions import BackupFailedError
 from nexctf.module import backup
 from nexctf.module.audit import audit_actor
 from nexctf.module.events import emit
-from nexctf.schema.backup import AdminBackupList, AdminBackupRead
+from nexctf.schema.backup import AdminBackupList, AdminBackupRead, BackupSource
 
 backup_router = APIRouter(prefix="/backup", tags=["Backup"])
 
@@ -87,7 +87,7 @@ async def create_backup(
 ) -> Response[AdminBackupRead]:
     """Dump the database to S3 now."""
     try:
-        key, size = await backup.create()
+        key, size = await backup.create(BackupSource.MANUAL)
     except backup.BackupError as exc:
         raise BackupFailedError(detail=str(exc))
 
@@ -98,6 +98,7 @@ async def create_backup(
             size=size,
             created_at=datetime.now(UTC),
             revision=backup.revision_of(key),
+            source=backup.source_of(key),
         )
     )
 

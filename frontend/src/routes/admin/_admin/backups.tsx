@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import {
   adminBackupDownloadUrl,
   apiErrorMessage,
+  type BackupSource,
   createAdminBackup,
   type DatabaseBackup,
   deleteAdminBackup,
@@ -26,7 +27,7 @@ import {
   getPublicInfo,
   restoreAdminBackup,
 } from "@/lib/api";
-import { formatBytes } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin/backups")({
   component: BackupsPage,
@@ -34,6 +35,27 @@ export const Route = createFileRoute("/admin/_admin/backups")({
 
 const POLL_MS = 3000;
 const PREFIX = /^backups\//;
+const PILL = "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium";
+
+const SOURCE_STYLES: Record<BackupSource, string> = {
+  manual: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+  auto: "bg-green-500/10 text-green-600 dark:text-green-400",
+  pre_restore: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+};
+
+/** What triggered a dump. Dumps taken before sources were recorded have none. */
+function SourceCell({ source }: { source: BackupSource | null }) {
+  const { t } = useTranslation();
+  if (!source) return <EmptyCell />;
+
+  const labels: Record<BackupSource, string> = {
+    manual: t("admin.backups.source_manual", { defaultValue: "Manual" }),
+    auto: t("admin.backups.source_auto", { defaultValue: "Scheduled" }),
+    pre_restore: t("admin.backups.source_pre_restore", { defaultValue: "Pre-restore" }),
+  };
+
+  return <span className={cn(PILL, SOURCE_STYLES[source])}>{labels[source]}</span>;
+}
 
 /** Overlay covering the page while a restore runs, until the API answers again. */
 function RestoringOverlay() {
@@ -73,7 +95,7 @@ function RestoringOverlay() {
 function MessageRow({ children }: { children: ReactNode }) {
   return (
     <tr>
-      <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+      <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
         {children}
       </td>
     </tr>
@@ -113,6 +135,9 @@ function BackupRow({
       </td>
       <td className="px-4 py-3 text-xs">
         <DateCell value={backup.created_at} />
+      </td>
+      <td className="px-4 py-3 text-xs">
+        <SourceCell source={backup.source} />
       </td>
       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
         {backup.revision ?? <EmptyCell />}
@@ -213,6 +238,7 @@ function BackupsPage() {
     t("admin.backups.col_name", { defaultValue: "Backup" }),
     t("admin.files.col_size", { defaultValue: "Size" }),
     t("table.col_created_at", { defaultValue: "Created at" }),
+    t("admin.backups.col_source", { defaultValue: "Source" }),
     t("admin.backups.col_revision", { defaultValue: "Revision" }),
   ];
 
@@ -257,7 +283,7 @@ function BackupsPage() {
       <p className="text-sm text-muted-foreground">
         {t("admin.backups.schedule_hint", {
           defaultValue:
-            "Schedule recurring backups with a “backup_database” job in the Scheduler. Its keep_last parameter prunes older dumps.",
+            "Schedule recurring backups with a “backup_database” job in the Scheduler. Its keep_last parameter prunes older dumps; pre-restore copies are always kept.",
         })}
       </p>
 
