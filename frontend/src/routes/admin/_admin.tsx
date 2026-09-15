@@ -251,7 +251,7 @@ function AdminLayout() {
                   href={version.release_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-primary hover:underline"
+                  className="flex items-center gap-1 text-link hover:underline"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                   {t("admin.version.update_available")}

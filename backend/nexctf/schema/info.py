@@ -8,7 +8,11 @@ class BrandingInfo(PydanticBase):
     name: str
     logo_url: str
     favicon_url: str
-    primary_color: str
+    accent_color: str
+    logo_url_dark: str
+    login_background_url: str
+    default_theme: str
+    custom_css: str
 
 
 class CompetitionInfo(PydanticBase):

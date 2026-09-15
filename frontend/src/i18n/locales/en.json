@@ -621,17 +621,33 @@
   },
   "config": {
     "appearance": {
+      "accent_color": {
+        "description": "Accent color used for buttons, badges and focus rings. Shades are derived automatically to stay readable in both themes",
+        "label": "Accent Color"
+      },
+      "custom_css": {
+        "description": "Extra CSS injected into every page. Served to all visitors, so treat it as public",
+        "label": "Custom CSS"
+      },
+      "default_theme": {
+        "description": "Theme applied to visitors who have not picked one themselves",
+        "label": "Default Theme"
+      },
       "favicon_url": {
         "description": "Favicon shown in the browser tab. Upload a file or paste a URL",
         "label": "Favicon URL"
+      },
+      "login_background_url": {
+        "description": "Background image shown behind the login card. Upload a file or paste a URL",
+        "label": "Login Background URL"
       },
       "logo_url": {
         "description": "Logo displayed in the navbar and home page. Upload a file or paste a URL",
         "label": "Logo URL"
       },
-      "primary_color": {
-        "description": "Main accent color used across the interface (hex, e.g. #3b82f6)",
-        "label": "Primary Color"
+      "logo_url_dark": {
+        "description": "Logo used when the dark theme is active. Falls back to the main logo when empty",
+        "label": "Logo URL (dark mode)"
       }
     },
     "canary": {

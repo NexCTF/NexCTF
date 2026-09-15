@@ -38,7 +38,11 @@ async def _compute(session: AsyncSession, redis: Redis) -> PublicInfo:
         name=get("ctf.name"),
         logo_url=get("appearance.logo_url"),
         favicon_url=get("appearance.favicon_url"),
-        primary_color=get("appearance.primary_color"),
+        accent_color=get("appearance.accent_color"),
+        logo_url_dark=get("appearance.logo_url_dark"),
+        login_background_url=get("appearance.login_background_url"),
+        default_theme=get("appearance.default_theme"),
+        custom_css=get("appearance.custom_css"),
     )
 
     def get_bool(key: str) -> bool:

@@ -1,0 +1,12 @@
+<svg width="340" height="100" viewBox="0 0 340 100" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>NexCTF</title>
+<desc>NexCTF full logo lockup for use on light backgrounds: icon plus wordmark in electric blue and dark gray.</desc>
+
+<g>
+<rect x="0" y="10" width="80" height="80" rx="16" fill="#3B82F6"/>
+<path d="M22 37 L42 50 L22 63" fill="none" stroke="#04122B" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="48" y="55" width="18" height="7" rx="3" fill="#04122B"/>
+</g>
+
+<text x="100" y="65" font-family="'Space Grotesk', Arial, Helvetica, sans-serif" font-weight="700" font-size="52" letter-spacing="0.3" fill="#141A26">Nex<tspan fill="#3B82F6">CTF</tspan></text>
+</svg>

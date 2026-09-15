@@ -329,7 +329,7 @@ function TeamDetailPage() {
                             href={lnk.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-primary hover:underline underline-offset-2 text-xs"
+                            className="inline-flex items-center gap-1 text-link hover:underline underline-offset-2 text-xs"
                           >
                             {lnk.label || lnk.url}
                             <ExternalLink className="size-3 opacity-60" />
