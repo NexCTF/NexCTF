@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import pool
@@ -11,6 +10,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from nexctf.core.config import settings
+from nexctf.core.logging import setup_logging
 from nexctf.model import Base
 
 config = context.config
@@ -18,8 +18,7 @@ config = context.config
 _version_table: str = config.attributes["version_table"]
 _owned_tables: frozenset[str] = config.attributes["owned_tables"]
 
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+setup_logging("migrate")
 
 target_metadata = Base.metadata
 

@@ -1,5 +1,4 @@
 import logging
-import logging.config
 import os
 from contextlib import asynccontextmanager
 
@@ -9,54 +8,43 @@ from fastapi.responses import JSONResponse
 from fastapi_multiauth.exceptions import UnauthorizedError as MultiAuthUnauthorizedError
 from fastapi_toolsets.exceptions import UnauthorizedError, init_exceptions_handlers
 from fastapi_toolsets.schemas import ErrorResponse
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Imported for its side effect: registers the config definitions.
 import nexctf.settings as _  # noqa: F401
+from nexctf.api.middleware import RequestContextMiddleware
 from nexctf.api.openapi import setup_docs
 from nexctf.api.routes import router
 from nexctf.core.appconfig import sync_to_redis
 from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.config import settings
 from nexctf.core.db import db, get_db_context
+from nexctf.core.logging import setup_logging
 from nexctf.exceptions import OAuth2ProtocolError
+from nexctf.module.info.version import CURRENT_VERSION
 from nexctf.plugins import init_plugins
 
 _ADMIN_PREFIX = f"{settings.API_V1_STR}/admin"
 
-logging.config.dictConfig(
-    {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "default": {
-                "()": "uvicorn.logging.DefaultFormatter",
-                "fmt": "%(levelprefix)s %(message)s",
-                "use_colors": None,
-            },
-            "app": {
-                "()": "uvicorn.logging.DefaultFormatter",
-                "fmt": "%(levelprefix)s %(name)s \u2014 %(message)s",
-                "use_colors": None,
-            },
+setup_logging("api", per_pid=True)
+logger = logging.getLogger(__name__)
+
+
+async def _log_startup(session: AsyncSession) -> None:
+    """Log one line describing the running app and its database revision."""
+    revision = (
+        await session.execute(text("SELECT version_num FROM alembic_version"))
+    ).scalar_one_or_none()
+    logger.info(
+        "NexCTF %s started",
+        CURRENT_VERSION,
+        extra={
+            "version": CURRENT_VERSION,
+            "environment": settings.ENVIRONMENT,
+            "revision": revision,
         },
-        "handlers": {
-            "default": {
-                "class": "logging.StreamHandler",
-                "formatter": "default",
-                "stream": "ext://sys.stderr",
-            },
-            "app": {
-                "class": "logging.StreamHandler",
-                "formatter": "app",
-                "stream": "ext://sys.stderr",
-            },
-        },
-        "loggers": {
-            "uvicorn": {"handlers": ["default"], "level": "INFO", "propagate": False},
-            "app": {"handlers": ["app"], "level": "INFO", "propagate": False},
-        },
-    }
-)
+    )
 
 
 @asynccontextmanager
@@ -68,6 +56,7 @@ async def lifespan(app: FastAPI):
     async with get_db_context() as session:
         await sync_to_redis(session, get_redis_client())
         await init_plugins(app, session)
+        await _log_startup(session)
     yield
 
 
@@ -80,6 +69,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Added last so it wraps every other middleware: a CORS preflight is logged
+# and carries a request id too.
+app.add_middleware(RequestContextMiddleware)
 init_exceptions_handlers(app=app)
 
 

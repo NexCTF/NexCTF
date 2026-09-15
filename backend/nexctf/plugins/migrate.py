@@ -14,12 +14,12 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
 
+from nexctf.core.logging import setup_logging
 from nexctf.plugins.loader import (
     get_plugin_migrations,
     load_plugin_registries,
@@ -75,11 +75,7 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> None:
     """Run the requested Alembic command against the selected plugins."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(levelname)-5.5s [%(name)s] %(message)s",
-        stream=sys.stderr,
-    )
+    setup_logging("migrate")
     args = _parse_args()
 
     load_plugin_registries()

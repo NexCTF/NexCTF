@@ -90,6 +90,7 @@ async def send_email(
     except aiosmtplib.SMTPException, OSError:
         logger.exception("SMTP send to %s failed", to)
         raise EmailSendError()
+    logger.debug("email sent to %s", to, extra={"subject": subject})
 
 
 async def dispatch_email(
