@@ -50,14 +50,6 @@ def _competition():
             type=ConfigType.DATETIME,
         ),
         ConfigDef(
-            key="ctf.timezone",
-            label="config.ctf.timezone.label",
-            default="UTC",
-            description="config.ctf.timezone.description",
-            type=ConfigType.CHOICE,
-            choices=sorted(available_timezones()),
-        ),
-        ConfigDef(
             key="ctf.hide_challenges_before_start",
             label="config.ctf.hide_challenges_before_start.label",
             default=True,
@@ -74,6 +66,14 @@ def _competition():
             label="config.ctf.allow_registration.label",
             default=True,
             description="config.ctf.allow_registration.description",
+        ),
+        ConfigDef(
+            key="ctf.timezone",
+            label="config.ctf.timezone.label",
+            default="UTC",
+            description="config.ctf.timezone.description",
+            type=ConfigType.CHOICE,
+            choices=sorted(available_timezones()),
         ),
         ConfigDef(
             key="ctf.allow_team_creation",

@@ -715,8 +715,8 @@
         "label": "Taille max. d'équipe"
       },
       "timezone": {
-        "description": "Fuseau horaire d'interprétation des plannings cron (l'affichage reste dans l'heure locale de chaque visiteur)",
-        "label": "Fuseau horaire"
+        "description": "Fuseau dans lequel les expressions cron sont interprétées. N'affecte pas les heures de début, de fin et de gel ci-dessus, qui sont des instants absolus.",
+        "label": "Fuseau horaire du planificateur"
       }
     },
     "email": {
@@ -821,6 +821,10 @@
         "label": "Afficher les membres d'équipe"
       }
     }
+  },
+  "datetime": {
+    "echo_event": " · {{time}} {{zone}} (fuseau du planificateur)",
+    "echo_utc": "= {{time}} UTC"
   },
   "errors": {
     "not_found": "Page introuvable",

@@ -713,8 +713,8 @@
         "label": "Max Team Size"
       },
       "timezone": {
-        "description": "Timezone cron schedules are read in (display stays in each viewer's local time)",
-        "label": "Timezone"
+        "description": "Zone cron expressions are read in. Does not affect the start, end and freeze times above, which are absolute moments.",
+        "label": "Scheduler Timezone"
       }
     },
     "email": {
@@ -819,6 +819,10 @@
         "label": "Show Team Members"
       }
     }
+  },
+  "datetime": {
+    "echo_event": " · {{time}} {{zone}} (scheduler timezone)",
+    "echo_utc": "= {{time}} UTC"
   },
   "errors": {
     "not_found": "Page not found",

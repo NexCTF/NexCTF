@@ -199,6 +199,7 @@ function SettingsPage() {
                   item={item}
                   value={getValue(item.key)}
                   onChange={(v) => setValue(item.key, v)}
+                  timezone={getValue("ctf.timezone")}
                 />
               ))}
             </CardContent>
@@ -244,10 +245,12 @@ function ConfigField({
   item,
   value,
   onChange,
+  timezone,
 }: {
   item: ConfigItem;
   value: string;
   onChange: (v: string) => void;
+  timezone: string;
 }) {
   const { t } = useTranslation();
   const label = t(item.label, { defaultValue: item.label });
@@ -284,7 +287,7 @@ function ConfigField({
     case "datetime":
       return (
         <FieldWrapper label={label} description={description}>
-          <DateTimePicker value={value ?? ""} onChange={onChange} />
+          <DateTimePicker value={value ?? ""} onChange={onChange} echoTimezone={timezone} />
         </FieldWrapper>
       );
     case "color":
