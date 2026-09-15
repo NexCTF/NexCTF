@@ -23,7 +23,7 @@ function CfvValue({ cfv }: { cfv: CustomFieldValue }) {
         href={cfv.value}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 text-primary hover:underline"
+        className="inline-flex items-center gap-1 text-link hover:underline"
       >
         {cfv.value}
         <ExternalLink className="size-3 opacity-60" />

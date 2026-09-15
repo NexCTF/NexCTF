@@ -72,7 +72,7 @@ export function useSubmissionColumns({
       cell: (sub) => (
         <button
           type="button"
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-xs text-primary underline-offset-2 hover:underline hover:bg-primary/10 transition-colors max-w-[140px] truncate"
+          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-xs text-link underline-offset-2 hover:underline hover:bg-muted transition-colors max-w-[140px] truncate"
           onClick={(e) => {
             stopRowClick(e);
             onAnswerClick(sub);
