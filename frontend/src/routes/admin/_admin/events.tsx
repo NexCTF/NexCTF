@@ -17,7 +17,7 @@ function EventsPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
-  const table = useTableState();
+  const table = useTableState({ sortColumn: "created_at", sortDirection: "desc" });
   const columns = useEventColumns();
   const [selected, setSelected] = useState<AdminEvent | null>(null);
 
