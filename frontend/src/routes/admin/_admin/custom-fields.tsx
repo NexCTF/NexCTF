@@ -337,12 +337,20 @@ function CustomFieldsPage() {
     {
       key: "name",
       header: t("admin.custom_fields.col_key", { defaultValue: "Key" }),
-      cell: (f) => <span className="font-mono text-sm">{f.name}</span>,
+      cell: (f) => (
+        <span className="block max-w-48 truncate font-mono text-sm" title={f.name}>
+          {f.name}
+        </span>
+      ),
     },
     {
       key: "label",
       header: t("admin.custom_fields.col_label"),
-      cell: (f) => <span className="font-medium">{f.label}</span>,
+      cell: (f) => (
+        <span className="block max-w-48 truncate font-medium" title={f.label}>
+          {f.label}
+        </span>
+      ),
     },
     {
       key: "target",

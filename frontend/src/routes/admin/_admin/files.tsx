@@ -502,13 +502,22 @@ function FilesPage() {
     {
       key: "name",
       header: t("table.col_name", { defaultValue: "Name" }),
-      cell: (f) => <span className="font-medium">{f.name}</span>,
+      cell: (f) => (
+        <span className="font-medium truncate block max-w-48" title={f.name}>
+          {f.name}
+        </span>
+      ),
     },
     {
       key: "original_filename",
       header: t("admin.files.col_filename", { defaultValue: "Filename" }),
       cell: (f) => (
-        <span className="text-muted-foreground text-xs font-mono">{f.original_filename}</span>
+        <span
+          className="text-muted-foreground text-xs font-mono truncate block max-w-64"
+          title={f.original_filename}
+        >
+          {f.original_filename}
+        </span>
       ),
     },
     {
@@ -516,7 +525,12 @@ function FilesPage() {
       header: t("table.col_type", { defaultValue: "Type" }),
       cell: (f) =>
         f.mime_type ? (
-          <span className="text-muted-foreground text-xs">{f.mime_type}</span>
+          <span
+            className="text-muted-foreground text-xs truncate block max-w-48"
+            title={f.mime_type}
+          >
+            {f.mime_type}
+          </span>
         ) : (
           <EmptyCell />
         ),

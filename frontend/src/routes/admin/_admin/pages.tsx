@@ -191,7 +191,8 @@ function PagesPage() {
       cell: (p) => (
         <button
           type="button"
-          className="font-medium text-left hover:underline"
+          className="block max-w-48 truncate font-medium text-left hover:underline"
+          title={p.title}
           onClick={() => navigate({ to: "/admin/pages/$pageId", params: { pageId: p.id } })}
         >
           {p.title}
@@ -201,7 +202,14 @@ function PagesPage() {
     {
       key: "slug",
       header: t("admin.pages.col_slug", { defaultValue: "Slug" }),
-      cell: (p) => <span className="text-muted-foreground font-mono text-xs">/p/{p.slug}</span>,
+      cell: (p) => (
+        <span
+          className="block max-w-48 truncate text-muted-foreground font-mono text-xs"
+          title={`/p/${p.slug}`}
+        >
+          /p/{p.slug}
+        </span>
+      ),
     },
     {
       key: "nav_placement",

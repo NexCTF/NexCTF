@@ -297,7 +297,11 @@ function ChallengesPage() {
     {
       key: "title",
       header: t("table.col_title", { defaultValue: "Title" }),
-      cell: (c) => <span className="font-medium">{c.title}</span>,
+      cell: (c) => (
+        <span className="block max-w-48 truncate font-medium" title={c.title}>
+          {c.title}
+        </span>
+      ),
     },
     {
       key: "challenge_type",

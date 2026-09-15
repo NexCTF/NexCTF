@@ -249,7 +249,11 @@ function SchedulerPage() {
     {
       key: "name",
       header: t("table.col_name", { defaultValue: "Name" }),
-      cell: (j) => <span className="font-medium">{j.name}</span>,
+      cell: (j) => (
+        <span className="block max-w-48 truncate font-medium" title={j.name}>
+          {j.name}
+        </span>
+      ),
     },
     {
       key: "job_type",

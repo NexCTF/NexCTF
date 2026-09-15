@@ -208,7 +208,11 @@ function NotificationsPage() {
     {
       key: "title",
       header: t("table.col_title", { defaultValue: "Title" }),
-      cell: (n) => <span className="font-medium">{n.title}</span>,
+      cell: (n) => (
+        <span className="block max-w-48 truncate font-medium" title={n.title}>
+          {n.title}
+        </span>
+      ),
     },
     {
       key: "is_broadcast",

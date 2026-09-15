@@ -50,6 +50,11 @@ export function useScoreAdjustmentColumns({
     {
       key: "reason",
       header: t("admin.scoreboard.col_reason"),
+      cell: (adj) => (
+        <span className="block max-w-64 truncate" title={adj.reason}>
+          {adj.reason}
+        </span>
+      ),
     },
     {
       key: "challenge__title",

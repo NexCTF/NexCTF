@@ -263,7 +263,11 @@ function LinksPage() {
     {
       key: "name",
       header: t("table.col_name", { defaultValue: "Name" }),
-      cell: (l) => <span className="font-medium">{l.name}</span>,
+      cell: (l) => (
+        <span className="block max-w-48 truncate font-medium" title={l.name}>
+          {l.name}
+        </span>
+      ),
     },
     {
       key: "url",

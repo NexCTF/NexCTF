@@ -321,12 +321,16 @@ function OAuthProvidersPage() {
       key: "name",
       header: t("table.col_name", { defaultValue: "Name" }),
       cell: (p) => (
-        <div className="flex items-center gap-2">
+        <div className="flex max-w-64 items-center gap-2">
           {p.icon_url && (
-            <img src={p.icon_url} alt="" className="size-4 rounded-sm object-contain" />
+            <img src={p.icon_url} alt="" className="size-4 shrink-0 rounded-sm object-contain" />
           )}
-          <span className="font-medium">{p.name}</span>
-          <span className="font-mono text-xs text-muted-foreground">{p.slug}</span>
+          <span className="truncate font-medium" title={p.name}>
+            {p.name}
+          </span>
+          <span className="truncate font-mono text-xs text-muted-foreground" title={p.slug}>
+            {p.slug}
+          </span>
         </div>
       ),
     },

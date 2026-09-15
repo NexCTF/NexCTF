@@ -406,7 +406,9 @@ function OAuthClientsPage() {
       header: t("table.col_name", { defaultValue: "Name" }),
       cell: (c) => (
         <div>
-          <p className="font-medium">{c.name}</p>
+          <p className="max-w-48 truncate font-medium" title={c.name}>
+            {c.name}
+          </p>
           {c.description && (
             <p className="text-xs text-muted-foreground truncate max-w-64">{c.description}</p>
           )}
@@ -416,12 +418,26 @@ function OAuthClientsPage() {
     {
       key: "client_id",
       header: t("admin.oauth_client.col_client_id"),
-      cell: (c) => <code className="font-mono text-xs text-muted-foreground">{c.client_id}</code>,
+      cell: (c) => (
+        <code
+          className="block max-w-64 truncate font-mono text-xs text-muted-foreground"
+          title={c.client_id}
+        >
+          {c.client_id}
+        </code>
+      ),
     },
     {
       key: "allowed_scopes",
       header: t("admin.oauth_client.col_scopes"),
-      cell: (c) => <span className="text-xs text-muted-foreground">{c.allowed_scopes}</span>,
+      cell: (c) => (
+        <span
+          className="block max-w-64 truncate text-xs text-muted-foreground"
+          title={c.allowed_scopes}
+        >
+          {c.allowed_scopes}
+        </span>
+      ),
     },
     {
       key: "is_active",

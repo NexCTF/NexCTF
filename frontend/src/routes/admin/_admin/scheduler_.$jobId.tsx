@@ -98,7 +98,12 @@ function SchedulerJobDetailPage() {
       header: t("admin.scheduler.col_task_error", { defaultValue: "Error" }),
       cell: (task) =>
         task.error ? (
-          <span className="text-destructive text-xs font-mono">{task.error}</span>
+          <span
+            className="block max-w-64 truncate text-destructive text-xs font-mono"
+            title={task.error}
+          >
+            {task.error}
+          </span>
         ) : (
           <EmptyCell />
         ),

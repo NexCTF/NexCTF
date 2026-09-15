@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 type TFn = ReturnType<typeof useTranslation>["t"];
 
 const RELATION_CLS =
-  "inline-flex items-center gap-1 -mx-1.5 rounded px-1.5 py-0.5 text-sm font-medium text-primary underline-offset-2 hover:underline hover:bg-primary/10 transition-colors";
+  "inline-flex max-w-48 items-center gap-1 -mx-1.5 rounded px-1.5 py-0.5 text-sm font-medium text-primary underline-offset-2 hover:underline hover:bg-primary/10 transition-colors";
 
 type RelationProps = { id: string | null | undefined; name?: string | null };
 
@@ -28,7 +28,12 @@ function relationLabel(name: string | null | undefined, id: string) {
 
 /** A record can be named without being linkable — show the name, drop the link. */
 function unlinkedRelation(name: string | null | undefined) {
-  return name ? <span>{name}</span> : <EmptyCell />;
+  if (!name) return <EmptyCell />;
+  return (
+    <span className="block max-w-48 truncate" title={name}>
+      {name}
+    </span>
+  );
 }
 
 export function TeamLink({ id, name }: RelationProps) {
@@ -38,10 +43,11 @@ export function TeamLink({ id, name }: RelationProps) {
       to="/admin/teams/$teamId"
       params={{ teamId: id }}
       className={RELATION_CLS}
+      title={relationLabel(name, id)}
       onClick={stopRowClick}
     >
-      {relationLabel(name, id)}
-      <ArrowUpRight className="size-3 opacity-60" />
+      <span className="truncate">{relationLabel(name, id)}</span>
+      <ArrowUpRight className="size-3 shrink-0 opacity-60" />
     </Link>
   );
 }
@@ -53,10 +59,11 @@ export function UserLink({ id, name }: RelationProps) {
       to="/admin/users/$userId"
       params={{ userId: id }}
       className={RELATION_CLS}
+      title={relationLabel(name, id)}
       onClick={stopRowClick}
     >
-      {relationLabel(name, id)}
-      <ArrowUpRight className="size-3 opacity-60" />
+      <span className="truncate">{relationLabel(name, id)}</span>
+      <ArrowUpRight className="size-3 shrink-0 opacity-60" />
     </Link>
   );
 }
@@ -68,10 +75,11 @@ export function ChallengeLink({ id, name }: RelationProps) {
       to="/admin/challenges/$challengeId"
       params={{ challengeId: id }}
       className={RELATION_CLS}
+      title={relationLabel(name, id)}
       onClick={stopRowClick}
     >
-      {relationLabel(name, id)}
-      <ArrowUpRight className="size-3 opacity-60" />
+      <span className="truncate">{relationLabel(name, id)}</span>
+      <ArrowUpRight className="size-3 shrink-0 opacity-60" />
     </Link>
   );
 }
@@ -99,9 +107,11 @@ export function TargetCell({
       {RelationLink && id ? (
         <RelationLink id={id} name={label} />
       ) : (
-        <span className="text-muted-foreground">{label ?? id ?? "—"}</span>
+        <span className="max-w-48 truncate text-muted-foreground" title={label ?? id ?? undefined}>
+          {label ?? id ?? "—"}
+        </span>
       )}
-      <span className="text-xs text-muted-foreground/60">({type})</span>
+      <span className="shrink-0 text-xs text-muted-foreground/60">({type})</span>
     </span>
   );
 }

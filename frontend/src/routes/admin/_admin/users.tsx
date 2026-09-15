@@ -203,11 +203,13 @@ function UsersPage() {
       key: "username",
       header: t("table.col_username", { defaultValue: "Username" }),
       cell: (u) => (
-        <div className="flex items-center gap-2">
+        <div className="flex max-w-56 items-center gap-2">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium uppercase">
             {u.username[0]}
           </span>
-          <span className="font-medium">{u.username}</span>
+          <span className="truncate font-medium" title={u.username}>
+            {u.username}
+          </span>
         </div>
       ),
     },
@@ -215,7 +217,13 @@ function UsersPage() {
       key: "email",
       header: t("table.col_email", { defaultValue: "Email" }),
       cell: (u) =>
-        u.email ? <span className="text-muted-foreground">{u.email}</span> : <EmptyCell />,
+        u.email ? (
+          <span className="block max-w-48 truncate text-muted-foreground" title={u.email}>
+            {u.email}
+          </span>
+        ) : (
+          <EmptyCell />
+        ),
     },
     {
       key: "team__name",

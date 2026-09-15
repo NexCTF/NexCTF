@@ -37,7 +37,11 @@ function useTeamColumns(): Column<Team>[] {
     {
       key: "name",
       header: t("table.col_name", { defaultValue: "Name" }),
-      cell: (team) => <span className="font-medium">{team.name}</span>,
+      cell: (team) => (
+        <span className="block max-w-48 truncate font-medium" title={team.name}>
+          {team.name}
+        </span>
+      ),
     },
     {
       key: "country",

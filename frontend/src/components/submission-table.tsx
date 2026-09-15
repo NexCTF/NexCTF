@@ -56,7 +56,12 @@ export function useSubmissionColumns({
       header: t("table.col_question", { defaultValue: "Question" }),
       cell: (sub) =>
         sub.question_label ? (
-          <span className="text-muted-foreground text-xs">{sub.question_label}</span>
+          <span
+            className="block max-w-48 truncate text-muted-foreground text-xs"
+            title={sub.question_label}
+          >
+            {sub.question_label}
+          </span>
         ) : (
           <EmptyCell />
         ),
