@@ -396,7 +396,7 @@ function UserDetailPage() {
     void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
   }
 
-  const eventsTable = useTableState();
+  const eventsTable = useTableState({ sortColumn: "created_at", sortDirection: "desc" });
   const eventColumns = useEventColumns();
   const [selectedEvent, setSelectedEvent] = useState<AdminEvent | null>(null);
 
