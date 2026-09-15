@@ -3,6 +3,7 @@ import { createFileRoute, Link, Navigate, Outlet, useNavigate } from "@tanstack/
 import {
   ArrowLeft,
   Bell,
+  BookMarked,
   BookOpen,
   CalendarDays,
   ClipboardList,
@@ -204,6 +205,16 @@ function AdminLayout() {
             <ArrowLeft className="h-4 w-4" />
             {t("admin.nav.back_to_site")}
           </Link>
+
+          <a
+            href="https://nexctf.dev/documentation"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${BASE_CLS} ${INACTIVE_CLS}`}
+          >
+            <BookMarked className="h-4 w-4" />
+            {t("admin.nav.documentation", { defaultValue: "Documentation" })}
+          </a>
 
           <a
             href="/api/admin/docs"
