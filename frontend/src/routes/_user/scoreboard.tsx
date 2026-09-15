@@ -157,6 +157,9 @@ function ScoreEvolutionChart({ series }: { series: TeamScoreSeries[] }) {
           contentStyle={{
             fontSize: "0.75rem",
             borderRadius: "0.5rem",
+            backgroundColor: "var(--popover)",
+            border: "1px solid var(--border)",
+            color: "var(--popover-foreground)",
           }}
         />
         <Legend

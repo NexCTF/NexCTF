@@ -413,7 +413,13 @@ function ScoreDistribution({ scoreboard }: { scoreboard: AdminScoreboard }) {
         <Tooltip
           cursor={{ className: "fill-muted/40" }}
           formatter={(value) => [value, t("admin.dashboard.stat_teams")]}
-          contentStyle={{ fontSize: "0.75rem", borderRadius: "0.5rem" }}
+          contentStyle={{
+            fontSize: "0.75rem",
+            borderRadius: "0.5rem",
+            backgroundColor: "var(--popover)",
+            border: "1px solid var(--border)",
+            color: "var(--popover-foreground)",
+          }}
         />
         <Bar dataKey="teams" fill="#6366f1" radius={[2, 2, 0, 0]} isAnimationActive={false} />
       </BarChart>
