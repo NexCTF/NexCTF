@@ -1,4 +1,9 @@
-# NexCTF
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="img/nexctf-logo-full-dark-bg.svg" />
+    <img src="img/nexctf-logo-full-light-bg.svg" alt="NexCTF" width="340" />
+  </picture>
+</p>
 
 A self-hosted, extensible Capture The Flag platform with multi-question challenges, team-based scoring, sequential prerequisites, real-time scoreboard, TOTP 2FA, OAuth2/OIDC, custom fields, a job scheduler, and a plugin system for custom challenge/solution types.
 

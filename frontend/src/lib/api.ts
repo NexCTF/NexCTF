@@ -208,7 +208,11 @@ export interface BrandingInfo {
   name: string;
   logo_url: string;
   favicon_url: string;
-  primary_color: string;
+  accent_color: string;
+  logo_url_dark: string;
+  login_background_url: string;
+  default_theme: string;
+  custom_css: string;
 }
 
 export interface CompetitionInfo {

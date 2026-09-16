@@ -1,7 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/jetbrains-mono";
 @import "highlight.js/styles/github-dark-dimmed.min.css";
 @plugin "@tailwindcss/typography";
 
@@ -73,8 +75,9 @@
 }
 
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
+    --font-heading: 'Space Grotesk Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -88,6 +91,7 @@
     --color-chart-3: var(--chart-3);
     --color-chart-2: var(--chart-2);
     --color-chart-1: var(--chart-1);
+    --color-link: var(--link);
     --color-ring: var(--ring);
     --color-input: var(--input);
     --color-border: var(--border);
@@ -115,6 +119,21 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* NexCTF brand palette */
+:root {
+  --nexctf-bg: #0b1210;
+  --nexctf-surface: #132420;
+  --nexctf-accent: #3b82f6;
+  --nexctf-accent-hover: #60a0fa;
+  --nexctf-accent-strong: #306ac9;
+  --nexctf-accent-on: #04122b;
+  --nexctf-success: #63992c;
+  --nexctf-error: #e24b4a;
+  --nexctf-warning: #ba7517;
+  --nexctf-text-primary: #edefed;
+  --nexctf-text-secondary: #8c948f;
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -122,66 +141,69 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: var(--brand-accent-light, var(--nexctf-accent-strong));
+  --primary-foreground: var(--brand-accent-on-light, var(--nexctf-text-primary));
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: var(--nexctf-error);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: var(--brand-ring-light, var(--nexctf-accent-strong));
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
+  --link: var(--foreground);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: var(--brand-accent-light, var(--nexctf-accent-strong));
+  --sidebar-primary-foreground: var(--brand-accent-on-light, var(--nexctf-text-primary));
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-ring: var(--brand-ring-light, var(--nexctf-accent-strong));
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
+  --elevated: color-mix(in oklab, var(--nexctf-surface), var(--nexctf-text-primary) 8%);
+
+  --background: var(--nexctf-bg);
+  --foreground: var(--nexctf-text-primary);
+  --card: var(--nexctf-surface);
+  --card-foreground: var(--nexctf-text-primary);
+  --popover: var(--nexctf-surface);
+  --popover-foreground: var(--nexctf-text-primary);
+  --primary: var(--brand-accent-dark, var(--nexctf-accent));
+  --primary-foreground: var(--brand-accent-on-dark, var(--nexctf-accent-on));
+  --secondary: var(--elevated);
+  --secondary-foreground: var(--nexctf-text-primary);
+  --muted: var(--elevated);
+  --muted-foreground: var(--nexctf-text-secondary);
+  --accent: var(--elevated);
+  --accent-foreground: var(--nexctf-text-primary);
+  --destructive: var(--nexctf-error);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --ring: var(--brand-ring-dark, var(--nexctf-accent));
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar: var(--nexctf-surface);
+  --sidebar-foreground: var(--nexctf-text-primary);
+  --sidebar-primary: var(--brand-accent-dark, var(--nexctf-accent));
+  --sidebar-primary-foreground: var(--brand-accent-on-dark, var(--nexctf-accent-on));
+  --sidebar-accent: var(--elevated);
+  --sidebar-accent-foreground: var(--nexctf-text-primary);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: var(--brand-ring-dark, var(--nexctf-accent));
 }
 
 @layer base {
@@ -193,6 +215,14 @@
   }
   html {
     @apply font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading;
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {

@@ -262,10 +262,17 @@ def _appearance():
             type=ConfigType.IMAGE,
         ),
         ConfigDef(
-            key="appearance.primary_color",
-            label="config.appearance.primary_color.label",
+            key="appearance.logo_url_dark",
+            label="config.appearance.logo_url_dark.label",
             default="",
-            description="config.appearance.primary_color.description",
+            description="config.appearance.logo_url_dark.description",
+            type=ConfigType.IMAGE,
+        ),
+        ConfigDef(
+            key="appearance.accent_color",
+            label="config.appearance.accent_color.label",
+            default="#3b82f6",
+            description="config.appearance.accent_color.description",
             type=ConfigType.COLOR,
         ),
         ConfigDef(
@@ -274,6 +281,28 @@ def _appearance():
             default="",
             description="config.appearance.favicon_url.description",
             type=ConfigType.IMAGE,
+        ),
+        ConfigDef(
+            key="appearance.login_background_url",
+            label="config.appearance.login_background_url.label",
+            default="",
+            description="config.appearance.login_background_url.description",
+            type=ConfigType.IMAGE,
+        ),
+        ConfigDef(
+            key="appearance.default_theme",
+            label="config.appearance.default_theme.label",
+            default="system",
+            description="config.appearance.default_theme.description",
+            type=ConfigType.CHOICE,
+            choices=["system", "light", "dark"],
+        ),
+        ConfigDef(
+            key="appearance.custom_css",
+            label="config.appearance.custom_css.label",
+            default="",
+            description="config.appearance.custom_css.description",
+            type=ConfigType.TEXT,
         ),
     ]
 

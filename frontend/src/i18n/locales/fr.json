@@ -623,17 +623,33 @@
   },
   "config": {
     "appearance": {
+      "accent_color": {
+        "description": "Couleur d'accent des boutons, badges et anneaux de focus. Les nuances sont dérivées automatiquement pour rester lisibles dans les deux thèmes",
+        "label": "Couleur d'accent"
+      },
+      "custom_css": {
+        "description": "CSS supplémentaire injecté dans chaque page. Servi à tous les visiteurs, donc à considérer comme public",
+        "label": "CSS personnalisé"
+      },
+      "default_theme": {
+        "description": "Thème appliqué aux visiteurs qui n'en ont pas choisi un eux-mêmes",
+        "label": "Thème par défaut"
+      },
       "favicon_url": {
         "description": "Favicon affiché dans l'onglet du navigateur. Importez un fichier ou collez une URL",
         "label": "URL du favicon"
+      },
+      "login_background_url": {
+        "description": "Image affichée derrière la carte de connexion. Importez un fichier ou collez une URL",
+        "label": "URL de l'arrière-plan de connexion"
       },
       "logo_url": {
         "description": "Logo affiché dans la barre de navigation et la page d'accueil. Importez un fichier ou collez une URL",
         "label": "URL du logo"
       },
-      "primary_color": {
-        "description": "Couleur d'accent principale de l'interface (hex, ex. #3b82f6)",
-        "label": "Couleur principale"
+      "logo_url_dark": {
+        "description": "Logo utilisé lorsque le thème sombre est actif. Le logo principal est utilisé si ce champ est vide",
+        "label": "URL du logo (mode sombre)"
       }
     },
     "canary": {

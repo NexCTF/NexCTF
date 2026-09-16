@@ -21,6 +21,23 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
 
+/** Full-height centering shell for the login card, with the configured background. */
+function LoginShell({ children }: { children: React.ReactNode }) {
+  const { loginBackgroundUrl } = useBranding();
+  return (
+    <div
+      className="flex min-h-screen items-center justify-center bg-cover bg-center px-4"
+      style={
+        loginBackgroundUrl
+          ? { backgroundImage: `url("${loginBackgroundUrl.replace(/"/g, "%22")}")` }
+          : undefined
+      }
+    >
+      {children}
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): { next?: string } => ({
     next: typeof search.next === "string" ? search.next : undefined,
@@ -67,7 +84,7 @@ function LoginPage() {
 
   if (accountDisabled) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4">
+      <LoginShell>
         <Card className="w-full max-w-sm">
           <CardHeader className="text-center">
             <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-destructive/10">
@@ -89,13 +106,13 @@ function LoginPage() {
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </LoginShell>
     );
   }
 
   if (emailNotVerified) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4">
+      <LoginShell>
         <Card className="w-full max-w-sm">
           <CardHeader className="text-center">
             <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-primary/10">
@@ -115,7 +132,7 @@ function LoginPage() {
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </LoginShell>
     );
   }
 
@@ -159,7 +176,7 @@ function LoginPage() {
   const submitDisabled = loading || (totpRequired && totpCode.length < 6) || !captchaSolved;
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <LoginShell>
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold">
@@ -301,6 +318,6 @@ function LoginPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </LoginShell>
   );
 }

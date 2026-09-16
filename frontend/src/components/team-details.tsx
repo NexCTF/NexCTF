@@ -29,7 +29,7 @@ function SafeUrl({ href, children }: { href: string; children: ReactNode }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-primary hover:underline underline-offset-2"
+      className="text-link hover:underline underline-offset-2"
     >
       {children}
     </a>

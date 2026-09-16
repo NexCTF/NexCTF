@@ -69,7 +69,7 @@ export function Markdown({ children, className }: MarkdownProps) {
         // fenced code blocks
         "prose-pre:bg-muted prose-pre:rounded-lg prose-pre:p-3 prose-pre:overflow-x-auto",
         "prose-blockquote:border-l-2 prose-blockquote:border-muted-foreground/30 prose-blockquote:pl-4 prose-blockquote:text-muted-foreground",
-        "prose-a:text-primary prose-a:underline-offset-2",
+        "prose-a:text-link prose-a:underline-offset-2",
         "prose-ul:my-1 prose-ol:my-1 prose-li:my-0",
         className,
       )}
