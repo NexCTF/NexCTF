@@ -175,6 +175,11 @@ async def register(
     except IntegrityError:
         raise ConflictError(detail="Username or email already taken")
     if result.data is not None:
+        logger.info(
+            "registered %s",
+            result.data.username,
+            extra={"username": result.data.username, "user_id": str(result.data.id)},
+        )
         await emit(
             session,
             redis,
@@ -204,6 +209,12 @@ async def _record_login_failure(
     The login handler raises an HTTP error right after, which would otherwise
     roll the event back before the request-end commit runs.
     """
+    logger.warning(
+        "login failed for %s (%s)",
+        username,
+        reason,
+        extra={"username": username, "reason": reason},
+    )
     await emit(
         session,
         redis,
@@ -285,6 +296,11 @@ async def login(
         )
         raise EmailNotVerifiedError()
     await issue_session_cookie(session, response, user, request)
+    logger.info(
+        "login for %s",
+        user.username,
+        extra={"username": user.username, "user_id": str(user.id)},
+    )
     await emit(
         session,
         redis,
@@ -328,6 +344,11 @@ async def reset_password(
     )
     await crud.UserTokenCrud.delete(session, filters=[UserToken.user_id == user.id])
     await revoke_user_sessions(session, user)
+    logger.info(
+        "password reset completed for %s",
+        user.username,
+        extra={"username": user.username, "user_id": str(user.id)},
+    )
     await emit(
         session,
         redis,
@@ -364,6 +385,11 @@ async def verify_email(
         session=session,
         filters=[User.id == user.id],
         obj=UserEmailVerifiedUpdate(id=user.id, email_verified=True),
+    )
+    logger.info(
+        "email verified for %s",
+        user.username,
+        extra={"username": user.username, "user_id": str(user.id)},
     )
     await emit(
         session,
@@ -458,6 +484,11 @@ async def forgot_password(
     link = f"{settings.FRONTEND_HOST}/reset-password?token={token}"
     background_tasks.add_task(
         _deliver_branded_email, redis, user.email, link, build_password_reset_email
+    )
+    logger.info(
+        "password reset requested for %s",
+        user.username,
+        extra={"username": user.username, "user_id": str(user.id)},
     )
     await emit(
         session,
@@ -693,6 +724,17 @@ async def oauth_callback(
         raise AccountDisabledError()
 
     client_ip = get_client_ip(request)
+    logger.info(
+        "oauth login for %s via %s",
+        user.username,
+        provider.slug,
+        extra={
+            "username": user.username,
+            "user_id": str(user.id),
+            "provider": provider.slug,
+            "new_user": is_new_user,
+        },
+    )
     if is_new_user:
         await emit(
             db,

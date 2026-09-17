@@ -67,6 +67,23 @@ class Settings(BaseSettings):
 
     TRUSTED_PROXY_COUNT: int = 0
 
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: Literal["console", "json"] = "console"
+    LOG_DIR: str | None = None
+    LOG_MAX_BYTES: int = 50_000_000
+    LOG_BACKUPS: int = 5
+    LOG_SQL: bool = False
+
+    @model_validator(mode="after")
+    def derive_log_format(self) -> Settings:
+        """Render JSON outside development unless LOG_FORMAT says otherwise."""
+        if (
+            "LOG_FORMAT" not in self.model_fields_set
+            and self.ENVIRONMENT != "development"
+        ):
+            self.LOG_FORMAT = "json"
+        return self
+
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)
     ] = []

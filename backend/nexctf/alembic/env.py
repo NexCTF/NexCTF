@@ -1,5 +1,4 @@
 import asyncio
-from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import pool
@@ -7,6 +6,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from nexctf.core.config import settings
+from nexctf.core.logging import setup_logging
 from nexctf.model import Base
 from nexctf.plugins import get_plugin_tables, load_plugin_registries
 
@@ -14,8 +14,7 @@ load_plugin_registries()  # register plugin models with the metadata
 
 config = context.config
 
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+setup_logging("migrate")
 
 target_metadata = Base.metadata
 

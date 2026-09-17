@@ -72,7 +72,14 @@ async def _run(program: str, *args: str) -> None:
     )
     _, stderr = await proc.communicate()
     if proc.returncode != 0:
-        raise BackupError(f"{program} failed: {stderr.decode(errors='replace')[-500:]}")
+        detail = stderr.decode(errors="replace")[-500:]
+        logger.error(
+            "%s exited with %s",
+            program,
+            proc.returncode,
+            extra={"program": program, "exit_code": proc.returncode, "stderr": detail},
+        )
+        raise BackupError(f"{program} failed: {detail}")
 
 
 async def current_revision() -> str | None:

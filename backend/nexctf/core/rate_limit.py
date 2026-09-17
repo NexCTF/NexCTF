@@ -14,6 +14,7 @@ Plugins can import and call ``check_rate_limit`` directly with any key.
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid as _uuid
 
@@ -21,6 +22,8 @@ from fastapi import HTTPException, status
 from redis.asyncio import Redis
 
 from nexctf.core import appconfig
+
+logger = logging.getLogger(__name__)
 
 
 async def check_rate_limit(
@@ -45,6 +48,11 @@ async def check_rate_limit(
     pipe.expire(key, window_seconds + 1)
     results = await pipe.execute()
     if results[2] > max_requests:
+        logger.warning(
+            "rate limit hit on %s",
+            key,
+            extra={"limit_key": key, "max_requests": max_requests},
+        )
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Rate limit exceeded. Please wait before submitting again.",

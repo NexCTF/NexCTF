@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import AsyncIterable
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,6 +11,8 @@ from nexctf.core import eventbus
 from nexctf.core.config import settings
 from nexctf.model import User, UserRole
 
+logger = logging.getLogger(__name__)
+
 sse_router = APIRouter(prefix="/stream", tags=["SSE"])
 
 _active = {"authed": 0, "public": 0}
@@ -18,6 +21,11 @@ _active = {"authed": 0, "public": 0}
 def _reject_if_full(budget: str, limit: int) -> None:
     """Raise 503 when *budget* is full. Read-only, so it cannot leak a slot."""
     if _active[budget] >= limit:
+        logger.warning(
+            "sse stream rejected, %s budget full",
+            budget,
+            extra={"budget": budget, "limit": limit},
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Too many open event streams. Please retry shortly.",
@@ -63,6 +71,10 @@ async def _sse_listener(
     """Yield the bus events for *channels* as typed ServerSentEvents."""
     with eventbus.subscription(channels) as queue:
         _active[budget] += 1
+        logger.debug(
+            "sse stream opened",
+            extra={"budget": budget, "active": _active[budget]},
+        )
         try:
             while True:
                 channel, data = await queue.get()
@@ -71,6 +83,10 @@ async def _sse_listener(
             pass
         finally:
             _active[budget] -= 1
+            logger.debug(
+                "sse stream closed",
+                extra={"budget": budget, "active": _active[budget]},
+            )
 
 
 @sse_router.get(

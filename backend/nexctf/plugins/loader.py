@@ -184,7 +184,7 @@ def load_builtin_plugins() -> None:
     for key, module_path in _BUILTINS.items():
         if key in _plugin_metadata:
             continue
-        logger.debug("plugin.load name=%s module=%s builtin=true", key, module_path)
+        logger.info("plugin.load name=%s module=%s builtin=true", key, module_path)
         importlib.import_module(module_path)
         _plugin_metadata[key] = _builtin_metadata(key)
 
@@ -198,7 +198,7 @@ def _load_installed_plugins() -> None:
         if key in _plugin_metadata:
             continue
         try:
-            logger.debug("plugin.load name=%s module=%s", key, ep.module)
+            logger.info("plugin.load name=%s module=%s", key, ep.module)
             importlib.import_module(ep.module)
             _plugin_metadata[key] = _installed_metadata(key, ep.dist)
             # Models and migrations live in the root package, not the entry-point module

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import UTC, datetime
 
 from cronsim import CronSimError
@@ -84,15 +85,39 @@ async def _execute_job_task(
     task = SchedulerTask(job_id=job.id, status=TaskStatus.PENDING, started_at=now)
     session.add(task)
     await session.flush()
+    started = time.perf_counter()
+    logger.info(
+        "Job %s (%s) started",
+        job.id,
+        job.job_type,
+        extra={"job_id": str(job.id), "job_type": job.job_type},
+    )
     try:
         await call_maybe_async(entry.handler, job, session, redis)
         task.status = TaskStatus.SUCCESS
         task.completed_at = datetime.now(UTC)
+        logger.info(
+            "Job %s finished",
+            job.id,
+            extra={
+                "job_id": str(job.id),
+                "job_type": job.job_type,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 1),
+            },
+        )
     except Exception as exc:
         task.status = TaskStatus.FAILED
         task.completed_at = datetime.now(UTC)
         task.error = str(exc)[:500]
-        logger.exception("Job %s failed", job.id)
+        logger.exception(
+            "Job %s failed",
+            job.id,
+            extra={
+                "job_id": str(job.id),
+                "job_type": job.job_type,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 1),
+            },
+        )
     await session.flush()
     return task
 
