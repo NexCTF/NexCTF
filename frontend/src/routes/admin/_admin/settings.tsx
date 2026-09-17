@@ -235,7 +235,7 @@ function FieldWrapper({
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <CardDescription>{description}</CardDescription>
+      <CardDescription className="whitespace-pre-line">{description}</CardDescription>
       {children}
     </div>
   );
@@ -262,7 +262,7 @@ function ConfigField({
         <div className="flex items-center justify-between gap-4">
           <div className="space-y-0.5">
             <Label>{label}</Label>
-            <CardDescription>{description}</CardDescription>
+            <CardDescription className="whitespace-pre-line">{description}</CardDescription>
           </div>
           <Switch checked={value === "true"} onCheckedChange={(v) => onChange(String(v))} />
         </div>
