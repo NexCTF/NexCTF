@@ -134,6 +134,21 @@ it("shows an empty state when there are no API tokens", async () => {
   expect(await screen.findByText("No tokens yet. Create one to get started.")).toBeDefined();
 });
 
+it("marks a token that has never authenticated a request", async () => {
+  vi.mocked(getMyTokens).mockResolvedValue(paginated([apiToken({ last_used_at: null })]));
+  renderSettings();
+
+  expect(await screen.findByText(/Never used/)).toBeDefined();
+});
+
+it("shows how long ago a token was last used", async () => {
+  const anHourAgo = new Date(Date.now() - 3600_000).toISOString();
+  vi.mocked(getMyTokens).mockResolvedValue(paginated([apiToken({ last_used_at: anHourAgo })]));
+  renderSettings();
+
+  expect(await screen.findByText(/Last used 1 hour ago/)).toBeDefined();
+});
+
 it("lists tokens and asks before revoking one", async () => {
   vi.mocked(getMyTokens).mockResolvedValue(paginated([apiToken()]));
   vi.mocked(deleteMyToken).mockResolvedValue(undefined);

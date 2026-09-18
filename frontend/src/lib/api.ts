@@ -288,6 +288,8 @@ export interface ApiToken {
   name: string | null;
   created_at: string;
   expires_at: string | null;
+  /** Null until the token authenticates a request */
+  last_used_at: string | null;
   /** `<read|write>:<group>` permissions the token carries */
   scopes: string[];
   /** Only present immediately after creation */

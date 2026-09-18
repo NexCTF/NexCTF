@@ -406,6 +406,13 @@ function TokenRow({ token, onDeleted }: { token: ApiToken; onDeleted: () => void
     day: "numeric",
   });
 
+  const lastUsed = token.last_used_at
+    ? t("settings.token.last_used_at", {
+        defaultValue: "Last used {{when}}",
+        when: formatLastSeen(token.last_used_at, i18n.language),
+      })
+    : t("settings.token.never_used", { defaultValue: "Never used" });
+
   return (
     <div className="flex items-center gap-4 rounded-lg border px-4 py-3">
       <KeyRound className="size-4 text-muted-foreground shrink-0" />
@@ -413,6 +420,8 @@ function TokenRow({ token, onDeleted }: { token: ApiToken; onDeleted: () => void
         <p className="text-sm font-medium truncate">{displayName}</p>
         <p className="text-xs text-muted-foreground">
           {t("settings.token.created_at", { date: createdAt })}
+          <span aria-hidden="true"> · </span>
+          {lastUsed}
         </p>
       </div>
       {token.expires_at && (

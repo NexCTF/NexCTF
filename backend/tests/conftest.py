@@ -109,7 +109,8 @@ def override_db_context(db_session: AsyncSession):
     Functions like _verify_cookie() and create_api_token() call get_db_context()
     directly instead of using FastAPI dependency injection. Patching it in the
     security module namespace ensures they reuse the test session instead of
-    opening a second connection on the same async task.
+    opening a second connection on the same async task. Flushes on clean exit,
+    as the real context commits.
     """
     from nexctf.api import security
 
@@ -118,6 +119,7 @@ def override_db_context(db_session: AsyncSession):
     @asynccontextmanager
     async def _test_db_context():
         yield db_session
+        await db_session.flush()
 
     security.get_db_context = _test_db_context
     try:

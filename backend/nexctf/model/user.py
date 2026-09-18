@@ -106,6 +106,7 @@ class UserToken(Base):
     name: Mapped[str | None]
     token_hash: Mapped[str] = mapped_column(unique=True, index=True)
     expires_at: Mapped[datetime | None]
+    last_used_at: Mapped[datetime | None]
     scopes: Mapped[list[str]] = mapped_column(
         JSONB, default=list, server_default=text("'[]'::jsonb")
     )

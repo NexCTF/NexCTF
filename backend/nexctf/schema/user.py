@@ -71,6 +71,7 @@ class PublicApiTokenRead(PydanticBase):
     id: UUID
     name: str | None
     expires_at: datetime | None
+    last_used_at: datetime | None = None
     scopes: list[str]
     created_at: datetime
     # Only populated on creation

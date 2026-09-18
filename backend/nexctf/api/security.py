@@ -1,6 +1,6 @@
 import hashlib
 import secrets
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from uuid import UUID
 
@@ -22,6 +22,7 @@ from nexctf.module.session import SESSION_TTL, start_session, touch_live_session
 from nexctf.schema import UserTokenCreate
 
 TOKEN_PREFIX = "nexctf_"
+LAST_USED_THROTTLE = timedelta(minutes=5)
 
 _ph = PasswordHasher(time_cost=2, memory_cost=19456, parallelism=1)
 
@@ -90,13 +91,20 @@ async def _verify_token(token: str, role: UserRole | None = None) -> User:
         if user_token is None or not user_token.user.is_active:
             raise UnauthorizedError()
 
-        if user_token.expires_at and user_token.expires_at < datetime.now(UTC):
+        now = datetime.now(UTC)
+        if user_token.expires_at and user_token.expires_at < now:
             raise UnauthorizedError()
 
         user = user_token.user
 
         if role is not None and user.role != role:
             raise ForbiddenError()
+
+        if (
+            user_token.last_used_at is None
+            or now - user_token.last_used_at >= LAST_USED_THROTTLE
+        ):
+            user_token.last_used_at = now
 
         set_token_scopes(user_token.scopes)
         return user
