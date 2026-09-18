@@ -1,5 +1,8 @@
 import type {
   ApiToken,
+  FailedLoginAddress,
+  FailedLoginOverview,
+  FailedLoginUsername,
   MyTeam,
   PaginatedResponse,
   PublicChallenge,
@@ -7,6 +10,9 @@ import type {
   PublicInfo,
   PublicQuestion,
   Scoreboard,
+  SessionOverview,
+  SharedAddress,
+  SharedAddressAccount,
   User,
   UserSession,
 } from "@/lib/api";
@@ -193,5 +199,100 @@ export function userSession(overrides: Partial<UserSession> = {}): UserSession {
     last_seen_at: new Date().toISOString(),
     current: false,
     ...overrides,
+  };
+}
+
+export function sharedAddressAccount(
+  overrides: Partial<SharedAddressAccount> = {},
+): SharedAddressAccount {
+  return {
+    user_id: "22222222-2222-4222-8222-222222222222",
+    username: "alice",
+    team_id: null,
+    team_name: null,
+    session_count: 1,
+    last_seen_at: new Date().toISOString(),
+    user_agent: "Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
+    opened_here: true,
+    ...overrides,
+  };
+}
+
+export function sharedAddress(overrides: Partial<SharedAddress> = {}): SharedAddress {
+  const accounts = overrides.accounts ?? [
+    sharedAddressAccount(),
+    sharedAddressAccount({
+      user_id: "33333333-3333-4333-8333-333333333333",
+      username: "bob",
+    }),
+  ];
+  return {
+    ip: "203.0.113.7",
+    account_count: accounts.length,
+    session_count: accounts.reduce((total, a) => total + a.session_count, 0),
+    same_team: false,
+    team_count: new Set(accounts.map((a) => a.team_id).filter(Boolean)).size,
+    last_seen_at: new Date().toISOString(),
+    ...overrides,
+    accounts,
+  };
+}
+
+export function sessionOverview(overrides: Partial<SessionOverview> = {}): SessionOverview {
+  const addresses = overrides.addresses ?? [sharedAddress()];
+  return {
+    // Totals are server-side aggregates over sessions, not sums of these rows:
+    // tests that assert them pass their own.
+    session_count: 0,
+    account_count: 0,
+    address_count: addresses.length,
+    shared_address_count: 0,
+    cross_team_address_count: 0,
+    ...overrides,
+    addresses,
+  };
+}
+
+export function failedLoginUsername(
+  overrides: Partial<FailedLoginUsername> = {},
+): FailedLoginUsername {
+  return {
+    username: "alice",
+    user_id: null,
+    attempt_count: 1,
+    last_attempt_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+export function failedLoginAddress(
+  overrides: Partial<FailedLoginAddress> = {},
+): FailedLoginAddress {
+  const usernames = overrides.usernames ?? [
+    failedLoginUsername(),
+    failedLoginUsername({ username: "bob" }),
+  ];
+  return {
+    ip: "203.0.113.9",
+    attempt_count: usernames.reduce((total, tried) => total + tried.attempt_count, 0),
+    username_count: new Set(usernames.map((tried) => tried.username)).size,
+    known_username_count: usernames.filter((tried) => tried.user_id).length,
+    last_attempt_at: new Date().toISOString(),
+    ...overrides,
+    usernames,
+  };
+}
+
+export function failedLoginOverview(
+  overrides: Partial<FailedLoginOverview> = {},
+): FailedLoginOverview {
+  const addresses = overrides.addresses ?? [failedLoginAddress()];
+  return {
+    // Totals are server-side aggregates, not sums of these rows.
+    attempt_count: 0,
+    address_count: addresses.length,
+    spray_address_count: 0,
+    ...overrides,
+    addresses,
   };
 }

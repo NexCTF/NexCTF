@@ -1,16 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  Ban,
-  ExternalLink,
-  KeyRound,
-  LogOut,
-  Monitor,
-  Pencil,
-  ShieldCheck,
-  ShieldOff,
-  Smartphone,
-} from "lucide-react";
+import { Ban, ExternalLink, KeyRound, LogOut, Pencil, ShieldCheck, ShieldOff } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -83,7 +73,7 @@ function SessionRow({
       ),
   });
 
-  const { browser, os, mobile } = describeDevice(session.user_agent);
+  const { browser, os, icon: DeviceIcon } = describeDevice(session.user_agent);
   const label =
     browser && os
       ? t("admin.users.session_device_on", {
@@ -94,7 +84,6 @@ function SessionRow({
       : (browser ??
         os ??
         t("admin.users.session_device_unknown", { defaultValue: "Unknown device" }));
-  const DeviceIcon = mobile ? Smartphone : Monitor;
 
   return (
     <div className="flex items-center gap-4 rounded-lg border px-4 py-3">

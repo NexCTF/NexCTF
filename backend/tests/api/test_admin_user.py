@@ -210,6 +210,41 @@ class TestGetUser(GetItemGuardMixin):
             {"ip": "203.0.113.7", "last_ip": "203.0.113.7"},
         ]
 
+    async def test_get_falls_back_to_the_last_login_address(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_user_members: list[User],
+        db_session,
+    ) -> None:
+        """With nothing live, the address is the one the user last signed in from."""
+        from datetime import UTC, datetime, timedelta
+
+        from nexctf.model import Event
+
+        u = fixture_user_members[0]
+        db_session.add_all(
+            [
+                Event(
+                    event_type="user.login",
+                    actor_id=u.id,
+                    ip="203.0.113.1",
+                    created_at=datetime.now(UTC) - timedelta(days=2),
+                ),
+                Event(
+                    event_type="user.login",
+                    actor_id=u.id,
+                    ip="203.0.113.2",
+                    created_at=datetime.now(UTC) - timedelta(hours=3),
+                ),
+            ]
+        )
+        await db_session.flush()
+
+        c, _ = admin_client
+        data = (await c.get(f"{self.PREFIX}/{u.id}")).json()["data"]
+        assert data["ips"] == [{"ip": "203.0.113.2", "last_ip": "203.0.113.2"}]
+        assert data["last_login_at"] is not None
+
 
 class TestUpdateUser(UpdateGuardMixin):
     PREFIX = "/admin/user"

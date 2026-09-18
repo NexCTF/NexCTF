@@ -41,6 +41,7 @@ import { Route as AdminAdminPluginsRouteImport } from './routes/admin/_admin/plu
 import { Route as AdminAdminSchedulerRouteImport } from './routes/admin/_admin/scheduler'
 import { Route as AdminAdminScoreAdjustmentsRouteImport } from './routes/admin/_admin/score-adjustments'
 import { Route as AdminAdminScoreboardRouteImport } from './routes/admin/_admin/scoreboard'
+import { Route as AdminAdminSecurityRouteImport } from './routes/admin/_admin/security'
 import { Route as AdminAdminSettingsRouteImport } from './routes/admin/_admin/settings'
 import { Route as AdminAdminSubmissionsRouteImport } from './routes/admin/_admin/submissions'
 import { Route as AdminAdminTeamsRouteImport } from './routes/admin/_admin/teams'
@@ -213,6 +214,11 @@ const AdminAdminScoreboardRoute = AdminAdminScoreboardRouteImport.update({
   path: '/scoreboard',
   getParentRoute: () => AdminAdminRoute,
 } as any)
+const AdminAdminSecurityRoute = AdminAdminSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
 const AdminAdminSettingsRoute = AdminAdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -292,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/admin/scheduler': typeof AdminAdminSchedulerRoute
   '/admin/score-adjustments': typeof AdminAdminScoreAdjustmentsRoute
   '/admin/scoreboard': typeof AdminAdminScoreboardRoute
+  '/admin/security': typeof AdminAdminSecurityRoute
   '/admin/settings': typeof AdminAdminSettingsRoute
   '/admin/submissions': typeof AdminAdminSubmissionsRoute
   '/admin/teams': typeof AdminAdminTeamsRoute
@@ -333,6 +340,7 @@ export interface FileRoutesByTo {
   '/admin/scheduler': typeof AdminAdminSchedulerRoute
   '/admin/score-adjustments': typeof AdminAdminScoreAdjustmentsRoute
   '/admin/scoreboard': typeof AdminAdminScoreboardRoute
+  '/admin/security': typeof AdminAdminSecurityRoute
   '/admin/settings': typeof AdminAdminSettingsRoute
   '/admin/submissions': typeof AdminAdminSubmissionsRoute
   '/admin/teams': typeof AdminAdminTeamsRoute
@@ -377,6 +385,7 @@ export interface FileRoutesById {
   '/admin/_admin/scheduler': typeof AdminAdminSchedulerRoute
   '/admin/_admin/score-adjustments': typeof AdminAdminScoreAdjustmentsRoute
   '/admin/_admin/scoreboard': typeof AdminAdminScoreboardRoute
+  '/admin/_admin/security': typeof AdminAdminSecurityRoute
   '/admin/_admin/settings': typeof AdminAdminSettingsRoute
   '/admin/_admin/submissions': typeof AdminAdminSubmissionsRoute
   '/admin/_admin/teams': typeof AdminAdminTeamsRoute
@@ -421,6 +430,7 @@ export interface FileRouteTypes {
     | '/admin/scheduler'
     | '/admin/score-adjustments'
     | '/admin/scoreboard'
+    | '/admin/security'
     | '/admin/settings'
     | '/admin/submissions'
     | '/admin/teams'
@@ -462,6 +472,7 @@ export interface FileRouteTypes {
     | '/admin/scheduler'
     | '/admin/score-adjustments'
     | '/admin/scoreboard'
+    | '/admin/security'
     | '/admin/settings'
     | '/admin/submissions'
     | '/admin/teams'
@@ -505,6 +516,7 @@ export interface FileRouteTypes {
     | '/admin/_admin/scheduler'
     | '/admin/_admin/score-adjustments'
     | '/admin/_admin/scoreboard'
+    | '/admin/_admin/security'
     | '/admin/_admin/settings'
     | '/admin/_admin/submissions'
     | '/admin/_admin/teams'
@@ -754,6 +766,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAdminScoreboardRouteImport
       parentRoute: typeof AdminAdminRoute
     }
+    '/admin/_admin/security': {
+      id: '/admin/_admin/security'
+      path: '/security'
+      fullPath: '/admin/security'
+      preLoaderRoute: typeof AdminAdminSecurityRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
     '/admin/_admin/settings': {
       id: '/admin/_admin/settings'
       path: '/settings'
@@ -860,6 +879,7 @@ interface AdminAdminRouteChildren {
   AdminAdminSchedulerRoute: typeof AdminAdminSchedulerRoute
   AdminAdminScoreAdjustmentsRoute: typeof AdminAdminScoreAdjustmentsRoute
   AdminAdminScoreboardRoute: typeof AdminAdminScoreboardRoute
+  AdminAdminSecurityRoute: typeof AdminAdminSecurityRoute
   AdminAdminSettingsRoute: typeof AdminAdminSettingsRoute
   AdminAdminSubmissionsRoute: typeof AdminAdminSubmissionsRoute
   AdminAdminTeamsRoute: typeof AdminAdminTeamsRoute
@@ -888,6 +908,7 @@ const AdminAdminRouteChildren: AdminAdminRouteChildren = {
   AdminAdminSchedulerRoute: AdminAdminSchedulerRoute,
   AdminAdminScoreAdjustmentsRoute: AdminAdminScoreAdjustmentsRoute,
   AdminAdminScoreboardRoute: AdminAdminScoreboardRoute,
+  AdminAdminSecurityRoute: AdminAdminSecurityRoute,
   AdminAdminSettingsRoute: AdminAdminSettingsRoute,
   AdminAdminSubmissionsRoute: AdminAdminSubmissionsRoute,
   AdminAdminTeamsRoute: AdminAdminTeamsRoute,
