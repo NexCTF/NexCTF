@@ -20,6 +20,7 @@ import {
   Puzzle,
   ScrollText,
   Settings,
+  ShieldAlert,
   SlidersHorizontal,
   Trophy,
   Users,
@@ -60,7 +61,6 @@ const NAV_SECTIONS: NavSection[] = [
         icon: LayoutDashboard,
         exact: true,
       },
-      { to: "/admin/events", label: "admin.nav.events", icon: CalendarDays },
       { to: "/admin/scoreboard", label: "admin.nav.scoreboard", icon: Trophy },
       {
         to: "/admin/score-adjustments",
@@ -76,6 +76,18 @@ const NAV_SECTIONS: NavSection[] = [
         to: "/admin/feedback",
         label: "admin.nav.feedback",
         icon: MessageSquareHeart,
+      },
+    ],
+  },
+  {
+    heading: "admin.nav.section.audit",
+    items: [
+      { to: "/admin/events", label: "admin.nav.events", icon: CalendarDays },
+      {
+        to: "/admin/security",
+        label: "admin.nav.security",
+        icon: ShieldAlert,
+        beta: true,
       },
     ],
   },

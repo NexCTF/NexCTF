@@ -6,3 +6,11 @@ class InputType(str, Enum):
     CODE = "code"
     TEXT = "text"
     MCQ = "mcq"
+
+
+class SessionWindow(str, Enum):
+    """Time span the admin session pivot groups addresses over."""
+
+    LIVE = "live"
+    DAY = "day"
+    ALL = "all"

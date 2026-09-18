@@ -5,12 +5,12 @@ import {
   ChevronsUpDown,
   ChevronUp,
   RefreshCw,
-  Search,
   X,
 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { SearchInput } from "@/components/search-input";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,7 +18,6 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -347,15 +346,12 @@ export function DataTable<T>({
               </SelectContent>
             </Select>
           )}
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-            <Input
-              placeholder={t("table.search", { defaultValue: "Search…" })}
-              value={searchInput}
-              onChange={(e) => handleSearchInput(e.target.value)}
-              className={cn("pl-8", searchColumns.length > 1 && "rounded-l-none")}
-            />
-          </div>
+          <SearchInput
+            placeholder={t("table.search", { defaultValue: "Search…" })}
+            value={searchInput}
+            onValueChange={handleSearchInput}
+            className={cn(searchColumns.length > 1 && "rounded-l-none")}
+          />
         </div>
 
         {/* Multi-select filter dropdowns */}

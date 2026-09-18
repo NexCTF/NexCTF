@@ -24,6 +24,7 @@ from .question import question_router
 from .scheduler import scheduler_router
 from .score_adjustment import score_adjustment_router
 from .scoreboard import scoreboard_router
+from .session import session_router
 from .solution import solution_router
 from .stats import stats_router
 from .submission import submission_router
@@ -68,6 +69,7 @@ admin_router.include_router(router=question_router, dependencies=_invalidate_cha
 admin_router.include_router(router=scheduler_router)
 admin_router.include_router(router=score_adjustment_router)
 admin_router.include_router(router=scoreboard_router)
+admin_router.include_router(router=session_router)
 admin_router.include_router(router=solution_router, dependencies=_invalidate_challenges)
 admin_router.include_router(router=stats_router)
 admin_router.include_router(router=submission_router)

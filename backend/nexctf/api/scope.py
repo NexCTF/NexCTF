@@ -33,6 +33,7 @@ _PREFIX_GROUPS: dict[str, str] = {
     "/admin/stats": "admin.scoreboard",
     "/admin/team": "admin.team",
     "/admin/user": "admin.user",
+    "/admin/session": "admin.user",
     "/admin/custom-field": "admin.user",
     "/admin/notification": "admin.notification",
     "/admin/email": "admin.notification",
