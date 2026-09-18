@@ -17,10 +17,16 @@ from __future__ import annotations
 import time
 import uuid as _uuid
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
 from redis.asyncio import Redis
 
 from nexctf.core import appconfig
+from nexctf.util.ip import get_client_ip
+
+
+def client_rate_key(action: str, request: Request) -> str:
+    """Redis key limiting *action* per client address."""
+    return f"rl:{action}:{get_client_ip(request) or 'unknown'}"
 
 
 async def check_rate_limit(

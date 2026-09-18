@@ -10,11 +10,9 @@ import {
   Link2,
   Link2Off,
   LogOut,
-  Monitor,
   Plus,
   ShieldCheck,
   ShieldOff,
-  Smartphone,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { type FormEvent, useMemo, useState } from "react";
@@ -460,7 +458,7 @@ function SessionRow({ session, onRevoked }: { session: UserSession; onRevoked: (
       ),
   });
 
-  const { browser, os, mobile } = describeDevice(session.user_agent);
+  const { browser, os, icon: DeviceIcon } = describeDevice(session.user_agent);
   const label =
     browser && os
       ? t("settings.session.device_on", {
@@ -469,7 +467,6 @@ function SessionRow({ session, onRevoked }: { session: UserSession; onRevoked: (
           defaultValue: "{{browser}} on {{os}}",
         })
       : (browser ?? os ?? t("settings.session.device_unknown", { defaultValue: "Unknown device" }));
-  const DeviceIcon = mobile ? Smartphone : Monitor;
 
   return (
     <div className="flex items-center gap-4 rounded-lg border px-4 py-3">

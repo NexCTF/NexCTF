@@ -37,6 +37,7 @@
 
 ## 0.11.0
 - [x] Event import/export
+- [x] Security hub
 
 ## Before v1.0 release
 - [ ] Event sync

@@ -266,6 +266,21 @@ class TestTokenEnforcement:
             assert (await c.get("/admin/team")).status_code == 200
             assert (await c.get("/admin/user")).status_code == 403
 
+    async def test_the_address_pivot_rides_the_user_group(self, token_client) -> None:
+        async with token_client(UserRole.admin, ["read:admin.user"]) as (c, _):
+            assert (await c.get("/admin/session/addresses")).status_code == 200
+
+    async def test_the_address_pivot_needs_the_user_group(self, token_client) -> None:
+        """Every participant's address is behind read:admin.user, nothing wider."""
+        async with token_client(UserRole.admin, ["read:admin.team"]) as (c, _):
+            assert (await c.get("/admin/session/addresses")).status_code == 403
+
+    async def test_the_failed_login_pivot_rides_the_user_group(
+        self, token_client
+    ) -> None:
+        async with token_client(UserRole.admin, ["read:admin.user"]) as (c, _):
+            assert (await c.get("/admin/session/failed-logins")).status_code == 200
+
     async def test_ungrouped_route_refuses_a_token(self, token_client) -> None:
         async with token_client(UserRole.user, _every_scope(admin=False)) as (c, _):
             assert (await c.get("/oauth2/client-info")).status_code == 403

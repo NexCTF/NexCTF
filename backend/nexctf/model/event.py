@@ -32,6 +32,9 @@ class Event(Base):
     __table_args__ = (
         Index("ix_events_event_type", "event_type"),
         Index("ix_events_target", "target_type", "target_id"),
+        Index("ix_events_type_created", "event_type", "created_at"),
+        Index("ix_events_created", "created_at"),
+        Index("ix_events_actor_created", "actor_id", "created_at"),
     )
 
     event_type: Mapped[str]

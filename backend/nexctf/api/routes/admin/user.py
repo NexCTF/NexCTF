@@ -4,7 +4,6 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from nexctf import crud
@@ -20,13 +19,16 @@ from nexctf.model import CustomFieldValue, User
 from nexctf.model.event import Event
 from nexctf.module.custom_field import replace_custom_field_values
 from nexctf.module.events import emit
-from nexctf.module.session import live_sessions, revoke_session_by_id
+from nexctf.module.session import (
+    account_origin,
+    live_sessions,
+    revoke_session_by_id,
+)
 from nexctf.schema.custom_field import AdminCustomFieldValueRead
 from nexctf.schema.event import AdminEventRead
 from nexctf.schema.user import (
     AdminUserCreate,
     AdminUserDetailRead,
-    AdminUserIpRead,
     AdminUserUpdate,
     PublicUserRead,
     UserCreate,
@@ -93,17 +95,6 @@ async def create_user(
     return result
 
 
-async def _session_ips(
-    session: SessionDep, user_id: UUID, login_ip: str | None
-) -> list[AdminUserIpRead]:
-    """Addresses of a user's live sessions, most recently active first."""
-    rows = await live_sessions(session, user_id)
-    pairs = dict.fromkeys((row.ip, row.last_ip) for row in rows)
-    if not pairs:
-        return [AdminUserIpRead(ip=login_ip, last_ip=login_ip)] if login_ip else []
-    return [AdminUserIpRead(ip=ip, last_ip=last_ip) for ip, last_ip in pairs]
-
-
 @user_router.get("/{uuid}")
 async def get_user(
     session: SessionDep,
@@ -116,22 +107,15 @@ async def get_user(
     )
     if result.data is None:
         raise NotFoundError()
-    login_row = (
-        await session.execute(
-            select(Event.ip, Event.created_at)
-            .where(Event.actor_id == uuid, Event.event_type == "user.login")
-            .order_by(Event.created_at.desc())
-            .limit(1)
-        )
-    ).first()
+    origin = await account_origin(session, uuid)
     cfv_rows = await crud.CustomFieldValueCrud.get_multi(
         session=session, filters=[CustomFieldValue.user_id == uuid]
     )
     return Response(
         data=AdminUserDetailRead(
             **result.data.model_dump(),
-            ips=await _session_ips(session, uuid, login_row.ip if login_row else None),
-            last_login_at=login_row.created_at if login_row else None,
+            ips=origin.addresses,
+            last_login_at=origin.last_login_at,
             custom_field_values=[
                 AdminCustomFieldValueRead.model_validate(cfv) for cfv in cfv_rows
             ],

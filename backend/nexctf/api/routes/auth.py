@@ -49,7 +49,11 @@ from nexctf.core.email_render import (
     build_password_reset_email,
     build_verification_email,
 )
-from nexctf.core.rate_limit import check_config_rate_limit, check_rate_limit
+from nexctf.core.rate_limit import (
+    check_config_rate_limit,
+    check_rate_limit,
+    client_rate_key,
+)
 from nexctf.exceptions import (
     AccountDisabledError,
     EmailNotVerifiedError,
@@ -66,7 +70,12 @@ from nexctf.exceptions import (
 )
 from nexctf.model import OAuthAccount, OAuthProvider, User, UserToken
 from nexctf.module.events import emit
-from nexctf.module.session import revoke_session, revoke_user_sessions
+from nexctf.module.session import (
+    FAILED_LOGIN_EVENT,
+    LOGIN_EVENT,
+    revoke_session,
+    revoke_user_sessions,
+)
 from nexctf.schema import (
     OAuthAccountCreate,
     PublicRegisterRequest,
@@ -133,9 +142,8 @@ async def _send_verification_email(
 @auth_router.get("/captcha/challenge")
 async def captcha_challenge(request: Request, redis: RedisDep) -> dict:
     """Issue an ALTCHA challenge for the login and register widgets."""
-    client_ip = get_client_ip(request) or "unknown"
     await check_rate_limit(
-        redis, f"rl:captcha:{client_ip}", window_seconds=60, max_requests=30
+        redis, client_rate_key("captcha", request), window_seconds=60, max_requests=30
     )
     return create_challenge()
 
@@ -152,9 +160,12 @@ async def register(
     if not appconfig.get_with_overrides("ctf.allow_registration", overrides):
         raise RegistrationDisabledError()
     await verify_captcha(redis, overrides, obj.captcha_token)
-    client_ip = get_client_ip(request) or "unknown"
+    client_ip = get_client_ip(request)
     await check_rate_limit(
-        redis, f"rl:register:{client_ip}", window_seconds=60, max_requests=5
+        redis,
+        client_rate_key("register", request),
+        window_seconds=60,
+        max_requests=5,
     )
     # When SMTP is enabled an email is mandatory: it is the verification channel
     # and the login gate keys off it. With SMTP off, email stays optional.
@@ -195,7 +206,7 @@ async def _record_login_failure(
     redis: Redis,
     *,
     username: str,
-    ip: str,
+    ip: str | None,
     actor_id: UUID | None,
     reason: str,
 ) -> None:
@@ -207,7 +218,7 @@ async def _record_login_failure(
     await emit(
         session,
         redis,
-        event_type="user.login_failed",
+        event_type=FAILED_LOGIN_EVENT,
         actor_id=actor_id,
         ip=ip,
         meta={"username": username, "reason": reason},
@@ -228,9 +239,9 @@ async def login(
     captcha_token: Annotated[str | None, Form()] = None,
 ):
     await verify_captcha(redis, overrides, captcha_token)
-    client_ip = get_client_ip(request) or "unknown"
+    client_ip = get_client_ip(request)
     await check_config_rate_limit(
-        redis, overrides, name="login", key=f"rl:login:{client_ip}"
+        redis, overrides, name="login", key=client_rate_key("login", request)
     )
     user = await crud.UserCrud.first(
         session=session, filters=[User.username == username]
@@ -288,7 +299,7 @@ async def login(
     await emit(
         session,
         redis,
-        event_type="user.login",
+        event_type=LOGIN_EVENT,
         actor_id=user.id,
         ip=client_ip,
         meta={"username": user.username},
@@ -303,9 +314,8 @@ async def reset_password(
     body: PasswordResetRequest,
 ):
     """Consume a single-use password reset token and update the user's password."""
-    client_ip = get_client_ip(request) or "unknown"
     await check_rate_limit(
-        redis, f"rl:pwd_reset:{client_ip}", window_seconds=60, max_requests=5
+        redis, client_rate_key("pwd_reset", request), window_seconds=60, max_requests=5
     )
     user_id_str = await consume_single_use_token(
         redis, PWD_RESET_KEY_PREFIX, body.token
@@ -346,9 +356,12 @@ async def verify_email(
     body: EmailVerifyRequest,
 ):
     """Consume a single-use email verification token and mark the email verified."""
-    client_ip = get_client_ip(request) or "unknown"
+    client_ip = get_client_ip(request)
     await check_rate_limit(
-        redis, f"rl:verify_email:{client_ip}", window_seconds=60, max_requests=10
+        redis,
+        client_rate_key("verify_email", request),
+        window_seconds=60,
+        max_requests=10,
     )
     user_id_str = await consume_single_use_token(
         redis, EMAIL_VERIFY_KEY_PREFIX, body.token
@@ -383,12 +396,12 @@ async def _email_action_recipient(
     *,
     overrides: dict[str, str],
     rate_limit_action: str,
-) -> tuple[User | None, str]:
+) -> tuple[User | None, str | None]:
     """Rate-limit, gate on email.enabled, and look up the user case-insensitively."""
-    client_ip = get_client_ip(request) or "unknown"
+    client_ip = get_client_ip(request)
     await check_rate_limit(
         redis,
-        f"rl:{rate_limit_action}:{client_ip}",
+        client_rate_key(rate_limit_action, request),
         window_seconds=60,
         max_requests=3,
     )
@@ -705,7 +718,7 @@ async def oauth_callback(
     await emit(
         db,
         redis,
-        event_type="user.login",
+        event_type=LOGIN_EVENT,
         actor_id=user.id,
         ip=client_ip,
         meta={"username": user.username, "provider": provider.slug},
