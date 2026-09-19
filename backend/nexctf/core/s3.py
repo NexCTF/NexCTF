@@ -50,6 +50,12 @@ async def upload_file(key: str, path: str) -> None:
         await client.upload_file(path, settings.S3_BUCKET, key)
 
 
+async def download(key: str) -> bytes:
+    """Read a whole S3 object into memory."""
+    async with stream(key) as chunks:
+        return b"".join([chunk async for chunk in chunks])
+
+
 async def download_file(key: str, path: str) -> None:
     """Stream an S3 object to a local file."""
     async with _client() as client:

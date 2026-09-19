@@ -505,3 +505,12 @@ class BackupFailedError(ApiException):
         desc="The database backup or restore could not be carried out.",
         err_code="BACKUP-400",
     )
+
+
+class BundleFailedError(ApiException):
+    api_error = ApiError(
+        code=400,
+        msg="Bundle operation failed",
+        desc="The content bundle could not be exported, planned or imported.",
+        err_code="BUNDLE-400",
+    )

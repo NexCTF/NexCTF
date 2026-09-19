@@ -27,6 +27,7 @@ import { Route as UserPSlugRouteImport } from './routes/_user/p.$slug'
 import { Route as UserTeamsTeamIdRouteImport } from './routes/_user/teams_.$teamId'
 import { Route as AdminAdminIndexRouteImport } from './routes/admin/_admin/index'
 import { Route as AdminAdminBackupsRouteImport } from './routes/admin/_admin/backups'
+import { Route as AdminAdminBundleRouteImport } from './routes/admin/_admin/bundle'
 import { Route as AdminAdminChallengesRouteImport } from './routes/admin/_admin/challenges'
 import { Route as AdminAdminCustomFieldsRouteImport } from './routes/admin/_admin/custom-fields'
 import { Route as AdminAdminEventsRouteImport } from './routes/admin/_admin/events'
@@ -139,6 +140,11 @@ const AdminAdminIndexRoute = AdminAdminIndexRouteImport.update({
 const AdminAdminBackupsRoute = AdminAdminBackupsRouteImport.update({
   id: '/backups',
   path: '/backups',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
+const AdminAdminBundleRoute = AdminAdminBundleRouteImport.update({
+  id: '/bundle',
+  path: '/bundle',
   getParentRoute: () => AdminAdminRoute,
 } as any)
 const AdminAdminChallengesRoute = AdminAdminChallengesRouteImport.update({
@@ -278,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/p/$slug': typeof UserPSlugRoute
   '/teams/$teamId': typeof UserTeamsTeamIdRoute
   '/admin/backups': typeof AdminAdminBackupsRoute
+  '/admin/bundle': typeof AdminAdminBundleRoute
   '/admin/challenges': typeof AdminAdminChallengesRoute
   '/admin/custom-fields': typeof AdminAdminCustomFieldsRoute
   '/admin/events': typeof AdminAdminEventsRoute
@@ -319,6 +326,7 @@ export interface FileRoutesByTo {
   '/p/$slug': typeof UserPSlugRoute
   '/teams/$teamId': typeof UserTeamsTeamIdRoute
   '/admin/backups': typeof AdminAdminBackupsRoute
+  '/admin/bundle': typeof AdminAdminBundleRoute
   '/admin/challenges': typeof AdminAdminChallengesRoute
   '/admin/custom-fields': typeof AdminAdminCustomFieldsRoute
   '/admin/events': typeof AdminAdminEventsRoute
@@ -363,6 +371,7 @@ export interface FileRoutesById {
   '/_user/p/$slug': typeof UserPSlugRoute
   '/_user/teams_/$teamId': typeof UserTeamsTeamIdRoute
   '/admin/_admin/backups': typeof AdminAdminBackupsRoute
+  '/admin/_admin/bundle': typeof AdminAdminBundleRoute
   '/admin/_admin/challenges': typeof AdminAdminChallengesRoute
   '/admin/_admin/custom-fields': typeof AdminAdminCustomFieldsRoute
   '/admin/_admin/events': typeof AdminAdminEventsRoute
@@ -407,6 +416,7 @@ export interface FileRouteTypes {
     | '/p/$slug'
     | '/teams/$teamId'
     | '/admin/backups'
+    | '/admin/bundle'
     | '/admin/challenges'
     | '/admin/custom-fields'
     | '/admin/events'
@@ -448,6 +458,7 @@ export interface FileRouteTypes {
     | '/p/$slug'
     | '/teams/$teamId'
     | '/admin/backups'
+    | '/admin/bundle'
     | '/admin/challenges'
     | '/admin/custom-fields'
     | '/admin/events'
@@ -491,6 +502,7 @@ export interface FileRouteTypes {
     | '/_user/p/$slug'
     | '/_user/teams_/$teamId'
     | '/admin/_admin/backups'
+    | '/admin/_admin/bundle'
     | '/admin/_admin/challenges'
     | '/admin/_admin/custom-fields'
     | '/admin/_admin/events'
@@ -654,6 +666,13 @@ declare module '@tanstack/react-router' {
       path: '/backups'
       fullPath: '/admin/backups'
       preLoaderRoute: typeof AdminAdminBackupsRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/bundle': {
+      id: '/admin/_admin/bundle'
+      path: '/bundle'
+      fullPath: '/admin/bundle'
+      preLoaderRoute: typeof AdminAdminBundleRouteImport
       parentRoute: typeof AdminAdminRoute
     }
     '/admin/_admin/challenges': {
@@ -846,6 +865,7 @@ const UserRouteWithChildren = UserRoute._addFileChildren(UserRouteChildren)
 
 interface AdminAdminRouteChildren {
   AdminAdminBackupsRoute: typeof AdminAdminBackupsRoute
+  AdminAdminBundleRoute: typeof AdminAdminBundleRoute
   AdminAdminChallengesRoute: typeof AdminAdminChallengesRoute
   AdminAdminCustomFieldsRoute: typeof AdminAdminCustomFieldsRoute
   AdminAdminEventsRoute: typeof AdminAdminEventsRoute
@@ -874,6 +894,7 @@ interface AdminAdminRouteChildren {
 
 const AdminAdminRouteChildren: AdminAdminRouteChildren = {
   AdminAdminBackupsRoute: AdminAdminBackupsRoute,
+  AdminAdminBundleRoute: AdminAdminBundleRoute,
   AdminAdminChallengesRoute: AdminAdminChallengesRoute,
   AdminAdminCustomFieldsRoute: AdminAdminCustomFieldsRoute,
   AdminAdminEventsRoute: AdminAdminEventsRoute,

@@ -200,6 +200,23 @@ def _cast(value: str, type_: ConfigType | None) -> str | int | float | bool:
     return value
 
 
+def baseline_raw(key: str) -> str:
+    """Raw value a key resolves to with no stored override: ENV > code default."""
+    raw = os.environ.get(_env_key(key))
+    return cast(str, _DEFS[key].default) if raw is None else raw
+
+
+def effective_raw(key: str, overrides: dict[str, str]) -> str:
+    """Raw value a key resolves to now: stored override > ENV > code default.
+
+    Unlike :func:`get_with_overrides` this reports the value as stored, without
+    casting or falling back when it fails validation, so a caller serializing
+    the configuration round-trips exactly what is in force.
+    """
+    raw = overrides.get(key)
+    return baseline_raw(key) if raw is None else raw
+
+
 _warned: set[str] = set()
 
 

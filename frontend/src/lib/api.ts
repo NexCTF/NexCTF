@@ -1442,15 +1442,15 @@ export async function getAdminFile(id: string): Promise<StoredFileDetail> {
   return request<StoredFileDetail>(`/admin/file/${id}`);
 }
 
-async function multipartRequest(path: string, method: string, form: FormData): Promise<StoredFile> {
-  // Do NOT set Content-Type — the browser sets it automatically with the boundary
+async function multipartRequest<T>(path: string, method: string, form: FormData): Promise<T> {
+  // Do NOT set Content-Type: the browser sets it automatically with the boundary
   const res = await fetch(`${BASE}${path}`, {
     method,
     credentials: "include",
     body: form,
   });
   await throwIfNotOk(res);
-  const json: ApiResponse<StoredFile> = await res.json();
+  const json: ApiResponse<T> = await res.json();
   // biome-ignore lint/style/noNonNullAssertion: throwIfNotOk ensures response is OK before reaching here
   return json.data!;
 }
@@ -2049,6 +2049,102 @@ export async function deleteAdminBackup(key: string): Promise<void> {
 /** URL of the authenticated endpoint streaming a dump; navigate to it to download. */
 export function adminBackupDownloadUrl(key: string): string {
   return `${BASE}/admin/backup/download?key=${encodeURIComponent(key)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Admin – Content bundle (import / export)
+// ---------------------------------------------------------------------------
+
+export type BundleEntityKind =
+  | "challenge"
+  | "question"
+  | "hint"
+  | "solution"
+  | "file"
+  | "page"
+  | "link"
+  | "custom_field"
+  | "config";
+
+export type BundleAction =
+  | "create"
+  | "update"
+  | "event_state"
+  | "recreate"
+  | "delete"
+  | "conflict"
+  | "blocked"
+  | "skipped"
+  | "unchanged";
+
+export interface BundlePlanEntry {
+  kind: BundleEntityKind;
+  id: string;
+  label: string;
+  action: BundleAction;
+  parent_id: string | null;
+  changes: Record<string, [unknown, unknown]>;
+  reason: string | null;
+}
+
+export interface BundleManifest {
+  format_version: number;
+  nexctf_version: string;
+  exported_at: string;
+  challenge_types: string[];
+  solve_types: string[];
+  plugins: string[];
+}
+
+export interface BundlePlan {
+  import_key: string;
+  prune: boolean;
+  manifest: BundleManifest;
+  counts: Record<string, number>;
+  entries: BundlePlanEntry[];
+}
+
+export interface BundleApplyResult {
+  counts: Record<string, number>;
+  entries: BundlePlanEntry[];
+}
+
+export interface BundleExportOptions {
+  includeFiles: boolean;
+  /** Puts SECRET settings into the archive in clear text. Off unless asked for. */
+  includeSecrets: boolean;
+}
+
+/** URL of the authenticated endpoint building the archive; navigate to it to download. */
+export function adminBundleExportUrl({
+  includeFiles,
+  includeSecrets,
+}: BundleExportOptions): string {
+  const params = new URLSearchParams({
+    include_files: String(includeFiles),
+    include_secrets: String(includeSecrets),
+  });
+  return `${BASE}/admin/bundle/export?${params}`;
+}
+
+export async function planAdminBundleImport(file: File, prune: boolean): Promise<BundlePlan> {
+  const form = new FormData();
+  form.append("upload", file);
+  form.append("prune", String(prune));
+  return multipartRequest<BundlePlan>("/admin/bundle/import/plan", "POST", form);
+}
+
+export async function applyAdminBundleImport(
+  importKey: string,
+  prune: boolean,
+): Promise<BundleApplyResult> {
+  return request<BundleApplyResult>("/admin/bundle/import/apply", {
+    method: "POST",
+    body: JSON.stringify({
+      import_key: importKey,
+      prune,
+    }),
+  });
 }
 
 // ---------------------------------------------------------------------------

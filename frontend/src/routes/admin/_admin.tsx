@@ -11,6 +11,7 @@ import {
   DatabaseBackup,
   Files,
   Flag,
+  FolderSync,
   KeyRound,
   LayoutDashboard,
   Link2,
@@ -106,6 +107,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: "/admin/plugins", label: "admin.nav.plugins", icon: Puzzle },
       { to: "/admin/backups", label: "admin.nav.backups", icon: DatabaseBackup, beta: true },
+      { to: "/admin/bundle", label: "admin.nav.bundle", icon: FolderSync, beta: true },
       {
         to: "/admin/oauth-providers",
         label: "admin.nav.oauth_providers",

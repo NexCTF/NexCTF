@@ -23,6 +23,7 @@ VERB_OF_METHOD = {
 }
 _PREFIX_GROUPS: dict[str, str] = {
     "/admin/backup": "admin.backup",
+    "/admin/bundle": "admin.bundle",
     "/admin/challenge": "admin.challenge",
     "/admin/question": "admin.challenge",
     "/admin/solution": "admin.challenge",

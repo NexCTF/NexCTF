@@ -35,8 +35,11 @@
 - [x] DB backup and restore from the UI
 - [x] Fine-grained API token
 
+## 0.11.0
+- [x] Event import/export
+
 ## Before v1.0 release
-- [ ] Event import/export/sync
+- [ ] Event sync
 - [ ] Documentation
 - [ ] Frontend tests
 - [ ] Add more metrics
