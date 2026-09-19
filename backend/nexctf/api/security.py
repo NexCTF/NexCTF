@@ -10,6 +10,7 @@ from fastapi import Request, Response
 from fastapi_multiauth import APIKeyCookieAuth, HTTPBearerAuth, MultiAuth
 from fastapi_toolsets.exceptions import ForbiddenError, UnauthorizedError
 from redis.asyncio import Redis
+from sqlalchemy import or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -100,11 +101,17 @@ async def _verify_token(token: str, role: UserRole | None = None) -> User:
         if role is not None and user.role != role:
             raise ForbiddenError()
 
-        if (
-            user_token.last_used_at is None
-            or now - user_token.last_used_at >= LAST_USED_THROTTLE
-        ):
-            user_token.last_used_at = now
+        await db.execute(
+            update(UserToken)
+            .where(
+                UserToken.id == user_token.id,
+                or_(
+                    UserToken.last_used_at.is_(None),
+                    UserToken.last_used_at <= now - LAST_USED_THROTTLE,
+                ),
+            )
+            .values(last_used_at=now)
+        )
 
         set_token_scopes(user_token.scopes)
         return user
