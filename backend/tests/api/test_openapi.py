@@ -41,3 +41,29 @@ async def test_admin_docs_reject_regular_user(
     c, _ = user_client
     assert (await c.get(f"{_ROOT}/api/admin/openapi.json")).status_code == 403
     assert (await c.get(f"{_ROOT}/api/admin/docs")).status_code == 403
+
+
+async def test_optional_auth_operations_declare_their_security(
+    admin_client: tuple[AsyncClient, User],
+) -> None:
+    """Optional-auth operations must publish a scheme, or Swagger sends no token."""
+    from fastapi.routing import iter_route_contexts
+
+    from nexctf.api.dep import _optional_auth
+    from nexctf.api.openapi import flat_dependency_calls
+
+    c, _ = admin_client
+    paths = (await c.get(f"{_ROOT}/api/openapi.json")).json()["paths"]
+
+    checked = 0
+    for ctx in iter_route_contexts(app.routes):
+        if _optional_auth not in flat_dependency_calls(ctx.dependant):
+            continue
+        for method in ctx.methods or ():
+            operation = paths.get(ctx.path or "", {}).get(method.lower())
+            if operation is None:
+                continue
+            assert operation.get("security"), f"{method} {ctx.path} declares no scheme"
+            checked += 1
+
+    assert checked, "no optional-auth operation found in the public schema"

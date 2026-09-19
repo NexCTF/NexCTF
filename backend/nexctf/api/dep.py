@@ -1,6 +1,6 @@
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import UTC, datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import Depends, Request, Security
@@ -145,7 +145,15 @@ async def bind_audit_context(request: Request, user: CurrentUserDep) -> None:
     set_audit_context(AuditContext(actor_id=user.id, ip=get_client_ip(request)))
 
 
-async def _optional_auth(request: Request) -> User | None:
+_bearer_scheme = cast(Callable[..., Any], bearer_auth.scheme)
+_cookie_scheme = cast(Callable[..., Any], cookie_auth.scheme)
+
+
+async def _optional_auth(
+    request: Request,
+    _bearer: Annotated[None, Depends(_bearer_scheme)] = None,
+    _cookie: Annotated[None, Depends(_cookie_scheme)] = None,
+) -> User | None:
     """Try bearer then cookie; return None if neither succeeds."""
     for source in (bearer_auth, cookie_auth):
         credential = await source.extract(request)
