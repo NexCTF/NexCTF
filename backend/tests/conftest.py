@@ -68,27 +68,38 @@ async def worker_db_url():
 async def db_session(worker_db_url):
     """Yield a DB session with tables created and cleaned between tests."""
     async with create_db_session(
-        database_url=worker_db_url, base=Base, cleanup=True
+        database_url=worker_db_url, base=Base, cleanup=True, drop_tables=False
     ) as session:
         yield session
 
 
 @pytest.fixture
-def client_factory(db_session: AsyncSession, mock_redis):
+def app_overrides(db_session: AsyncSession, mock_redis):
+    """Point the app's db and redis dependencies at this test, for its whole run."""
+
+    async def _db():
+        yield db_session
+
+    async def _redis():
+        yield mock_redis
+
+    app.dependency_overrides[db] = _db
+    app.dependency_overrides[get_redis] = _redis
+    try:
+        yield
+    finally:
+        app.dependency_overrides.pop(db, None)
+        app.dependency_overrides.pop(get_redis, None)
+
+
+@pytest.fixture
+def client_factory(app_overrides):
     """Returns a context manager that creates an isolated AsyncClient with test overrides."""
 
     @asynccontextmanager
     async def _create() -> AsyncIterator[AsyncClient]:
-        async def _db():
-            yield db_session
-
-        async def _redis():
-            yield mock_redis
-
         async with create_async_client(
-            app=app,
-            base_url="http://127.0.0.1/api/v1",
-            dependency_overrides={db: _db, get_redis: _redis},
+            app=app, base_url="http://127.0.0.1/api/v1"
         ) as c:
             yield c
 
