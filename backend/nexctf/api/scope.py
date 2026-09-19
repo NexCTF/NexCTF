@@ -7,6 +7,7 @@ from contextvars import ContextVar
 
 from fastapi import FastAPI, Request
 from fastapi.routing import APIRoute, iter_route_contexts
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from nexctf.core.config import settings
 from nexctf.exceptions import InsufficientScopeError, UnscopableEndpointError
@@ -78,6 +79,22 @@ def set_token_scopes(scopes: list[str]) -> None:
 def current_token_scopes() -> frozenset[str] | None:
     """Return the request's token scopes, or None for a cookie session."""
     return _token_scopes.get()
+
+
+class TokenScopeMiddleware:
+    """Clear the token scopes at the start of every HTTP request.
+
+    Bounds them to a single request even when several share a context, as they
+    do under ``httpx.ASGITransport``.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            _token_scopes.set(None)
+        await self.app(scope, receive, send)
 
 
 def register_plugin_prefix(prefix: str, scope: str) -> None:

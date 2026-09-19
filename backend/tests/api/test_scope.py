@@ -292,6 +292,16 @@ class TestTokenEnforcement:
         assert (await c.get("/admin/team")).status_code == 200
         assert (await c.get("/challenges")).status_code == 200
 
+    async def test_scopes_do_not_leak_into_a_later_cookie_request(
+        self, token_client, admin_client: tuple[AsyncClient, User]
+    ) -> None:
+        """Scopes end with their request: a bearer call must not narrow a session."""
+        async with token_client(UserRole.user, ["read:challenge"]) as (scoped, _):
+            assert (await scoped.get("/challenges")).status_code == 200
+
+        session, _ = admin_client
+        assert (await session.get("/admin/team")).status_code == 200
+
 
 class TestTokenCreation:
     async def test_non_admin_cannot_grant_admin_scopes(
