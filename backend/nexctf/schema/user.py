@@ -55,7 +55,7 @@ class AdminUserIpRead(PydanticBase):
 
 
 class AdminUserDetailRead(PublicUserRead):
-    # Live sessions' addresses, most recently active first
+    # Addresses the account is reached from, most recently active first
     ips: list[AdminUserIpRead] = []
     last_login_at: datetime | None = None
     custom_field_values: list[AdminCustomFieldValueRead] = []
@@ -86,6 +86,69 @@ class UserSessionRead(PydanticBase):
     last_seen_at: datetime
     # True for the session making the request
     current: bool
+
+
+class AdminAddressAccountRead(PydanticBase):
+    user_id: UUID
+    username: str
+    team_id: UUID | None
+    team_name: str | None
+    session_count: int
+    last_seen_at: datetime
+    user_agent: str | None
+    # True when a session was opened from this address, not merely reached it
+    opened_here: bool
+
+
+class AdminSharedAddressRead(PydanticBase):
+    ip: str
+    account_count: int
+    session_count: int
+    # True when every account on the address belongs to one team
+    same_team: bool
+    # Distinct teams on the address, teamless accounts excluded
+    team_count: int
+    last_seen_at: datetime
+    accounts: list[AdminAddressAccountRead]
+
+
+class AdminSessionOverviewRead(PydanticBase):
+    # Totals cover the whole window, not only the listed addresses
+    session_count: int
+    account_count: int
+    address_count: int
+    shared_address_count: int
+    cross_team_address_count: int
+    addresses: list[AdminSharedAddressRead]
+
+
+class AdminFailedLoginUsernameRead(PydanticBase):
+    username: str
+    # Set when the attempted username matched an account
+    user_id: UUID | None
+    attempt_count: int
+    last_attempt_at: datetime
+
+
+class AdminFailedLoginAddressRead(PydanticBase):
+    ip: str
+    attempt_count: int
+    # Distinct usernames tried from the address
+    username_count: int
+    # Of those, the ones that matched an account
+    known_username_count: int
+    last_attempt_at: datetime
+    # Capped per address: existing accounts first, then the most tried
+    usernames: list[AdminFailedLoginUsernameRead]
+
+
+class AdminFailedLoginOverviewRead(PydanticBase):
+    # Totals cover the whole window, not only the listed addresses
+    attempt_count: int
+    address_count: int
+    # Addresses where more than one username was tried
+    spray_address_count: int
+    addresses: list[AdminFailedLoginAddressRead]
 
 
 class UserCreate(PydanticBase):

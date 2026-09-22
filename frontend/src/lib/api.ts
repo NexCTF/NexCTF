@@ -664,6 +664,86 @@ export async function revokeAdminUserSession(userId: string, sessionId: string):
   await rawRequest(`/admin/user/${userId}/sessions/${sessionId}`, { method: "DELETE" });
 }
 
+export interface SharedAddressAccount {
+  user_id: string;
+  username: string;
+  team_id: string | null;
+  team_name: string | null;
+  session_count: number;
+  last_seen_at: string;
+  user_agent: string | null;
+  /** True when a session was opened from this address, not merely reached it */
+  opened_here: boolean;
+}
+
+export interface SharedAddress {
+  ip: string;
+  account_count: number;
+  session_count: number;
+  /** True when every account on the address belongs to one team */
+  same_team: boolean;
+  /** Distinct teams on the address, teamless accounts excluded */
+  team_count: number;
+  last_seen_at: string;
+  accounts: SharedAddressAccount[];
+}
+
+export interface SessionOverview {
+  /** Totals cover the whole window, not only the listed addresses */
+  session_count: number;
+  account_count: number;
+  address_count: number;
+  shared_address_count: number;
+  cross_team_address_count: number;
+  addresses: SharedAddress[];
+}
+
+/** Live sessions, or the logins recorded over a past window. */
+export const SESSION_WINDOWS = ["live", "day", "all"] as const;
+
+export type SessionWindow = (typeof SESSION_WINDOWS)[number];
+
+/** Session totals over a window, plus every address they are reached from. */
+export async function getAdminSessionAddresses(window: SessionWindow): Promise<SessionOverview> {
+  return request<SessionOverview>(`/admin/session/addresses?window=${window}`);
+}
+
+export interface FailedLoginUsername {
+  username: string;
+  /** Set when the attempted username matched an account */
+  user_id: string | null;
+  attempt_count: number;
+  last_attempt_at: string;
+}
+
+export interface FailedLoginAddress {
+  ip: string;
+  attempt_count: number;
+  /** Distinct usernames tried from the address */
+  username_count: number;
+  /** Of those, the ones that matched an account */
+  known_username_count: number;
+  last_attempt_at: string;
+  /** Capped per address: existing accounts first, then the most tried */
+  usernames: FailedLoginUsername[];
+}
+
+export interface FailedLoginOverview {
+  /** Totals cover the whole window, not only the listed addresses */
+  attempt_count: number;
+  address_count: number;
+  /** Addresses where more than one username was tried */
+  spray_address_count: number;
+  addresses: FailedLoginAddress[];
+}
+
+/** Failed logins grouped by address. */
+export async function getAdminSessionFailedLogins(
+  window: SessionWindow,
+): Promise<FailedLoginOverview> {
+  return request<FailedLoginOverview>(`/admin/session/failed-logins?window=${window}`);
+}
+
 export async function adminResetUserTotp(userId: string): Promise<void> {
   await rawRequest(`/admin/user/${userId}/totp/reset`, { method: "POST" });
 }

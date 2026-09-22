@@ -83,6 +83,10 @@ Start it with `DEMO_DATA=true` to seed example challenges, teams and submissions
 - Dashboard with audit log and statistics
 - Competition settings (name, colors, start/end/freeze times, rate limits)
 - User session management: list and revoke a user's active sessions
+- Security page (beta): two views over the addresses participants connect from
+  - Sessions: grouped by IP to spot accounts sharing one address, live, over the last 24 hours or over the whole event (the past windows group login events)
+  - Failed logins: one address working through many usernames is credential stuffing
+  - Admins and tokens with `read:admin.user` see every participant's IP address and browser
 - Full CRUD for challenges, questions, categories, hints, solutions, and tags
 - File manager with public link sharing, and notification broadcast (global or per-team)
 - Scheduler: one-shot or cron-based jobs

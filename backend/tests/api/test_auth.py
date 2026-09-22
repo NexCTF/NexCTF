@@ -9,11 +9,12 @@ import pyotp
 import pytest
 from fastapi_multiauth.oauth import OIDCEndpoints
 from httpx import AsyncClient
+from sqlalchemy import select
 
 from nexctf import crud
 from nexctf.api.security import hash_password, verify_password
 from nexctf.exceptions import CaptchaInvalidError, CaptchaRequiredError
-from nexctf.model import OAuthAccount, OAuthProvider, User, UserToken
+from nexctf.model import Event, OAuthAccount, OAuthProvider, User, UserToken
 from nexctf.schema import UserCreate
 from nexctf.schema.user import AdminUserUpdate
 
@@ -197,6 +198,32 @@ class TestLogin:
             data={"username": "wrongpw", "password": "wrong"},
         )
         assert resp.status_code == 401
+
+    async def test_login_without_a_client_address_records_no_ip(
+        self, http_client, db_session
+    ):
+        """The rate-limit placeholder never reaches the audit log as an address."""
+        await crud.UserCrud.create(
+            session=db_session,
+            obj=UserCreate(username="noaddr", hashed_password=hash_password("right")),
+        )
+        await db_session.flush()
+
+        with patch("nexctf.api.routes.auth.get_client_ip", return_value=None):
+            for password in ("wrong", "right"):
+                await http_client.post(
+                    "/auth/token",
+                    data={"username": "noaddr", "password": password},
+                )
+
+        rows = (
+            await db_session.execute(
+                select(Event.event_type, Event.ip).where(
+                    Event.event_type.in_(("user.login", "user.login_failed"))
+                )
+            )
+        ).all()
+        assert sorted(rows) == [("user.login", None), ("user.login_failed", None)]
 
     async def test_login_nonexistent_user(self, http_client):
         resp = await http_client.post(

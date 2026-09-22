@@ -2,6 +2,7 @@ const TONES = {
   green: "border-green-500/40 bg-green-500/10 text-green-600 dark:text-green-400",
   red: "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400",
   amber: "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  muted: "border-foreground/10 bg-muted text-muted-foreground",
 };
 
 /** Small inline pill: optional icon plus a label, tinted by tone. */

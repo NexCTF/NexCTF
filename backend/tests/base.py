@@ -5,6 +5,8 @@ Auth is checked before request-body validation, so minimal/empty payloads
 are sufficient to trigger a 403 without needing a valid body.
 """
 
+from typing import Any
+
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +23,31 @@ async def put_in_team(db_session: AsyncSession, user: User) -> Team:
     user.team_id = team.id
     await db_session.flush()
     return team
+
+
+async def make_user(
+    db_session: AsyncSession, username: str, team: Team | None = None
+) -> User:
+    """Create a user, optionally on *team*."""
+    user = User(username=username, team_id=team.id if team else None)
+    db_session.add(user)
+    await db_session.flush()
+    return user
+
+
+async def make_team(db_session: AsyncSession, name: str) -> Team:
+    """Create a team with an invite code derived from *name*."""
+    team = Team(name=name, invite_code=name.upper()[:8].ljust(8, "0"))
+    db_session.add(team)
+    await db_session.flush()
+    return team
+
+
+async def get_data(client: AsyncClient, url: str) -> Any:
+    """GET *url*, expect a 200, and return its ``data`` payload."""
+    resp = await client.get(url)
+    assert resp.status_code == 200
+    return resp.json()["data"]
 
 
 class ListGuardMixin:

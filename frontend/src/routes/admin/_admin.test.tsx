@@ -44,3 +44,15 @@ it("renders the panel for a signed-in admin", async () => {
 
   expect(await screen.findByText("Admin")).toBeTruthy();
 });
+
+it("groups the read-only views under Audit", async () => {
+  renderRoute(Route, {
+    path: "/admin",
+    routePath: "/admin",
+    auth: { user: user({ role: "admin" }), isLoading: false },
+  });
+
+  expect(await screen.findByText("Audit")).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Events" })).toBeTruthy();
+  expect(screen.getByRole("link", { name: /Security/ })).toBeTruthy();
+});
