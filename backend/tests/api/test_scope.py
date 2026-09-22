@@ -20,14 +20,12 @@ from nexctf.api.routes.sse import _user_channels
 from nexctf.api.scope import (
     _PREFIX_GROUPS,
     VERB_OF_METHOD,
-    _token_scopes,
     all_groups,
     build_table,
     grantable_scopes,
     group_for_path,
     register_plugin_prefix,
     reset_table,
-    set_token_scopes,
 )
 from nexctf.api.security import create_api_token
 from nexctf.core.config import settings
@@ -278,12 +276,10 @@ class TestTokenEnforcement:
 
     def test_admin_event_stream_needs_the_admin_scope(self) -> None:
         admin = User(username="streamer", role=UserRole.admin)
-        set_token_scopes(_every_scope(admin=False))
-        assert "events:admin" not in _user_channels(admin)
-        set_token_scopes(["read:admin.config"])
-        assert "events:admin" in _user_channels(admin)
-        _token_scopes.set(None)
-        assert "events:admin" in _user_channels(admin)
+        player = frozenset(_every_scope(admin=False))
+        assert "events:admin" not in _user_channels(admin, player)
+        assert "events:admin" in _user_channels(admin, frozenset(["read:admin.config"]))
+        assert "events:admin" in _user_channels(admin, None)
 
     async def test_cookie_session_is_unscoped(
         self, admin_client: tuple[AsyncClient, User]
@@ -374,3 +370,26 @@ class TestTokenCreation:
         for scope in ("read:*", "read:admin.*", "read:nonesuch", "sideways:team"):
             resp = await c.post("/me/tokens", json={"scopes": [scope]})
             assert resp.status_code == 422, scope
+
+
+class TestOptionalAuth:
+    """Routes that serve anonymous callers but authenticate the ones with a credential."""
+
+    async def test_no_credential_is_anonymous(self, http_client: AsyncClient) -> None:
+        assert (await http_client.get("/scoreboard")).status_code == 200
+
+    async def test_a_bad_credential_is_refused(
+        self, http_client: AsyncClient, override_db_context
+    ) -> None:
+        """An invalid token is a 401, never a silent downgrade to anonymous."""
+        http_client.headers["Authorization"] = "Bearer nexctf_not-a-real-token"
+        assert (await http_client.get("/scoreboard")).status_code == 401
+
+    async def test_a_scoped_token_is_served(self, token_client) -> None:
+        async with token_client(UserRole.user, ["read:scoreboard"]) as (c, _):
+            assert (await c.get("/scoreboard")).status_code == 200
+
+    async def test_a_token_out_of_group_is_refused(self, token_client) -> None:
+        """The scope check still runs where authentication is optional."""
+        async with token_client(UserRole.user, ["read:challenge"]) as (c, _):
+            assert (await c.get("/scoreboard")).status_code == 403

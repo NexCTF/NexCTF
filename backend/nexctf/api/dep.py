@@ -1,6 +1,6 @@
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import UTC, datetime
-from typing import Annotated, Any, cast
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import Depends, Request, Security
@@ -16,8 +16,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
-from nexctf.api.scope import VERB_OF_METHOD, current_token_scopes, enforce_token_scope
-from nexctf.api.security import auth, bearer_auth, cookie_auth
+from nexctf.api.scope import VERB_OF_METHOD, enforce_token_scope, token_scopes_of
+from nexctf.api.security import auth, cookie_auth
 from nexctf.core import appconfig
 from nexctf.core.cache import get_redis
 from nexctf.core.db import db
@@ -42,6 +42,7 @@ SessionDep = Annotated[AsyncSession, Depends(db)]
 RedisDep = Annotated[Redis, Depends(get_redis)]
 _AuthedUser = Annotated[User, Security(auth)]
 _AuthedAdmin = Annotated[User, Security(auth.require(role=UserRole.admin))]
+_MaybeAuthedUser = Annotated[User | None, Security(auth.optional())]
 
 
 async def _current_user(
@@ -56,6 +57,14 @@ async def _current_user(
 
 
 CurrentUserDep = Annotated[User, Depends(_current_user)]
+
+
+async def _token_scopes(request: Request, _: CurrentUserDep) -> frozenset[str] | None:
+    """Return the authenticated token's scopes, or None for a cookie session."""
+    return token_scopes_of(request)
+
+
+TokenScopesDep = Annotated[frozenset[str] | None, Depends(_token_scopes)]
 
 
 async def _current_admin(user: _AuthedAdmin, tracked: CurrentUserDep) -> User:
@@ -145,26 +154,11 @@ async def bind_audit_context(request: Request, user: CurrentUserDep) -> None:
     set_audit_context(AuditContext(actor_id=user.id, ip=get_client_ip(request)))
 
 
-_bearer_scheme = cast(Callable[..., Any], bearer_auth.scheme)
-_cookie_scheme = cast(Callable[..., Any], cookie_auth.scheme)
-
-
-async def _optional_auth(
-    request: Request,
-    _bearer: Annotated[None, Depends(_bearer_scheme)] = None,
-    _cookie: Annotated[None, Depends(_cookie_scheme)] = None,
-) -> User | None:
-    """Try bearer then cookie; return None if neither succeeds."""
-    for source in (bearer_auth, cookie_auth):
-        credential = await source.extract(request)
-        if credential is not None:
-            try:
-                user = await source.authenticate(credential)
-            except Exception:  # noqa: BLE001
-                return None
-            enforce_token_scope(request)
-            return user
-    return None
+async def _optional_auth(request: Request, user: _MaybeAuthedUser) -> User | None:
+    """Authenticate when the request carries a credential, else stay anonymous."""
+    if user is not None:
+        enforce_token_scope(request)
+    return user
 
 
 OptionalCurrentUserDep = Annotated[User | None, Depends(_optional_auth)]
@@ -226,9 +220,9 @@ EventEndedDep = Annotated[None, Depends(_event_ended)]
 EventActiveDep = Annotated[None, Depends(_event_active)]
 
 
-async def _session_only(user: CurrentUserDep) -> User:
+async def _session_only(user: CurrentUserDep, granted: TokenScopesDep) -> User:
     """Require a browser session: refuse an API token."""
-    if current_token_scopes() is not None:
+    if granted is not None:
         raise UnscopableEndpointError()
     return user
 

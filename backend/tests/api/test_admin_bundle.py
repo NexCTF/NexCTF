@@ -6,7 +6,6 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.api.scope import _token_scopes, set_token_scopes
 from nexctf.bundle.archive import write_archive
 from nexctf.bundle.tree import write_tree
 from nexctf.core import s3
@@ -246,22 +245,14 @@ class TestExportScope:
         from nexctf.api.routes.admin.bundle import _require_challenge_read
         from nexctf.exceptions import InsufficientScopeError
 
-        token = _token_scopes.set(None)
-        try:
-            set_token_scopes(["read:admin.bundle", "write:admin.bundle"])
-            with pytest.raises(InsufficientScopeError):
-                _require_challenge_read()
-        finally:
-            _token_scopes.reset(token)
+        granted = frozenset(["read:admin.bundle", "write:admin.bundle"])
+        with pytest.raises(InsufficientScopeError):
+            _require_challenge_read(granted)
 
     async def test_a_session_is_not_scope_checked(self) -> None:
         from nexctf.api.routes.admin.bundle import _require_challenge_read
 
-        token = _token_scopes.set(None)
-        try:
-            _require_challenge_read()
-        finally:
-            _token_scopes.reset(token)
+        _require_challenge_read(None)
 
 
 class TestApplyPreservesIds:

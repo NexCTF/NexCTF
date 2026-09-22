@@ -8,8 +8,7 @@ from fastapi import APIRouter, Form, UploadFile
 from fastapi import Response as FastAPIResponse
 from fastapi_toolsets.schemas import Response
 
-from nexctf.api.dep import RedisDep, SessionDep
-from nexctf.api.scope import current_token_scopes
+from nexctf.api.dep import RedisDep, SessionDep, TokenScopesDep
 from nexctf.bundle.errors import BundleFormatError
 from nexctf.core import s3
 from nexctf.exceptions import BundleFailedError, InsufficientScopeError
@@ -34,9 +33,8 @@ _WRITE_SCOPES = (
 )
 
 
-def _require_scopes(*required: str) -> None:
+def _require_scopes(granted: frozenset[str] | None, *required: str) -> None:
     """Assert scopes a token needs beyond the router's group. No-op for sessions."""
-    granted = current_token_scopes()
     if granted is None:
         return
     for scope in required:
@@ -44,9 +42,9 @@ def _require_scopes(*required: str) -> None:
             raise InsufficientScopeError(scope)
 
 
-def _require_challenge_read() -> None:
+def _require_challenge_read(granted: frozenset[str] | None) -> None:
     """An export or plan embeds every solution, so it needs the challenge read."""
-    _require_scopes(*_READ_SCOPES)
+    _require_scopes(granted, *_READ_SCOPES)
 
 
 def _fail(exc: Exception) -> BundleFailedError:
@@ -55,15 +53,16 @@ def _fail(exc: Exception) -> BundleFailedError:
 
 @bundle_router.get("/export")
 async def export_bundle(
+    granted: TokenScopesDep,
     session: SessionDep,
     redis: RedisDep,
     include_files: bool = True,
     include_secrets: bool = False,
 ) -> FastAPIResponse:
     """Build a content archive and hand it straight back as a download."""
-    _require_challenge_read()
+    _require_challenge_read(granted)
     if include_secrets:
-        _require_scopes("read:admin.config")
+        _require_scopes(granted, "read:admin.config")
     try:
         data = await bundle.export(
             session, include_files=include_files, include_secrets=include_secrets
@@ -92,12 +91,13 @@ async def export_bundle(
 
 @bundle_router.post("/import/plan")
 async def plan_import(
+    granted: TokenScopesDep,
     session: SessionDep,
     upload: UploadFile,
     prune: Annotated[bool, Form()] = False,
 ) -> Response[AdminBundlePlanRead]:
     """Stage an uploaded archive and return what importing it would do."""
-    _require_challenge_read()
+    _require_challenge_read(granted)
     data = await upload.read()
     try:
         incoming, blobs = await asyncio.to_thread(bundle.parse_archive, data)
@@ -128,10 +128,13 @@ async def plan_import(
 
 @bundle_router.post("/import/apply")
 async def apply_import(
-    session: SessionDep, redis: RedisDep, body: AdminBundleApply
+    granted: TokenScopesDep,
+    session: SessionDep,
+    redis: RedisDep,
+    body: AdminBundleApply,
 ) -> Response[AdminBundleApplyResult]:
     """Apply a reviewed plan, re-deriving it from the staged archive first."""
-    _require_scopes(*_READ_SCOPES, *_WRITE_SCOPES)
+    _require_scopes(granted, *_READ_SCOPES, *_WRITE_SCOPES)
     try:
         key = bundle.validate_import_key(body.import_key)
     except bundle.BundleError as exc:
