@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nexctf.api.dep import _current_admin, _current_user, _optional_auth
 from nexctf.api.openapi import (
     _annotate_scopes,
+    _authenticated_operations,
     _session_only_operations,
     flat_dependency_calls,
 )
@@ -115,7 +116,9 @@ class TestPublishedScopes:
 
     def test_every_operation_publishes_its_scope(self) -> None:
         schema = self._schema()
-        session_only = _session_only_operations(list(iter_route_contexts(app.routes)))
+        contexts = list(iter_route_contexts(app.routes))
+        session_only = _session_only_operations(contexts)
+        authenticated = _authenticated_operations(contexts)
         for path, operations in schema["paths"].items():
             for method, operation in operations.items():
                 published = operation.get("x-token-scope")
@@ -123,6 +126,9 @@ class TestPublishedScopes:
                 if expected is None or (path, method) in session_only:
                     assert published is None
                     assert "browser session" in operation["description"]
+                elif (path, method) not in authenticated:
+                    assert published is None
+                    assert "none required" in operation["description"]
                 else:
                     verb = VERB_OF_METHOD[method.upper()]
                     assert published == f"{verb}:{expected}"
@@ -137,6 +143,20 @@ class TestPublishedScopes:
             operation = schema["paths"][path][method]
             assert "x-token-scope" not in operation
             assert "browser session" in operation["description"]
+
+    def test_a_public_operation_publishes_no_scope(self) -> None:
+        """An endpoint that checks no token must not advertise a scope."""
+        schema = self._schema()
+        public = {
+            path
+            for path, operations in schema["paths"].items()
+            for operation in operations.values()
+            if "none required" in operation["description"]
+        }
+        assert public == _UNAUTHENTICATED_ROUTES & schema["paths"].keys()
+        for path in public:
+            for operation in schema["paths"][path].values():
+                assert "x-token-scope" not in operation
 
     def test_published_scope_matches_what_the_check_requires(self) -> None:
         """The docs and the request-time table are the same computation."""
