@@ -14,7 +14,6 @@ from fastapi_toolsets.schemas import ErrorResponse
 import nexctf.settings as _  # noqa: F401
 from nexctf.api.openapi import setup_docs
 from nexctf.api.routes import router
-from nexctf.api.scope import TokenScopeMiddleware
 from nexctf.core.appconfig import sync_to_redis
 from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.config import settings
@@ -74,7 +73,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 db.install(app)
-app.add_middleware(TokenScopeMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.all_cors_origins,

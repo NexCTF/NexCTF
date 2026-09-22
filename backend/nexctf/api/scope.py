@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from contextvars import ContextVar
 
 from fastapi import FastAPI, Request
 from fastapi.routing import APIRoute, iter_route_contexts
-from starlette.types import ASGIApp, Receive, Scope, Send
 
 from nexctf.core.config import settings
 from nexctf.exceptions import InsufficientScopeError, UnscopableEndpointError
@@ -65,37 +63,17 @@ _PLUGIN_GROUPS = frozenset({"plugin", "admin.plugin"})
 # The admin audit channel rides the notification group, so it gates on its own scope.
 ADMIN_EVENTS_SCOPE = "read:admin.config"
 
-_token_scopes: ContextVar[frozenset[str] | None] = ContextVar(
-    "token_scopes", default=None
-)
-
 _table: dict[int, str] | None = None
 
 
-def set_token_scopes(scopes: list[str]) -> None:
-    """Bind the authenticating token's scopes for the current request."""
-    _token_scopes.set(frozenset(scopes))
+def set_token_scopes(request: Request, scopes: Iterable[str]) -> None:
+    """Bind the authenticating token's scopes to *request*."""
+    request.state.token_scopes = frozenset(scopes)
 
 
-def current_token_scopes() -> frozenset[str] | None:
-    """Return the request's token scopes, or None for a cookie session."""
-    return _token_scopes.get()
-
-
-class TokenScopeMiddleware:
-    """Clear the token scopes at the start of every HTTP request.
-
-    Bounds them to a single request even when several share a context, as they
-    do under ``httpx.ASGITransport``.
-    """
-
-    def __init__(self, app: ASGIApp) -> None:
-        self.app = app
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "http":
-            _token_scopes.set(None)
-        await self.app(scope, receive, send)
+def token_scopes_of(request: Request) -> frozenset[str] | None:
+    """Return *request*'s token scopes, or None for a cookie session."""
+    return getattr(request.state, "token_scopes", None)
 
 
 def register_plugin_prefix(prefix: str, scope: str) -> None:
@@ -164,7 +142,7 @@ def _get_table(app: FastAPI) -> dict[int, str]:
 
 def enforce_token_scope(request: Request) -> None:
     """Raise unless the request's token may reach this route. No-op for sessions."""
-    granted = current_token_scopes()
+    granted = token_scopes_of(request)
     if granted is None:
         return
     group = _get_table(request.app).get(id(request.scope.get("route")))

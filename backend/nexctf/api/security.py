@@ -81,7 +81,13 @@ async def consume_single_use_token(redis: Redis, prefix: str, token: str) -> str
     return await cast(Any, redis.getdel(f"{prefix}{_hash_token(token)}"))
 
 
-async def _verify_token(token: str, role: UserRole | None = None) -> User:
+async def _verify_token(
+    token: str, role: UserRole | None = None, request: Request | None = None
+) -> User:
+    """Resolve an API token to its user, binding the token's scopes to *request*."""
+    if request is None:
+        raise UnauthorizedError()
+
     async with get_db_context() as db:
         user_token = await crud.UserTokenCrud.first(
             session=db,
@@ -113,7 +119,7 @@ async def _verify_token(token: str, role: UserRole | None = None) -> User:
             .values(last_used_at=now)
         )
 
-        set_token_scopes(user_token.scopes)
+        set_token_scopes(request, user_token.scopes)
         return user
 
 

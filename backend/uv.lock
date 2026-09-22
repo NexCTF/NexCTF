@@ -461,7 +461,7 @@ standard-no-fastapi-cloud-cli = [
 
 [[package]]
 name = "fastapi-multiauth"
-version = "0.4.0"
+version = "0.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -470,9 +470,9 @@ dependencies = [
     { name = "httpx" },
     { name = "itsdangerous" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/12/01/496c2d3b710a80f1c52021ddabfa6bf35c84d11554fac35c8f4d813619c1/fastapi_multiauth-0.4.0.tar.gz", hash = "sha256:a42f55475d9aec82a74ed9bb5f9c395076efb14dacdebfcb20d8d20c4b9c30b0", size = 23145, upload-time = "2026-08-19T10:02:03.308Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/3e/6c58728b1cd5efca1b50c20d37428d17dbbbdc4dd39b193bab0495e3f1e7/fastapi_multiauth-0.6.0.tar.gz", hash = "sha256:8298a1ef8fb76f0e03661419e9065aa9faea16241e35db17f5cae31ccb7482bd", size = 28932, upload-time = "2026-09-21T20:14:25.439Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/37/2b66515da0e3be22201ee9b595999066f83ccd5a96e140a91742ac955a10/fastapi_multiauth-0.4.0-py3-none-any.whl", hash = "sha256:83a065abca8ef2430258f2482ac6f8ab1461caaf8096ea62b74dd564fb710e84", size = 32301, upload-time = "2026-08-19T10:02:01.918Z" },
+    { url = "https://files.pythonhosted.org/packages/53/1c/ffb3678592de9f3eb47bdd51f03e262c63f8ad6985915772b84f9371eb02/fastapi_multiauth-0.6.0-py3-none-any.whl", hash = "sha256:585ca6b63c1fcf65cb0c78038ceda07f9351d8e6b66946f9c110d364d894c703", size = 39104, upload-time = "2026-09-21T20:14:24.202Z" },
 ]
 
 [package.optional-dependencies]
@@ -860,7 +860,7 @@ requires-dist = [
     { name = "argon2-cffi", specifier = ">=23.1.0" },
     { name = "cronsim", specifier = ">=2.7" },
     { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.141.1" },
-    { name = "fastapi-multiauth", extras = ["oauth"], specifier = ">=0.4.0" },
+    { name = "fastapi-multiauth", extras = ["oauth"], specifier = ">=0.6.0" },
     { name = "fastapi-toolsets", extras = ["all"], specifier = ">=5.1.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.15.0" },
