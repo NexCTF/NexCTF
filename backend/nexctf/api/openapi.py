@@ -10,7 +10,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.routing import RouteContext, iter_route_contexts
 
-from nexctf.api.dep import AdminAuthDep, _session_only
+from nexctf.api.dep import AdminAuthDep, _current_user, _optional_auth, _session_only
 from nexctf.api.scope import VERB_OF_METHOD, group_for_path
 
 if TYPE_CHECKING:
@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 _SESSION_ONLY_NOTE = (
     "**API tokens:** not accepted, this endpoint needs a browser session."
 )
+_PUBLIC_NOTE = "**Authentication:** none required, this endpoint is public."
 
 
 def flat_dependency_calls(dependant: Dependant) -> set[Callable[..., Any]]:
@@ -32,14 +33,26 @@ def flat_dependency_calls(dependant: Dependant) -> set[Callable[..., Any]]:
     return calls
 
 
-def _session_only_operations(contexts: list[RouteContext]) -> set[tuple[str, str]]:
-    """The ``(path, method)`` pairs that refuse bearer auth outright."""
+def _operations_reaching(
+    contexts: list[RouteContext], *calls: Callable[..., Any]
+) -> set[tuple[str, str]]:
+    """The ``(path, method)`` pairs whose dependency graph includes any of *calls*."""
     return {
         (ctx.path or "", method.lower())
         for ctx in contexts
-        if _session_only in flat_dependency_calls(ctx.dependant)
+        if flat_dependency_calls(ctx.dependant).intersection(calls)
         for method in ctx.methods or ()
     }
+
+
+def _session_only_operations(contexts: list[RouteContext]) -> set[tuple[str, str]]:
+    """The ``(path, method)`` pairs that refuse bearer auth outright."""
+    return _operations_reaching(contexts, _session_only)
+
+
+def _authenticated_operations(contexts: list[RouteContext]) -> set[tuple[str, str]]:
+    """The ``(path, method)`` pairs that authenticate the caller, token or session."""
+    return _operations_reaching(contexts, _current_user, _optional_auth)
 
 
 def _annotate_scopes(
@@ -47,12 +60,15 @@ def _annotate_scopes(
 ) -> dict[str, Any]:
     """Publish each operation's required token scope, in the body and the docs."""
     session_only = _session_only_operations(contexts)
+    authenticated = _authenticated_operations(contexts)
     for path, operations in schema.get("paths", {}).items():
         group = group_for_path(path)
         for method, operation in operations.items():
             verb = VERB_OF_METHOD.get(method.upper())
             if group is None or verb is None or (path, method) in session_only:
                 note = _SESSION_ONLY_NOTE
+            elif (path, method) not in authenticated:
+                note = _PUBLIC_NOTE
             else:
                 scope = f"{verb}:{group}"
                 operation["x-token-scope"] = scope
