@@ -61,6 +61,7 @@ ${DOMAIN} {
     }
 
     handle {
+        import /app/security-headers.caddy
         root * /app/frontend/dist
         try_files {path} /index.html
         file_server

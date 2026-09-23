@@ -1,5 +1,5 @@
 import { Component, type ComponentType, type ReactNode, Suspense, use } from "react";
-import { bootstrapPlugins, getPluginsForSlot } from "@/lib/plugins";
+import { bootstrapPlugins, getPluginsForSlot, pluginsReady } from "@/lib/plugins";
 
 interface PluginSlotProps {
   name: string;
@@ -24,7 +24,8 @@ class PluginErrorBoundary extends Component<
 }
 
 function PluginSlotInner({ name, challengeType, context }: PluginSlotProps) {
-  use(bootstrapPlugins());
+  void bootstrapPlugins();
+  use(pluginsReady());
   const plugins = getPluginsForSlot(name, challengeType);
   if (plugins.length === 0) return null;
 

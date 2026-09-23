@@ -5,22 +5,32 @@ import type { PluginRegistration } from "@/plugin-sdk/index";
 
 export type { PluginRegistration };
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+/** Public bundles load for every visitor; admin bundles once the admin area opens. */
+export type PluginScope = "user" | "admin";
 
 interface PluginManifestEntry {
   key: string;
   remote_entry: string;
+  integrity: string;
   slots: string[];
   challenge_types: string[] | null;
 }
+
+const MANIFEST_URLS: Record<PluginScope, string> = {
+  user: "/api/v1/plugins/manifest",
+  admin: "/api/v1/admin/plugins/manifest",
+};
 
 const pluginRegistry: Record<string, PluginRegistration> = {};
 
 window.__nexctf__ = { React, ReactDOM, jsxRuntime };
 window.__nexctf_register__ = (plugin) => {
-  pluginRegistry[plugin.key] = plugin;
+  const existing = pluginRegistry[plugin.key];
+  pluginRegistry[plugin.key] = {
+    ...existing,
+    ...plugin,
+    slots: { ...existing?.slots, ...plugin.slots },
+  };
 };
 
 export function getPluginsForSlot(slotName: string, challengeType?: string): PluginRegistration[] {
@@ -32,40 +42,49 @@ export function getPluginsForSlot(slotName: string, challengeType?: string): Plu
   );
 }
 
-// ---------------------------------------------------------------------------
-// Bootstrap — fetch manifest and inject plugin scripts
-// ---------------------------------------------------------------------------
+const bootstraps: Partial<Record<PluginScope, Promise<void>>> = {};
+let ready: Promise<unknown> = Promise.resolve();
 
-let bootstrapPromise: Promise<void> | null = null;
-
-export function bootstrapPlugins(): Promise<void> {
-  if (!bootstrapPromise) bootstrapPromise = _bootstrap();
-  return bootstrapPromise;
+export function bootstrapPlugins(scope: PluginScope = "user"): Promise<void> {
+  if (!bootstraps[scope]) {
+    bootstraps[scope] = _bootstrap(scope);
+    ready = Promise.all(Object.values(bootstraps));
+  }
+  return bootstraps[scope];
 }
 
-async function _bootstrap(): Promise<void> {
+/** Settles once every bundle load started so far has settled. */
+export function pluginsReady(): Promise<unknown> {
+  return ready;
+}
+
+async function _bootstrap(scope: PluginScope): Promise<void> {
   let manifest: PluginManifestEntry[];
   try {
-    const res = await fetch("/api/v1/plugins/manifest");
+    const res = await fetch(MANIFEST_URLS[scope]);
     if (!res.ok) return;
     manifest = (await res.json()) as PluginManifestEntry[];
   } catch {
     return;
   }
 
-  await Promise.allSettled(manifest.map((e) => _loadScript(e.remote_entry)));
+  await Promise.allSettled(manifest.map(_loadScript));
 }
 
-function _loadScript(src: string): Promise<void> {
+function _loadScript(entry: PluginManifestEntry): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) {
+    if (document.querySelector(`script[src="${entry.remote_entry}"]`)) {
       resolve();
       return;
     }
     const s = document.createElement("script");
-    s.src = src;
+    s.src = entry.remote_entry;
+    s.integrity = entry.integrity;
     s.onload = () => resolve();
-    s.onerror = () => reject(new Error(`plugin script failed: ${src}`));
+    s.onerror = () => {
+      console.error(`[plugin:${entry.key}] bundle failed to load or verify: ${entry.remote_entry}`);
+      reject(new Error(`plugin script failed: ${entry.remote_entry}`));
+    };
     document.head.appendChild(s);
   });
 }

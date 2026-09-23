@@ -38,8 +38,12 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { type AdminStats, getAdminStats } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
+import { bootstrapPlugins } from "@/lib/plugins";
 
 export const Route = createFileRoute("/admin/_admin")({
+  beforeLoad: () => {
+    void bootstrapPlugins("admin");
+  },
   component: AdminLayout,
 });
 

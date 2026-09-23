@@ -7,6 +7,11 @@
  * Mark them as external in your build and register with window.__nexctf_register__.
  * Ship the built bundle in your wheel; the host never builds plugin frontends.
  *
+ * A plugin may ship a second, admin-only bundle (FrontendDef.admin_entry_file)
+ * that only admins can download. Both register under the same key and their
+ * slots are merged. Each bundle must be a single file: only the declared entry
+ * file is served, and its integrity hash is checked by the browser.
+ *
  * Slots (v1):
  *   challenge_panel — rendered between challenge header and questions.
  *     Expose as: slots: { challenge_panel: YourComponent }

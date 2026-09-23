@@ -432,10 +432,14 @@
     "plugins": {
       "active": "Actif",
       "builtin": "Intégré",
+      "disabled": "Désactivé",
+      "disabled_hint": "Installé mais non chargé. Retirez-le de NEXCTF_DISABLED_PLUGINS et redémarrez pour l'activer.",
       "empty": "Aucun plugin chargé.",
       "external": "Externe",
       "inactive": "Inactif",
-      "official": "Officiel"
+      "missing_bundles": "Frontend non compilé, son interface est absente\u202f: {{files}}",
+      "official": "Officiel",
+      "settings": "Paramètres"
     },
     "scheduler": {
       "active_hint": "Activer la tâche pour qu'elle s'exécute à l'heure prévue",
@@ -1172,8 +1176,8 @@
         "team": "Équipes",
         "token": "Tokens API (lister et révoquer)"
       },
-      "scope_admin_plugin": "",
-      "scope_plugin": "",
+      "scope_admin_plugin": "Plugin (admin)\u202f: {{name}}",
+      "scope_plugin": "Plugin\u202f: {{name}}",
       "section_hint": "Les tokens permettent l'accès à l'API sans votre mot de passe.",
       "section_title": "Tokens API",
       "select_all_read": "Tout en lecture",

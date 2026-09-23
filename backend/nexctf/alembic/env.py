@@ -10,7 +10,8 @@ from nexctf.core.config import settings
 from nexctf.model import Base
 from nexctf.plugins import get_plugin_tables, load_plugin_registries
 
-load_plugin_registries()  # register plugin models with the metadata
+# Register every installed plugin's models with the metadata, disabled ones too.
+load_plugin_registries(include_disabled=True)
 
 config = context.config
 

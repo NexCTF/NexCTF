@@ -23,6 +23,9 @@ import { type ConfigItem, getConfig, SECRET_MASK, updateConfig } from "@/lib/api
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin/settings")({
+  validateSearch: (search: Record<string, unknown>): { category?: string } => ({
+    category: typeof search.category === "string" ? search.category : undefined,
+  }),
   component: SettingsPage,
 });
 
@@ -105,8 +108,12 @@ function SettingsPage() {
   }, [items]);
 
   const categoryKeys = Array.from(categories.keys());
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const currentCategory = activeCategory ?? categoryKeys[0] ?? null;
+  const { category: requestedCategory } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const currentCategory =
+    requestedCategory && categories.has(requestedCategory)
+      ? requestedCategory
+      : (categoryKeys[0] ?? null);
 
   // Which categories have unsaved changes
   const dirtyCategorySet = useMemo(() => {
@@ -169,7 +176,7 @@ function SettingsPage() {
                   <button
                     type="button"
                     key={slug}
-                    onClick={() => setActiveCategory(slug)}
+                    onClick={() => navigate({ search: { category: slug }, replace: true })}
                     className={cn(
                       "relative flex items-center gap-1.5 px-4 py-2 text-sm transition-colors border-b-2",
                       isActive

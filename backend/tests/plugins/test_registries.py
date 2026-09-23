@@ -112,13 +112,36 @@ def test_router_scope_defaults_to_user() -> None:
 
 def test_frontend_is_keyed_on_its_owner() -> None:
     reg = FrontendRegistry()
-    reg.add(FrontendDef(Path("/dist"), slots=["challenge_panel"]), owner="demo")
+    reg.add(FrontendDef(Path("/dist")), owner="demo")
     entry = reg.get("demo")
     assert entry is not None
-    assert entry.slots == ["challenge_panel"]
-    assert entry.entry_file == "bundle.js"
-    assert entry.has_bundle is False
     assert reg.get_all() == [entry]
+
+
+def test_a_declared_bundle_that_is_not_built_is_reported_missing() -> None:
+    reg = FrontendRegistry()
+    reg.add(FrontendDef(Path("/dist"), admin_entry_file="admin.js"), owner="demo")
+    entry = reg.get("demo")
+    assert entry is not None
+    assert entry.user is None
+    assert entry.admin is None
+    assert entry.missing == ["bundle.js", "admin.js"]
+
+
+def test_each_bundle_carries_its_hashes_and_slots(tmp_path: Path) -> None:
+    (tmp_path / "bundle.js").write_text("console.log(1)")
+    reg = FrontendRegistry()
+    reg.add(FrontendDef(tmp_path, slots=["challenge_panel"]), owner="demo")
+    entry = reg.get("demo")
+    assert entry is not None and entry.user is not None
+
+    assert entry.user.integrity == (
+        "sha384-vuz+yO71bcb30P4dMUNzy6/D2y+6d/n0KcOnt5clJtTBxEDoKAqGay0stFlC8Dpr"
+    )
+    assert entry.user.version == "beecfec8eef5"
+    assert entry.user.slots == ["challenge_panel"]
+    assert entry.bundle(admin=False) is entry.user
+    assert entry.missing == []
 
 
 def test_frontend_get_missing_returns_none() -> None:
