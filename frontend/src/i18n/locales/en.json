@@ -1155,7 +1155,6 @@
           "config": "Configuration, events, scheduler, OAuth, plugins",
           "content": "Pages and links",
           "notification": "Notifications and email",
-          "plugin": "Plugin admin endpoints",
           "scoreboard": "Scoreboard and stats",
           "team": "Teams",
           "user": "Users and custom fields"
@@ -1163,12 +1162,13 @@
         "challenge": "Challenges and attachments",
         "content": "Pages and site info",
         "notification": "Notifications and event stream",
-        "plugin": "Plugin endpoints",
         "profile": "Your profile and team membership",
         "scoreboard": "Scoreboard",
         "team": "Teams",
         "token": "API tokens (list and revoke)"
       },
+      "scope_admin_plugin": "Plugin admin: {{name}}",
+      "scope_plugin": "Plugin: {{name}}",
       "section_hint": "Tokens allow API access without your password.",
       "section_title": "API Tokens",
       "select_all_read": "All read",

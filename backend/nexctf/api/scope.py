@@ -9,6 +9,7 @@ from fastapi.routing import APIRoute, iter_route_contexts
 
 from nexctf.core.config import settings
 from nexctf.exceptions import InsufficientScopeError, UnscopableEndpointError
+from nexctf.plugins.routes import route_registry
 
 VERB_OF_METHOD = {
     "GET": "read",
@@ -60,7 +61,8 @@ _PREFIX_GROUPS: dict[str, str] = {
     "/page": "content",
     "/plugins": "content",
 }
-_PLUGIN_GROUPS = frozenset({"plugin", "admin.plugin"})
+# Core route prefixes that belong to no token group; plugins may not claim them either.
+_UNGROUPED_PREFIXES = ("/auth", "/oauth2", "/admin/custom-field-value")
 # The admin audit channel rides the notification group, so it gates on its own scope.
 ADMIN_EVENTS_SCOPE = "read:admin.config"
 
@@ -77,17 +79,50 @@ def token_scopes_of(request: Request) -> frozenset[str] | None:
     return getattr(request.state, "token_scopes", None)
 
 
-def register_plugin_prefix(prefix: str, scope: str) -> None:
-    """Map a plugin router's mount prefix to its plugin group."""
-    if scope == "admin":
-        _PREFIX_GROUPS[f"/admin{prefix}"] = "admin.plugin"
-    else:
-        _PREFIX_GROUPS[prefix] = "plugin"
+def _mount_path(prefix: str, scope: str) -> str:
+    """Return where a plugin router with ``prefix`` mounts, relative to the API root."""
+    return f"/admin{prefix}" if scope == "admin" else prefix
+
+
+def _head(path: str) -> str:
+    """Return the segment owning ``path``: the first one, or two under ``/admin``."""
+    parts = path.strip("/").split("/")
+    return "/".join(parts[:2] if parts[0] == "admin" else parts[:1])
+
+
+def _prefix_groups() -> dict[str, str]:
+    """Core prefix groups plus one group per plugin, over its registered routers."""
+    plugin_groups = {
+        _mount_path(router.prefix, router.scope): (
+            f"admin.plugin.{owner}" if router.scope == "admin" else f"plugin.{owner}"
+        )
+        for owner, router in route_registry.items()
+    }
+    return {**_PREFIX_GROUPS, **plugin_groups}
+
+
+def plugin_prefix_conflict(prefix: str, scope: str) -> str | None:
+    """Return the taken prefix a plugin router would share its head segment with."""
+    head = _head(_mount_path(prefix, scope))
+    if scope != "admin" and head.split("/")[0] == "admin":
+        return "/admin"
+    return next(
+        (p for p in (*_prefix_groups(), *_UNGROUPED_PREFIXES) if _head(p) == head),
+        None,
+    )
 
 
 def all_groups() -> frozenset[str]:
-    """Every group in the scope vocabulary, plugin groups included."""
-    return frozenset(_PREFIX_GROUPS.values()) | _PLUGIN_GROUPS
+    """Every group in the scope vocabulary, registered plugin groups included."""
+    return frozenset(_prefix_groups().values())
+
+
+def full_admin_scopes() -> list[str]:
+    """Every scope an admin may hold, loading installed plugins first."""
+    from nexctf.plugins import load_plugin_registries
+
+    load_plugin_registries()
+    return sorted(grantable_scopes(is_admin=True))
 
 
 def grantable_scopes(is_admin: bool) -> frozenset[str]:
@@ -112,10 +147,9 @@ def group_for_path(path: str) -> str | None:
     if not path.startswith(settings.API_V1_STR):
         return None
     relative = path[len(settings.API_V1_STR) :]
-    match = max(
-        (p for p in _PREFIX_GROUPS if relative.startswith(p)), key=len, default=None
-    )
-    return _PREFIX_GROUPS[match] if match is not None else None
+    groups = _prefix_groups()
+    match = max((p for p in groups if relative.startswith(p)), key=len, default=None)
+    return groups[match] if match is not None else None
 
 
 def build_table(app: FastAPI) -> dict[int, str]:

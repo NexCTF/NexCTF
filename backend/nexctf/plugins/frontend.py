@@ -6,6 +6,8 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+from nexctf.plugins.declare import FrontendDef
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,51 +24,33 @@ class FrontendEntry:
 
 
 class FrontendRegistry:
-    """Maps plugin keys to their compiled frontend bundles.
-
-    Plugin authors call .register() from their plugin's __init__.py:
-        frontend_registry.register(
-            key="my_plugin",
-            dist_dir=Path(__file__).parent / "frontend" / "dist",
-            slots=["challenge_panel"],
-            challenge_types=["container"],
-        )
-    """
+    """Maps plugin keys to their compiled frontend bundles."""
 
     def __init__(self) -> None:
         self._entries: dict[str, FrontendEntry] = {}
 
-    def register(
-        self,
-        key: str,
-        dist_dir: Path,
-        slots: list[str],
-        challenge_types: list[str] | None = None,
-        entry_file: str = "bundle.js",
-    ) -> None:
-        """Register a plugin's prebuilt frontend bundle.
+    def add(self, frontend: FrontendDef, owner: str) -> None:
+        """Register the prebuilt bundle of plugin ``owner``.
 
         Args:
-            key: Unique key identifying the plugin's frontend.
-            dist_dir: Directory holding the compiled bundle.
-            slots: UI slots the bundle fills (e.g. ``["challenge_panel"]``).
-            challenge_types: Challenge types the bundle applies to, or ``None`` for all.
-            entry_file: Bundle entry file name within ``dist_dir``.
+            frontend: The bundle declaration.
+            owner: The plugin key, which also names the bundle's URL.
         """
-        has_bundle = (dist_dir / entry_file).is_file()
+        bundle = frontend.dist_dir / frontend.entry_file
+        has_bundle = bundle.is_file()
         if not has_bundle:
             logger.warning(
                 "plugin.frontend.missing key=%s path=%s "
                 "(build the bundle and ship frontend/dist as package data)",
-                key,
-                dist_dir / entry_file,
+                owner,
+                bundle,
             )
-        self._entries[key] = FrontendEntry(
-            key=key,
-            dist_dir=dist_dir.resolve(),
-            slots=slots,
-            challenge_types=challenge_types,
-            entry_file=entry_file,
+        self._entries[owner] = FrontendEntry(
+            key=owner,
+            dist_dir=frontend.dist_dir.resolve(),
+            slots=frontend.slots,
+            challenge_types=frontend.challenge_types,
+            entry_file=frontend.entry_file,
             has_bundle=has_bundle,
         )
 
@@ -78,10 +62,7 @@ class FrontendRegistry:
         """Return the entry for a key, or ``None`` if none is registered.
 
         Args:
-            key: The plugin frontend key to look up.
-
-        Returns:
-            The registered entry, or ``None`` if absent.
+            key: The plugin key to look up.
         """
         return self._entries.get(key)
 

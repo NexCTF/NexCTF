@@ -6,7 +6,7 @@ Config definitions are declared in ``nexctf/settings.py``.  The
 ``label`` and ``description`` fields store **i18n keys** (not raw text),
 so the frontend can resolve them with their own translation files.
 
-Plugin-specific config (register_plugin_configs, get_plugin_config)
+Plugin-specific config (register_config, get_plugin_config)
 lives in ``nexctf.plugins.config``.
 """
 
@@ -94,9 +94,18 @@ def _serialize_default(default: str | float | bool) -> str:
     return str(default)
 
 
-def define(def_: ConfigDef) -> None:
+def normalize_def(def_: ConfigDef) -> ConfigDef:
+    """Return ``def_`` with its type resolved and default serialized.
+
+    Raises:
+        ValueError: If the type cannot be inferred from a string default.
+    """
     type_ = def_.type if def_.type is not None else _infer_type(def_.default)
-    normalized = replace(def_, type=type_, default=_serialize_default(def_.default))
+    return replace(def_, type=type_, default=_serialize_default(def_.default))
+
+
+def define(def_: ConfigDef) -> None:
+    normalized = normalize_def(def_)
     _DEFS[normalized.key] = normalized
     _CATEGORIES.setdefault(
         normalized.category,
@@ -127,7 +136,7 @@ def register_category(
                    ``t("config.section.<slug>", { defaultValue: slug })``.
         icon:      Lucide icon name in kebab-case (e.g. ``"trophy"``,
                    ``"bar-chart"``, ``"puzzle"``). Optional.
-        is_plugin: Set by :func:`register_plugin_configs`; marks the category
+        is_plugin: Set by :func:`register_config`; marks the category
                    as coming from a plugin.
     """
     _CATEGORIES[slug] = CategoryMeta(

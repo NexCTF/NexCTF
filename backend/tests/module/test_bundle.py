@@ -29,6 +29,7 @@ from nexctf.model.link import Visibility
 from nexctf.module import bundle
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 from nexctf.plugins.builtin.solution.match.model import MatchSolution
+from nexctf.plugins.declare import TypeDef
 from nexctf.plugins.registry import challenge_registry, solution_registry
 from nexctf.schema.challenge import (
     AdminChallengeCreate,
@@ -55,12 +56,15 @@ class AltChallengeRead(AdminChallengeRead):
 
 # Registered at import: the registry is global, and the schema lookups the
 # bundle does need the type present before any session is built.
-challenge_registry.register(
-    ALT_TYPE,
-    model=AltChallenge,
-    create_schema=AdminChallengeCreate,
-    update_schema=AdminChallengeUpdate,
-    read_schema=AltChallengeRead,
+challenge_registry.add(
+    TypeDef(
+        ALT_TYPE,
+        model=AltChallenge,
+        create_schema=AdminChallengeCreate,
+        update_schema=AdminChallengeUpdate,
+        read_schema=AltChallengeRead,
+    ),
+    owner="tests",
 )
 
 

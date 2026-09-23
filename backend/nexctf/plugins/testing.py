@@ -3,7 +3,11 @@
 Import these from your plugin's tests to exercise registered solution and
 challenge types without spinning up the full app or a database::
 
-    from nexctf.plugins.testing import assert_registered, assert_verifies
+    from nexctf.plugins.testing import (
+        assert_registered,
+        assert_verifies,
+        register_plugin,
+    )
 
 These are plain ``assert``-based helpers (no pytest dependency), so they can be
 used from any test runner.
@@ -15,9 +19,10 @@ from collections.abc import Iterable
 from uuid import UUID
 
 from nexctf.model.solution import Solution
+from nexctf.plugins.loader import commit_plugin as register_plugin
 from nexctf.plugins.registry import PolymorphicRegistry, RegistryEntry, SchemaClass
 
-__all__ = ["assert_registered", "assert_verifies"]
+__all__ = ["assert_registered", "assert_verifies", "register_plugin"]
 
 
 async def assert_verifies(

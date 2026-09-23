@@ -216,6 +216,21 @@ it("read & write on one group grants both scopes", async () => {
   );
 });
 
+it("labels each plugin's own scope group with the plugin key", async () => {
+  vi.mocked(getGrantableScopes).mockResolvedValue([
+    "read:plugin.nexctf_sandbox",
+    "write:plugin.nexctf_sandbox",
+    "read:admin.plugin.nexctf_sandbox",
+    "write:admin.plugin.nexctf_sandbox",
+  ]);
+  renderSettings();
+
+  await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
+
+  await screen.findByRole("radio", { name: "Plugin: nexctf_sandbox: Read" });
+  screen.getByRole("radio", { name: "Plugin admin: nexctf_sandbox: Read" });
+});
+
 it("selects and clears permissions in bulk", async () => {
   vi.mocked(createMyToken).mockResolvedValue(apiToken({ scopes: [], token: "nex_secret_value" }));
   renderSettings();

@@ -17,34 +17,36 @@ from nexctf.plugins.builtin.solution.regex.schema import (
     RegexSolutionRead,
     RegexSolutionUpdate,
 )
-from nexctf.plugins.registry import solution_registry
+from nexctf.plugins.declare import Plugin, TypeDef
 
-solution_registry.register(
-    "match",
-    model=MatchSolution,
-    create_schema=MatchSolutionCreate,
-    update_schema=MatchSolutionUpdate,
-    read_schema=MatchSolutionRead,
-    compatible_input_types=[InputType.INPUT, InputType.TEXT, InputType.CODE],
-    description="Exact match — the submitted answer must equal the expected flag (case-insensitive strip).",
-)
-
-solution_registry.register(
-    "regex",
-    model=RegexSolution,
-    create_schema=RegexSolutionCreate,
-    update_schema=RegexSolutionUpdate,
-    read_schema=RegexSolutionRead,
-    compatible_input_types=[InputType.INPUT, InputType.TEXT, InputType.CODE],
-    description="Regex match — the submitted answer must match a regular expression pattern.",
-)
-
-solution_registry.register(
-    "mcq",
-    model=MCQSolution,
-    create_schema=MCQSolutionCreate,
-    update_schema=MCQSolutionUpdate,
-    read_schema=MCQSolutionRead,
-    compatible_input_types=[InputType.MCQ],
-    description="Multiple choice — player picks one option from a shuffled list of correct and distractor answers.",
+plugin = Plugin(
+    solution_types=[
+        TypeDef(
+            "match",
+            model=MatchSolution,
+            create_schema=MatchSolutionCreate,
+            update_schema=MatchSolutionUpdate,
+            read_schema=MatchSolutionRead,
+            compatible_input_types=[InputType.INPUT, InputType.TEXT, InputType.CODE],
+            description="Exact match — the submitted answer must equal the expected flag (case-insensitive strip).",
+        ),
+        TypeDef(
+            "regex",
+            model=RegexSolution,
+            create_schema=RegexSolutionCreate,
+            update_schema=RegexSolutionUpdate,
+            read_schema=RegexSolutionRead,
+            compatible_input_types=[InputType.INPUT, InputType.TEXT, InputType.CODE],
+            description="Regex match — the submitted answer must match a regular expression pattern.",
+        ),
+        TypeDef(
+            "mcq",
+            model=MCQSolution,
+            create_schema=MCQSolutionCreate,
+            update_schema=MCQSolutionUpdate,
+            read_schema=MCQSolutionRead,
+            compatible_input_types=[InputType.MCQ],
+            description="Multiple choice — player picks one option from a shuffled list of correct and distractor answers.",
+        ),
+    ],
 )

@@ -1160,7 +1160,6 @@
           "config": "Configuration, événements, planificateur, OAuth, plugins",
           "content": "Pages et liens",
           "notification": "Notifications et e-mails",
-          "plugin": "Endpoints d'administration des plugins",
           "scoreboard": "Classement et statistiques",
           "team": "Équipes",
           "user": "Utilisateurs et champs personnalisés"
@@ -1168,12 +1167,13 @@
         "challenge": "Challenges et pièces jointes",
         "content": "Pages et informations du site",
         "notification": "Notifications et flux d'événements",
-        "plugin": "Endpoints des plugins",
         "profile": "Votre profil et votre équipe",
         "scoreboard": "Classement",
         "team": "Équipes",
         "token": "Tokens API (lister et révoquer)"
       },
+      "scope_admin_plugin": "",
+      "scope_plugin": "",
       "section_hint": "Les tokens permettent l'accès à l'API sans votre mot de passe.",
       "section_title": "Tokens API",
       "select_all_read": "Tout en lecture",

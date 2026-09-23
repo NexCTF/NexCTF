@@ -4,12 +4,16 @@ from nexctf.plugins.builtin.challenge.standard.schema import (
     StandardChallengeRead,
     StandardChallengeUpdate,
 )
-from nexctf.plugins.registry import challenge_registry
+from nexctf.plugins.declare import Plugin, TypeDef
 
-challenge_registry.register(
-    "standard",
-    model=StandardChallenge,
-    create_schema=StandardChallengeCreate,
-    update_schema=StandardChallengeUpdate,
-    read_schema=StandardChallengeRead,
+plugin = Plugin(
+    challenge_types=[
+        TypeDef(
+            "standard",
+            model=StandardChallenge,
+            create_schema=StandardChallengeCreate,
+            update_schema=StandardChallengeUpdate,
+            read_schema=StandardChallengeRead,
+        ),
+    ],
 )

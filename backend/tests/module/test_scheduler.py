@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from nexctf.model import User, UserRole
 from nexctf.model.scheduler import SchedulerJob, SchedulerTask
 from nexctf.module.scheduler import process_scheduled_jobs
+from nexctf.plugins.declare import JobDef
 from nexctf.plugins.registry import scheduler_registry
 from nexctf.schema.scheduler import SendNotificationParams, TaskStatus
 from nexctf.util.cron import next_fire
@@ -33,11 +34,9 @@ def counting_job_type() -> Any:
     async def handler(job: SchedulerJob, session: AsyncSession, redis: Any) -> None:
         calls.append(job.id)
 
-    scheduler_registry.register(
-        type_name=type_name,
-        handler=handler,
-        create_schema=SendNotificationParams,
-        update_schema=SendNotificationParams,
+    scheduler_registry.add(
+        JobDef(type_name, handler, SendNotificationParams, SendNotificationParams),
+        owner="tests",
     )
     try:
         yield type_name, calls
@@ -126,11 +125,9 @@ async def test_failing_cron_job_still_reschedules(
     async def handler(job: SchedulerJob, session: AsyncSession, redis: Any) -> None:
         raise RuntimeError("boom")
 
-    scheduler_registry.register(
-        type_name=type_name,
-        handler=handler,
-        create_schema=SendNotificationParams,
-        update_schema=SendNotificationParams,
+    scheduler_registry.add(
+        JobDef(type_name, handler, SendNotificationParams, SendNotificationParams),
+        owner="tests",
     )
     try:
         job = _job(owner, type_name, cron_expression="0 * * * *")

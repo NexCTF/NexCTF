@@ -15,6 +15,7 @@ from nexctf.model.scheduler import SchedulerJob, SchedulerTask
 from nexctf.module import backup
 from nexctf.module.challenge import invalidate as invalidate_challenges
 from nexctf.module.notification import create_and_publish
+from nexctf.plugins.declare import JobDef, Plugin
 from nexctf.plugins.registry import SchedulerEntry, scheduler_registry
 from nexctf.schema.backup import BackupDatabaseParams, BackupSource
 from nexctf.schema.scheduler import (
@@ -208,22 +209,26 @@ async def process_scheduled_jobs(session: AsyncSession, redis: Redis) -> None:
         await invalidate(redis)
 
 
-scheduler_registry.register(
-    type_name="send_notification",
-    handler=handle_send_notification,
-    create_schema=SendNotificationParams,
-    update_schema=SendNotificationParams,
-)
-scheduler_registry.register(
-    type_name="backup_database",
-    handler=handle_backup_database,
-    create_schema=BackupDatabaseParams,
-    update_schema=BackupDatabaseParams,
-)
-scheduler_registry.register(
-    type_name="toggle_challenge",
-    handler=handle_toggle_challenge,
-    create_schema=ToggleChallengeParams,
-    update_schema=ToggleChallengeParams,
-    invalidate=invalidate_challenges,
+plugin = Plugin(
+    jobs=[
+        JobDef(
+            "send_notification",
+            handler=handle_send_notification,
+            create_schema=SendNotificationParams,
+            update_schema=SendNotificationParams,
+        ),
+        JobDef(
+            "backup_database",
+            handler=handle_backup_database,
+            create_schema=BackupDatabaseParams,
+            update_schema=BackupDatabaseParams,
+        ),
+        JobDef(
+            "toggle_challenge",
+            handler=handle_toggle_challenge,
+            create_schema=ToggleChallengeParams,
+            update_schema=ToggleChallengeParams,
+            invalidate=invalidate_challenges,
+        ),
+    ],
 )

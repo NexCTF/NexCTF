@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import importlib.metadata
 import sys
 import textwrap
@@ -11,11 +12,17 @@ from pathlib import Path
 
 import pytest
 
-from nexctf.plugins import loader
+from nexctf.api import scope
+from nexctf.core import appconfig
+from nexctf.plugins import ConfigCategory, loader, registry, routes
+
+_EMPTY_PLUGIN = "from nexctf.plugins import Plugin\nplugin = Plugin()\nvalue = 1\n"
 
 
 @pytest.fixture(autouse=True)
-def _isolate_loader_state(monkeypatch: pytest.MonkeyPatch) -> None:
+def _isolate_loader_state(
+    isolated_plugins: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Give each test fresh loader registries so fake plugins cannot leak out."""
     monkeypatch.setattr(loader, "_plugin_metadata", {})
     monkeypatch.setattr(loader, "_plugin_tables", set())
@@ -36,7 +43,7 @@ def plugins_root(tmp_path: Path) -> Iterator[Path]:
             del sys.modules[name]
 
 
-def _write_package(root: Path, name: str, body: str = "value = 1") -> Path:
+def _write_package(root: Path, name: str, body: str = _EMPTY_PLUGIN) -> Path:
     """Write an importable package into the plugins root."""
     package = root / name
     package.mkdir()
@@ -59,15 +66,18 @@ class _FakeDistribution(importlib.metadata.Distribution):
 
 @dataclass
 class _FakeEntryPoint:
-    """The slice of an entry point the loader reads: its module and its dist."""
+    """The slice of an entry point the loader reads: its target and its dist."""
 
     module: str
     dist: importlib.metadata.Distribution | None
+    attr: str | None = None
 
 
-def _fake_entry_point(module: str, headers: str) -> _FakeEntryPoint:
+def _fake_entry_point(
+    module: str, headers: str, attr: str | None = None
+) -> _FakeEntryPoint:
     """Build an entry point bound to a fake distribution."""
-    return _FakeEntryPoint(module, _FakeDistribution(headers))
+    return _FakeEntryPoint(module, _FakeDistribution(headers), attr)
 
 
 def _install(monkeypatch: pytest.MonkeyPatch, *entry_points) -> None:
@@ -240,3 +250,194 @@ def test_load_builtin_plugins_registers_real_types() -> None:
     assert {"mcq", "regex", "match"} <= solution_types
     assert {"challenge", "solution"} <= set(loader._plugin_metadata)
     assert loader._plugin_metadata["solution"].is_builtin is True
+
+
+def _load_one(
+    plugins_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    body: str,
+    *,
+    package: str = "demo_pkg",
+    attr: str | None = None,
+) -> loader.PluginMeta:
+    """Load a single fake plugin distribution ``nexctf-demo`` and return its metadata."""
+    _write_package(plugins_root, package, textwrap.dedent(body))
+    _install(
+        monkeypatch,
+        _fake_entry_point(package, "Name: nexctf-demo\nVersion: 1.0\n", attr),
+    )
+    loader._load_installed_plugins()
+    return loader._plugin_metadata["nexctf_demo"]
+
+
+_DECLARED = """\
+    from fastapi import APIRouter
+    from pydantic import BaseModel
+
+    from nexctf.model import Link
+    from nexctf.plugins import (
+        ConfigCategory, ConfigDef, ConfigType, JobDef, Plugin, RouterDef, TypeDef,
+    )
+
+    class Schema(BaseModel):
+        pass
+
+    def handler(job, session, redis): ...
+
+    plugin = Plugin(
+        solution_types=[TypeDef("demo_type", Link, Schema, Schema, Schema, polymorphic=False)],
+        jobs=[JobDef("demo_job", handler, Schema, Schema)],
+        routers=[RouterDef(APIRouter(), "/demo"), RouterDef(APIRouter(), "/demo", scope="admin")],
+        config=ConfigCategory("Demo", (ConfigDef(key="url", label="URL", default="https://a.test", type=ConfigType.URL),)),
+    )
+    """
+
+
+def test_a_declared_plugin_registers_everything_under_its_key(
+    plugins_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    meta = _load_one(plugins_root, monkeypatch, _DECLARED)
+
+    assert meta.is_active, meta.load_error
+    with pytest.raises(ValueError, match="by 'nexctf_demo'"):
+        registry.solution_registry.check("demo_type", "other")
+    with pytest.raises(ValueError, match="by 'nexctf_demo'"):
+        registry.scheduler_registry.check("demo_job", "other")
+    assert len(routes.route_registry.get_routers()) == 2
+    assert scope.group_for_path("/api/v1/demo/x") == "plugin.nexctf_demo"
+    assert scope.group_for_path("/api/v1/admin/demo/x") == "admin.plugin.nexctf_demo"
+    assert appconfig.get_def("nexctf_demo.url").category == "nexctf_demo"
+
+
+def test_the_entry_point_attribute_names_the_plugin(
+    plugins_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    body = _DECLARED.replace("    plugin = Plugin(", "    custom = Plugin(")
+    meta = _load_one(plugins_root, monkeypatch, body, attr="custom")
+    assert meta.is_active, meta.load_error
+
+
+def test_an_entry_point_without_a_plugin_fails(
+    plugins_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    meta = _load_one(plugins_root, monkeypatch, "value = 1\n")
+    assert meta.is_active is False
+    assert "is not a nexctf.plugins.Plugin" in (meta.load_error or "")
+
+
+def test_a_pre_plugin_style_plugin_fails_and_registers_nothing(
+    plugins_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Registries have no ``register`` any more, so an old plugin fails on import."""
+    body = """\
+        from pydantic import BaseModel
+
+        from nexctf.model import Link
+        from nexctf.plugins import solution_registry
+
+        class Schema(BaseModel):
+            pass
+
+        solution_registry.register("legacy_type", Link, Schema, Schema, Schema)
+        """
+    meta = _load_one(plugins_root, monkeypatch, body)
+
+    assert meta.is_active is False
+    assert "has no attribute 'register'" in (meta.load_error or "")
+    with pytest.raises(KeyError):
+        registry.solution_registry.get("legacy_type")
+
+
+def test_a_plugin_failing_validation_registers_nothing(
+    plugins_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One bad part (here a router) keeps every other part out too."""
+    body = _DECLARED.replace(
+        'RouterDef(APIRouter(), "/demo"),', 'RouterDef(APIRouter(), "/challenges"),'
+    )
+    meta = _load_one(plugins_root, monkeypatch, body)
+
+    assert meta.is_active is False
+    assert "collides with '/challenges'" in (meta.load_error or "")
+    with pytest.raises(KeyError):
+        registry.solution_registry.get("demo_type")
+    with pytest.raises(KeyError):
+        registry.scheduler_registry.get("demo_job")
+    assert routes.route_registry.get_routers() == []
+    assert scope.group_for_path("/api/v1/admin/demo/x") is None
+    with pytest.raises(KeyError):
+        appconfig.get_def("nexctf_demo.url")
+
+
+def test_an_invalid_config_def_registers_nothing(
+    plugins_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Config is checked with the rest, not discovered broken halfway through."""
+    body = _DECLARED.replace(", type=ConfigType.URL)", ")")
+    meta = _load_one(plugins_root, monkeypatch, body)
+
+    assert meta.is_active is False
+    assert "type= is required" in (meta.load_error or "")
+    with pytest.raises(KeyError):
+        registry.solution_registry.get("demo_type")
+    assert routes.route_registry.get_routers() == []
+
+
+def test_a_plugin_cannot_take_a_builtin_type(
+    plugins_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    loader.load_builtin_plugins()
+    body = _DECLARED.replace('TypeDef("demo_type"', 'TypeDef("match"')
+    meta = _load_one(plugins_root, monkeypatch, body)
+
+    assert meta.is_active is False
+    assert "'match' is already registered by 'solution'" in (meta.load_error or "")
+
+
+@pytest.mark.parametrize(
+    ("router", "error"),
+    [
+        ('RouterDef(APIRouter(), "/admin/x")', "collides with '/admin'"),
+        ('RouterDef(APIRouter(), "/auth")', "collides with '/auth'"),
+        ('RouterDef(APIRouter(), "demo")', "is not like '/name'"),
+        ('RouterDef(APIRouter(), "/x", scope="public")', "has scope 'public'"),
+    ],
+)
+def test_a_bad_router_fails_the_plugin(
+    plugins_root: Path, monkeypatch: pytest.MonkeyPatch, router: str, error: str
+) -> None:
+    body = _DECLARED.replace('RouterDef(APIRouter(), "/demo"),', f"{router},")
+    meta = _load_one(plugins_root, monkeypatch, body)
+
+    assert meta.is_active is False
+    assert error in (meta.load_error or "")
+
+
+def test_the_config_category_is_bound_to_the_plugin_key(
+    plugins_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Plugin code reads its settings through the category it declared."""
+    _load_one(plugins_root, monkeypatch, _DECLARED)
+    category = importlib.import_module("demo_pkg").plugin.config
+
+    assert category.key == "nexctf_demo"
+    assert category.get("url", {}) == "https://a.test"
+    assert category.get("url", {"nexctf_demo.url": "https://b.test"}) == (
+        "https://b.test"
+    )
+
+
+def test_an_unbound_config_category_raises() -> None:
+    category = ConfigCategory("Demo", ())
+    with pytest.raises(LookupError):
+        category.get("url", {})
+
+
+def test_a_plain_secret_is_warned_about(
+    plugins_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    body = _DECLARED.replace('ConfigDef(key="url"', 'ConfigDef(key="api_token"')
+    _load_one(plugins_root, monkeypatch, body)
+    assert "plugin.config.plain_secret key=nexctf_demo.api_token" in caplog.text

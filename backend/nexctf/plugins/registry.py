@@ -12,11 +12,36 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import selectinload
 
 from nexctf.enums import InputType
+from nexctf.plugins.declare import JobDef, SchemaClass, TypeDef
 
 if TYPE_CHECKING:
     from redis.asyncio import Redis
 
-type SchemaClass = type[BaseModel]
+
+class _OwnedNames:
+    """Tracks which plugin owns each registered name."""
+
+    _kind: str
+
+    def __init__(self) -> None:
+        self._owners: dict[str, str] = {}
+
+    def check(self, name: str, owner: str) -> None:
+        """Raise unless ``owner`` may register ``name``: it is free or already theirs.
+
+        Raises:
+            ValueError: If another owner already registered ``name``.
+        """
+        current = self._owners.get(name, owner)
+        if current != owner:
+            raise ValueError(
+                f"{self._kind} {name!r} is already registered by {current!r}"
+            )
+
+    def _claim(self, name: str, owner: str) -> None:
+        """Record ``owner`` as the owner of ``name`` after checking it may take it."""
+        self.check(name, owner)
+        self._owners[name] = owner
 
 
 @dataclasses.dataclass
@@ -44,55 +69,40 @@ def _auto_load_options(model: Any) -> list[Any]:
     return [selectinload(getattr(model, rel.key)) for rel in mapper.relationships]
 
 
-class PolymorphicRegistry:
+class PolymorphicRegistry(_OwnedNames):
     """Maps a polymorphic type name to its CrudFactory and Pydantic schemas."""
 
+    _kind = "type"
+
     def __init__(self) -> None:
+        super().__init__()
         self._entries: dict[str, RegistryEntry] = {}
         self._extra_load_options: list[Any] = []
-        self._polymorphic_subclasses: list[Any] = []
+        self._polymorphic_subclasses: dict[Any, None] = {}
         self._applied: bool = False
 
-    def register(
-        self,
-        type_name: str,
-        model: Any,
-        create_schema: SchemaClass,
-        update_schema: SchemaClass,
-        read_schema: SchemaClass,
-        m2m_fields: dict[str, Any] | None = None,
-        compatible_input_types: list[InputType] | None = None,
-        description: str | None = None,
-        polymorphic: bool = True,
-    ) -> None:
-        """Register a polymorphic type with its CRUD factory and schemas.
+    def add(self, type_def: TypeDef, owner: str) -> None:
+        """Register a type on behalf of ``owner``; its re-registration replaces it.
 
-        Args:
-            type_name: The polymorphic type name to register under.
-            model: The SQLAlchemy model for this type.
-            create_schema: Schema used to create instances.
-            update_schema: Schema used to update instances.
-            read_schema: Schema used to serialise instances.
-            m2m_fields: Many-to-many fields exposed on create/update.
-            compatible_input_types: Input types this type accepts, or ``None`` for all.
-            description: Human-readable description shown in the admin UI.
-            polymorphic: Whether to register the model as a polymorphic subclass.
+        Raises:
+            ValueError: If another owner already registered the type name.
         """
+        self._claim(type_def.name, owner)
         crud = CrudFactory(
-            model=model,
-            default_load_options=_auto_load_options(model),
-            m2m_fields=m2m_fields or None,
+            model=type_def.model,
+            default_load_options=_auto_load_options(type_def.model),
+            m2m_fields=type_def.m2m_fields or None,
         )
-        self._entries[type_name] = RegistryEntry(
+        self._entries[type_def.name] = RegistryEntry(
             crud=crud,
-            create_schema=create_schema,
-            update_schema=update_schema,
-            read_schema=read_schema,
-            compatible_input_types=compatible_input_types,
-            description=description,
+            create_schema=type_def.create_schema,
+            update_schema=type_def.update_schema,
+            read_schema=type_def.read_schema,
+            compatible_input_types=type_def.compatible_input_types,
+            description=type_def.description,
         )
-        if polymorphic:
-            self._polymorphic_subclasses.append(model)
+        if type_def.polymorphic:
+            self._polymorphic_subclasses[type_def.model] = None
 
     def register_load_option(self, option: Any) -> None:
         """Register an extra SQLAlchemy load option for the base CRUD query.
@@ -117,7 +127,9 @@ class PolymorphicRegistry:
 
             extra.insert(
                 0,
-                selectin_polymorphic(crud_class.model, self._polymorphic_subclasses),
+                selectin_polymorphic(
+                    crud_class.model, list(self._polymorphic_subclasses)
+                ),
             )
         if extra:
             crud_class.default_load_options = [
@@ -182,46 +194,28 @@ class SchedulerEntry:
     invalidate: Callable[[Redis], Awaitable[None]] | None = None
 
 
-class SchedulerRegistry:
-    """Maps job type names to their handlers and Pydantic schemas.
+class SchedulerRegistry(_OwnedNames):
+    """Maps job type names to their handlers and Pydantic schemas."""
 
-    Plugin authors call :meth:`register` from their plugin's ``__init__.py``::
-
-        scheduler_registry.register(
-            type_name="my_task",
-            handler=my_handler,
-            create_schema=MyTaskParams,
-            update_schema=MyTaskParams,
-        )
-    """
+    _kind = "job"
 
     def __init__(self) -> None:
+        super().__init__()
         self._entries: dict[str, SchedulerEntry] = {}
 
-    def register(
-        self,
-        type_name: str,
-        handler: Callable,
-        create_schema: type[BaseModel],
-        update_schema: type[BaseModel],
-        invalidate: Callable[[Redis], Awaitable[None]] | None = None,
-    ) -> None:
-        """Register a job type with its handler and schemas.
+    def add(self, job: JobDef, owner: str) -> None:
+        """Register a job type on behalf of ``owner``.
 
-        Args:
-            type_name: The job type name to register under.
-            handler: The sync or async callable that runs the job.
-            create_schema: Schema used to create jobs of this type.
-            update_schema: Schema used to update jobs of this type.
-            invalidate: Cache drop run after the run commits, when the handler
-                changes state that is cached elsewhere.
+        Raises:
+            ValueError: If another owner already registered the job type.
         """
-        self._entries[type_name] = SchedulerEntry(
-            type_name=type_name,
-            handler=handler,
-            create_schema=create_schema,
-            update_schema=update_schema,
-            invalidate=invalidate,
+        self._claim(job.type_name, owner)
+        self._entries[job.type_name] = SchedulerEntry(
+            type_name=job.type_name,
+            handler=job.handler,
+            create_schema=job.create_schema,
+            update_schema=job.update_schema,
+            invalidate=job.invalidate,
         )
 
     def get(self, type_name: str) -> SchedulerEntry:

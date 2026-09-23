@@ -1,102 +1,79 @@
 """Plugin configuration registration and resolution.
 
-Plugins call:
-  - register_plugin_configs() — declare config keys with a plugin prefix
-  - get_plugin_config()       — resolve a config value with auto-prefix
-
-Category infrastructure (CategoryMeta, register_category, get_category_meta)
-lives in core/appconfig.py because both core and plugin configs share it.
+A plugin's config keys live under its plugin key: ``token`` declared by the
+``nexctf_plugin_orchestrator`` distribution is stored as
+``nexctf_plugin_orchestrator.token``.
 """
 
 from __future__ import annotations
 
-import sys
+import logging
+import re
 from dataclasses import replace
 
 from nexctf.core.appconfig import (
     ConfigDef,
+    ConfigType,
     define,
     get_with_overrides,
+    normalize_def,
     register_category,
 )
+from nexctf.plugins.declare import ConfigCategory
+
+logger = logging.getLogger(__name__)
+
+_SECRET_LIKE = re.compile(r"token|secret|password|api_key", re.IGNORECASE)
 
 
-def _caller_slug(depth: int = 2) -> str:
-    """Derive the plugin slug from the caller's package name.
+def plugin_config_defs(category: ConfigCategory, key: str) -> list[ConfigDef]:
+    """Return a plugin's config definitions, prefixed and normalized.
 
-    Walks up the call stack by ``depth`` frames and extracts the last
-    component of ``__package__`` (e.g. ``"nexctf_container"`` → ``"container"``).
+    Raises:
+        ValueError: If a definition is invalid.
+    """
+    return [
+        normalize_def(replace(def_, key=f"{key}.{def_.key}", category=key))
+        for def_ in category.defs
+    ]
+
+
+def register_config(category: ConfigCategory, key: str, defs: list[ConfigDef]) -> None:
+    """Define a plugin's config keys and bind its category to the plugin key.
 
     Args:
-        depth: Number of stack frames to walk up to reach the plugin caller.
-
-    Returns:
-        The derived slug, or an empty string when no package is found.
+        category: The plugin's config declaration.
+        key: The plugin key, used as category slug and key prefix.
+        defs: The category's definitions from :func:`plugin_config_defs`.
     """
-    pkg = sys._getframe(depth).f_globals.get("__package__", "")
-    return pkg.rsplit(".", 1)[-1] if pkg else ""
-
-
-def register_plugin_configs(
-    display_name: str,
-    *defs: ConfigDef,
-    icon: str | None = None,
-    section: str = "plugins",
-    plugin_slug: str | None = None,
-) -> None:
-    """Register config definitions for a plugin.
-
-    The plugin slug is derived automatically from the caller's package name
-    (last component of ``__package__``).  Keys are prefixed with
-    ``{slug}.`` automatically — pass bare names like ``"docker_host"`` and
-    they become ``"container.docker_host"``.
-
-    Args:
-        display_name: Human-readable label shown in the settings sidebar.
-        *defs:        :class:`ConfigDef` instances — use bare key names.
-        icon:         Optional Lucide icon name, e.g. ``"box"``.
-        section:      Sidebar section. Defaults to ``"plugins"``.
-        plugin_slug:  Explicit slug override. Inferred from caller package when omitted.
-
-    Example (inside ``nexctf_orchestrator/__init__.py``)::
-
-        register_plugin_configs(
-            "Orchestrator",
-            ConfigDef(key="instance_url", label="Instance URL",
-                      default="http://localhost:9000", type=ConfigType.URL),
-            ConfigDef(key="enabled", label="Enable plugin", default=True),
-            icon="box",
-        )
-    """
-    slug = plugin_slug or _caller_slug(depth=2)
-    register_category(slug, display_name, section=section, icon=icon, is_plugin=True)
-    prefix = f"{slug}."
+    register_category(
+        key,
+        category.display_name,
+        section=category.section,
+        icon=category.icon,
+        is_plugin=True,
+    )
     for def_ in defs:
-        key = def_.key if def_.key.startswith(prefix) else f"{prefix}{def_.key}"
-        define(replace(def_, key=key, category=slug))
+        if _SECRET_LIKE.search(def_.key) and def_.type is not ConfigType.SECRET:
+            logger.warning(
+                "plugin.config.plain_secret key=%s: declare it ConfigType.SECRET "
+                "so it is masked on read and left out of bundle exports",
+                def_.key,
+            )
+        define(def_)
+    category.key = key
 
 
 def get_plugin_config(
-    key: str,
-    overrides: dict[str, str],
-    *,
-    plugin_slug: str | None = None,
+    key: str, overrides: dict[str, str], *, plugin_key: str
 ) -> str | int | float | bool:
-    """Resolve a plugin config value using the caller's package as the slug.
+    """Resolve a config value of the plugin registered under ``plugin_key``.
 
-    Call from anywhere inside the plugin package and the prefix is resolved
-    automatically.
+    Plugins holding their :class:`ConfigCategory` can call its ``get`` instead.
 
     Args:
-        key:         Bare config key, e.g. ``"instance_url"``.
-        overrides:   Config snapshot from ``appconfig.fetch_overrides``.
-        plugin_slug: Explicit slug override. Inferred from caller package when omitted.
-
-    Example (inside ``orchestrator/module/orchestrator.py``)::
-
-        host = get_plugin_config("instance_url", overrides)
+        key: Bare config key, e.g. ``"instance_url"``.
+        overrides: Config snapshot from ``appconfig.fetch_overrides``.
+        plugin_key: The plugin the key belongs to.
     """
-    slug = plugin_slug or _caller_slug(depth=2)
-    prefix = f"{slug}."
-    full_key = key if key.startswith(prefix) else f"{prefix}{key}"
-    return get_with_overrides(full_key, overrides)
+    return get_with_overrides(f"{plugin_key}.{key}", overrides)

@@ -1,9 +1,9 @@
 """Unit tests for the plugin registries.
 
 Covers the polymorphic type registry (register/get/compatibility/apply), the
-scheduler job registry, the route registry's scope filtering, and the frontend
-bundle registry. Each test uses a fresh registry instance so it does not touch
-the module-level singletons the running app populates.
+scheduler job registry, the route registry's scope filtering, the frontend
+bundle registry, and owner conflicts. Each test uses a fresh registry instance
+so it does not touch the module-level singletons the running app populates.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from nexctf.enums import InputType
 from nexctf.model import Link
+from nexctf.plugins.declare import FrontendDef, JobDef, RouterDef, TypeDef
 from nexctf.plugins.frontend import FrontendRegistry
 from nexctf.plugins.registry import PolymorphicRegistry, SchedulerRegistry
 from nexctf.plugins.routes import RouteRegistry
@@ -27,14 +28,7 @@ class _Schema(BaseModel):
 
 def _register(reg: PolymorphicRegistry, type_name: str, **kwargs) -> None:
     """Register a type on a polymorphic registry with dummy schemas."""
-    reg.register(
-        type_name,
-        Link,
-        create_schema=_Schema,
-        update_schema=_Schema,
-        read_schema=_Schema,
-        **kwargs,
-    )
+    reg.add(TypeDef(type_name, Link, _Schema, _Schema, _Schema, **kwargs), "tests")
 
 
 def test_register_then_get_returns_entry() -> None:
@@ -65,6 +59,7 @@ def test_polymorphic_flag_controls_subclass_registration() -> None:
     reg = PolymorphicRegistry()
     _register(reg, "poly", polymorphic=True)
     _register(reg, "flat", polymorphic=False)
+    _register(reg, "poly_again", polymorphic=True)
     assert reg.polymorphic_subclasses == [Link]
 
 
@@ -89,9 +84,7 @@ def test_scheduler_register_and_get() -> None:
 
     def handler() -> None: ...
 
-    reg.register(
-        "my_task", handler=handler, create_schema=_Schema, update_schema=_Schema
-    )
+    reg.add(JobDef("my_task", handler, _Schema, _Schema), owner="tests")
     entry = reg.get("my_task")
     assert entry.handler is handler
     assert dict(reg.items()) == {"my_task": entry}
@@ -102,43 +95,59 @@ def test_scheduler_get_unknown_raises_keyerror() -> None:
         SchedulerRegistry().get("nope")
 
 
-def test_route_registry_filters_by_scope() -> None:
+def test_route_registry_keeps_each_scope_of_a_prefix() -> None:
     reg = RouteRegistry()
-    admin_router = APIRouter()
-    public_router = APIRouter()
-    reg.register(admin_router, prefix="/a", scope="admin")
-    reg.register(public_router, prefix="/p", scope="public")
+    admin_router = RouterDef(APIRouter(), prefix="/a", scope="admin")
+    user_router = RouterDef(APIRouter(), prefix="/a")
+    reg.add(admin_router, owner="demo")
+    reg.add(user_router, owner="demo")
 
-    admin = reg.get_routers(scope="admin")
-    public = reg.get_routers(scope="public")
-    assert [r for r, _, _ in admin] == [admin_router]
-    assert [r for r, _, _ in public] == [public_router]
+    assert reg.get_routers() == [admin_router, user_router]
+    assert reg.items() == [("demo", admin_router), ("demo", user_router)]
 
 
-def test_route_registry_returns_all_without_scope() -> None:
-    reg = RouteRegistry()
-    reg.register(APIRouter(), prefix="/a", scope="admin")
-    reg.register(APIRouter(), prefix="/p", scope="public")
-    assert len(reg.get_routers()) == 2
+def test_router_scope_defaults_to_user() -> None:
+    assert RouterDef(APIRouter(), prefix="/a").scope == "user"
 
 
-def test_route_registry_defaults_tags_to_empty_list() -> None:
-    reg = RouteRegistry()
-    reg.register(APIRouter(), prefix="/a")
-    ((_, prefix, tags),) = reg.get_routers()
-    assert prefix == "/a"
-    assert tags == []
-
-
-def test_frontend_register_get_and_get_all() -> None:
+def test_frontend_is_keyed_on_its_owner() -> None:
     reg = FrontendRegistry()
-    reg.register(key="fe", dist_dir=Path("/dist"), slots=["challenge_panel"])
-    entry = reg.get("fe")
+    reg.add(FrontendDef(Path("/dist"), slots=["challenge_panel"]), owner="demo")
+    entry = reg.get("demo")
     assert entry is not None
     assert entry.slots == ["challenge_panel"]
     assert entry.entry_file == "bundle.js"
+    assert entry.has_bundle is False
     assert reg.get_all() == [entry]
 
 
 def test_frontend_get_missing_returns_none() -> None:
     assert FrontendRegistry().get("missing") is None
+
+
+def _type(name: str) -> TypeDef:
+    return TypeDef(name, Link, _Schema, _Schema, _Schema, polymorphic=False)
+
+
+def test_another_owner_cannot_take_a_type_name() -> None:
+    reg = PolymorphicRegistry()
+    reg.add(_type("thing"), owner="first")
+    with pytest.raises(ValueError, match="already registered by 'first'"):
+        reg.add(_type("thing"), owner="second")
+
+
+def test_the_same_owner_may_register_a_type_again() -> None:
+    reg = PolymorphicRegistry()
+    reg.add(_type("thing"), owner="first")
+    reg.add(_type("thing"), owner="first")
+    reg.check("thing", "first")
+
+
+def test_another_owner_cannot_take_a_job_name() -> None:
+    reg = SchedulerRegistry()
+
+    def handler() -> None: ...
+
+    reg.add(JobDef("job", handler, _Schema, _Schema), owner="first")
+    with pytest.raises(ValueError, match="already registered by 'first'"):
+        reg.add(JobDef("job", handler, _Schema, _Schema), owner="second")

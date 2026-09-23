@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi_toolsets.fixtures import FixtureRegistry
 from fastapi_toolsets.fixtures.enum import Context
 
-from nexctf.api.scope import grantable_scopes
+from nexctf.api.scope import full_admin_scopes
 from nexctf.core.config import settings
 from nexctf.fixtures import utils
 from nexctf.model import (
@@ -538,7 +538,7 @@ def token() -> list[UserToken]:
             id=UUID("26a7ec48-f11e-4795-8e96-a6ac95e5b410"),
             user_id=fixtures.field("user", "username", "admin"),
             token_hash="278e988e8437ac6c34fdcc9f43e43ed69d68361eb63808b97ae3befa3e989e0b",  # "nexctf_admin_token"
-            scopes=sorted(grantable_scopes(is_admin=True)),
+            scopes=full_admin_scopes(),
         )
     ]
 

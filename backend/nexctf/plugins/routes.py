@@ -2,54 +2,31 @@
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Literal
-
-from fastapi import APIRouter
-
-type RouterScope = Literal["admin", "public"]
-type TagList = list[str | Enum]
+from nexctf.plugins.declare import RouterDef
 
 
 class RouteRegistry:
-    """Standalone registry for plugin-provided API routes."""
+    """Plugin routers waiting to be mounted, keyed on owner, scope and prefix."""
 
     def __init__(self) -> None:
-        self._entries: list[tuple[APIRouter, str, TagList, RouterScope]] = []
+        self._entries: dict[tuple[str, str, str], RouterDef] = {}
 
-    def register(
-        self,
-        router: APIRouter,
-        prefix: str,
-        scope: RouterScope = "admin",
-        tags: TagList | None = None,
-    ) -> None:
-        """Register a plugin router to be mounted at startup.
+    def add(self, router: RouterDef, owner: str) -> None:
+        """Record a router ``owner`` mounts at startup.
 
         Args:
-            router: The APIRouter to mount.
-            prefix: Path prefix the router is mounted under.
-            scope: Whether the router is admin-only or public.
-            tags: OpenAPI tags applied to the router's routes.
+            router: The router declaration.
+            owner: The plugin key the router belongs to.
         """
-        self._entries.append((router, prefix, list(tags or []), scope))
+        self._entries[(owner, router.scope, router.prefix)] = router
 
-    def get_routers(
-        self, scope: RouterScope | None = None
-    ) -> list[tuple[APIRouter, str, TagList]]:
-        """Return the registered routers, optionally filtered by scope.
+    def get_routers(self) -> list[RouterDef]:
+        """Return every registered router."""
+        return list(self._entries.values())
 
-        Args:
-            scope: Only return routers with this scope, or ``None`` for all.
-
-        Returns:
-            A list of ``(router, prefix, tags)`` tuples.
-        """
-        return [
-            (r, prefix, tags)
-            for r, prefix, tags, s in self._entries
-            if scope is None or s == scope
-        ]
+    def items(self) -> list[tuple[str, RouterDef]]:
+        """Return every registered router with the plugin key that owns it."""
+        return [(owner, router) for (owner, _, _), router in self._entries.items()]
 
 
 route_registry = RouteRegistry()

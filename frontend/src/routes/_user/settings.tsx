@@ -135,7 +135,19 @@ function verbLabel(t: TFunction, verb: string): string {
   return verb;
 }
 
+const PLUGIN_GROUP = /^(admin\.)?plugin\.(.+)$/;
+
 function groupLabel(t: TFunction, group: string): string {
+  const plugin = PLUGIN_GROUP.exec(group);
+  if (plugin?.[1]) {
+    return t("settings.token.scope_admin_plugin", {
+      defaultValue: "Plugin admin: {{name}}",
+      name: plugin[2],
+    });
+  }
+  if (plugin) {
+    return t("settings.token.scope_plugin", { defaultValue: "Plugin: {{name}}", name: plugin[2] });
+  }
   return t(`settings.token.scope.${group}`, { defaultValue: group });
 }
 

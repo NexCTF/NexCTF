@@ -57,6 +57,7 @@ async def _current_user(
 
 
 CurrentUserDep = Annotated[User, Depends(_current_user)]
+UserAuthDep = Depends(_current_user)
 
 
 async def _token_scopes(request: Request, _: CurrentUserDep) -> frozenset[str] | None:

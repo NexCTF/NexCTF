@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import pytest
+from fastapi import APIRouter
 from fastapi.openapi.utils import get_openapi
 from fastapi.routing import iter_route_contexts
 from httpx import AsyncClient
@@ -19,19 +20,22 @@ from nexctf.api.openapi import (
 )
 from nexctf.api.routes.sse import _user_channels
 from nexctf.api.scope import (
-    _PREFIX_GROUPS,
     VERB_OF_METHOD,
     all_groups,
     build_table,
+    full_admin_scopes,
     grantable_scopes,
     group_for_path,
-    register_plugin_prefix,
+    plugin_prefix_conflict,
     reset_table,
 )
 from nexctf.api.security import create_api_token
 from nexctf.core.config import settings
 from nexctf.main import app
 from nexctf.model import User, UserRole
+from nexctf.plugins import RouterDef
+from nexctf.plugins.declare import RouterScope
+from nexctf.plugins.routes import route_registry
 
 from ..base import NULL_UUID
 
@@ -178,13 +182,51 @@ class TestScopeMatching:
         assert group_for_path("/api/v1/me/tokens") == "token"
         assert group_for_path("/api/v1/custom-field") is None
 
-    def test_plugin_prefixes_are_registered_at_mount(
-        self, restore_prefix_groups
-    ) -> None:
-        register_plugin_prefix("/test-scope-plugin", "public")
-        register_plugin_prefix("/test-scope-plugin", "admin")
-        assert group_for_path("/api/v1/test-scope-plugin/x") == "plugin"
-        assert group_for_path("/api/v1/admin/test-scope-plugin/x") == "admin.plugin"
+    def test_a_plugin_router_maps_to_its_plugin_group(self, isolated_plugins) -> None:
+        _add_router("/test-scope-plugin", "user", "demo")
+        _add_router("/test-scope-plugin", "admin", "demo")
+        assert group_for_path("/api/v1/test-scope-plugin/x") == "plugin.demo"
+        assert (
+            group_for_path("/api/v1/admin/test-scope-plugin/x") == "admin.plugin.demo"
+        )
+
+    def test_each_plugin_gets_its_own_group(self, isolated_plugins) -> None:
+        _add_router("/one", "user", "one")
+        _add_router("/two", "anonymous", "two")
+        assert {"plugin.one", "plugin.two"} <= all_groups()
+
+
+class TestPluginPrefixConflict:
+    def test_every_core_route_is_claimed(self) -> None:
+        """A plugin can never mount where a core route already answers."""
+        for ctx in iter_route_contexts(app.routes):
+            path = ctx.path or ""
+            if not path.startswith(settings.API_V1_STR):
+                continue
+            relative = path[len(settings.API_V1_STR) :]
+            if relative.startswith("/admin/"):
+                prefix, scope = relative[len("/admin") :], "admin"
+            else:
+                prefix, scope = relative, "user"
+            assert plugin_prefix_conflict(prefix, scope) is not None, path
+
+    def test_a_free_prefix_is_accepted(self) -> None:
+        assert plugin_prefix_conflict("/orchestrator", "user") is None
+        assert plugin_prefix_conflict("/orchestrator", "admin") is None
+        assert plugin_prefix_conflict("/challenges-extra", "user") is None
+
+    def test_a_nested_core_prefix_is_refused(self) -> None:
+        assert plugin_prefix_conflict("/challenges/extra", "user") == "/challenges"
+        assert plugin_prefix_conflict("/auth", "anonymous") == "/auth"
+
+    def test_a_non_admin_router_cannot_mount_under_admin(self) -> None:
+        assert plugin_prefix_conflict("/admin/x", "user") == "/admin"
+
+    def test_a_registered_plugin_prefix_is_taken(self, isolated_plugins) -> None:
+        _add_router("/orchestrator", "user", "orch")
+        assert plugin_prefix_conflict("/orchestrator/v2", "anonymous") == (
+            "/orchestrator"
+        )
 
 
 class TestGrantableScopes:
@@ -203,18 +245,27 @@ class TestGrantableScopes:
         for is_admin in (False, True):
             assert not [s for s in grantable_scopes(is_admin) if "*" in s]
 
-    def test_a_plugin_group_is_grantable_before_any_plugin_mounts(self) -> None:
-        assert {"read:plugin", "write:plugin"} <= grantable_scopes(is_admin=False)
-        assert "write:admin.plugin" in grantable_scopes(is_admin=True)
+    def test_a_registered_plugin_group_is_grantable(self, isolated_plugins) -> None:
+        _add_router("/demo", "user", "demo")
+        _add_router("/demo", "admin", "demo")
+        assert "write:plugin.demo" in grantable_scopes(is_admin=False)
+        assert "write:admin.plugin.demo" not in grantable_scopes(is_admin=False)
+        assert "write:admin.plugin.demo" in grantable_scopes(is_admin=True)
+
+    def test_full_admin_scopes_loads_plugins_first(
+        self, isolated_plugins, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A seed token computed before any plugin loaded would miss their groups."""
+        monkeypatch.setattr(
+            "nexctf.plugins.load_plugin_registries",
+            lambda: _add_router("/demo", "admin", "demo"),
+        )
+        assert "write:admin.plugin.demo" in full_admin_scopes()
 
 
-@pytest.fixture
-def restore_prefix_groups():
-    """Undo writes to the module-level prefix map."""
-    snapshot = dict(_PREFIX_GROUPS)
-    yield
-    _PREFIX_GROUPS.clear()
-    _PREFIX_GROUPS.update(snapshot)
+def _add_router(prefix: str, scope: RouterScope, owner: str) -> None:
+    """Register an empty plugin router, as the loader does on commit."""
+    route_registry.add(RouterDef(APIRouter(), prefix, scope=scope), owner)
 
 
 @pytest.fixture(autouse=True)

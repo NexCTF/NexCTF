@@ -8,10 +8,21 @@ from __future__ import annotations
 
 import pytest
 
-from nexctf.plugins import challenge_registry, load_builtin_plugins, solution_registry
+from nexctf.plugins import (
+    Plugin,
+    TypeDef,
+    challenge_registry,
+    load_builtin_plugins,
+    solution_registry,
+)
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 from nexctf.plugins.builtin.solution.regex.model import RegexSolution
-from nexctf.plugins.testing import assert_registered, assert_verifies
+from nexctf.plugins.builtin.solution.regex.schema import (
+    RegexSolutionCreate,
+    RegexSolutionRead,
+    RegexSolutionUpdate,
+)
+from nexctf.plugins.testing import assert_registered, assert_verifies, register_plugin
 
 
 async def test_assert_verifies_runs_each_case() -> None:
@@ -47,3 +58,25 @@ def test_assert_registered_raises_on_wrong_model() -> None:
     load_builtin_plugins()
     with pytest.raises(AssertionError):
         assert_registered(solution_registry, "regex", model=StandardChallenge)
+
+
+def test_register_plugin_registers_like_the_loader(isolated_plugins: None) -> None:
+    """A plugin's own tests can register its declaration without an install."""
+    plugin = Plugin(
+        solution_types=[
+            TypeDef(
+                "testing_type",
+                RegexSolution,
+                RegexSolutionCreate,
+                RegexSolutionUpdate,
+                RegexSolutionRead,
+                polymorphic=False,
+            )
+        ]
+    )
+
+    register_plugin(plugin, "nexctf_testing")
+
+    assert_registered(solution_registry, "testing_type", model=RegexSolution)
+    with pytest.raises(ValueError, match="by 'nexctf_testing'"):
+        solution_registry.check("testing_type", "other")

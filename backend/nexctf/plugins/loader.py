@@ -9,11 +9,23 @@ import re
 from dataclasses import dataclass, replace
 from email.utils import getaddresses
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, get_args
+
+from nexctf.plugins.config import plugin_config_defs, register_config
+from nexctf.plugins.declare import Plugin, RouterDef, RouterScope
+from nexctf.plugins.frontend import frontend_registry
+from nexctf.plugins.registry import (
+    challenge_registry,
+    scheduler_registry,
+    solution_registry,
+)
+from nexctf.plugins.routes import route_registry
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
     from sqlalchemy.ext.asyncio import AsyncSession
+
+    from nexctf.core.appconfig import ConfigDef
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +34,11 @@ _BUILTINS = {
     "challenge": "nexctf.plugins.builtin.challenge",
     "solution": "nexctf.plugins.builtin.solution",
 }
+_CORE_KEY = "core"
+_CORE_MODULES = ("nexctf.module.scheduler",)
+
+_ROUTER_SCOPES: tuple[str, ...] = get_args(RouterScope.__value__)
+_PREFIX_RE = re.compile(r"(/[a-z0-9][a-z0-9_-]*)+")
 
 _plugin_tables: set[str] = set()
 _plugin_metadata: dict[str, PluginMeta] = {}
@@ -179,13 +196,83 @@ def get_plugin_migrations() -> dict[str, tuple[Path, frozenset[str]]]:
     return _plugin_migrations
 
 
+def _validate_routers(routers: list[RouterDef]) -> None:
+    """Raise if a router has an unknown scope or a malformed or taken prefix."""
+    from nexctf.api.scope import plugin_prefix_conflict
+
+    for router in routers:
+        if router.scope not in _ROUTER_SCOPES:
+            raise ValueError(
+                f"router {router.prefix!r} has scope {router.scope!r}, "
+                f"expected one of {', '.join(_ROUTER_SCOPES)}"
+            )
+        if not _PREFIX_RE.fullmatch(router.prefix):
+            raise ValueError(f"router prefix {router.prefix!r} is not like '/name'")
+        if taken := plugin_prefix_conflict(router.prefix, router.scope):
+            raise ValueError(
+                f"{router.scope} router prefix {router.prefix!r} collides with {taken!r}"
+            )
+
+
+def _validate(plugin: Plugin, key: str) -> list[ConfigDef]:
+    """Raise if any part of ``plugin`` cannot be registered under ``key``.
+
+    Returns:
+        The plugin's normalized config definitions.
+    """
+    for type_def in plugin.challenge_types:
+        challenge_registry.check(type_def.name, key)
+    for type_def in plugin.solution_types:
+        solution_registry.check(type_def.name, key)
+    for job in plugin.jobs:
+        scheduler_registry.check(job.type_name, key)
+    if plugin.routers:
+        _validate_routers(plugin.routers)
+    return plugin_config_defs(plugin.config, key) if plugin.config else []
+
+
+def commit_plugin(plugin: Plugin, key: str) -> None:
+    """Validate ``plugin`` then register all of it under ``key``.
+
+    Args:
+        plugin: The plugin declaration.
+        key: The plugin key everything is registered under.
+    """
+    config_defs = _validate(plugin, key)
+    for type_def in plugin.challenge_types:
+        challenge_registry.add(type_def, key)
+    for type_def in plugin.solution_types:
+        solution_registry.add(type_def, key)
+    for job in plugin.jobs:
+        scheduler_registry.add(job, key)
+    for router in plugin.routers:
+        route_registry.add(router, key)
+    if plugin.config is not None:
+        register_config(plugin.config, key, config_defs)
+    if plugin.frontend is not None:
+        frontend_registry.add(plugin.frontend, key)
+
+
+def _import_plugin(ep: importlib.metadata.EntryPoint) -> Plugin:
+    """Import an entry point and return the :class:`Plugin` it declares."""
+    module = importlib.import_module(ep.module)
+    plugin = getattr(module, ep.attr or "plugin", None)
+    if not isinstance(plugin, Plugin):
+        raise TypeError(
+            f"entry point {ep.module}:{ep.attr or 'plugin'} is not a nexctf.plugins.Plugin"
+        )
+    return plugin
+
+
 def load_builtin_plugins() -> None:
-    """Import the in-tree builtin plugins and register their types."""
+    """Register core's own declarations and the in-tree builtin plugins."""
+    for module_path in _CORE_MODULES:
+        commit_plugin(importlib.import_module(module_path).plugin, _CORE_KEY)
     for key, module_path in _BUILTINS.items():
         if key in _plugin_metadata:
             continue
         logger.debug("plugin.load name=%s module=%s builtin=true", key, module_path)
-        importlib.import_module(module_path)
+        commit_plugin(importlib.import_module(module_path).plugin, key)
         _plugin_metadata[key] = _builtin_metadata(key)
 
 
@@ -199,13 +286,15 @@ def _load_installed_plugins() -> None:
             continue
         try:
             logger.debug("plugin.load name=%s module=%s", key, ep.module)
-            importlib.import_module(ep.module)
-            _plugin_metadata[key] = _installed_metadata(key, ep.dist)
+            package = ep.module.split(".")[0]
+            plugin = _import_plugin(ep)
             # Models and migrations live in the root package, not the entry-point module
-            root = importlib.import_module(ep.module.split(".")[0])
-            owned = derive_owned_tables(root.__name__)
-            _plugin_tables.update(owned)
+            root = importlib.import_module(package)
+            owned = derive_owned_tables(package)
             versions = Path(root.__file__ or "").parent / "alembic" / "versions"
+            commit_plugin(plugin, key)
+            _plugin_metadata[key] = _installed_metadata(key, ep.dist)
+            _plugin_tables.update(owned)
             if versions.is_dir():
                 _plugin_migrations[key] = (versions, owned)
             elif owned:
@@ -228,7 +317,6 @@ def load_plugin_registries() -> None:
 def _patch_crud_classes() -> None:
     """Patch base CRUD classes with plugin-registered load options."""
     from nexctf.crud import ChallengeCrud, SolutionCrud
-    from nexctf.plugins.registry import challenge_registry, solution_registry
 
     challenge_registry.apply(ChallengeCrud)
     solution_registry.apply(SolutionCrud)
@@ -242,26 +330,24 @@ def mount_plugin_routes(app: FastAPI) -> None:
     """
     from fastapi import APIRouter
 
-    from nexctf.api.dep import AdminAuthDep
-    from nexctf.api.scope import register_plugin_prefix
+    from nexctf.api.dep import AdminAuthDep, UserAuthDep
+    from nexctf.api.scope import reset_table
     from nexctf.core.config import settings
-    from nexctf.plugins.routes import route_registry
 
-    _admin = APIRouter(
-        prefix=f"{settings.API_V1_STR}/admin",
-        dependencies=[AdminAuthDep],
-    )
-    _public = APIRouter(prefix=settings.API_V1_STR)
-
-    for r, prefix, tags in route_registry.get_routers(scope="admin"):
-        _admin.include_router(r, prefix=prefix, tags=tags)
-        register_plugin_prefix(prefix, "admin")
-    for r, prefix, tags in route_registry.get_routers(scope="public"):
-        _public.include_router(r, prefix=prefix, tags=tags)
-        register_plugin_prefix(prefix, "public")
-
-    app.include_router(_admin)
-    app.include_router(_public)
+    parents = {
+        "admin": APIRouter(
+            prefix=f"{settings.API_V1_STR}/admin", dependencies=[AdminAuthDep]
+        ),
+        "user": APIRouter(prefix=settings.API_V1_STR, dependencies=[UserAuthDep]),
+        "anonymous": APIRouter(prefix=settings.API_V1_STR),
+    }
+    for router in route_registry.get_routers():
+        parents[router.scope].include_router(
+            router.router, prefix=router.prefix, tags=router.tags
+        )
+    for parent in parents.values():
+        app.include_router(parent)
+    reset_table()
 
 
 async def init_plugins(app: FastAPI, session: AsyncSession) -> None:

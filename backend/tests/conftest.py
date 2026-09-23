@@ -17,14 +17,41 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 os.environ["NEXCTF_TEST_MODE"] = "1"
 
+from nexctf.core import appconfig
 from nexctf.core.cache import get_redis
 from nexctf.core.config import settings
 from nexctf.core.db import db
 from nexctf.fixtures import test_fixture_registry
 from nexctf.main import app
 from nexctf.model import Base, User, UserRole
+from nexctf.plugins import load_builtin_plugins
+from nexctf.plugins.frontend import frontend_registry
+from nexctf.plugins.registry import (
+    challenge_registry,
+    scheduler_registry,
+    solution_registry,
+)
+from nexctf.plugins.routes import route_registry
 
 register_fixtures(test_fixture_registry, globals())
+# The test app skips the lifespan that loads plugins.
+load_builtin_plugins()
+
+
+@pytest.fixture
+def isolated_plugins(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Give the test its own copy of every plugin registry and of config state."""
+    for reg in (challenge_registry, solution_registry, scheduler_registry):
+        monkeypatch.setattr(reg, "_entries", dict(reg._entries))
+        monkeypatch.setattr(reg, "_owners", dict(reg._owners))
+    for reg in (challenge_registry, solution_registry):
+        monkeypatch.setattr(
+            reg, "_polymorphic_subclasses", dict(reg._polymorphic_subclasses)
+        )
+    monkeypatch.setattr(route_registry, "_entries", {})
+    monkeypatch.setattr(frontend_registry, "_entries", {})
+    monkeypatch.setattr(appconfig, "_DEFS", dict(appconfig._DEFS))
+    monkeypatch.setattr(appconfig, "_CATEGORIES", dict(appconfig._CATEGORIES))
 
 
 @pytest.fixture
