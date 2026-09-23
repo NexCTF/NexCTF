@@ -1,0 +1,7 @@
+# Security headers for the frontend. The dev server sends the same
+# Content-Security-Policy as Report-Only (frontend/vite.config.ts).
+header {
+	Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: wss:; media-src 'self' https:; worker-src 'self' blob:; frame-src https:; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+	X-Content-Type-Options "nosniff"
+	Referrer-Policy "strict-origin-when-cross-origin"
+}

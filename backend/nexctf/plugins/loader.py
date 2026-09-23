@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import importlib.metadata
 import logging
+import os
 import re
 from dataclasses import dataclass, replace
 from email.utils import getaddresses
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _ENTRY_POINT_GROUP = "nexctf.plugins"
+_DISABLED_ENV = "NEXCTF_DISABLED_PLUGINS"
 _BUILTINS = {
     "challenge": "nexctf.plugins.builtin.challenge",
     "solution": "nexctf.plugins.builtin.solution",
@@ -59,6 +61,7 @@ class PluginMeta:
     homepage_url: str | None
     is_builtin: bool
     is_active: bool = True
+    is_disabled: bool = False
     load_error: str | None = None
 
 
@@ -117,6 +120,7 @@ def _installed_metadata(
     dist: importlib.metadata.Distribution,
     *,
     is_active: bool = True,
+    is_disabled: bool = False,
     load_error: str | None = None,
 ) -> PluginMeta:
     """Build metadata for an installed plugin from its distribution metadata.
@@ -125,6 +129,7 @@ def _installed_metadata(
         key: The plugin key the distribution is tracked under.
         dist: The installed distribution providing the entry point.
         is_active: Whether the plugin loaded successfully.
+        is_disabled: Whether the operator disabled the plugin.
         load_error: Error message captured when loading failed, if any.
 
     Returns:
@@ -143,6 +148,7 @@ def _installed_metadata(
         homepage_url=urls.get("homepage"),
         is_builtin=False,
         is_active=is_active,
+        is_disabled=is_disabled,
         load_error=load_error,
     )
 
@@ -276,13 +282,30 @@ def load_builtin_plugins() -> None:
         _plugin_metadata[key] = _builtin_metadata(key)
 
 
-def _load_installed_plugins() -> None:
-    """Import every installed distribution declaring a ``nexctf.plugins`` entry point."""
+def _disabled_plugin_keys() -> frozenset[str]:
+    """Return the plugin keys listed, comma-separated, in ``NEXCTF_DISABLED_PLUGINS``."""
+    names = os.environ.get(_DISABLED_ENV, "").split(",")
+    return frozenset(plugin_key(n.strip()) for n in names if n.strip())
+
+
+def _load_installed_plugins(*, include_disabled: bool = False) -> None:
+    """Import every installed distribution declaring a ``nexctf.plugins`` entry point.
+
+    Args:
+        include_disabled: Load disabled plugins too, as migrations must.
+    """
+    disabled = frozenset() if include_disabled else _disabled_plugin_keys()
     for ep in importlib.metadata.entry_points(group=_ENTRY_POINT_GROUP):
         if ep.dist is None:
             continue
         key = plugin_key(ep.dist.name)
         if key in _plugin_metadata:
+            continue
+        if key in disabled:
+            logger.info("plugin.disabled name=%s", key)
+            _plugin_metadata[key] = _installed_metadata(
+                key, ep.dist, is_active=False, is_disabled=True
+            )
             continue
         try:
             logger.debug("plugin.load name=%s module=%s", key, ep.module)
@@ -308,10 +331,14 @@ def _load_installed_plugins() -> None:
             )
 
 
-def load_plugin_registries() -> None:
-    """Populate the plugin registries by importing builtin and installed plugins."""
+def load_plugin_registries(*, include_disabled: bool = False) -> None:
+    """Populate the plugin registries by importing builtin and installed plugins.
+
+    Args:
+        include_disabled: Load plugins listed in ``NEXCTF_DISABLED_PLUGINS`` too.
+    """
     load_builtin_plugins()
-    _load_installed_plugins()
+    _load_installed_plugins(include_disabled=include_disabled)
 
 
 def _patch_crud_classes() -> None:

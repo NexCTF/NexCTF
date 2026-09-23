@@ -1,8 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { AlertTriangle, Box, ExternalLink, Puzzle, ShieldCheck, User } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  AlertTriangle,
+  Box,
+  ExternalLink,
+  PowerOff,
+  Puzzle,
+  Settings,
+  ShieldCheck,
+  User,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "@/components/page-header";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getAdminPlugins, type Plugin } from "@/lib/api";
 
@@ -21,6 +31,13 @@ function VersionBadge({ version }: { version: string | null }) {
 
 function StatusBadge({ plugin }: { plugin: Plugin }) {
   const { t } = useTranslation();
+  if (plugin.is_disabled) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+        {t("admin.plugins.disabled", { defaultValue: "Disabled" })}
+      </span>
+    );
+  }
   if (plugin.is_builtin) {
     return (
       <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
@@ -46,6 +63,51 @@ function OfficialBadge() {
       <ShieldCheck className="size-3" />
       {t("admin.plugins.official", { defaultValue: "Official" })}
     </span>
+  );
+}
+
+function PluginNotices({ plugin }: { plugin: Plugin }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {plugin.is_disabled && (
+        <div className="flex items-start gap-1.5 rounded bg-muted px-2 py-1.5 text-xs text-muted-foreground">
+          <PowerOff className="size-3 shrink-0 mt-0.5" />
+          <span>
+            {t("admin.plugins.disabled_hint", {
+              defaultValue:
+                "Installed but not loaded. Remove it from NEXCTF_DISABLED_PLUGINS and restart to enable it.",
+            })}
+          </span>
+        </div>
+      )}
+      {plugin.missing_bundles.length > 0 && (
+        <div className="flex items-start gap-1.5 rounded bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="size-3 shrink-0 mt-0.5" />
+          <span>
+            {t("admin.plugins.missing_bundles", {
+              defaultValue: "Frontend not built, its UI is missing: {{files}}",
+              files: plugin.missing_bundles.join(", "),
+            })}
+          </span>
+        </div>
+      )}
+    </>
+  );
+}
+
+function SettingsButton({ plugin }: { plugin: Plugin }) {
+  const { t } = useTranslation();
+  if (!plugin.has_config || !plugin.is_active) return null;
+  return (
+    <Link
+      to="/admin/settings"
+      search={{ category: plugin.key }}
+      className={buttonVariants({ variant: "outline", size: "xs" })}
+    >
+      <Settings />
+      {t("admin.plugins.settings", { defaultValue: "Settings" })}
+    </Link>
   );
 }
 
@@ -93,6 +155,8 @@ function PluginCard({ plugin }: { plugin: Plugin }) {
           )}
         </div>
 
+        <PluginNotices plugin={plugin} />
+
         {/* Load error */}
         {plugin.load_error && (
           <div className="flex items-start gap-1.5 rounded bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
@@ -101,9 +165,12 @@ function PluginCard({ plugin }: { plugin: Plugin }) {
           </div>
         )}
 
-        {/* Key */}
-        <div className="mt-auto pt-1 border-t">
-          <span className="text-[11px] font-mono text-muted-foreground/60">{plugin.key}</span>
+        {/* Key and actions */}
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2 border-t">
+          <span className="truncate text-[11px] font-mono text-muted-foreground/60">
+            {plugin.key}
+          </span>
+          <SettingsButton plugin={plugin} />
         </div>
       </CardContent>
     </Card>

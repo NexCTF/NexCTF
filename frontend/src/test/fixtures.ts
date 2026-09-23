@@ -5,6 +5,7 @@ import type {
   FailedLoginUsername,
   MyTeam,
   PaginatedResponse,
+  Plugin,
   PublicChallenge,
   PublicChallengeDetail,
   PublicInfo,
@@ -175,6 +176,27 @@ export function scoreboard(overrides: Partial<Scoreboard> = {}): Scoreboard {
     computed_at: "2026-01-01T12:00:00Z",
     brackets: [],
     custom_fields: [],
+    ...overrides,
+  };
+}
+
+export function plugin(overrides: Partial<Plugin> = {}): Plugin {
+  return {
+    key: "nexctf_demo",
+    name: "nexctf-demo",
+    display_name: "Demo",
+    version: "1.0.0",
+    description: null,
+    authors: [],
+    repo_url: null,
+    homepage_url: null,
+    is_builtin: false,
+    is_active: true,
+    is_official: false,
+    is_disabled: false,
+    has_config: false,
+    missing_bundles: [],
+    load_error: null,
     ...overrides,
   };
 }

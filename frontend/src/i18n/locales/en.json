@@ -430,10 +430,14 @@
     "plugins": {
       "active": "Active",
       "builtin": "Built-in",
+      "disabled": "Disabled",
+      "disabled_hint": "Installed but not loaded. Remove it from NEXCTF_DISABLED_PLUGINS and restart to enable it.",
       "empty": "No plugins loaded.",
       "external": "External",
       "inactive": "Inactive",
-      "official": "Official"
+      "missing_bundles": "Frontend not built, its UI is missing: {{files}}",
+      "official": "Official",
+      "settings": "Settings"
     },
     "scheduler": {
       "active_hint": "Enable the job to fire at the scheduled time",

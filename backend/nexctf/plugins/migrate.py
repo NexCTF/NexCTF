@@ -82,7 +82,7 @@ def main() -> None:
     )
     args = _parse_args()
 
-    load_plugin_registries()
+    load_plugin_registries(include_disabled=True)
     targets = get_plugin_migrations()
     if args.plugin:
         key = plugin_key(args.plugin)

@@ -23,15 +23,10 @@ export function useCaptcha(publicInfo: PublicInfo | undefined) {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const widgetRef = useRef<AltchaWidget | null>(null);
 
-  // Load the altcha widget script once
+  // Load the altcha widget, which defines <altcha-widget>, once
   useEffect(() => {
     if (!captchaEnabled) return;
-    const src = "https://cdn.jsdelivr.net/npm/altcha@3.2.2/dist/main/altcha.min.js";
-    if (document.querySelector(`script[src="${src}"]`)) return;
-    const script = document.createElement("script");
-    script.src = src;
-    script.type = "module";
-    document.head.appendChild(script);
+    void import("altcha");
   }, [captchaEnabled]);
 
   // The widget solves itself once it is ready (auto="onload") and reports the

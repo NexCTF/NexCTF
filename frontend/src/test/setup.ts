@@ -1,5 +1,5 @@
 import { cleanup } from "@testing-library/react";
-import { afterEach } from "vitest";
+import { afterEach, vi } from "vitest";
 import "@/i18n";
 
 // jsdom has no scrollTo; the router calls it on every navigation.
@@ -30,9 +30,10 @@ class InertEventSource {
 }
 globalThis.EventSource = InertEventSource as unknown as typeof EventSource;
 
-// jsdom does not load the altcha CDN script, so the custom element never
-// upgrades. Stub stands in for it: tests call solveCaptcha() to emit the
+// The real altcha widget spawns proof-of-work workers jsdom cannot run, so the
+// module is replaced by a stub element: tests call solveCaptcha() to emit the
 // "verified" event the real widget fires once it has solved its challenge.
+vi.mock("altcha", () => ({}));
 export function solveCaptcha(payload: string) {
   const el = document.querySelector("altcha-widget");
   el?.dispatchEvent(new CustomEvent("verified", { detail: { payload } }));

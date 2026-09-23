@@ -196,6 +196,30 @@ def test_already_loaded_plugin_is_not_reimported(
     assert "dup_pkg" not in sys.modules
 
 
+@pytest.mark.parametrize(
+    ("include_disabled", "imported"), [(False, False), (True, True)]
+)
+def test_a_disabled_plugin_is_skipped_except_for_migrations(
+    plugins_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    include_disabled: bool,
+    imported: bool,
+) -> None:
+    """Disabled by distribution name, so the operator writes what they installed."""
+    _write_package(plugins_root, "off_pkg")
+    _install(
+        monkeypatch, _fake_entry_point("off_pkg", "Name: nexctf-off\nVersion: 1\n")
+    )
+    monkeypatch.setenv("NEXCTF_DISABLED_PLUGINS", "other, nexctf-off")
+
+    loader._load_installed_plugins(include_disabled=include_disabled)
+
+    meta = loader._plugin_metadata["nexctf_off"]
+    assert (meta.is_active, meta.is_disabled) == (imported, not imported)
+    assert meta.load_error is None
+    assert ("off_pkg" in sys.modules) is imported
+
+
 def test_no_installed_plugins_is_noop(monkeypatch: pytest.MonkeyPatch) -> None:
     _install(monkeypatch)
     loader._load_installed_plugins()

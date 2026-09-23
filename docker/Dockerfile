@@ -92,6 +92,7 @@ RUN uv export --frozen --no-dev --no-hashes --no-emit-project -o /app/constraint
 ENV UV_CONSTRAINT=/app/constraints.txt
 
 COPY --chown=nexctf:nexctf docker/supervisord.conf /app/supervisord.conf
+COPY --chown=nexctf:nexctf docker/security-headers.caddy /app/security-headers.caddy
 COPY --chown=nexctf:nexctf --from=frontend-builder /app/dist /app/frontend/dist
 
 CMD ["bash", "/app/scripts/start.sh"]

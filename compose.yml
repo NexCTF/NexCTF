@@ -51,6 +51,9 @@ x-app-env: &app-env
   # Comma-separated uv specifiers installed at start, e.g.
   #   NEXCTF_PLUGINS=nexctf-sandbox==1.2.0,git+https://github.com/org/plug@v1.0
   NEXCTF_PLUGINS: ${NEXCTF_PLUGINS:-}
+  # Comma-separated plugin distribution names kept installed but not loaded,
+  # e.g. NEXCTF_DISABLED_PLUGINS=nexctf-sandbox. Takes effect on restart.
+  NEXCTF_DISABLED_PLUGINS: ${NEXCTF_DISABLED_PLUGINS:-}
 
 services:
   db:

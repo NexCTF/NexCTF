@@ -13,11 +13,15 @@ class AdminPluginRead(PydanticBase):
     is_builtin: bool
     is_active: bool
     is_official: bool
+    is_disabled: bool
+    has_config: bool
+    missing_bundles: list[str]
     load_error: str | None = None
 
 
 class PluginManifestEntry(PydanticBase):
     key: str
     remote_entry: str
+    integrity: str
     slots: list[str]
     challenge_types: list[str] | None

@@ -63,12 +63,18 @@ class RouterDef:
 
 @dataclass(frozen=True)
 class FrontendDef:
-    """A prebuilt frontend bundle and the UI slots it fills."""
+    """Prebuilt single-file bundles in ``dist_dir``.
+
+    ``entry_file`` is served to every visitor and fills ``slots``;
+    ``admin_entry_file`` is served to admins only and fills ``admin_slots``.
+    """
 
     dist_dir: Path
-    slots: list[str]
+    slots: list[str] = field(default_factory=list)
     challenge_types: list[str] | None = None
-    entry_file: str = "bundle.js"
+    entry_file: str | None = "bundle.js"
+    admin_entry_file: str | None = None
+    admin_slots: list[str] = field(default_factory=list)
 
 
 @dataclass(eq=False)

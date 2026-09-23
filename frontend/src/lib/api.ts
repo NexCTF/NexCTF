@@ -2080,6 +2080,9 @@ export interface Plugin {
   is_builtin: boolean;
   is_active: boolean;
   is_official: boolean;
+  is_disabled: boolean;
+  has_config: boolean;
+  missing_bundles: string[];
   load_error: string | null;
 }
 
