@@ -54,6 +54,7 @@ async function throwIfNotOk(res: Response): Promise<void> {
       body?.message ?? res.statusText,
       body?.description ?? null,
       body?.error_code ?? null,
+      body?.error_code === "VAL-422" ? (body?.data?.errors ?? null) : null,
     );
   }
 }
@@ -103,6 +104,13 @@ export async function apiGet<T>(path: string): Promise<T> {
   return request<T>(path);
 }
 
+/** One entry of a `VAL-422` response's `data.errors`. */
+export interface FieldError {
+  field: string;
+  message: string;
+  type: string;
+}
+
 export class ApiError extends Error {
   status: number;
   /** Short error message (maps to fastapi-toolsets `message` field). */
@@ -111,25 +119,35 @@ export class ApiError extends Error {
   description: string | null;
   /** Machine-readable error code (e.g. "AUTH-TOTP-REQUIRED"). */
   errCode: string | null;
+  /** Per-field errors of a request validation failure. */
+  fieldErrors: FieldError[] | null;
 
   constructor(
     status: number,
     message: string,
     description: string | null = null,
     errCode: string | null = null,
+    fieldErrors: FieldError[] | null = null,
   ) {
     super(message);
     this.status = status;
     this.message = message;
     this.description = description;
     this.errCode = errCode;
+    this.fieldErrors = fieldErrors;
   }
+}
+
+function formatFieldError({ field, message }: FieldError): string {
+  const text = message.replace(/^Value error, /, "");
+  return field === "root" ? text : `${field}: ${text}`;
 }
 
 /** Extract a human-readable message from an error, falling back to a provided string. */
 export function apiErrorMessage(err: unknown, fallback: string): string {
-  if (err instanceof ApiError) return err.description ?? err.message;
-  return fallback;
+  if (!(err instanceof ApiError)) return fallback;
+  if (err.fieldErrors?.length) return err.fieldErrors.map(formatFieldError).join("; ");
+  return err.description ?? err.message;
 }
 
 // ---------------------------------------------------------------------------

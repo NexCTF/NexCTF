@@ -1,16 +1,18 @@
+import json
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import Depends, Request, Security
+from fastapi.exceptions import RequestValidationError
 from fastapi_toolsets.dependencies import PathDependency
 from fastapi_toolsets.exceptions import (
     ForbiddenError,
     NotFoundError,
     UnauthorizedError,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -252,7 +254,30 @@ type SolutionCtx = tuple[Any, type[BaseModel], type[BaseModel], UUID | None]
 
 
 async def validate_body(schema: type[BaseModel], request: Request) -> BaseModel:
-    return schema.model_validate(await request.json())
+    """Validate the JSON body against *schema*, answering 422 on failure."""
+    try:
+        payload = await request.json()
+    except json.JSONDecodeError as exc:
+        raise RequestValidationError(
+            [
+                {
+                    "type": "json_invalid",
+                    "loc": ("body", exc.pos),
+                    "msg": "JSON decode error",
+                    "input": {},
+                    "ctx": {"error": exc.msg},
+                }
+            ]
+        )
+    try:
+        return schema.model_validate(payload)
+    except ValidationError as exc:
+        raise RequestValidationError(
+            [
+                {**error, "loc": ("body", *error["loc"])}
+                for error in exc.errors(include_url=False)
+            ]
+        )
 
 
 async def challenge_create_dep(challenge_type: str, request: Request) -> BaseModel:
