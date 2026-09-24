@@ -8,7 +8,7 @@ import pytest
 from httpx import AsyncClient
 
 from nexctf.model import User
-from nexctf.plugins import FrontendDef, loader
+from nexctf.plugins import FrontendDef, PageDef, loader
 from nexctf.plugins.frontend import frontend_registry
 
 
@@ -17,13 +17,16 @@ def demo_bundles(isolated_plugins: None, tmp_path: Path) -> Path:
     """Register a plugin with a public and an admin bundle, plus a stray file."""
     (tmp_path / "bundle.js").write_text("/* public */")
     (tmp_path / "admin.js").write_text("/* admin */")
+    (tmp_path / "admin.css").write_text(".admin {}")
     (tmp_path / "chunk.js").write_text("/* not declared */")
     frontend_registry.add(
         FrontendDef(
             tmp_path,
             slots=["challenge_panel"],
             admin_entry_file="admin.js",
+            admin_entry_css="admin.css",
             admin_slots=["admin_panel"],
+            admin_pages=[PageDef("workers", {"en": "Workers"}, icon="server")],
         ),
         owner="demo",
     )
@@ -42,6 +45,8 @@ async def test_the_public_manifest_lists_only_the_public_bundle(
     )
     assert entry["integrity"].startswith("sha384-")
     assert entry["slots"] == ["challenge_panel"]
+    assert entry["stylesheet"] is None
+    assert entry["pages"] == []
 
 
 async def test_the_admin_manifest_lists_only_the_admin_bundle(
@@ -56,6 +61,18 @@ async def test_the_admin_manifest_lists_only_the_admin_bundle(
         "/api/v1/admin/plugins/demo/frontend/admin.js?v="
     )
     assert entry["slots"] == ["admin_panel"]
+    assert entry["stylesheet"]["url"].startswith(
+        "/api/v1/admin/plugins/demo/frontend/admin.css?v="
+    )
+    assert entry["stylesheet"]["integrity"].startswith("sha384-")
+    assert entry["pages"] == [
+        {
+            "path": "workers",
+            "label": {"en": "Workers"},
+            "icon": "server",
+            "section": "plugins",
+        }
+    ]
 
 
 async def test_the_public_route_serves_only_the_public_entry(
@@ -131,3 +148,21 @@ async def test_the_plugin_list_reports_missing_bundles(
     assert plugin["missing_bundles"] == ["bundle.js"]
     assert plugin["is_disabled"] is False
     assert plugin["has_config"] is False
+
+
+async def test_an_admin_stylesheet_is_served_as_css_to_admins_only(
+    admin_client: tuple[AsyncClient, User],
+    http_client: AsyncClient,
+    demo_bundles: Path,
+) -> None:
+    client, _ = admin_client
+    (entry,) = (await client.get("/admin/plugins/manifest")).json()
+
+    resp = await client.get(entry["stylesheet"]["url"].removeprefix("/api/v1"))
+
+    assert resp.status_code == 200
+    assert resp.text == ".admin {}"
+    assert resp.headers["content-type"].startswith("text/css")
+    assert resp.headers["cache-control"].startswith("private,")
+    public = await http_client.get("/plugins/demo/frontend/admin.css")
+    assert public.status_code == 404

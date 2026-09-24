@@ -323,6 +323,7 @@
         "links": "Links",
         "manage": "Manage",
         "overview": "Overview",
+        "plugins": "Plugins",
         "system": "System"
       },
       "security": "Security",
@@ -1027,6 +1028,9 @@
       "unit_m": "m",
       "unit_s": "s"
     }
+  },
+  "plugins": {
+    "page_failed": "This plugin page failed to render. Details are in the browser console."
   },
   "profile": {
     "fields_title": "Details",

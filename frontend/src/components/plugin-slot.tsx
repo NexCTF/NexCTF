@@ -7,8 +7,8 @@ interface PluginSlotProps {
   context: Record<string, unknown>;
 }
 
-class PluginErrorBoundary extends Component<
-  { pluginKey: string; children: ReactNode },
+export class PluginErrorBoundary extends Component<
+  { pluginKey: string; fallback?: ReactNode; children: ReactNode },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -19,7 +19,7 @@ class PluginErrorBoundary extends Component<
     console.error(`[plugin:${this.props.pluginKey}]`, err);
   }
   render() {
-    return this.state.failed ? null : this.props.children;
+    return this.state.failed ? (this.props.fallback ?? null) : this.props.children;
   }
 }
 

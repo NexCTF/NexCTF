@@ -34,6 +34,7 @@ import { AdminLinksNav } from "@/components/admin-links-nav";
 import { BetaBadge } from "@/components/beta-badge";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { NotificationToastListener } from "@/components/notification-toast-listener";
+import { PluginNavLinks, usePluginPages } from "@/components/plugin-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { type AdminStats, getAdminStats } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -54,11 +55,14 @@ type NavItem = {
   exact?: boolean;
   beta?: boolean;
 };
-type NavSection = { heading: string; items: NavItem[] };
+type NavSection = {
+  id: "overview" | "audit" | "manage" | "system" | "plugins";
+  items: NavItem[];
+};
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    heading: "admin.nav.section.overview",
+    id: "overview",
     items: [
       {
         to: "/admin",
@@ -85,7 +89,7 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    heading: "admin.nav.section.audit",
+    id: "audit",
     items: [
       { to: "/admin/events", label: "admin.nav.events", icon: CalendarDays },
       {
@@ -97,7 +101,7 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    heading: "admin.nav.section.manage",
+    id: "manage",
     items: [
       { to: "/admin/challenges", label: "admin.nav.challenges", icon: Flag },
       { to: "/admin/users", label: "admin.nav.users", icon: Users },
@@ -119,9 +123,9 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    heading: "admin.nav.section.system",
+    id: "system",
     items: [
-      { to: "/admin/plugins", label: "admin.nav.plugins", icon: Puzzle },
+      { to: "/admin/plugins", label: "admin.nav.plugins", icon: Puzzle, exact: true },
       { to: "/admin/backups", label: "admin.nav.backups", icon: DatabaseBackup, beta: true },
       { to: "/admin/bundle", label: "admin.nav.bundle", icon: FolderSync, beta: true },
       {
@@ -137,6 +141,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: "/admin/settings", label: "admin.nav.settings", icon: Settings },
     ],
   },
+  { id: "plugins", items: [] },
 ];
 
 const ACTIVE_CLS = "bg-background font-medium shadow-sm text-foreground";
@@ -148,6 +153,7 @@ function AdminLayout() {
   const { user, isLoading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
   const { name, logoUrl } = useBranding();
+  const pluginPages = usePluginPages("admin");
 
   const { data: stats } = useQuery<AdminStats>({
     queryKey: ["admin", "stats", "global"],
@@ -191,28 +197,37 @@ function AdminLayout() {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
-          {NAV_SECTIONS.map(({ heading, items }) => (
-            <div key={heading}>
-              <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                {t(heading)}
-              </p>
-              <div className="space-y-0.5">
-                {items.map(({ to, label, icon: Icon, exact, beta }) => (
-                  <Link
-                    key={to}
-                    to={to}
-                    activeOptions={{ exact }}
-                    activeProps={{ className: `${BASE_CLS} ${ACTIVE_CLS}` }}
-                    inactiveProps={{ className: `${BASE_CLS} ${INACTIVE_CLS}` }}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    {t(label)}
-                    {beta && <BetaBadge />}
-                  </Link>
-                ))}
+          {NAV_SECTIONS.map(({ id, items }) => {
+            const pages = pluginPages.filter((p) => p.section === id);
+            if (items.length === 0 && pages.length === 0) return null;
+            return (
+              <div key={id}>
+                <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  {t(`admin.nav.section.${id}`)}
+                </p>
+                <div className="space-y-0.5">
+                  {items.map(({ to, label, icon: Icon, exact, beta }) => (
+                    <Link
+                      key={to}
+                      to={to}
+                      activeOptions={{ exact }}
+                      activeProps={{ className: `${BASE_CLS} ${ACTIVE_CLS}` }}
+                      inactiveProps={{ className: `${BASE_CLS} ${INACTIVE_CLS}` }}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {t(label)}
+                      {beta && <BetaBadge />}
+                    </Link>
+                  ))}
+                  <PluginNavLinks
+                    pages={pages}
+                    activeClassName={`${BASE_CLS} ${ACTIVE_CLS}`}
+                    inactiveClassName={`${BASE_CLS} ${INACTIVE_CLS}`}
+                  />
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           <AdminLinksNav itemClassName={`${BASE_CLS} ${INACTIVE_CLS}`} />
         </nav>

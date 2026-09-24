@@ -38,7 +38,6 @@ import { Route as AdminAdminNotificationsRouteImport } from './routes/admin/_adm
 import { Route as AdminAdminOauthClientsRouteImport } from './routes/admin/_admin/oauth-clients'
 import { Route as AdminAdminOauthProvidersRouteImport } from './routes/admin/_admin/oauth-providers'
 import { Route as AdminAdminPagesRouteImport } from './routes/admin/_admin/pages'
-import { Route as AdminAdminPluginsRouteImport } from './routes/admin/_admin/plugins'
 import { Route as AdminAdminSchedulerRouteImport } from './routes/admin/_admin/scheduler'
 import { Route as AdminAdminScoreAdjustmentsRouteImport } from './routes/admin/_admin/score-adjustments'
 import { Route as AdminAdminScoreboardRouteImport } from './routes/admin/_admin/scoreboard'
@@ -47,11 +46,14 @@ import { Route as AdminAdminSettingsRouteImport } from './routes/admin/_admin/se
 import { Route as AdminAdminSubmissionsRouteImport } from './routes/admin/_admin/submissions'
 import { Route as AdminAdminTeamsRouteImport } from './routes/admin/_admin/teams'
 import { Route as AdminAdminUsersRouteImport } from './routes/admin/_admin/users'
+import { Route as UserPluginsKeySplatRouteImport } from './routes/_user/plugins.$key.$'
 import { Route as AdminAdminChallengesChallengeIdRouteImport } from './routes/admin/_admin/challenges_.$challengeId'
 import { Route as AdminAdminPagesPageIdRouteImport } from './routes/admin/_admin/pages_.$pageId'
+import { Route as AdminAdminPluginsIndexRouteImport } from './routes/admin/_admin/plugins.index'
 import { Route as AdminAdminSchedulerJobIdRouteImport } from './routes/admin/_admin/scheduler_.$jobId'
 import { Route as AdminAdminTeamsTeamIdRouteImport } from './routes/admin/_admin/teams_.$teamId'
 import { Route as AdminAdminUsersUserIdRouteImport } from './routes/admin/_admin/users_.$userId'
+import { Route as AdminAdminPluginsKeySplatRouteImport } from './routes/admin/_admin/plugins.$key.$'
 
 const UserRoute = UserRouteImport.update({
   id: '/_user',
@@ -199,11 +201,6 @@ const AdminAdminPagesRoute = AdminAdminPagesRouteImport.update({
   path: '/pages',
   getParentRoute: () => AdminAdminRoute,
 } as any)
-const AdminAdminPluginsRoute = AdminAdminPluginsRouteImport.update({
-  id: '/plugins',
-  path: '/plugins',
-  getParentRoute: () => AdminAdminRoute,
-} as any)
 const AdminAdminSchedulerRoute = AdminAdminSchedulerRouteImport.update({
   id: '/scheduler',
   path: '/scheduler',
@@ -245,6 +242,11 @@ const AdminAdminUsersRoute = AdminAdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminAdminRoute,
 } as any)
+const UserPluginsKeySplatRoute = UserPluginsKeySplatRouteImport.update({
+  id: '/plugins/$key/$',
+  path: '/plugins/$key/$',
+  getParentRoute: () => UserRoute,
+} as any)
 const AdminAdminChallengesChallengeIdRoute =
   AdminAdminChallengesChallengeIdRouteImport.update({
     id: '/challenges_/$challengeId',
@@ -254,6 +256,11 @@ const AdminAdminChallengesChallengeIdRoute =
 const AdminAdminPagesPageIdRoute = AdminAdminPagesPageIdRouteImport.update({
   id: '/pages_/$pageId',
   path: '/pages/$pageId',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
+const AdminAdminPluginsIndexRoute = AdminAdminPluginsIndexRouteImport.update({
+  id: '/plugins/',
+  path: '/plugins/',
   getParentRoute: () => AdminAdminRoute,
 } as any)
 const AdminAdminSchedulerJobIdRoute =
@@ -272,6 +279,12 @@ const AdminAdminUsersUserIdRoute = AdminAdminUsersUserIdRouteImport.update({
   path: '/users/$userId',
   getParentRoute: () => AdminAdminRoute,
 } as any)
+const AdminAdminPluginsKeySplatRoute =
+  AdminAdminPluginsKeySplatRouteImport.update({
+    id: '/plugins/$key/$',
+    path: '/plugins/$key/$',
+    getParentRoute: () => AdminAdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof UserIndexRoute
@@ -301,7 +314,6 @@ export interface FileRoutesByFullPath {
   '/admin/oauth-clients': typeof AdminAdminOauthClientsRoute
   '/admin/oauth-providers': typeof AdminAdminOauthProvidersRoute
   '/admin/pages': typeof AdminAdminPagesRoute
-  '/admin/plugins': typeof AdminAdminPluginsRoute
   '/admin/scheduler': typeof AdminAdminSchedulerRoute
   '/admin/score-adjustments': typeof AdminAdminScoreAdjustmentsRoute
   '/admin/scoreboard': typeof AdminAdminScoreboardRoute
@@ -311,11 +323,14 @@ export interface FileRoutesByFullPath {
   '/admin/teams': typeof AdminAdminTeamsRoute
   '/admin/users': typeof AdminAdminUsersRoute
   '/admin/': typeof AdminAdminIndexRoute
+  '/plugins/$key/$': typeof UserPluginsKeySplatRoute
   '/admin/challenges/$challengeId': typeof AdminAdminChallengesChallengeIdRoute
   '/admin/pages/$pageId': typeof AdminAdminPagesPageIdRoute
   '/admin/scheduler/$jobId': typeof AdminAdminSchedulerJobIdRoute
   '/admin/teams/$teamId': typeof AdminAdminTeamsTeamIdRoute
   '/admin/users/$userId': typeof AdminAdminUsersUserIdRoute
+  '/admin/plugins/': typeof AdminAdminPluginsIndexRoute
+  '/admin/plugins/$key/$': typeof AdminAdminPluginsKeySplatRoute
 }
 export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
@@ -344,7 +359,6 @@ export interface FileRoutesByTo {
   '/admin/oauth-clients': typeof AdminAdminOauthClientsRoute
   '/admin/oauth-providers': typeof AdminAdminOauthProvidersRoute
   '/admin/pages': typeof AdminAdminPagesRoute
-  '/admin/plugins': typeof AdminAdminPluginsRoute
   '/admin/scheduler': typeof AdminAdminSchedulerRoute
   '/admin/score-adjustments': typeof AdminAdminScoreAdjustmentsRoute
   '/admin/scoreboard': typeof AdminAdminScoreboardRoute
@@ -354,11 +368,14 @@ export interface FileRoutesByTo {
   '/admin/teams': typeof AdminAdminTeamsRoute
   '/admin/users': typeof AdminAdminUsersRoute
   '/admin': typeof AdminAdminIndexRoute
+  '/plugins/$key/$': typeof UserPluginsKeySplatRoute
   '/admin/challenges/$challengeId': typeof AdminAdminChallengesChallengeIdRoute
   '/admin/pages/$pageId': typeof AdminAdminPagesPageIdRoute
   '/admin/scheduler/$jobId': typeof AdminAdminSchedulerJobIdRoute
   '/admin/teams/$teamId': typeof AdminAdminTeamsTeamIdRoute
   '/admin/users/$userId': typeof AdminAdminUsersUserIdRoute
+  '/admin/plugins': typeof AdminAdminPluginsIndexRoute
+  '/admin/plugins/$key/$': typeof AdminAdminPluginsKeySplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -390,7 +407,6 @@ export interface FileRoutesById {
   '/admin/_admin/oauth-clients': typeof AdminAdminOauthClientsRoute
   '/admin/_admin/oauth-providers': typeof AdminAdminOauthProvidersRoute
   '/admin/_admin/pages': typeof AdminAdminPagesRoute
-  '/admin/_admin/plugins': typeof AdminAdminPluginsRoute
   '/admin/_admin/scheduler': typeof AdminAdminSchedulerRoute
   '/admin/_admin/score-adjustments': typeof AdminAdminScoreAdjustmentsRoute
   '/admin/_admin/scoreboard': typeof AdminAdminScoreboardRoute
@@ -400,11 +416,14 @@ export interface FileRoutesById {
   '/admin/_admin/teams': typeof AdminAdminTeamsRoute
   '/admin/_admin/users': typeof AdminAdminUsersRoute
   '/admin/_admin/': typeof AdminAdminIndexRoute
+  '/_user/plugins/$key/$': typeof UserPluginsKeySplatRoute
   '/admin/_admin/challenges_/$challengeId': typeof AdminAdminChallengesChallengeIdRoute
   '/admin/_admin/pages_/$pageId': typeof AdminAdminPagesPageIdRoute
   '/admin/_admin/scheduler_/$jobId': typeof AdminAdminSchedulerJobIdRoute
   '/admin/_admin/teams_/$teamId': typeof AdminAdminTeamsTeamIdRoute
   '/admin/_admin/users_/$userId': typeof AdminAdminUsersUserIdRoute
+  '/admin/_admin/plugins/': typeof AdminAdminPluginsIndexRoute
+  '/admin/_admin/plugins/$key/$': typeof AdminAdminPluginsKeySplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -436,7 +455,6 @@ export interface FileRouteTypes {
     | '/admin/oauth-clients'
     | '/admin/oauth-providers'
     | '/admin/pages'
-    | '/admin/plugins'
     | '/admin/scheduler'
     | '/admin/score-adjustments'
     | '/admin/scoreboard'
@@ -446,11 +464,14 @@ export interface FileRouteTypes {
     | '/admin/teams'
     | '/admin/users'
     | '/admin/'
+    | '/plugins/$key/$'
     | '/admin/challenges/$challengeId'
     | '/admin/pages/$pageId'
     | '/admin/scheduler/$jobId'
     | '/admin/teams/$teamId'
     | '/admin/users/$userId'
+    | '/admin/plugins/'
+    | '/admin/plugins/$key/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/forgot-password'
@@ -479,7 +500,6 @@ export interface FileRouteTypes {
     | '/admin/oauth-clients'
     | '/admin/oauth-providers'
     | '/admin/pages'
-    | '/admin/plugins'
     | '/admin/scheduler'
     | '/admin/score-adjustments'
     | '/admin/scoreboard'
@@ -489,11 +509,14 @@ export interface FileRouteTypes {
     | '/admin/teams'
     | '/admin/users'
     | '/admin'
+    | '/plugins/$key/$'
     | '/admin/challenges/$challengeId'
     | '/admin/pages/$pageId'
     | '/admin/scheduler/$jobId'
     | '/admin/teams/$teamId'
     | '/admin/users/$userId'
+    | '/admin/plugins'
+    | '/admin/plugins/$key/$'
   id:
     | '__root__'
     | '/_user'
@@ -524,7 +547,6 @@ export interface FileRouteTypes {
     | '/admin/_admin/oauth-clients'
     | '/admin/_admin/oauth-providers'
     | '/admin/_admin/pages'
-    | '/admin/_admin/plugins'
     | '/admin/_admin/scheduler'
     | '/admin/_admin/score-adjustments'
     | '/admin/_admin/scoreboard'
@@ -534,11 +556,14 @@ export interface FileRouteTypes {
     | '/admin/_admin/teams'
     | '/admin/_admin/users'
     | '/admin/_admin/'
+    | '/_user/plugins/$key/$'
     | '/admin/_admin/challenges_/$challengeId'
     | '/admin/_admin/pages_/$pageId'
     | '/admin/_admin/scheduler_/$jobId'
     | '/admin/_admin/teams_/$teamId'
     | '/admin/_admin/users_/$userId'
+    | '/admin/_admin/plugins/'
+    | '/admin/_admin/plugins/$key/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -757,13 +782,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAdminPagesRouteImport
       parentRoute: typeof AdminAdminRoute
     }
-    '/admin/_admin/plugins': {
-      id: '/admin/_admin/plugins'
-      path: '/plugins'
-      fullPath: '/admin/plugins'
-      preLoaderRoute: typeof AdminAdminPluginsRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
     '/admin/_admin/scheduler': {
       id: '/admin/_admin/scheduler'
       path: '/scheduler'
@@ -820,6 +838,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAdminUsersRouteImport
       parentRoute: typeof AdminAdminRoute
     }
+    '/_user/plugins/$key/$': {
+      id: '/_user/plugins/$key/$'
+      path: '/plugins/$key/$'
+      fullPath: '/plugins/$key/$'
+      preLoaderRoute: typeof UserPluginsKeySplatRouteImport
+      parentRoute: typeof UserRoute
+    }
     '/admin/_admin/challenges_/$challengeId': {
       id: '/admin/_admin/challenges_/$challengeId'
       path: '/challenges/$challengeId'
@@ -832,6 +857,13 @@ declare module '@tanstack/react-router' {
       path: '/pages/$pageId'
       fullPath: '/admin/pages/$pageId'
       preLoaderRoute: typeof AdminAdminPagesPageIdRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/plugins/': {
+      id: '/admin/_admin/plugins/'
+      path: '/plugins'
+      fullPath: '/admin/plugins/'
+      preLoaderRoute: typeof AdminAdminPluginsIndexRouteImport
       parentRoute: typeof AdminAdminRoute
     }
     '/admin/_admin/scheduler_/$jobId': {
@@ -855,6 +887,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAdminUsersUserIdRouteImport
       parentRoute: typeof AdminAdminRoute
     }
+    '/admin/_admin/plugins/$key/$': {
+      id: '/admin/_admin/plugins/$key/$'
+      path: '/plugins/$key/$'
+      fullPath: '/admin/plugins/$key/$'
+      preLoaderRoute: typeof AdminAdminPluginsKeySplatRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
   }
 }
 
@@ -867,6 +906,7 @@ interface UserRouteChildren {
   UserChallengesChallengeIdRoute: typeof UserChallengesChallengeIdRoute
   UserPSlugRoute: typeof UserPSlugRoute
   UserTeamsTeamIdRoute: typeof UserTeamsTeamIdRoute
+  UserPluginsKeySplatRoute: typeof UserPluginsKeySplatRoute
 }
 
 const UserRouteChildren: UserRouteChildren = {
@@ -878,6 +918,7 @@ const UserRouteChildren: UserRouteChildren = {
   UserChallengesChallengeIdRoute: UserChallengesChallengeIdRoute,
   UserPSlugRoute: UserPSlugRoute,
   UserTeamsTeamIdRoute: UserTeamsTeamIdRoute,
+  UserPluginsKeySplatRoute: UserPluginsKeySplatRoute,
 }
 
 const UserRouteWithChildren = UserRoute._addFileChildren(UserRouteChildren)
@@ -895,7 +936,6 @@ interface AdminAdminRouteChildren {
   AdminAdminOauthClientsRoute: typeof AdminAdminOauthClientsRoute
   AdminAdminOauthProvidersRoute: typeof AdminAdminOauthProvidersRoute
   AdminAdminPagesRoute: typeof AdminAdminPagesRoute
-  AdminAdminPluginsRoute: typeof AdminAdminPluginsRoute
   AdminAdminSchedulerRoute: typeof AdminAdminSchedulerRoute
   AdminAdminScoreAdjustmentsRoute: typeof AdminAdminScoreAdjustmentsRoute
   AdminAdminScoreboardRoute: typeof AdminAdminScoreboardRoute
@@ -910,6 +950,8 @@ interface AdminAdminRouteChildren {
   AdminAdminSchedulerJobIdRoute: typeof AdminAdminSchedulerJobIdRoute
   AdminAdminTeamsTeamIdRoute: typeof AdminAdminTeamsTeamIdRoute
   AdminAdminUsersUserIdRoute: typeof AdminAdminUsersUserIdRoute
+  AdminAdminPluginsIndexRoute: typeof AdminAdminPluginsIndexRoute
+  AdminAdminPluginsKeySplatRoute: typeof AdminAdminPluginsKeySplatRoute
 }
 
 const AdminAdminRouteChildren: AdminAdminRouteChildren = {
@@ -925,7 +967,6 @@ const AdminAdminRouteChildren: AdminAdminRouteChildren = {
   AdminAdminOauthClientsRoute: AdminAdminOauthClientsRoute,
   AdminAdminOauthProvidersRoute: AdminAdminOauthProvidersRoute,
   AdminAdminPagesRoute: AdminAdminPagesRoute,
-  AdminAdminPluginsRoute: AdminAdminPluginsRoute,
   AdminAdminSchedulerRoute: AdminAdminSchedulerRoute,
   AdminAdminScoreAdjustmentsRoute: AdminAdminScoreAdjustmentsRoute,
   AdminAdminScoreboardRoute: AdminAdminScoreboardRoute,
@@ -940,6 +981,8 @@ const AdminAdminRouteChildren: AdminAdminRouteChildren = {
   AdminAdminSchedulerJobIdRoute: AdminAdminSchedulerJobIdRoute,
   AdminAdminTeamsTeamIdRoute: AdminAdminTeamsTeamIdRoute,
   AdminAdminUsersUserIdRoute: AdminAdminUsersUserIdRoute,
+  AdminAdminPluginsIndexRoute: AdminAdminPluginsIndexRoute,
+  AdminAdminPluginsKeySplatRoute: AdminAdminPluginsKeySplatRoute,
 }
 
 const AdminAdminRouteWithChildren = AdminAdminRoute._addFileChildren(
