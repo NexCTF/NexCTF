@@ -135,13 +135,27 @@ def test_each_bundle_carries_its_hashes_and_slots(tmp_path: Path) -> None:
     entry = reg.get("demo")
     assert entry is not None and entry.user is not None
 
-    assert entry.user.integrity == (
+    assert entry.user.script.integrity == (
         "sha384-vuz+yO71bcb30P4dMUNzy6/D2y+6d/n0KcOnt5clJtTBxEDoKAqGay0stFlC8Dpr"
     )
-    assert entry.user.version == "beecfec8eef5"
+    assert entry.user.script.version == "beecfec8eef5"
     assert entry.user.slots == ["challenge_panel"]
     assert entry.bundle(admin=False) is entry.user
     assert entry.missing == []
+
+
+def test_a_missing_stylesheet_is_reported_but_the_script_still_loads(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "bundle.js").write_text("console.log(1)")
+    reg = FrontendRegistry()
+    reg.add(FrontendDef(tmp_path, entry_css="bundle.css"), owner="demo")
+    entry = reg.get("demo")
+    assert entry is not None and entry.user is not None
+
+    assert entry.user.style is None
+    assert entry.user.asset("bundle.js") is entry.user.script
+    assert entry.missing == ["bundle.css"]
 
 
 def test_frontend_get_missing_returns_none() -> None:

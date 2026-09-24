@@ -14,7 +14,16 @@ import pytest
 
 from nexctf.api import scope
 from nexctf.core import appconfig
-from nexctf.plugins import ConfigCategory, loader, registry, routes
+from nexctf.plugins import (
+    ConfigCategory,
+    FrontendDef,
+    PageDef,
+    Plugin,
+    loader,
+    registry,
+    routes,
+)
+from nexctf.plugins.frontend import frontend_registry
 
 _EMPTY_PLUGIN = "from nexctf.plugins import Plugin\nplugin = Plugin()\nvalue = 1\n"
 
@@ -465,3 +474,41 @@ def test_a_plain_secret_is_warned_about(
     body = _DECLARED.replace('ConfigDef(key="url"', 'ConfigDef(key="api_token"')
     _load_one(plugins_root, monkeypatch, body)
     assert "plugin.config.plain_secret key=nexctf_demo.api_token" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("frontend", "error"),
+    [
+        (
+            FrontendDef(Path("/dist"), admin_pages=[PageDef("workers", "Workers")]),
+            "admin pages are declared with no admin bundle",
+        ),
+        (
+            FrontendDef(Path("/dist"), user_pages=[PageDef("/stats", "Stats")]),
+            "user page path '/stats' is not like 'a/b'",
+        ),
+        (
+            FrontendDef(
+                Path("/dist"), user_pages=[PageDef("a", "A"), PageDef("a", "B")]
+            ),
+            "user page path 'a' is declared twice",
+        ),
+        (
+            FrontendDef(
+                Path("/dist"),
+                user_pages=[PageDef("a", "A", section="sidebar")],  # ty: ignore[invalid-argument-type]
+            ),
+            "has section 'sidebar'",
+        ),
+    ],
+)
+def test_bad_pages_fail_the_plugin(frontend: FrontendDef, error: str) -> None:
+    with pytest.raises(ValueError, match=error):
+        loader.commit_plugin(Plugin(frontend=frontend), "demo")
+    assert frontend_registry.get("demo") is None
+
+
+def test_the_index_page_has_an_empty_path() -> None:
+    frontend = FrontendDef(Path("/dist"), user_pages=[PageDef("", "Home")])
+    loader.commit_plugin(Plugin(frontend=frontend), "demo")
+    assert frontend_registry.get("demo") is not None

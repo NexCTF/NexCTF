@@ -8,20 +8,36 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from nexctf.plugins.declare import FrontendDef
+from nexctf.plugins.declare import FrontendDef, PageDef
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class Bundle:
-    """One served bundle file, the name it is served under, its hashes and slots."""
+class Asset:
+    """One served file, the name it is served under and its hashes."""
 
     name: str
     path: Path
     integrity: str
     version: str
+    media_type: str
+
+
+@dataclass(frozen=True)
+class Bundle:
+    """A script, its optional stylesheet, and the slots and pages it provides."""
+
+    script: Asset
+    style: Asset | None
     slots: list[str]
+    pages: list[PageDef]
+
+    def asset(self, name: str) -> Asset | None:
+        """Return the script or stylesheet served under ``name``."""
+        return next(
+            (a for a in (self.script, self.style) if a and a.name == name), None
+        )
 
 
 @dataclass
@@ -39,12 +55,8 @@ class FrontendEntry:
         return self.admin if admin else self.user
 
 
-def _load_bundle(
-    owner: str, dist_dir: Path, name: str | None, slots: list[str]
-) -> Bundle | None:
-    """Return the bundle ``name`` in ``dist_dir``, or None when undeclared or absent."""
-    if name is None:
-        return None
+def _load_asset(owner: str, dist_dir: Path, name: str, media_type: str) -> Asset | None:
+    """Return the file ``name`` in ``dist_dir``, or None if it is absent."""
     path = (dist_dir / name).resolve()
     if not path.is_file():
         logger.warning(
@@ -55,12 +67,31 @@ def _load_bundle(
         )
         return None
     digest = hashlib.sha384(path.read_bytes())
-    return Bundle(
+    return Asset(
         name=name,
         path=path,
         integrity=f"sha384-{base64.b64encode(digest.digest()).decode()}",
         version=digest.hexdigest()[:12],
+        media_type=media_type,
+    )
+
+
+def _bundle(
+    assets: dict[str, Asset | None],
+    script: str | None,
+    style: str | None,
+    slots: list[str],
+    pages: list[PageDef],
+) -> Bundle | None:
+    """Return the bundle whose script loaded; a missing stylesheet is left out."""
+    loaded = assets.get(script) if script else None
+    if loaded is None:
+        return None
+    return Bundle(
+        script=loaded,
+        style=assets.get(style) if style else None,
         slots=slots,
+        pages=pages,
     )
 
 
@@ -77,18 +108,35 @@ class FrontendRegistry:
             frontend: The bundle declaration.
             owner: The plugin key, which also names the bundle's URL.
         """
-        dist_dir = frontend.dist_dir
-        user = _load_bundle(owner, dist_dir, frontend.entry_file, frontend.slots)
-        admin = _load_bundle(
-            owner, dist_dir, frontend.admin_entry_file, frontend.admin_slots
+        declared = (
+            (frontend.entry_file, "text/javascript"),
+            (frontend.entry_css, "text/css"),
+            (frontend.admin_entry_file, "text/javascript"),
+            (frontend.admin_entry_css, "text/css"),
         )
-        declared = ((frontend.entry_file, user), (frontend.admin_entry_file, admin))
+        assets = {
+            name: _load_asset(owner, frontend.dist_dir, name, media_type)
+            for name, media_type in declared
+            if name
+        }
         self._entries[owner] = FrontendEntry(
             key=owner,
             challenge_types=frontend.challenge_types,
-            user=user,
-            admin=admin,
-            missing=[name for name, bundle in declared if name and bundle is None],
+            user=_bundle(
+                assets,
+                frontend.entry_file,
+                frontend.entry_css,
+                frontend.slots,
+                frontend.user_pages,
+            ),
+            admin=_bundle(
+                assets,
+                frontend.admin_entry_file,
+                frontend.admin_entry_css,
+                frontend.admin_slots,
+                frontend.admin_pages,
+            ),
+            missing=[name for name, asset in assets.items() if asset is None],
         )
 
     def get_all(self) -> list[FrontendEntry]:

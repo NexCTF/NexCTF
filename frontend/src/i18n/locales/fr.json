@@ -324,6 +324,7 @@
         "links": "Liens",
         "manage": "Gestion",
         "overview": "Vue d'ensemble",
+        "plugins": "Plugins",
         "system": "Système"
       },
       "security": "Sécurité",
@@ -1032,6 +1033,9 @@
       "unit_m": "m",
       "unit_s": "s"
     }
+  },
+  "plugins": {
+    "page_failed": "Cette page du plugin n'a pas pu s'afficher. Les détails sont dans la console du navigateur."
   },
   "profile": {
     "fields_title": "Détails",

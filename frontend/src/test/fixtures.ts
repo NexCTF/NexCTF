@@ -18,6 +18,7 @@ import type {
   UserSession,
 } from "@/lib/api";
 import { DEFAULT_BRANDING } from "@/lib/branding";
+import type { PluginManifestEntry } from "@/lib/plugins";
 
 /** `/info` payload with everything off — override what a test cares about. */
 export function publicInfo(overrides: Partial<PublicInfo> = {}): PublicInfo {
@@ -197,6 +198,21 @@ export function plugin(overrides: Partial<Plugin> = {}): Plugin {
     has_config: false,
     missing_bundles: [],
     load_error: null,
+    ...overrides,
+  };
+}
+
+export function pluginManifestEntry(
+  overrides: Partial<PluginManifestEntry> = {},
+): PluginManifestEntry {
+  return {
+    key: "nexctf_demo",
+    remote_entry: "/api/v1/plugins/nexctf_demo/frontend/bundle.js?v=abc",
+    integrity: "sha384-abc",
+    stylesheet: null,
+    slots: [],
+    pages: [],
+    challenge_types: null,
     ...overrides,
   };
 }

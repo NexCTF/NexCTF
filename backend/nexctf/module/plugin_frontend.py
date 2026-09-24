@@ -6,10 +6,27 @@ from fastapi.responses import FileResponse
 from fastapi_toolsets.exceptions import NotFoundError
 
 from nexctf.core.config import settings
-from nexctf.plugins.frontend import frontend_registry
-from nexctf.schema.plugin import PluginManifestEntry
+from nexctf.plugins.frontend import Asset, Bundle, FrontendEntry, frontend_registry
+from nexctf.schema.plugin import PluginManifestEntry, PluginPage, PluginStylesheet
 
 _IMMUTABLE = "max-age=31536000, immutable"
+
+
+def _entry(base: str, entry: FrontendEntry, bundle: Bundle) -> PluginManifestEntry:
+    def url(asset: Asset) -> str:
+        return f"{base}/{entry.key}/frontend/{asset.name}?v={asset.version}"
+
+    style = bundle.style
+    return PluginManifestEntry(
+        key=entry.key,
+        remote_entry=url(bundle.script),
+        integrity=bundle.script.integrity,
+        stylesheet=style
+        and PluginStylesheet(url=url(style), integrity=style.integrity),
+        slots=bundle.slots,
+        pages=[PluginPage.model_validate(page) for page in bundle.pages],
+        challenge_types=entry.challenge_types,
+    )
 
 
 def manifest(*, admin: bool) -> list[PluginManifestEntry]:
@@ -20,13 +37,7 @@ def manifest(*, admin: bool) -> list[PluginManifestEntry]:
     """
     base = f"{settings.API_V1_STR}{'/admin' if admin else ''}/plugins"
     return [
-        PluginManifestEntry(
-            key=entry.key,
-            remote_entry=f"{base}/{entry.key}/frontend/{bundle.name}?v={bundle.version}",
-            integrity=bundle.integrity,
-            slots=bundle.slots,
-            challenge_types=entry.challenge_types,
-        )
+        _entry(base, entry, bundle)
         for entry in frontend_registry.get_all()
         if (bundle := entry.bundle(admin)) is not None
     ]
@@ -35,17 +46,18 @@ def manifest(*, admin: bool) -> list[PluginManifestEntry]:
 def bundle_response(
     key: str, file_path: str, version: str | None, *, admin: bool
 ) -> FileResponse:
-    """Serve a plugin bundle, cached for good when requested at its current version.
+    """Serve a bundle's script or stylesheet, cached for good at its current version.
 
     Raises:
-        NotFoundError: If the plugin has no such bundle.
+        NotFoundError: If the plugin's bundle has no such file.
     """
     entry = frontend_registry.get(key)
     bundle = entry.bundle(admin) if entry is not None else None
-    if bundle is None or bundle.name != file_path:
+    asset = bundle.asset(file_path) if bundle is not None else None
+    if asset is None:
         raise NotFoundError()
     audience = "private" if admin else "public"
-    cache = f"{audience}, {_IMMUTABLE}" if version == bundle.version else "no-cache"
+    cache = f"{audience}, {_IMMUTABLE}" if version == asset.version else "no-cache"
     return FileResponse(
-        bundle.path, media_type="text/javascript", headers={"Cache-Control": cache}
+        asset.path, media_type=asset.media_type, headers={"Cache-Control": cache}
     )

@@ -19,9 +19,23 @@ class AdminPluginRead(PydanticBase):
     load_error: str | None = None
 
 
+class PluginStylesheet(PydanticBase):
+    url: str
+    integrity: str
+
+
+class PluginPage(PydanticBase):
+    path: str
+    label: str | dict[str, str]
+    icon: str | None
+    section: str
+
+
 class PluginManifestEntry(PydanticBase):
     key: str
     remote_entry: str
     integrity: str
+    stylesheet: PluginStylesheet | None
     slots: list[str]
+    pages: list[PluginPage]
     challenge_types: list[str] | None

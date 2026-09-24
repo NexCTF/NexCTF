@@ -3,7 +3,7 @@ import { expect, it, vi } from "vitest";
 import { getAdminPlugins } from "@/lib/api";
 import { plugin } from "@/test/fixtures";
 import { renderRoute } from "@/test/render";
-import { Route } from "./plugins";
+import { Route } from "./plugins.index";
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),

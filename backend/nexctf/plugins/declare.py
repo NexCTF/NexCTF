@@ -61,20 +61,44 @@ class RouterDef:
     tags: list[str | Enum] = field(default_factory=list)
 
 
+type NavSection = Literal["overview", "audit", "manage", "system", "plugins"]
+
+
+@dataclass(frozen=True)
+class PageDef:
+    """A page listed in the nav, rendered by the bundle's ``pages[path]``.
+
+    ``label`` is a plain string or a ``{locale: text}`` map. ``icon`` is a
+    lucide icon name from the host's set. ``section`` places an admin page in
+    the admin sidebar and is ignored for user pages.
+    """
+
+    path: str
+    label: str | dict[str, str]
+    icon: str | None = None
+    section: NavSection = "plugins"
+
+
 @dataclass(frozen=True)
 class FrontendDef:
     """Prebuilt single-file bundles in ``dist_dir``.
 
-    ``entry_file`` is served to every visitor and fills ``slots``;
-    ``admin_entry_file`` is served to admins only and fills ``admin_slots``.
+    ``entry_file`` is served to every visitor, fills ``slots`` and renders
+    ``user_pages``; ``admin_entry_file`` is served to admins only, fills
+    ``admin_slots`` and renders ``admin_pages``. Each may come with a
+    stylesheet, ``entry_css`` and ``admin_entry_css``.
     """
 
     dist_dir: Path
     slots: list[str] = field(default_factory=list)
     challenge_types: list[str] | None = None
     entry_file: str | None = "bundle.js"
+    entry_css: str | None = None
+    user_pages: list[PageDef] = field(default_factory=list)
     admin_entry_file: str | None = None
+    admin_entry_css: str | None = None
     admin_slots: list[str] = field(default_factory=list)
+    admin_pages: list[PageDef] = field(default_factory=list)
 
 
 @dataclass(eq=False)

@@ -3,12 +3,18 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import { getMyNotifications, getPublicInfo, getPublishedPages } from "@/lib/api";
 import type { AuthContext } from "@/lib/auth";
-import { publicInfo, user } from "@/test/fixtures";
+import { pluginManifest } from "@/lib/plugins";
+import { pluginManifestEntry, publicInfo, user } from "@/test/fixtures";
 import { renderRoute } from "@/test/render";
 import { Route } from "./_user";
 
 const renderLayout = (auth: Partial<AuthContext> = { user: user() }) =>
   renderRoute(Route, { path: "/", auth });
+
+vi.mock("@/lib/plugins", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/plugins")>()),
+  pluginManifest: vi.fn(),
+}));
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
@@ -18,6 +24,7 @@ vi.mock("@/lib/api", async (importOriginal) => ({
 }));
 
 beforeEach(() => {
+  vi.mocked(pluginManifest).mockResolvedValue([]);
   vi.mocked(getPublicInfo).mockResolvedValue(publicInfo());
   vi.mocked(getPublishedPages).mockResolvedValue([]);
   vi.mocked(getMyNotifications).mockResolvedValue({ notifications: [], last_read_at: null });
@@ -86,4 +93,23 @@ it("renders external links from the public info", async () => {
   const link = await screen.findByRole("link", { name: /Discord/ });
   expect(link.getAttribute("href")).toBe("https://discord.gg/x");
   expect(link.getAttribute("rel")).toContain("noopener");
+});
+
+it("links the pages plugins list for the nav, in the visitor's language", async () => {
+  vi.mocked(pluginManifest).mockResolvedValue([
+    pluginManifestEntry({
+      pages: [
+        {
+          path: "stats",
+          label: { en: "Stats", fr: "Statistiques" },
+          icon: null,
+          section: "plugins",
+        },
+      ],
+    }),
+  ]);
+  renderLayout();
+
+  const link = await screen.findByRole("link", { name: "Stats" });
+  expect(link.getAttribute("href")).toBe("/plugins/nexctf_demo/stats");
 });

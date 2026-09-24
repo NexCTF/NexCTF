@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { NotificationPopover } from "@/components/notification-popover";
 import { NotificationToastListener } from "@/components/notification-toast-listener";
+import { PluginNavLinks, usePluginPages } from "@/components/plugin-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { getPublicInfo, getPublishedPages, type PublicPageSummary } from "@/lib/api";
@@ -40,6 +41,7 @@ function TopNav({ navPages }: { navPages: PublicPageSummary[] }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { name, logoUrl } = useBranding();
+  const pluginPages = usePluginPages("user");
 
   const { data: info } = useQuery({
     queryKey: ["info", "public"],
@@ -79,6 +81,7 @@ function TopNav({ navPages }: { navPages: PublicPageSummary[] }) {
               {p.title}
             </Link>
           ))}
+          <PluginNavLinks pages={pluginPages} className={navLinkCls} showIcon={false} />
           {(info?.links ?? []).map((l, i) => (
             <a
               // biome-ignore lint/suspicious/noArrayIndexKey: links have no stable id; index is the identity

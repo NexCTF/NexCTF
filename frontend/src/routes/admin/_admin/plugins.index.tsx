@@ -16,7 +16,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getAdminPlugins, type Plugin } from "@/lib/api";
 
-export const Route = createFileRoute("/admin/_admin/plugins")({
+export const Route = createFileRoute("/admin/_admin/plugins/")({
   component: PluginsPage,
 });
 

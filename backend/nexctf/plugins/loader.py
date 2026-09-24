@@ -13,7 +13,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, get_args
 
 from nexctf.plugins.config import plugin_config_defs, register_config
-from nexctf.plugins.declare import Plugin, RouterDef, RouterScope
+from nexctf.plugins.declare import (
+    NavSection,
+    PageDef,
+    Plugin,
+    RouterDef,
+    RouterScope,
+)
 from nexctf.plugins.frontend import frontend_registry
 from nexctf.plugins.registry import (
     challenge_registry,
@@ -41,6 +47,8 @@ _CORE_MODULES = ("nexctf.module.scheduler",)
 
 _ROUTER_SCOPES: tuple[str, ...] = get_args(RouterScope.__value__)
 _PREFIX_RE = re.compile(r"(/[a-z0-9][a-z0-9_-]*)+")
+_NAV_SECTIONS: tuple[str, ...] = get_args(NavSection.__value__)
+_PAGE_PATH_RE = re.compile(r"([a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*)?")
 
 _plugin_tables: set[str] = set()
 _plugin_metadata: dict[str, PluginMeta] = {}
@@ -220,6 +228,24 @@ def _validate_routers(routers: list[RouterDef]) -> None:
             )
 
 
+def _validate_pages(pages: list[PageDef], bundle: str | None, scope: str) -> None:
+    """Raise if ``pages`` have no bundle to render them, or a bad or reused path."""
+    if pages and bundle is None:
+        raise ValueError(f"{scope} pages are declared with no {scope} bundle")
+    seen: set[str] = set()
+    for page in pages:
+        if not _PAGE_PATH_RE.fullmatch(page.path):
+            raise ValueError(f"{scope} page path {page.path!r} is not like 'a/b'")
+        if page.path in seen:
+            raise ValueError(f"{scope} page path {page.path!r} is declared twice")
+        seen.add(page.path)
+        if page.section not in _NAV_SECTIONS:
+            raise ValueError(
+                f"{scope} page {page.path!r} has section {page.section!r}, "
+                f"expected one of {', '.join(_NAV_SECTIONS)}"
+            )
+
+
 def _validate(plugin: Plugin, key: str) -> list[ConfigDef]:
     """Raise if any part of ``plugin`` cannot be registered under ``key``.
 
@@ -234,6 +260,9 @@ def _validate(plugin: Plugin, key: str) -> list[ConfigDef]:
         scheduler_registry.check(job.type_name, key)
     if plugin.routers:
         _validate_routers(plugin.routers)
+    if frontend := plugin.frontend:
+        _validate_pages(frontend.user_pages, frontend.entry_file, "user")
+        _validate_pages(frontend.admin_pages, frontend.admin_entry_file, "admin")
     return plugin_config_defs(plugin.config, key) if plugin.config else []
 
 
