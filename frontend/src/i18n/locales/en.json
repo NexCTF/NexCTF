@@ -451,7 +451,7 @@
       "create_error": "Failed to create job",
       "created": "Job created",
       "cron_check_failed": "Could not check this expression right now.",
-      "cron_hint": "Leave empty for a job that fires once. Schedules are read in the event timezone (Settings → Competition).",
+      "cron_help": "Leave empty for a job that fires once. Use 5 fields, or 6 with seconds first; a job fires at most once a minute. Schedules are read in the event timezone (Settings → Competition).",
       "cron_invalid": "Invalid cron expression.",
       "cron_preview": "Read in {{zone}} · next runs, in your timezone: {{runs}}",
       "delete_confirm": "Delete job \"{{name}}\"?",

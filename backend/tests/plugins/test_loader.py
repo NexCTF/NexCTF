@@ -36,6 +36,7 @@ def _isolate_loader_state(
     monkeypatch.setattr(loader, "_plugin_metadata", {})
     monkeypatch.setattr(loader, "_plugin_tables", set())
     monkeypatch.setattr(loader, "_plugin_migrations", {})
+    monkeypatch.setattr(loader, "_plugin_packages", {})
 
 
 @pytest.fixture
@@ -165,6 +166,10 @@ def test_two_plugins_get_separate_keys(
 
     assert set(loader._plugin_metadata) == {"nexctf_one", "nexctf_two"}
     assert {"one_pkg", "two_pkg"} <= set(sys.modules)
+    assert loader.get_plugin_packages() == {
+        "nexctf_one": "one_pkg",
+        "nexctf_two": "two_pkg",
+    }
 
 
 def test_installed_plugin_failure_is_captured_not_raised(
@@ -309,7 +314,8 @@ _DECLARED = """\
 
     from nexctf.model import Link
     from nexctf.plugins import (
-        ConfigCategory, ConfigDef, ConfigType, JobDef, Plugin, RouterDef, TypeDef,
+        ConfigCategory, ConfigDef, ConfigType, CronDef, JobDef, Plugin, RouterDef,
+        TaskDef, TypeDef,
     )
 
     class Schema(BaseModel):
@@ -317,9 +323,15 @@ _DECLARED = """\
 
     def handler(job, session, redis): ...
 
+    async def run(payload): ...
+
+    task = TaskDef("demo_task", run, Schema)
+
     plugin = Plugin(
         solution_types=[TypeDef("demo_type", Link, Schema, Schema, Schema, polymorphic=False)],
         jobs=[JobDef("demo_job", handler, Schema, Schema)],
+        tasks=[task],
+        crons=[CronDef("demo_cron", "0 * * * *", run)],
         routers=[RouterDef(APIRouter(), "/demo"), RouterDef(APIRouter(), "/demo", scope="admin")],
         config=ConfigCategory("Demo", (ConfigDef(key="url", label="URL", default="https://a.test", type=ConfigType.URL),)),
     )
@@ -340,6 +352,8 @@ def test_a_declared_plugin_registers_everything_under_its_key(
     assert scope.group_for_path("/api/v1/demo/x") == "plugin.nexctf_demo"
     assert scope.group_for_path("/api/v1/admin/demo/x") == "admin.plugin.nexctf_demo"
     assert appconfig.get_def("nexctf_demo.url").category == "nexctf_demo"
+    assert "nexctf_demo.demo_task" in registry.task_registry.tasks()
+    assert "nexctf_demo.demo_cron" in registry.task_registry.crons()
 
 
 def test_the_entry_point_attribute_names_the_plugin(
@@ -396,6 +410,7 @@ def test_a_plugin_failing_validation_registers_nothing(
         registry.solution_registry.get("demo_type")
     with pytest.raises(KeyError):
         registry.scheduler_registry.get("demo_job")
+    assert "nexctf_demo.demo_task" not in registry.task_registry.tasks()
     assert routes.route_registry.get_routers() == []
     assert scope.group_for_path("/api/v1/admin/demo/x") is None
     with pytest.raises(KeyError):

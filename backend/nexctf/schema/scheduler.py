@@ -101,6 +101,10 @@ class AdminSchedulerJobTypeRead(PydanticBase):
     update_schema: dict
 
 
+class SchedulerRunPayload(PydanticBase):
+    task_id: UUID
+
+
 class CronPreview(PydanticBase):
     timezone: str
     next_runs: list[datetime]

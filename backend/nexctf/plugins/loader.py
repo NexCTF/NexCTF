@@ -25,6 +25,7 @@ from nexctf.plugins.registry import (
     challenge_registry,
     scheduler_registry,
     solution_registry,
+    task_registry,
 )
 from nexctf.plugins.routes import route_registry
 
@@ -43,7 +44,7 @@ _BUILTINS = {
     "solution": "nexctf.plugins.builtin.solution",
 }
 _CORE_KEY = "core"
-_CORE_MODULES = ("nexctf.module.scheduler",)
+_CORE_MODULES = ("nexctf.module.scheduler", "nexctf.tasks.maintenance")
 
 _ROUTER_SCOPES: tuple[str, ...] = get_args(RouterScope.__value__)
 _PREFIX_RE = re.compile(r"(/[a-z0-9][a-z0-9_-]*)+")
@@ -53,6 +54,7 @@ _PAGE_PATH_RE = re.compile(r"([a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*)?")
 _plugin_tables: set[str] = set()
 _plugin_metadata: dict[str, PluginMeta] = {}
 _plugin_migrations: dict[str, tuple[Path, frozenset[str]]] = {}
+_plugin_packages: dict[str, str] = {}
 
 
 @dataclass
@@ -210,6 +212,15 @@ def get_plugin_migrations() -> dict[str, tuple[Path, frozenset[str]]]:
     return _plugin_migrations
 
 
+def get_plugin_packages() -> dict[str, str]:
+    """Return the root package of every loaded installed plugin.
+
+    Returns:
+        A mapping of plugin key to the package its modules, and loggers, live in.
+    """
+    return _plugin_packages
+
+
 def _validate_routers(routers: list[RouterDef]) -> None:
     """Raise if a router has an unknown scope or a malformed or taken prefix."""
     from nexctf.api.scope import plugin_prefix_conflict
@@ -258,6 +269,7 @@ def _validate(plugin: Plugin, key: str) -> list[ConfigDef]:
         solution_registry.check(type_def.name, key)
     for job in plugin.jobs:
         scheduler_registry.check(job.type_name, key)
+    task_registry.check([*plugin.tasks, *plugin.crons], key)
     if plugin.routers:
         _validate_routers(plugin.routers)
     if frontend := plugin.frontend:
@@ -280,6 +292,7 @@ def commit_plugin(plugin: Plugin, key: str) -> None:
         solution_registry.add(type_def, key)
     for job in plugin.jobs:
         scheduler_registry.add(job, key)
+    task_registry.add([*plugin.tasks, *plugin.crons], key)
     for router in plugin.routers:
         route_registry.add(router, key)
     if plugin.config is not None:
@@ -346,6 +359,7 @@ def _load_installed_plugins(*, include_disabled: bool = False) -> None:
             versions = Path(root.__file__ or "").parent / "alembic" / "versions"
             commit_plugin(plugin, key)
             _plugin_metadata[key] = _installed_metadata(key, ep.dist)
+            _plugin_packages[key] = package
             _plugin_tables.update(owned)
             if versions.is_dir():
                 _plugin_migrations[key] = (versions, owned)

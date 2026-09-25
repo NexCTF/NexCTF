@@ -48,6 +48,29 @@ class JobDef:
 
 
 @dataclass(frozen=True)
+class TaskDef:
+    """A background task run by the worker, registered as ``"{plugin_key}.{name}"``."""
+
+    name: str
+    handler: Callable[..., Awaitable[None]]
+    payload_schema: SchemaClass | None = None
+    retries: int = 0
+    retry_delay: float = 5.0
+    timeout: float = 300.0
+    concurrency_limit: int = 0
+
+
+@dataclass(frozen=True)
+class CronDef:
+    """An async ``handler()`` the worker runs on a UTC cron ``expression``."""
+
+    name: str
+    expression: str
+    handler: Callable[[], Awaitable[None]]
+    timeout: float = 300.0
+
+
+@dataclass(frozen=True)
 class RouterDef:
     """An API router mounted under ``prefix``.
 
@@ -135,13 +158,15 @@ class Plugin:
     """Everything a plugin contributes, registered only once all of it validates.
 
     Atomicity covers NexCTF registrations: a failed plugin registers no type,
-    route, job, config or bundle. Import side effects, such as models already
-    mapped on the declarative base, are not undone.
+    route, job, task, config or bundle. Import side effects, such as models
+    already mapped on the declarative base, are not undone.
     """
 
     challenge_types: list[TypeDef] = field(default_factory=list)
     solution_types: list[TypeDef] = field(default_factory=list)
     jobs: list[JobDef] = field(default_factory=list)
+    tasks: list[TaskDef] = field(default_factory=list)
+    crons: list[CronDef] = field(default_factory=list)
     routers: list[RouterDef] = field(default_factory=list)
     config: ConfigCategory | None = None
     frontend: FrontendDef | None = None

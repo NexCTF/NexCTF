@@ -44,9 +44,16 @@ def next_fire(expr: str, after: datetime, tz: str | None = None) -> datetime:
 
 
 def validate_cron(expr: str) -> str:
-    """Pydantic validator rejecting malformed cron expressions."""
+    """Pydantic validator rejecting malformed crons and crons firing within a minute.
+
+    A 6-field expression carries seconds first; its seconds field must match
+    exactly one value.
+    """
     try:
         next_fire(expr, datetime.now(UTC))
+        seconds = CronSim(expr, datetime.now(UTC)).seconds
     except CronSimError as exc:
         raise ValueError(f"invalid cron expression: {exc}") from exc
+    if len(seconds) != 1:
+        raise ValueError("cron expression fires more than once a minute")
     return expr

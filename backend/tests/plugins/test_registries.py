@@ -1,7 +1,7 @@
 """Unit tests for the plugin registries.
 
 Covers the polymorphic type registry (register/get/compatibility/apply), the
-scheduler job registry, the route registry's scope filtering, the frontend
+scheduler job registry, the task registry, the route registry's scope filtering, the frontend
 bundle registry, and owner conflicts. Each test uses a fresh registry instance
 so it does not touch the module-level singletons the running app populates.
 """
@@ -16,9 +16,20 @@ from pydantic import BaseModel
 
 from nexctf.enums import InputType
 from nexctf.model import Link
-from nexctf.plugins.declare import FrontendDef, JobDef, RouterDef, TypeDef
+from nexctf.plugins.declare import (
+    CronDef,
+    FrontendDef,
+    JobDef,
+    RouterDef,
+    TaskDef,
+    TypeDef,
+)
 from nexctf.plugins.frontend import FrontendRegistry
-from nexctf.plugins.registry import PolymorphicRegistry, SchedulerRegistry
+from nexctf.plugins.registry import (
+    PolymorphicRegistry,
+    SchedulerRegistry,
+    TaskRegistry,
+)
 from nexctf.plugins.routes import RouteRegistry
 
 
@@ -188,3 +199,46 @@ def test_another_owner_cannot_take_a_job_name() -> None:
     reg.add(JobDef("job", handler, _Schema, _Schema), owner="first")
     with pytest.raises(ValueError, match="already registered by 'first'"):
         reg.add(JobDef("job", handler, _Schema, _Schema), owner="second")
+
+
+async def _noop() -> None: ...
+
+
+def test_tasks_and_crons_are_namespaced_by_their_owner() -> None:
+    reg = TaskRegistry()
+    task, cron = TaskDef("provision", _noop), CronDef("sweep", "* * * * *", _noop)
+
+    reg.check([task, cron], "nexctf_demo")
+    reg.add([task, cron], "nexctf_demo")
+
+    assert reg.name_of(task) == "nexctf_demo.provision"
+    assert list(reg.tasks()) == ["nexctf_demo.provision"]
+    assert list(reg.crons()) == ["nexctf_demo.sweep"]
+
+
+@pytest.mark.parametrize("name", ["", "Provision", "a.b", "a-b", "_x"])
+def test_a_malformed_task_name_is_rejected(name: str) -> None:
+    with pytest.raises(ValueError, match="is not like"):
+        TaskRegistry().check([TaskDef(name, _noop)], "tests")
+
+
+def test_a_name_declared_twice_by_one_plugin_is_rejected() -> None:
+    with pytest.raises(ValueError, match="declared twice"):
+        TaskRegistry().check(
+            [TaskDef("job", _noop), CronDef("job", "* * * * *", _noop)], "tests"
+        )
+
+
+def test_one_task_cannot_be_registered_by_two_plugins() -> None:
+    reg = TaskRegistry()
+    task = TaskDef("shared", _noop)
+    reg.add([task], "first")
+
+    reg.check([task], "first")
+    with pytest.raises(ValueError, match="already registered as 'first.shared'"):
+        reg.check([task], "second")
+
+
+def test_an_unregistered_task_has_no_name() -> None:
+    with pytest.raises(LookupError, match="no loaded plugin"):
+        TaskRegistry().name_of(TaskDef("orphan", _noop))

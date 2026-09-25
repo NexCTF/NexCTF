@@ -42,14 +42,24 @@ class TestCronValidation:
         resp = await c.post(PREFIX + "/jobs", json=_payload())
         assert resp.status_code == 422
 
+    @pytest.mark.parametrize("expr", ["0 0 30 2 *", "*/10 * * * * *", "0,59 * * * * *"])
     async def test_create_with_invalid_cron_is_rejected(
+        self, admin_client: tuple[AsyncClient, User], expr: str
+    ) -> None:
+        c, _ = admin_client
+        resp = await c.post(PREFIX + "/jobs", json=_payload(cron_expression=expr))
+        assert resp.status_code == 422
+
+    async def test_create_with_a_seconds_field_keeps_it(
         self, admin_client: tuple[AsyncClient, User]
     ) -> None:
         c, _ = admin_client
         resp = await c.post(
-            PREFIX + "/jobs", json=_payload(cron_expression="0 0 30 2 *")
+            PREFIX + "/jobs", json=_payload(cron_expression="30 0 12 * * *")
         )
-        assert resp.status_code == 422
+        assert resp.status_code == 200
+        fire = datetime.fromisoformat(resp.json()["data"]["scheduled_at"])
+        assert fire.second == 30
 
     async def test_update_sets_and_clears_cron(
         self, admin_client: tuple[AsyncClient, User]

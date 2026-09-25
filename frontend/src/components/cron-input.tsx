@@ -38,9 +38,9 @@ export function CronInput({
     if (!debounced)
       return {
         tone: "text-muted-foreground",
-        text: t("admin.scheduler.cron_hint", {
+        text: t("admin.scheduler.cron_help", {
           defaultValue:
-            "Leave empty for a job that fires once. Schedules are read in the event timezone (Settings → Competition).",
+            "Leave empty for a job that fires once. Use 5 fields, or 6 with seconds first; a job fires at most once a minute. Schedules are read in the event timezone (Settings → Competition).",
         }),
       };
     if (!complete) return null;
