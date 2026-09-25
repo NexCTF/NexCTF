@@ -26,15 +26,16 @@ tasks:
       ENVIRONMENT: development
       TRUSTED_PROXY_COUNT: 1
 
-  dev:scheduler:
-    desc: "Run the scheduler worker in dev mode"
+  dev:worker:
+    desc: "Run the task worker (background tasks, crons, scheduler jobs) in dev mode"
     cmds:
-      - bash -c 'source .venv/bin/activate && python -m nexctf.worker'
+      - bash -c 'source .venv/bin/activate && python -m pgqueuer run nexctf.tasks.worker:factory --restart-on-failure'
     dir: backend
     env:
       PYTHONPATH: "{{.ROOT_DIR}}/backend"
       POSTGRES_SERVER: 127.0.0.1
       REDIS_HOST: 127.0.0.1
+      S3_HOST: 127.0.0.1
 
   dev:backend:test:
     desc: "Run the backend test suite (pytest)"

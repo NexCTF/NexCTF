@@ -10,7 +10,7 @@ dependencies = [
     "alembic>=1.19.1",
     "argon2-cffi>=23.1.0",
     "fastapi-multiauth[oauth]>=0.6.0",
-    "fastapi-toolsets[all]>=5.1.0",
+    "fastapi-toolsets[all]>=5.1.4",
     "fastapi[standard-no-fastapi-cloud-cli]>=0.141.1",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.15.0",
@@ -23,6 +23,8 @@ dependencies = [
     "cronsim>=2.7",
     "altcha>=2.1.0",
     "pyyaml>=6.0.3",
+    "pgqueuer>=1.4.0,<1.5",
+    "asyncpg>=0.31.0",
 ]
 
 [project.urls]

@@ -1,8 +1,9 @@
-"""Registries plugins register their polymorphic types and scheduler jobs with."""
+"""Registries plugins register their polymorphic types, scheduler jobs and tasks with."""
 
 from __future__ import annotations
 
 import dataclasses
+import re
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
@@ -12,7 +13,7 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import selectinload
 
 from nexctf.enums import InputType
-from nexctf.plugins.declare import JobDef, SchemaClass, TypeDef
+from nexctf.plugins.declare import CronDef, JobDef, SchemaClass, TaskDef, TypeDef
 
 if TYPE_CHECKING:
     from redis.asyncio import Redis
@@ -238,3 +239,59 @@ class SchedulerRegistry(_OwnedNames):
 
 
 scheduler_registry = SchedulerRegistry()
+
+
+_TASK_NAME_RE = re.compile(r"[a-z0-9][a-z0-9_]*")
+
+
+class TaskRegistry:
+    """Maps task and cron declarations to their namespaced names."""
+
+    def __init__(self) -> None:
+        self._names: dict[TaskDef | CronDef, str] = {}
+
+    def check(self, defs: list[TaskDef | CronDef], owner: str) -> None:
+        """Raise unless ``owner`` may register these tasks and crons.
+
+        Raises:
+            ValueError: If a name is malformed, declared twice, or taken.
+        """
+        seen: set[str] = set()
+        for defn in defs:
+            if not _TASK_NAME_RE.fullmatch(defn.name):
+                raise ValueError(f"task name {defn.name!r} is not like 'snake_case'")
+            if defn.name in seen:
+                raise ValueError(f"task name {defn.name!r} is declared twice")
+            seen.add(defn.name)
+            name = f"{owner}.{defn.name}"
+            if (taken := self._names.get(defn, name)) != name:
+                raise ValueError(
+                    f"task {defn.name!r} is already registered as {taken!r}"
+                )
+
+    def add(self, defs: list[TaskDef | CronDef], owner: str) -> None:
+        """Register tasks and crons under ``"{owner}.{name}"``."""
+        for defn in defs:
+            self._names[defn] = f"{owner}.{defn.name}"
+
+    def name_of(self, defn: TaskDef | CronDef) -> str:
+        """Return the namespaced name a task or cron was registered under.
+
+        Raises:
+            LookupError: If no loaded plugin registered ``defn``.
+        """
+        try:
+            return self._names[defn]
+        except KeyError:
+            raise LookupError(f"task {defn.name!r} belongs to no loaded plugin")
+
+    def tasks(self) -> dict[str, TaskDef]:
+        """Return registered tasks by namespaced name."""
+        return {n: d for d, n in self._names.items() if isinstance(d, TaskDef)}
+
+    def crons(self) -> dict[str, CronDef]:
+        """Return registered crons by namespaced name."""
+        return {n: d for d, n in self._names.items() if isinstance(d, CronDef)}
+
+
+task_registry = TaskRegistry()

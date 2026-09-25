@@ -4,6 +4,7 @@ All dev commands are wrapped by `Taskfile.yml` (run `task` from the repo root). 
 - Start infra (postgres, valkey, s3): `task dev:infra:up`
 - Start backend (runs migrations + fixtures, then serves): `task dev:backend`
 - Start frontend dev server: `task dev:frontend`
+- Start the task worker (background tasks, crons, admin scheduler jobs): `task dev:worker`
 - Stop infra: `task dev:infra:down`
 - Stop infra + clean volumes: `task dev:infra:down -- -v`
 - Run all checks (backend + frontend): `task dev:check`

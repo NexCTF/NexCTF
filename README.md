@@ -92,7 +92,7 @@ Start it with `DEMO_DATA=true` to seed example challenges, teams and submissions
 - Scheduler: one-shot or cron-based jobs
 - Database backup and restore from the UI, stored on S3, schedulable with retention (beta)
 - Custom Markdown pages and external navigation links
-- **Plugins**: register custom challenge types, solution strategies, scheduler jobs, and frontend components
+- **Plugins**: register custom challenge types, solution strategies, scheduler jobs, background tasks and crons, and frontend components
   - Installed with uv from a package index, a git repository, or a local path
   - Plugins own their DB tables with Alembic migrations
   - Plugin-scoped config keys auto-prefixed and merged with core config
@@ -107,6 +107,7 @@ See [roadmap.md](roadmap.md) for planned features and progress toward v1.0.
 | Backend | Python 3.14 + FastAPI + SQLAlchemy 2 (async) |
 | Frontend | React 19 + TanStack Router/Query + Tailwind CSS 4 + shadcn |
 | Database | PostgreSQL 18+ |
+| Task queue | PgQueuer (on PostgreSQL) |
 | Cache | Valkey 9 (Redis-compatible) |
 | Storage | Maxio (S3-compatible) |
 
@@ -115,6 +116,7 @@ See [roadmap.md](roadmap.md) for planned features and progress toward v1.0.
 task dev:infra:up       # Start dev infrastructure (db, cache, s3)
 task dev:infra:down     # Stop dev infrastructure
 task dev:backend        # Start the dev backend
+task dev:worker         # Start the task worker (background tasks, crons, scheduler jobs)
 task dev:backend:test   # Run backend tests
 task dev:frontend       # Start the dev frontend
 ```

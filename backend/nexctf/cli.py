@@ -102,4 +102,4 @@ async def restore_backup(
     # Drop every cached structure describing the replaced database.
     await get_redis_client().flushdb()
 
-    console.print(f"Restored {key!r}. Restart the backend and scheduler.")
+    console.print(f"Restored {key!r}. Restart the backend and worker.")

@@ -24,14 +24,14 @@ finish() {
     else
         echo "failed $KEY (exit $rc, see /tmp/nexctf-restore.log)" > "$STATUS_FILE"
     fi
-    log "starting backend and scheduler"
-    supervisorctl start backend scheduler
+    log "starting backend and worker"
+    supervisorctl start backend worker
 }
 
 echo "running $KEY" > "$STATUS_FILE"
 
-log "stopping backend and scheduler"
-supervisorctl stop backend scheduler
+log "stopping backend and worker"
+supervisorctl stop backend worker
 trap finish EXIT
 
 log "restoring $KEY"

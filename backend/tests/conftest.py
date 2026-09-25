@@ -13,6 +13,8 @@ from fastapi_toolsets.pytest import (
     register_fixtures,
 )
 from httpx import AsyncClient
+from pgqueuer import Queries
+from pgqueuer.db import AsyncpgDriver
 from sqlalchemy.ext.asyncio import AsyncSession
 
 os.environ["NEXCTF_TEST_MODE"] = "1"
@@ -30,8 +32,10 @@ from nexctf.plugins.registry import (
     challenge_registry,
     scheduler_registry,
     solution_registry,
+    task_registry,
 )
 from nexctf.plugins.routes import route_registry
+from nexctf.tasks.queue import DB_SETTINGS, build_queries, connect
 
 register_fixtures(test_fixture_registry, globals())
 # The test app skips the lifespan that loads plugins.
@@ -48,6 +52,7 @@ def isolated_plugins(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             reg, "_polymorphic_subclasses", dict(reg._polymorphic_subclasses)
         )
+    monkeypatch.setattr(task_registry, "_names", dict(task_registry._names))
     monkeypatch.setattr(route_registry, "_entries", {})
     monkeypatch.setattr(frontend_registry, "_entries", {})
     monkeypatch.setattr(appconfig, "_DEFS", dict(appconfig._DEFS))
@@ -89,6 +94,32 @@ async def worker_db_url():
         default_test_db="test",
     ) as url:
         yield url
+
+
+@pytest.fixture(scope="session")
+async def task_queue_schema(worker_db_url: str) -> str:
+    """Install the task queue schema once in the per-worker test database."""
+    conn = await connect(worker_db_url)
+    try:
+        queries = build_queries(AsyncpgDriver(conn))
+        if not await queries.has_table(DB_SETTINGS.queue_table):
+            await queries.install()
+    finally:
+        await conn.close()
+    return worker_db_url
+
+
+@pytest.fixture
+async def task_queue(task_queue_schema: str) -> AsyncIterator[Queries]:
+    """Yield queries on a task queue emptied before the test."""
+    conn = await connect(task_queue_schema)
+    queries = build_queries(AsyncpgDriver(conn))
+    await queries.clear_queue()
+    await queries.clear_schedule()
+    try:
+        yield queries
+    finally:
+        await conn.close()
 
 
 @pytest.fixture

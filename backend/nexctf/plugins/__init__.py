@@ -13,11 +13,13 @@ from nexctf.enums import InputType
 from nexctf.plugins.config import get_plugin_config
 from nexctf.plugins.declare import (
     ConfigCategory,
+    CronDef,
     FrontendDef,
     JobDef,
     PageDef,
     Plugin,
     RouterDef,
+    TaskDef,
     TypeDef,
 )
 from nexctf.plugins.loader import (
@@ -33,6 +35,7 @@ from nexctf.plugins.registry import (
     challenge_registry,
     scheduler_registry,
     solution_registry,
+    task_registry,
 )
 
 __all__ = [  # noqa: RUF022
@@ -40,6 +43,8 @@ __all__ = [  # noqa: RUF022
     "Plugin",
     "TypeDef",
     "JobDef",
+    "TaskDef",
+    "CronDef",
     "RouterDef",
     "FrontendDef",
     "PageDef",
@@ -52,6 +57,7 @@ __all__ = [  # noqa: RUF022
     "challenge_registry",
     "solution_registry",
     "scheduler_registry",
+    "task_registry",
     # loading: called by the app, not by plugins
     "init_plugins",
     "load_plugin_registries",

@@ -453,7 +453,7 @@
       "create_error": "Échec de la création",
       "created": "Tâche créée",
       "cron_check_failed": "Impossible de vérifier cette expression pour le moment.",
-      "cron_hint": "Laisser vide pour une tâche qui ne s'exécute qu'une fois. Les planifications sont lues dans le fuseau horaire de l'événement (Paramètres → Compétition).",
+      "cron_help": "Laisser vide pour une tâche qui ne s'exécute qu'une fois. Utilisez 5 champs, ou 6 avec les secondes en premier\u202f; une tâche s'exécute au plus une fois par minute. Les planifications sont lues dans le fuseau horaire de l'événement (Paramètres → Compétition).",
       "cron_invalid": "Expression cron invalide.",
       "cron_preview": "Lu en {{zone}} · prochaines exécutions, dans votre fuseau horaire : {{runs}}",
       "delete_confirm": "Supprimer la tâche « {{name}} » ?",
