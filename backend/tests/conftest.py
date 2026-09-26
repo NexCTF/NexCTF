@@ -172,7 +172,9 @@ async def http_client(client_factory) -> AsyncGenerator[AsyncClient]:
 
 
 @pytest.fixture
-def override_db_context(db_session: AsyncSession):
+def override_db_context(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Patch get_db_context in security.py to reuse the test session.
 
     Functions like _verify_cookie() and create_api_token() call get_db_context()
@@ -183,18 +185,12 @@ def override_db_context(db_session: AsyncSession):
     """
     from nexctf.api import security
 
-    original = security.get_db_context
-
     @asynccontextmanager
-    async def _test_db_context():
+    async def _test_db_context() -> AsyncIterator[AsyncSession]:
         yield db_session
         await db_session.flush()
 
-    security.get_db_context = _test_db_context
-    try:
-        yield
-    finally:
-        security.get_db_context = original
+    monkeypatch.setattr(security, "get_db_context", _test_db_context)
 
 
 @asynccontextmanager
