@@ -92,7 +92,7 @@ async def _verify_token(
         user_token = await crud.UserTokenCrud.first(
             session=db,
             filters=[UserToken.token_hash == _hash_token(token)],
-            load_options=[selectinload(UserToken.user)],
+            load_options=[selectinload(UserToken.user).selectinload(User.team)],
         )
 
         if user_token is None or not user_token.user.is_active:

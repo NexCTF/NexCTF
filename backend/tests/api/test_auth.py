@@ -7,12 +7,14 @@ from urllib.parse import parse_qs, urlparse
 
 import pyotp
 import pytest
+from fastapi import Request
 from fastapi_multiauth.oauth import OIDCEndpoints
 from httpx import AsyncClient
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import select
 
 from nexctf import crud
-from nexctf.api.security import hash_password, verify_password
+from nexctf.api.security import _verify_token, hash_password, verify_password
 from nexctf.exceptions import CaptchaInvalidError, CaptchaRequiredError
 from nexctf.model import Event, OAuthAccount, OAuthProvider, User, UserToken
 from nexctf.schema import UserCreate
@@ -338,6 +340,21 @@ class TestBearerAuth:
             cookies={},
         )
         assert resp.status_code == 200
+
+    async def test_bearer_user_arrives_with_its_team_loaded(
+        self, user_client, db_session
+    ):
+        c, _ = user_client
+        create_resp = await c.post(
+            "/me/tokens", json={"name": "me", "scopes": ["read:profile"]}
+        )
+        raw_token = create_resp.json()["data"]["token"]
+        request = Request({"type": "http", "headers": [], "state": {}})
+        db_session.expunge_all()
+
+        user = await _verify_token(raw_token, request=request)
+
+        assert "team" not in sa_inspect(user).unloaded
 
     async def test_invalid_bearer_token_rejected(
         self, http_client, override_db_context
