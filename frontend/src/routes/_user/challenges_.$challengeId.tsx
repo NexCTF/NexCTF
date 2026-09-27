@@ -318,6 +318,7 @@ function QuestionCard({
     void queryClient.invalidateQueries({
       queryKey: ["challenge", challengeId],
     });
+    void queryClient.invalidateQueries({ queryKey: ["challenges"], exact: true });
   }
 
   if (q.is_locked) {
