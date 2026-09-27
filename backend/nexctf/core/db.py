@@ -7,6 +7,7 @@ db = Database(
     pool_size=settings.POSTGRES_POOL_SIZE,
     max_overflow=settings.POSTGRES_MAX_OVERFLOW,
     pool_timeout=settings.POSTGRES_POOL_TIMEOUT,
+    pool_pre_ping=True,
 )
 
 # Session context manager for code outside request handlers (CLI, worker,
