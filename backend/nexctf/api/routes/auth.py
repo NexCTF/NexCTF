@@ -254,22 +254,26 @@ async def login(
     else:
         dummy_verify_password(password)
         password_valid = False
-    if not user or not password_valid or not user.is_active:
-        if not user:
-            reason = "unknown_user"
-        elif not password_valid:
-            reason = "bad_password"
-        else:
-            reason = "disabled"
+    if not user or not password_valid:
         await _record_login_failure(
             session,
             redis,
             username=username,
             ip=client_ip,
             actor_id=user.id if user else None,
-            reason=reason,
+            reason="bad_password" if user else "unknown_user",
         )
         raise InvalidCredentialsError()
+    if not user.is_active:
+        await _record_login_failure(
+            session,
+            redis,
+            username=username,
+            ip=client_ip,
+            actor_id=user.id,
+            reason="disabled",
+        )
+        raise AccountDisabledError()
     if user.totp_secret:
         if not totp_code:
             raise TotpRequiredError()

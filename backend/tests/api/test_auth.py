@@ -253,6 +253,28 @@ class TestLogin:
             "/auth/token",
             data={"username": "disabled", "password": "pass"},
         )
+        assert resp.status_code == 403
+        assert resp.json()["error_code"] == "AUTH-403-DISABLED"
+
+    async def test_login_inactive_user_wrong_password(self, http_client, db_session):
+        user = await crud.UserCrud.create(
+            session=db_session,
+            obj=UserCreate(
+                username="disabled",
+                hashed_password=hash_password("pass"),
+            ),
+        )
+        await db_session.flush()
+        await crud.UserCrud.update(
+            session=db_session,
+            filters=[User.id == user.id],
+            obj=AdminUserUpdate(id=user.id, is_active=False),
+        )
+
+        resp = await http_client.post(
+            "/auth/token",
+            data={"username": "disabled", "password": "wrong"},
+        )
         assert resp.status_code == 401
         assert resp.json()["error_code"] == "AUTH-401"
 
