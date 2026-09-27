@@ -92,6 +92,30 @@ it("shows the TOTP step when the backend asks for a code", async () => {
   expect(screen.getByRole("button", { name: "Sign in" })).toHaveProperty("disabled", true);
 });
 
+it("empties the TOTP field after a wrong code so the next one submits itself", async () => {
+  const login = vi
+    .fn()
+    .mockRejectedValueOnce(new ApiError(401, "Unauthorized", null, "AUTH-TOTP-REQUIRED"))
+    .mockRejectedValueOnce(new ApiError(401, "Invalid OTP code", "Wrong code.", "AUTH-401-OTP"))
+    .mockResolvedValueOnce(undefined);
+  renderRoute(Route, { path: "/login", auth: { login } });
+  await fillAndSubmit();
+  await screen.findByText("Two-factor authentication");
+
+  await userEvent.click(screen.getAllByRole("textbox")[0]);
+  await userEvent.keyboard("000000");
+
+  expect(await screen.findByText("Wrong code.")).toBeDefined();
+  for (const box of screen.getAllByRole("textbox")) expect(box).toHaveProperty("value", "");
+
+  await userEvent.click(screen.getAllByRole("textbox")[0]);
+  await userEvent.keyboard("123456");
+
+  await waitFor(() =>
+    expect(login).toHaveBeenLastCalledWith("alice", "hunter2", "123456", undefined),
+  );
+});
+
 it("shows the disabled-account card", async () => {
   renderWithLoginError("AUTH-403-DISABLED");
   await fillAndSubmit();
