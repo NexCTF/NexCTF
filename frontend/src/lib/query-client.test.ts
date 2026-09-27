@@ -68,3 +68,19 @@ it("keeps the identity on other failures", async () => {
 
   expect(client.getQueryData(["auth", "me"])).not.toBeNull();
 });
+
+it("gives up on a 401 at once but retries other failures", async () => {
+  const client = createQueryClient();
+  const unauthorized = vi.fn().mockRejectedValue(new ApiError(401, "Unauthorized"));
+  const failing = vi.fn().mockRejectedValue(new ApiError(500, "Boom"));
+
+  await client
+    .fetchQuery({ queryKey: ["team"], queryFn: unauthorized, retryDelay: 0 })
+    .catch(() => undefined);
+  await client
+    .fetchQuery({ queryKey: ["scoreboard"], queryFn: failing, retryDelay: 0 })
+    .catch(() => undefined);
+
+  expect(unauthorized).toHaveBeenCalledTimes(1);
+  expect(failing).toHaveBeenCalledTimes(4);
+});
