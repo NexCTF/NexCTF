@@ -87,6 +87,8 @@ class Settings(BaseSettings):
     POSTGRES_POOL_SIZE: int = 20
     POSTGRES_MAX_OVERFLOW: int = 40
     POSTGRES_POOL_TIMEOUT: int = 10
+    POSTGRES_AUTH_POOL_SIZE: int = 5
+    POSTGRES_AUTH_MAX_OVERFLOW: int = 10
 
     @computed_field
     @property

@@ -17,7 +17,7 @@ from sqlalchemy.orm import selectinload
 from nexctf import crud
 from nexctf.api.scope import set_token_scopes, with_implied_reads
 from nexctf.core.config import settings
-from nexctf.core.db import get_db_context
+from nexctf.core.db import get_auth_db_context, get_db_context
 from nexctf.model import User, UserRole, UserToken
 from nexctf.module.session import SESSION_TTL, start_session, touch_live_session
 from nexctf.schema import UserTokenCreate
@@ -88,7 +88,7 @@ async def _verify_token(
     if request is None:
         raise UnauthorizedError()
 
-    async with get_db_context() as db:
+    async with get_auth_db_context() as db:
         user_token = await crud.UserTokenCrud.first(
             session=db,
             filters=[UserToken.token_hash == _hash_token(token)],
@@ -133,7 +133,7 @@ async def _verify_cookie(
     except ValueError:
         raise UnauthorizedError()
 
-    async with get_db_context() as db:
+    async with get_auth_db_context() as db:
         user = await crud.UserCrud.first(session=db, filters=[User.id == user_id])
 
         if not user or not user.is_active:

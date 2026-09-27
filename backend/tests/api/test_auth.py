@@ -1415,3 +1415,41 @@ class TestMeOAuth:
             resp = await c.delete(f"/me/oauth/{account.id}")
             assert resp.status_code == 409
             assert resp.json()["error_code"] == "OAUTH-409-LAST"
+
+
+def _forbid_request_pool(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make security.py's request-pool session context fail if opened."""
+    from nexctf.api import security
+
+    def _unavailable():
+        raise AssertionError("auth opened a session on the request pool")
+
+    monkeypatch.setattr(security, "get_db_context", _unavailable)
+
+
+class TestAuthPool:
+    async def test_cookie_auth_does_not_use_the_request_pool(
+        self, user_client, monkeypatch
+    ):
+        c, _ = user_client
+        _forbid_request_pool(monkeypatch)
+
+        resp = await c.get("/info/me")
+
+        assert resp.status_code == 200
+
+    async def test_bearer_auth_does_not_use_the_request_pool(
+        self, user_client, http_client, monkeypatch
+    ):
+        c, _ = user_client
+        create_resp = await c.post(
+            "/me/tokens", json={"name": "pool", "scopes": ["read:profile"]}
+        )
+        raw_token = create_resp.json()["data"]["token"]
+        _forbid_request_pool(monkeypatch)
+
+        resp = await http_client.get(
+            "/info/me", headers={"Authorization": f"Bearer {raw_token}"}
+        )
+
+        assert resp.status_code == 200
