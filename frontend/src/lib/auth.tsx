@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { notifyManager, type QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, type ReactNode, useCallback, useContext } from "react";
 import { login as apiLogin, logout as apiLogout, getMe, type User } from "@/lib/api";
 import { closeSSE } from "@/lib/sse";
@@ -13,6 +13,11 @@ export interface AuthContext {
     captchaToken?: string,
   ) => Promise<void>;
   logout: () => Promise<void>;
+}
+
+async function setIdentity(qc: QueryClient, user: User | null): Promise<void> {
+  qc.setQueryData(["auth", "me"], user);
+  await new Promise<void>((resolve) => notifyManager.schedule(resolve));
 }
 
 /** Exported so tests can provide a value without mounting the real provider. */
@@ -31,8 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (username: string, password: string, totpCode?: string, captchaToken?: string) => {
       await apiLogin(username, password, totpCode, captchaToken);
-      const user = await getMe();
-      qc.setQueryData(["auth", "me"], user);
+      await setIdentity(qc, await getMe());
     },
     [qc],
   );
@@ -40,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await apiLogout();
     closeSSE();
-    qc.setQueryData(["auth", "me"], null);
+    await setIdentity(qc, null);
   }, [qc]);
 
   return <AuthCtx.Provider value={{ user, isLoading, login, logout }}>{children}</AuthCtx.Provider>;
