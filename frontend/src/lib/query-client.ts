@@ -1,5 +1,5 @@
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
-import { ApiError } from "@/lib/api";
+import { ApiError, getMe } from "@/lib/api";
 
 /**
  * A session killed server-side (revoked by an admin, expired, signed out
@@ -14,6 +14,14 @@ function forgetIdentityOn401(client: QueryClient, error: unknown): void {
   }
 }
 
+function recheckIdentityOn401(client: QueryClient, error: unknown): void {
+  if (error instanceof ApiError && error.status === 401) {
+    void client
+      .fetchQuery({ queryKey: ["auth", "me"], queryFn: getMe, staleTime: 0 })
+      .catch(() => undefined);
+  }
+}
+
 export function createQueryClient(): QueryClient {
   const client: QueryClient = new QueryClient({
     defaultOptions: { queries: { staleTime: 30_000 } },
@@ -21,7 +29,7 @@ export function createQueryClient(): QueryClient {
       onError: (error) => forgetIdentityOn401(client, error),
     }),
     mutationCache: new MutationCache({
-      onError: (error) => forgetIdentityOn401(client, error),
+      onError: (error) => recheckIdentityOn401(client, error),
     }),
   });
   return client;
