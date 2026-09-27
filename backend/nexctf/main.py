@@ -17,7 +17,7 @@ from nexctf.api.routes import router
 from nexctf.core.appconfig import sync_to_redis
 from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.config import settings
-from nexctf.core.db import db, get_db_context
+from nexctf.core.db import auth_db, db, get_db_context
 from nexctf.exceptions import OAuth2ProtocolError
 from nexctf.plugins import init_plugins
 
@@ -61,14 +61,15 @@ logging.config.dictConfig(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if os.environ.get("NEXCTF_TEST_MODE"):
-        yield
-        return
+    async with auth_db.lifespan(app):
+        if os.environ.get("NEXCTF_TEST_MODE"):
+            yield
+            return
 
-    async with get_db_context() as session:
-        await sync_to_redis(session, get_redis_client())
-        await init_plugins(app, session)
-    yield
+        async with get_db_context() as session:
+            await sync_to_redis(session, get_redis_client())
+            await init_plugins(app, session)
+        yield
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
