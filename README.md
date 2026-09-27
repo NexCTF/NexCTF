@@ -119,6 +119,7 @@ task dev:backend        # Start the dev backend
 task dev:worker         # Start the task worker (background tasks, crons, scheduler jobs)
 task dev:backend:test   # Run backend tests
 task dev:frontend       # Start the dev frontend
+task dev:e2e            # Run the end-to-end tests (Playwright)
 ```
 
 ### AI transparency disclosure

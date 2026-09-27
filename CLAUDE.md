@@ -10,6 +10,7 @@ All dev commands are wrapped by `Taskfile.yml` (run `task` from the repo root). 
 - Run all checks (backend + frontend): `task dev:check`
 - Apply all auto-fixes (backend + frontend): `task dev:fix`
 - Tail infra logs: `task dev:logs`
+- Run the end-to-end tests: `task dev:e2e`
 
 Mail is captured by mailpit, not delivered: the dev `config` fixture points `email.*` at it, and sent mail is readable at http://localhost:8025.
 
@@ -74,6 +75,13 @@ This project uses bun. Do not use npm or yarn.
 - Tests live next to the code they cover as `*.test.tsx`; shared helpers are in `src/test/`
 - Render a file route with `renderRoute(Route, { path, routePath })` from `src/test/render.tsx`
 - Build API payloads with the builders in `src/test/fixtures.ts`; browser stubs live in `src/test/setup.ts`
+
+## End-to-end tests
+- First run on a machine: `bunx playwright install chromium` (from `frontend/`); a pre-installed Chromium can be used instead through `E2E_CHROMIUM_PATH`
+- Tool: Playwright (chromium), specs in `frontend/e2e/*.spec.ts`
+- Needs the dev infra (`task dev:infra:up`) including mailpit
+- Run all End-to-end tests: `task dev:e2e`
+- Run one file or test: `task dev:e2e -- auth.spec.ts`, `task dev:e2e -- -g "sign in"`
 
 ## Linting, formatting and type checking
 - Tools: biome (lint + format) and tsc (type checking)

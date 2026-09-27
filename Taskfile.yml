@@ -75,6 +75,12 @@ tasks:
       - bunx vitest run {{.CLI_ARGS}}
     dir: frontend
 
+  dev:e2e:
+    desc: "Run the end-to-end suite (Playwright); starts the backend and frontend unless already running"
+    cmds:
+      - bunx playwright test {{.CLI_ARGS}}
+    dir: frontend
+
   dev:frontend:i18n:
     desc: "Extract translation keys from the source into the locale catalogs"
     cmds:
