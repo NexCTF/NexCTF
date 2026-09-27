@@ -134,7 +134,11 @@ class TestOAuth2ClientInfo:
         c, user = user_client
         resp = await c.get(
             "/oauth2/client-info",
-            params={"client_id": _CLIENT_ID, "scope": "openid profile"},
+            params={
+                "redirect_uri": _REDIRECT_URI,
+                "client_id": _CLIENT_ID,
+                "scope": "openid profile",
+            },
         )
         assert resp.status_code == 200
         data = resp.json()["data"]
@@ -152,7 +156,11 @@ class TestOAuth2ClientInfo:
         c, _ = user_client
         resp = await c.get(
             "/oauth2/client-info",
-            params={"client_id": _CLIENT_ID, "scope": "openid unknown_scope"},
+            params={
+                "redirect_uri": _REDIRECT_URI,
+                "client_id": _CLIENT_ID,
+                "scope": "openid unknown_scope",
+            },
         )
         assert resp.status_code == 200
         scopes = resp.json()["data"]["requested_scopes"]
@@ -164,17 +172,30 @@ class TestOAuth2ClientInfo:
         c, _ = user_client
         resp = await c.get(
             "/oauth2/client-info",
-            params={"client_id": "no_such_client"},
+            params={"redirect_uri": _REDIRECT_URI, "client_id": "no_such_client"},
         )
         assert resp.status_code == 400
         body = resp.json()
         assert body["error_code"] == "OAUTH2-400-CLIENT"
         assert body["description"]
 
+    async def test_unregistered_redirect_uri(
+        self,
+        user_client: tuple[AsyncClient, User],
+        fixture_oauth_server_client: list[OAuthServerClient],
+    ) -> None:
+        c, _ = user_client
+        resp = await c.get(
+            "/oauth2/client-info",
+            params={"client_id": _CLIENT_ID, "redirect_uri": "https://evil.example/cb"},
+        )
+        assert resp.status_code == 400
+        assert resp.json()["error_code"] == "OAUTH2-400-REQUEST"
+
     async def test_requires_auth(self, http_client: AsyncClient) -> None:
         resp = await http_client.get(
             "/oauth2/client-info",
-            params={"client_id": _CLIENT_ID},
+            params={"redirect_uri": _REDIRECT_URI, "client_id": _CLIENT_ID},
         )
         assert resp.status_code in (307, 401)
 
@@ -644,7 +665,11 @@ class TestOAuth2RoleRestriction:
         c, _ = admin_client
         resp = await c.get(
             "/oauth2/client-info",
-            params={"client_id": _ADMIN_CLIENT_ID, "scope": "openid"},
+            params={
+                "redirect_uri": _REDIRECT_URI,
+                "client_id": _ADMIN_CLIENT_ID,
+                "scope": "openid",
+            },
         )
         assert resp.status_code == 200
 
@@ -656,7 +681,11 @@ class TestOAuth2RoleRestriction:
         c, _ = user_client
         resp = await c.get(
             "/oauth2/client-info",
-            params={"client_id": _ADMIN_CLIENT_ID, "scope": "openid"},
+            params={
+                "redirect_uri": _REDIRECT_URI,
+                "client_id": _ADMIN_CLIENT_ID,
+                "scope": "openid",
+            },
         )
         assert resp.status_code == 403
         assert resp.json()["error_code"] == "OAUTH2-403-ROLE"
@@ -708,7 +737,11 @@ class TestOAuth2RoleRestriction:
         c, _ = user_client
         resp = await c.get(
             "/oauth2/client-info",
-            params={"client_id": _CLIENT_ID, "scope": "openid"},
+            params={
+                "redirect_uri": _REDIRECT_URI,
+                "client_id": _CLIENT_ID,
+                "scope": "openid",
+            },
         )
         assert resp.status_code == 200
 

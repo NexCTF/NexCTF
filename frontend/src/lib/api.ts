@@ -2063,11 +2063,11 @@ export interface OAuthConsentInfo {
 
 export async function getOAuthConsentInfo(
   clientId: string,
+  redirectUri: string,
   scope: string,
 ): Promise<OAuthConsentInfo> {
-  return request<OAuthConsentInfo>(
-    `/oauth2/client-info?client_id=${encodeURIComponent(clientId)}&scope=${encodeURIComponent(scope)}`,
-  );
+  const params = new URLSearchParams({ client_id: clientId, redirect_uri: redirectUri, scope });
+  return request<OAuthConsentInfo>(`/oauth2/client-info?${params}`);
 }
 
 export async function approveOAuthConsent(params: {

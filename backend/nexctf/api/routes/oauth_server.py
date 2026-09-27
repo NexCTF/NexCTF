@@ -194,10 +194,15 @@ async def authorize(
 async def client_info(
     session: SessionDep,
     client_id: str,
+    redirect_uri: str,
     user: CurrentUserDep,
     scope: str = "openid profile",
 ) -> Response[OAuthConsentInfo]:
     client = await _consent_client(session, client_id, user)
+    if redirect_uri not in client.redirect_uri_list:
+        raise OAuth2InvalidRequestError(
+            desc="redirect_uri is not registered for this client."
+        )
     requested = [s for s in scope.split() if s in _SCOPE_DESCRIPTIONS]
     return Response(
         data=OAuthConsentInfo(

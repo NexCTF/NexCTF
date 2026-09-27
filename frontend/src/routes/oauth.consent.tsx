@@ -41,9 +41,9 @@ function ConsentPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["oauth-consent", client_id, scope],
-    queryFn: () => getOAuthConsentInfo(client_id, scope),
-    enabled: !!user && !!client_id,
+    queryKey: ["oauth-consent", client_id, redirect_uri, scope],
+    queryFn: () => getOAuthConsentInfo(client_id, redirect_uri, scope),
+    enabled: !!user && !!client_id && !!redirect_uri,
     retry: false,
   });
 
@@ -81,18 +81,6 @@ function ConsentPage() {
     );
   }
 
-  if (!client_id || !redirect_uri) {
-    return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle className="text-destructive">{t("oauth_consent.invalid_request")}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
-
   if (forbidden) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
@@ -108,6 +96,18 @@ function ConsentPage() {
     );
   }
 
+  if (!info) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle className="text-destructive">{t("oauth_consent.invalid_request")}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center px-4 bg-background">
       <Card className="w-full max-w-sm">
@@ -115,13 +115,13 @@ function ConsentPage() {
           <CardTitle className="text-xl">{t("oauth_consent.title")}</CardTitle>
           <CardDescription>
             {t("oauth_consent.app_requesting", {
-              app: info?.client_name ?? client_id,
+              app: info.client_name,
             })}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {info?.client_description && (
+          {info.client_description && (
             <p className="text-sm text-muted-foreground text-center">{info.client_description}</p>
           )}
 
@@ -129,7 +129,7 @@ function ConsentPage() {
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               {t("oauth_consent.permissions")}
             </p>
-            {(info?.requested_scopes ?? scope.split(" ")).map((s) => (
+            {info.requested_scopes.map((s) => (
               <div key={s} className="flex items-center gap-2 text-sm">
                 <span>{SCOPE_ICONS[s] ?? "•"}</span>
                 <span>{t(`oauth_consent.scope.${s}`, { defaultValue: s })}</span>
