@@ -162,6 +162,9 @@ function LoginPage() {
           setAccountDisabled(true);
         } else if (err.errCode === "AUTH-403-EMAIL-NOT-VERIFIED") {
           setEmailNotVerified(true);
+        } else if (err.errCode === "AUTH-401-OTP") {
+          setTotpCode("");
+          setError(err.description ?? err.message);
         } else {
           setError(err.description ?? err.message);
         }
