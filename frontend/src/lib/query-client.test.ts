@@ -1,6 +1,12 @@
-import { expect, it } from "vitest";
-import { ApiError } from "@/lib/api";
+import { expect, it, vi } from "vitest";
+import { ApiError, getMe } from "@/lib/api";
 import { createQueryClient } from "@/lib/query-client";
+import { user } from "@/test/fixtures";
+
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api")>()),
+  getMe: vi.fn(),
+}));
 
 function clientWithIdentity() {
   const client = createQueryClient();
@@ -26,16 +32,31 @@ it("forgets the cached identity when a query 401s", async () => {
   expect(client.getQueryData(["auth", "me"])).toBeNull();
 });
 
-it("forgets the cached identity when a mutation 401s", async () => {
-  const client = clientWithIdentity();
-
+async function runMutation(client: ReturnType<typeof createQueryClient>, error: unknown) {
   await client
     .getMutationCache()
-    .build(client, { mutationFn: () => Promise.reject(new ApiError(401, "Unauthorized")) })
+    .build(client, { mutationFn: () => Promise.reject(error) })
     .execute(undefined)
     .catch(() => undefined);
+}
 
-  expect(client.getQueryData(["auth", "me"])).toBeNull();
+it("forgets the cached identity when a mutation 401s on a dead session", async () => {
+  const client = clientWithIdentity();
+  vi.mocked(getMe).mockRejectedValue(new ApiError(401, "Unauthorized"));
+
+  await runMutation(client, new ApiError(401, "Unauthorized"));
+
+  await vi.waitFor(() => expect(client.getQueryData(["auth", "me"])).toBeNull());
+});
+
+it("keeps the identity when a mutation 401s on a wrong password or code", async () => {
+  const client = clientWithIdentity();
+  const me = user({ username: "player" });
+  vi.mocked(getMe).mockResolvedValue(me);
+
+  await runMutation(client, new ApiError(401, "Invalid OTP code"));
+
+  await vi.waitFor(() => expect(client.getQueryData(["auth", "me"])).toEqual(me));
 });
 
 it("keeps the identity on other failures", async () => {
