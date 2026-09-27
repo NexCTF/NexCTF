@@ -6,6 +6,7 @@ from fastapi_toolsets.fixtures.enum import Context
 
 from nexctf.api.scope import full_admin_scopes
 from nexctf.core.config import settings
+from nexctf.enums import InputType
 from nexctf.fixtures import utils
 from nexctf.model import (
     ChallengeFeedback,
@@ -24,8 +25,10 @@ from nexctf.model import (
     UserRole,
     UserToken,
 )
+from nexctf.model.oauth_server import OAuthServerClient
 from nexctf.plugins.builtin.challenge import StandardChallenge
 from nexctf.plugins.builtin.solution.match.model import MatchSolution
+from nexctf.plugins.builtin.solution.mcq.model import MCQSolution
 
 _CTF_START = datetime.now(UTC) - timedelta(hours=1)
 
@@ -123,6 +126,14 @@ def challenge() -> list[StandardChallenge]:
             title="Misc Warmup",
             description="Miscellaneous warmup — read carefully.",
             is_active=False,
+            category="miscellaneous",
+            tags=["easy"],
+        ),
+        StandardChallenge(
+            id=UUID("a1000000-0000-4000-8000-000000000007"),
+            title="Security Quiz",
+            description="One question per answer format: pick, write or code.",
+            is_active=True,
             category="miscellaneous",
             tags=["easy"],
         ),
@@ -260,6 +271,47 @@ def question() -> list[Question]:
             malus=0,
             challenge_id=_cid("Misc Warmup"),
         ),
+        # Security Quiz — one question per input type
+        Question(
+            id=UUID("b1000000-0000-4000-8000-000000000014"),
+            label="Default HTTPS port",
+            description="Which TCP port does HTTPS listen on by default?",
+            index=0,
+            points=50,
+            malus=0,
+            input_type=InputType.MCQ,
+            challenge_id=_cid("Security Quiz"),
+        ),
+        Question(
+            id=UUID("b1000000-0000-4000-8000-000000000015"),
+            label="Pick the hash functions",
+            description="Select every hash function in the list.",
+            index=1,
+            points=75,
+            malus=0,
+            input_type=InputType.MCQ,
+            challenge_id=_cid("Security Quiz"),
+        ),
+        Question(
+            id=UUID("b1000000-0000-4000-8000-000000000016"),
+            label="What does XSS stand for?",
+            description="Spell out the acronym.",
+            index=2,
+            points=50,
+            malus=0,
+            input_type=InputType.TEXT,
+            challenge_id=_cid("Security Quiz"),
+        ),
+        Question(
+            id=UUID("b1000000-0000-4000-8000-000000000017"),
+            label="Print the flag in Python",
+            description="Write the Python statement that prints `nexctf{hello}`.",
+            index=3,
+            points=100,
+            malus=0,
+            input_type=InputType.CODE,
+            challenge_id=_cid("Security Quiz"),
+        ),
     ]
 
 
@@ -329,7 +381,7 @@ def hint() -> list[Hint]:
 
 
 @fixtures.register(depends_on=["question"])
-def solution() -> list[MatchSolution]:
+def solution() -> list[MatchSolution | MCQSolution]:
     def _qid(label: str) -> UUID:
         return fixtures.field("question", "label", label)
 
@@ -411,6 +463,30 @@ def solution() -> list[MatchSolution]:
             value="nexctf{read_carefully}",
             case_sensitive=False,
             question_id=_qid("Read the description"),
+        ),
+        MCQSolution(
+            id=UUID("d1000000-0000-4000-8000-000000000014"),
+            correct_answers=["443"],
+            other_options=["22", "80", "8080"],
+            question_id=_qid("Default HTTPS port"),
+        ),
+        MCQSolution(
+            id=UUID("d1000000-0000-4000-8000-000000000015"),
+            correct_answers=["MD5", "SHA-256"],
+            other_options=["AES", "RSA"],
+            question_id=_qid("Pick the hash functions"),
+        ),
+        MatchSolution(
+            id=UUID("d1000000-0000-4000-8000-000000000016"),
+            value="cross-site scripting",
+            case_sensitive=False,
+            question_id=_qid("What does XSS stand for?"),
+        ),
+        MatchSolution(
+            id=UUID("d1000000-0000-4000-8000-000000000017"),
+            value='print("nexctf{hello}")',
+            case_sensitive=True,
+            question_id=_qid("Print the flag in Python"),
         ),
     ]
 
@@ -540,6 +616,33 @@ def token() -> list[UserToken]:
             token_hash="278e988e8437ac6c34fdcc9f43e43ed69d68361eb63808b97ae3befa3e989e0b",  # "nexctf_admin_token"
             scopes=full_admin_scopes(),
         )
+    ]
+
+
+@fixtures.register(contexts=[Context.DEVELOPMENT])
+def oauth_server_client() -> list[OAuthServerClient]:
+    """Apps signing in with NexCTF: one open to players, one to admins only."""
+    secret_hash = "d8e5bb9dbdb2af554a408dfa6473b1faf27257b30046a6b05d781182f21c016a"  # "nexctf_dev_secret"
+    return [
+        OAuthServerClient(
+            id=UUID("a3000000-0000-4000-8000-000000000001"),
+            name="Scoreboard Display",
+            client_id="nexctf_scoreboard_display",
+            client_secret_hash=secret_hash,
+            redirect_uris="https://display.example.com/callback",
+            allowed_scopes="openid profile email roles",
+            is_active=True,
+        ),
+        OAuthServerClient(
+            id=UUID("a3000000-0000-4000-8000-000000000002"),
+            name="Staff Tools",
+            client_id="nexctf_staff_tools",
+            client_secret_hash=secret_hash,
+            redirect_uris="https://staff.example.com/callback",
+            allowed_scopes="openid profile email roles",
+            allowed_roles="admin",
+            is_active=True,
+        ),
     ]
 
 
