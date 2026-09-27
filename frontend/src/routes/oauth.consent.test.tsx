@@ -82,6 +82,30 @@ it("keeps a query string the redirect_uri already carries on refusal", async () 
   );
 });
 
+it("has the server check the redirect_uri against the client", async () => {
+  renderConsent();
+
+  await screen.findByRole("button", { name: "Deny" });
+  expect(getOAuthConsentInfo).toHaveBeenCalledWith(
+    "app1",
+    "https://app.example/cb",
+    "openid profile",
+  );
+});
+
+it("offers no way out to a redirect_uri the server refuses", async () => {
+  vi.mocked(getOAuthConsentInfo).mockRejectedValue(
+    new ApiError(400, "Invalid request", null, "OAUTH2-400-REQUEST"),
+  );
+  renderConsent(
+    "/oauth/consent?client_id=app1&redirect_uri=https%3A%2F%2Fevil.example%2Fphish&state=xyz",
+  );
+
+  expect(await screen.findByText("Invalid authorization request")).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
+  expect(window.location.href).toBe("");
+});
+
 it("rejects a request with no client_id", async () => {
   renderConsent("/oauth/consent");
 
