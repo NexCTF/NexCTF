@@ -5,6 +5,7 @@ import pytest
 from nexctf.core.config import Settings
 
 REQUIRED = {
+    "SECRET_KEY": "test-secret-key",
     "POSTGRES_SERVER": "db",
     "POSTGRES_USER": "postgres",
     "REDIS_HOST": "cache",
