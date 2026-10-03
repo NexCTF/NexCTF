@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID
 
+from fastapi_toolsets.db import transaction
 from pydantic import ValidationError
 from redis.asyncio import Redis
 from sqlalchemy import func, select
@@ -68,6 +69,7 @@ from nexctf.model import (
 from nexctf.model.link import Visibility
 from nexctf.model.question import question_files_table
 from nexctf.module.audit import REDACTED, audit_actor
+from nexctf.module.challenge import lifecycle
 from nexctf.module.challenge.compute import solution_load_option
 from nexctf.module.events import emit
 from nexctf.plugins.loader import get_plugin_metadata
@@ -407,6 +409,14 @@ def _reject_unknown_data(
         )
 
 
+def _challenge_payload(challenge: ChallengeIR) -> dict[str, Any]:
+    """A bundle challenge as the fields its type's schemas take."""
+    return {
+        **{column: getattr(challenge, column) for column in _CHALLENGE_COLUMNS},
+        **challenge.data,
+    }
+
+
 def validate_payloads(bundle: Bundle) -> None:
     """Field-validate the YAML against the registries' create schemas."""
     for challenge in bundle.challenges:
@@ -418,18 +428,8 @@ def validate_payloads(bundle: Bundle) -> None:
             challenge.data,
             f"challenge {challenge.title!r}",
         )
-        payload = {
-            "title": challenge.title,
-            "description": challenge.description,
-            "writeup": challenge.writeup,
-            "is_active": challenge.is_active,
-            "sequential": challenge.sequential,
-            "category": challenge.category,
-            "tags": challenge.tags,
-            **challenge.data,
-        }
         try:
-            entry.create_schema.model_validate(payload)
+            entry.create_schema.model_validate(_challenge_payload(challenge))
         except ValidationError as exc:
             raise BundleError(f"challenge {challenge.title!r}: {exc}") from exc
 
@@ -790,8 +790,8 @@ class _Writer:
             await self._questions(challenge)
 
     async def _create_challenge(self, challenge: ChallengeIR) -> None:
-        model = challenge_registry.get(challenge.challenge_type).crud.model
-        instance = model(
+        entry = challenge_registry.get(challenge.challenge_type)
+        instance = entry.crud.model(
             id=challenge.id,
             challenge_type=challenge.challenge_type,
             author_id=self.authors.get(challenge.author_username or ""),
@@ -799,16 +799,23 @@ class _Writer:
         )
         _assign(instance, challenge, _CHALLENGE_COLUMNS)
         self.session.add(instance)
+        await self.session.flush()
+        obj = entry.create_schema.model_construct(**_challenge_payload(challenge))
+        await instance.after_create(self.session, obj)
 
     async def _update_challenge(self, challenge: ChallengeIR) -> None:
-        model = challenge_registry.get(challenge.challenge_type).crud.model
-        instance = await self._get(model, challenge.id)
+        entry = challenge_registry.get(challenge.challenge_type)
+        instance = await self._get(entry.crud.model, challenge.id)
         if instance is None:
             return
-        _assign(instance, challenge, _CHALLENGE_COLUMNS)
-        instance.author_id = self.authors.get(challenge.author_username or "")
-        for key, value in self._challenge_data(challenge).items():
-            setattr(instance, key, value)
+        obj = entry.update_schema.model_construct(
+            id=challenge.id, **_challenge_payload(challenge)
+        )
+        async with lifecycle.updating(self.session, instance, obj):
+            _assign(instance, challenge, _CHALLENGE_COLUMNS)
+            instance.author_id = self.authors.get(challenge.author_username or "")
+            for key, value in self._challenge_data(challenge).items():
+                setattr(instance, key, value)
 
     @staticmethod
     def _challenge_data(challenge: ChallengeIR) -> dict[str, Any]:
@@ -925,6 +932,9 @@ class _Writer:
 
     async def _drop_challenge(self, challenge_id: UUID) -> None:
         """Delete a challenge bottom-up: no FK on questions declares a cascade."""
+        challenge = await lifecycle.load(self.session, challenge_id)
+        if challenge is not None:
+            await challenge.before_delete(self.session)
         questions = (
             (
                 await self.session.execute(
@@ -942,7 +952,6 @@ class _Writer:
         )
         for question in questions:
             await self._drop_question(question)
-        challenge = await self._get(Challenge, challenge_id)
         if challenge is not None:
             await self.session.delete(challenge)
 
@@ -1082,8 +1091,9 @@ async def apply_import(
     selected = {entry.key for entry in plan.applicable()}
 
     writer = _Writer(session, incoming, blobs, plan)
-    await writer.run()
-    updates, removals = await _apply_config(session, incoming, writer.actions)
+    async with transaction(session):
+        await writer.run()
+        updates, removals = await _apply_config(session, incoming, writer.actions)
 
     applied = Plan(entries=[e for e in plan.entries if e.key in selected], prune=prune)
     actor_id, ip = audit_actor()

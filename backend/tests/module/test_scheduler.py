@@ -13,9 +13,11 @@ from nexctf.model.scheduler import SchedulerJob, SchedulerTask
 from nexctf.module.scheduler import (
     RUN_JOB_TASK,
     fail_lost_runs,
+    force_run_job,
     run_queued_job,
     sweep_due_jobs,
 )
+from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 from nexctf.plugins.declare import JobDef
 from nexctf.plugins.registry import scheduler_registry, task_registry
 from nexctf.schema.scheduler import (
@@ -25,6 +27,8 @@ from nexctf.schema.scheduler import (
 )
 from nexctf.tasks.queue import DB_SETTINGS
 from nexctf.util.cron import next_fire
+
+from ..hooks import HookRecorder
 
 
 async def _queued_runs(session: AsyncSession) -> list[tuple[UUID, str | None]]:
@@ -253,17 +257,14 @@ def test_next_fire_is_strictly_after(
     assert next_fire(expr, after) == expected
 
 
-async def test_force_run_toggle_challenge_invalidates_the_cache(
-    db_session: AsyncSession, mock_redis: Any, owner: User
-) -> None:
-    """Run-now must drop the cached challenge structures, like the tick does."""
-    from nexctf.module.scheduler import force_run_job
-    from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
-
+@pytest.fixture
+async def toggle_job(
+    db_session: AsyncSession, owner: User
+) -> tuple[StandardChallenge, SchedulerJob]:
+    """An inactive challenge and a job that opens it."""
     challenge = StandardChallenge(title="Toggle me", is_active=False)
     db_session.add(challenge)
     await db_session.flush()
-
     job = _job(
         owner,
         "toggle_challenge",
@@ -271,12 +272,54 @@ async def test_force_run_toggle_challenge_invalidates_the_cache(
     )
     db_session.add(job)
     await db_session.flush()
+    return challenge, job
+
+
+async def test_force_run_toggle_challenge_invalidates_the_cache(
+    db_session: AsyncSession,
+    mock_redis: Any,
+    toggle_job: tuple[StandardChallenge, SchedulerJob],
+) -> None:
+    """Run-now must drop the cached challenge structures, like the tick does."""
+    challenge, job = toggle_job
 
     task = await force_run_job(job, db_session, mock_redis)
 
     assert task.status == TaskStatus.SUCCESS
     assert challenge.is_active is True
     assert mock_redis.delete.called
+
+
+async def test_toggle_challenge_runs_after_update(
+    db_session: AsyncSession,
+    mock_redis: Any,
+    toggle_job: tuple[StandardChallenge, SchedulerJob],
+    hooks: HookRecorder,
+) -> None:
+    _, job = toggle_job
+
+    task = await force_run_job(job, db_session, mock_redis)
+
+    assert task.status == TaskStatus.SUCCESS
+    [call] = hooks.calls
+    assert call.name == "after_update"
+    assert call.changed == {"is_active"}
+
+
+async def test_a_raising_hook_leaves_the_challenge_toggle_unapplied(
+    db_session: AsyncSession,
+    mock_redis: Any,
+    toggle_job: tuple[StandardChallenge, SchedulerJob],
+    hooks: HookRecorder,
+) -> None:
+    challenge, job = toggle_job
+    hooks.raise_with = RuntimeError("plugin exploded")
+
+    task = await force_run_job(job, db_session, mock_redis)
+
+    assert task.status == TaskStatus.FAILED
+    await db_session.refresh(challenge)
+    assert challenge.is_active is False
 
 
 async def test_a_second_worker_skips_jobs_the_first_is_holding(
