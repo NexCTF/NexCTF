@@ -9,6 +9,8 @@ from importlib.metadata import version as pkg_version
 import httpx
 from pydantic import TypeAdapter
 from redis.asyncio import Redis
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.core.cache import get_or_compute
 from nexctf.schema.info import VersionInfo
@@ -21,6 +23,12 @@ _REPO = "NexCTF/NexCTF"
 _KEY = f"info:latest_release:{CURRENT_VERSION}"
 _TTL = timedelta(hours=6)
 _adapter: TypeAdapter[VersionInfo] = TypeAdapter(VersionInfo)
+
+
+async def current_revision(session: AsyncSession) -> str | None:
+    """Read the Alembic revision the live database is stamped with."""
+    result = await session.execute(text("SELECT version_num FROM alembic_version"))
+    return result.scalar_one_or_none()
 
 
 def _parse(v: str) -> tuple[int, ...]:

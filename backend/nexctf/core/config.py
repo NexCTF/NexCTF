@@ -2,6 +2,7 @@ import os
 import secrets
 from typing import Annotated, Any, Literal
 
+from fastapi_toolsets.logger import LoggingConfig, LogLevel
 from pydantic import (
     AnyUrl,
     BeforeValidator,
@@ -66,6 +67,25 @@ class Settings(BaseSettings):
         return self
 
     TRUSTED_PROXY_COUNT: int = 0
+
+    LOG_LEVEL: Annotated[LogLevel, BeforeValidator(str.upper)] = "INFO"
+    LOG_FORMAT: Literal["console", "json"] = "console"
+    LOG_FILES: bool = False
+    LOG_DIR: str = "/var/log/nexctf"
+    LOG_MAX_BYTES: int = LoggingConfig.file_max_bytes
+    LOG_BACKUPS: int = LoggingConfig.file_backups
+    LOG_SQL: bool = False
+
+    @model_validator(mode="after")
+    def derive_log_defaults(self) -> Settings:
+        """Outside development, render JSON and write log files unless set."""
+        if self.ENVIRONMENT == "development":
+            return self
+        if "LOG_FORMAT" not in self.model_fields_set:
+            self.LOG_FORMAT = "json"
+        if "LOG_FILES" not in self.model_fields_set:
+            self.LOG_FILES = True
+        return self
 
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)

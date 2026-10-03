@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -24,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nexctf.core import appconfig
 from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.db import get_db_context
+from nexctf.core.logging import log_context
 from nexctf.model.scheduler import SchedulerJob, SchedulerTask
 from nexctf.module import backup
 from nexctf.module.challenge import invalidate as invalidate_challenges
@@ -99,6 +101,11 @@ async def handle_backup_database(
     await backup.prune(params.keep_last)
 
 
+def _elapsed(started: float) -> dict[str, float]:
+    """Milliseconds since ``started``, as the ``duration_ms`` log field."""
+    return {"duration_ms": round((time.perf_counter() - started) * 1000, 1)}
+
+
 async def _run_handler(
     task: SchedulerTask,
     job: SchedulerJob,
@@ -107,13 +114,17 @@ async def _run_handler(
     redis: Redis,
 ) -> None:
     """Run a job's handler and record the outcome on ``task``."""
-    try:
-        await call_maybe_async(entry.handler, job, session, redis)
-        task.status = TaskStatus.SUCCESS
-    except Exception as exc:
-        task.status = TaskStatus.FAILED
-        task.error = str(exc)[:500]
-        logger.exception("Job %s failed", job.id)
+    started = time.perf_counter()
+    with log_context(job_id=str(job.id), job_type=job.job_type):
+        logger.info("Job %s (%s) started", job.id, job.job_type)
+        try:
+            await call_maybe_async(entry.handler, job, session, redis)
+            task.status = TaskStatus.SUCCESS
+            logger.info("Job %s finished", job.id, extra=_elapsed(started))
+        except Exception as exc:
+            task.status = TaskStatus.FAILED
+            task.error = str(exc)[:500]
+            logger.exception("Job %s failed", job.id, extra=_elapsed(started))
     task.completed_at = datetime.now(UTC)
     await session.flush()
 

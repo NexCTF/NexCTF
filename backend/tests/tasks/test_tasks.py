@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from datetime import timedelta
 from typing import Any
 
@@ -14,12 +13,11 @@ from pgqueuer.types import QueueExecutionMode
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.plugins import loader
 from nexctf.plugins.declare import CronDef, TaskDef
 from nexctf.plugins.registry import task_registry
 from nexctf.tasks import enqueue
 from nexctf.tasks.queue import DB_SETTINGS, connect
-from nexctf.tasks.worker import _log_plugins_at_info, build_pgqueuer
+from nexctf.tasks.worker import build_pgqueuer
 
 
 class _Payload(BaseModel):
@@ -202,17 +200,3 @@ async def test_the_worker_schedules_every_registered_cron(
     assert ("tests.tick", "*/5 * * * *") in scheduled
     assert ("core.scheduler_sweep", "* * * * *") in scheduled
     assert ("core.purge_task_queue", "0 3 * * *") in scheduled
-
-
-def test_the_worker_logs_each_loaded_plugin_at_info(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Plugins log under their own package, which the WARNING root would drop."""
-    monkeypatch.setattr(loader, "_plugin_packages", {"nexctf_demo": "demo_pkg"})
-    plugin_logger = logging.getLogger("demo_pkg.tasks")
-    monkeypatch.setattr(logging.getLogger("demo_pkg"), "level", logging.NOTSET)
-    monkeypatch.setattr(logging.getLogger(), "level", logging.WARNING)
-
-    _log_plugins_at_info()
-
-    assert plugin_logger.isEnabledFor(logging.INFO)

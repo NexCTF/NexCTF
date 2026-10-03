@@ -42,6 +42,9 @@ build-backend = "uv_build"
 module-name = "nexctf"
 module-root = ""
 
+[tool.uv.sources]
+fastapi-toolsets = { git = "https://github.com/d3vyce/fastapi-toolsets", branch = "425-structured-logging-with-request-context-and-opentelemetry-correlation" }
+
 [dependency-groups]
 dev = [
     "pydantic-to-typescript>=2.0.0",
