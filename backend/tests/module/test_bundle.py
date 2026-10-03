@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import ForeignKey, select
+from sqlalchemy import ForeignKey, inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -27,6 +27,7 @@ from nexctf.model import (
 )
 from nexctf.model.link import Visibility
 from nexctf.module import bundle
+from nexctf.module.challenge import lifecycle
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 from nexctf.plugins.builtin.solution.match.model import MatchSolution
 from nexctf.plugins.declare import TypeDef
@@ -38,6 +39,8 @@ from nexctf.schema.challenge import (
 )
 from nexctf.schema.solution import AdminSolutionRead
 
+from ..hooks import HookRecorder
+
 ALT_TYPE = "bundle_alt"
 
 
@@ -48,6 +51,7 @@ class AltChallenge(Challenge):
     __mapper_args__ = {"polymorphic_identity": ALT_TYPE}
 
     id: Mapped[UUID] = mapped_column(ForeignKey("challenges.id"), primary_key=True)
+    scenario: Mapped[str | None]
 
 
 class AltChallengeRead(AdminChallengeRead):
@@ -744,3 +748,60 @@ async def test_detaching_every_file_from_a_question(
     assert stored is not None
     await db_session.refresh(stored, ["files"])
     assert stored.files == []
+
+
+async def test_an_import_runs_the_challenge_lifecycle_hooks(
+    db_session: AsyncSession,
+    content: StandardChallenge,
+    mock_redis,
+    hooks: HookRecorder,
+) -> None:
+    built, blobs = await bundle.build_bundle(db_session)
+    pruned = built.model_copy(update={"challenges": []})
+
+    await bundle.apply_import(db_session, mock_redis, pruned, blobs, prune=True)
+    await bundle.apply_import(db_session, mock_redis, built, blobs)
+    built.challenges[0].title = "Grown-up Web"
+    await bundle.apply_import(db_session, mock_redis, built, blobs)
+
+    assert [call.name for call in hooks.calls] == [
+        "before_delete",
+        "after_create",
+        "after_update",
+    ]
+    assert {call.challenge_id for call in hooks.calls} == {content.id}
+    assert isinstance(hooks.calls[1].obj, AdminChallengeCreate)
+    assert isinstance(hooks.calls[2].obj, AdminChallengeUpdate)
+    assert hooks.calls[2].changed == {"title"}
+
+
+async def test_a_raising_hook_leaves_the_import_unapplied(
+    db_session: AsyncSession,
+    content: StandardChallenge,
+    mock_redis,
+    hooks: HookRecorder,
+) -> None:
+    built, blobs = await bundle.build_bundle(db_session)
+    built.challenges[0].title = "Grown-up Web"
+    hooks.raise_with = RuntimeError("plugin exploded")
+
+    with pytest.raises(RuntimeError):
+        await bundle.apply_import(db_session, mock_redis, built, blobs)
+
+    await db_session.refresh(content)
+    assert content.title == "Baby Web"
+
+
+async def test_a_challenge_loads_with_its_subclass_columns(
+    db_session: AsyncSession,
+) -> None:
+    """Hooks run in async code: a subclass column must not need a lazy load."""
+    challenge = AltChallenge(title="Alt", challenge_type=ALT_TYPE, scenario="s1")
+    db_session.add(challenge)
+    await db_session.flush()
+    db_session.expunge(challenge)
+
+    loaded = await lifecycle.load(db_session, challenge.id)
+
+    assert isinstance(loaded, AltChallenge)
+    assert inspect(loaded).dict["scenario"] == "s1"

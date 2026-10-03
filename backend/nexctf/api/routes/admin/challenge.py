@@ -14,6 +14,7 @@ from nexctf.api.dep import (
     SessionDep,
     validate_body,
 )
+from nexctf.module.challenge import lifecycle
 from nexctf.plugins.registry import RegistryEntry, challenge_registry
 from nexctf.schema.challenge import AdminChallengeRead, AdminChallengeTypeInfo
 from nexctf.util.pydantic import resolve_dynamic_defaults
@@ -64,11 +65,10 @@ async def create_challenge(
 ):
     entry = challenge_registry.get(challenge_type)
     try:
-        return await entry.crud.create(
-            session=session, obj=obj, schema=entry.read_schema
-        )
+        challenge = await lifecycle.create(session, entry, obj)
     except IntegrityError:
         raise ConflictError(detail="Challenge title already taken")
+    return Response(data=entry.read_schema.model_validate(challenge))
 
 
 @challenge_router.get("/{uuid}", response_model=Response[Any])
@@ -93,14 +93,10 @@ async def update_challenge(
     crud_inst, update_schema, read_schema = ctx
     obj = await validate_body(update_schema, request)
     try:
-        return await crud_inst.update(
-            session=session,
-            filters=[crud_inst.model.id == uuid],
-            obj=obj,
-            schema=read_schema,
-        )
+        challenge = await lifecycle.update(session, crud_inst, obj, uuid)
     except IntegrityError:
         raise ConflictError(detail="Challenge title already taken")
+    return Response(data=read_schema.model_validate(challenge))
 
 
 @challenge_router.delete("/{uuid}")
@@ -110,6 +106,5 @@ async def delete_challenge(
     ctx: ChallengeCtxDep,
 ) -> Response[None]:
     crud_inst, _, _ = ctx
-    return await crud_inst.delete(
-        session=session, filters=[crud_inst.model.id == uuid], return_response=True
-    )
+    await lifecycle.delete(session, crud_inst, uuid)
+    return Response(data=None)

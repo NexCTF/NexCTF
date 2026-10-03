@@ -12,6 +12,9 @@ from .base import Base, LabelArray, LabelStr
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from pydantic import BaseModel
+    from sqlalchemy.ext.asyncio import AsyncSession
+
     from .question import Hint, Question
     from .user import User
 
@@ -43,6 +46,17 @@ class Challenge(Base):
     author_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id"), nullable=True
     )
+
+    async def after_create(self, session: AsyncSession, obj: BaseModel) -> None:
+        """Called once the row is flushed, before the commit; raising rolls back."""
+
+    async def after_update(
+        self, session: AsyncSession, obj: BaseModel, changed: set[str]
+    ) -> None:
+        """Called once the update is flushed, before the commit; raising rolls back."""
+
+    async def before_delete(self, session: AsyncSession) -> None:
+        """Called before the row is deleted, in the same transaction; raising aborts."""
 
     async def on_submit(self, user: User, question: Question, submission: str) -> None:
         """Called on every flag submission, before the result is determined."""

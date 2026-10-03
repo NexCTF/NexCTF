@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from cronsim import CronSimError
+from fastapi_toolsets.db import transaction
 from redis.asyncio import Redis
 from sqlalchemy import (
     String,
@@ -27,9 +28,14 @@ from nexctf.core.db import get_db_context
 from nexctf.model.scheduler import SchedulerJob, SchedulerTask
 from nexctf.module import backup
 from nexctf.module.challenge import invalidate as invalidate_challenges
+from nexctf.module.challenge import lifecycle
 from nexctf.module.notification import create_and_publish
 from nexctf.plugins.declare import CronDef, JobDef, Plugin, TaskDef
-from nexctf.plugins.registry import SchedulerEntry, scheduler_registry
+from nexctf.plugins.registry import (
+    SchedulerEntry,
+    challenge_registry,
+    scheduler_registry,
+)
 from nexctf.schema.backup import BackupDatabaseParams, BackupSource
 from nexctf.schema.scheduler import (
     SchedulerRunPayload,
@@ -79,15 +85,17 @@ async def handle_send_notification(
 async def handle_toggle_challenge(
     job: SchedulerJob, session: AsyncSession, redis: Redis
 ) -> None:
-    from nexctf.model import Challenge
-
     params = ToggleChallengeParams.model_validate(job.params)
 
-    challenge = await session.get(Challenge, params.challenge_id)
+    challenge = await lifecycle.load(session, params.challenge_id)
     if challenge is None:
         raise ValueError(f"challenge {params.challenge_id} not found")
-    challenge.is_active = params.make_active
-    await session.flush()
+    entry = challenge_registry.get(challenge.challenge_type)
+    obj = entry.update_schema.model_construct(
+        id=challenge.id, is_active=params.make_active
+    )
+    async with lifecycle.updating(session, challenge, obj):
+        challenge.is_active = params.make_active
 
 
 async def handle_backup_database(
@@ -108,7 +116,8 @@ async def _run_handler(
 ) -> None:
     """Run a job's handler and record the outcome on ``task``."""
     try:
-        await call_maybe_async(entry.handler, job, session, redis)
+        async with transaction(session):
+            await call_maybe_async(entry.handler, job, session, redis)
         task.status = TaskStatus.SUCCESS
     except Exception as exc:
         task.status = TaskStatus.FAILED

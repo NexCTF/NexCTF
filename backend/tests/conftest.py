@@ -37,6 +37,8 @@ from nexctf.plugins.registry import (
 from nexctf.plugins.routes import route_registry
 from nexctf.tasks.queue import DB_SETTINGS, build_queries, connect
 
+from .hooks import hooks  # noqa: F401
+
 register_fixtures(test_fixture_registry, globals())
 # The test app skips the lifespan that loads plugins.
 load_builtin_plugins()
