@@ -17,6 +17,7 @@ from nexctf.model import (
     CustomPage,
     File,
     Hint,
+    HintUnlock,
     Link,
     Question,
     Solution,
@@ -37,6 +38,7 @@ from nexctf.schema.challenge import (
     AdminChallengeUpdate,
 )
 from nexctf.schema.solution import AdminSolutionRead
+from tests.base import make_team
 
 ALT_TYPE = "bundle_alt"
 
@@ -331,6 +333,23 @@ async def test_a_delete_is_blocked_while_solves_reference_it(
     entry = next(e for e in plan.entries if e.kind is EntityKind.CHALLENGE)
     assert entry.action is Action.BLOCKED
     assert "submission" in (entry.reason or "")
+
+
+async def test_a_delete_is_blocked_while_a_hint_unlock_references_it(
+    db_session: AsyncSession, content: StandardChallenge
+) -> None:
+    """No submission yet, but a team paid for one of the challenge's hints."""
+    built, blobs = await bundle.build_bundle(db_session)
+    team = await make_team(db_session, "Buyers")
+    hint_id = built.challenges[0].questions[0].hints[0].id
+    db_session.add(HintUnlock(team_id=team.id, hint_id=hint_id, cost_paid=0))
+    await db_session.flush()
+    built.challenges = []
+
+    plan = await bundle.plan_import(db_session, built, blobs=blobs, prune=True)
+    entry = next(e for e in plan.entries if e.kind is EntityKind.CHALLENGE)
+    assert entry.action is Action.BLOCKED
+    assert "unlocked" in (entry.reason or "")
 
 
 async def test_a_missing_type_fails_the_plan_loudly(

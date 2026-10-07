@@ -7,6 +7,7 @@ from fastapi_toolsets.schemas import PaginatedResponse, Response
 from nexctf import crud
 from nexctf.api.dep import SessionDep
 from nexctf.model import Hint
+from nexctf.module.challenge.removal import ensure_hint_removable
 from nexctf.schema.hint import (
     AdminHintCreate,
     AdminHintRead,
@@ -67,6 +68,7 @@ async def update_hint(
 
 @hint_router.delete("/{uuid}")
 async def delete_hint(session: SessionDep, uuid: UUID) -> Response[None]:
+    await ensure_hint_removable(session, uuid)
     return await crud.HintCrud.delete(
         session=session, filters=[Hint.id == uuid], return_response=True
     )

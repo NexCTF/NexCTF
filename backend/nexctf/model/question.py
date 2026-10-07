@@ -52,8 +52,12 @@ class Question(Base):
         ARRAY(String), default=list, server_default="{}"
     )
 
-    hints: Mapped[list[Hint]] = relationship(back_populates="question")
-    solutions: Mapped[list[Solution]] = relationship(back_populates="question")
+    hints: Mapped[list[Hint]] = relationship(
+        back_populates="question", cascade="save-update, merge, delete"
+    )
+    solutions: Mapped[list[Solution]] = relationship(
+        back_populates="question", cascade="save-update, merge, delete"
+    )
     files: Mapped[list[File]] = relationship(secondary=question_files_table)
     tags: Mapped[LabelArray]
 

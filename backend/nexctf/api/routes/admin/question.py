@@ -8,6 +8,7 @@ from sqlalchemy import select
 from nexctf import crud
 from nexctf.api.dep import RedisDep, SessionDep
 from nexctf.model import Question
+from nexctf.module.challenge.removal import ensure_question_removable
 from nexctf.module.submission import recalculate_question
 from nexctf.schema.question import (
     AdminQuestionCreate,
@@ -71,6 +72,7 @@ async def update_question(
 
 @question_router.delete("/{uuid}")
 async def delete_question(session: SessionDep, uuid: UUID) -> Response[None]:
+    await ensure_question_removable(session, uuid)
     return await crud.QuestionCrud.delete(
         session=session,
         filters=[crud.QuestionCrud.model.id == uuid],

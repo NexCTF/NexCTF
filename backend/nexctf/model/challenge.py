@@ -28,7 +28,9 @@ class Challenge(Base):
     sequential: Mapped[bool] = mapped_column(default=False)
 
     questions: Mapped[list[Question]] = relationship(
-        back_populates="challenge", order_by="Question.index"
+        back_populates="challenge",
+        order_by="Question.index",
+        cascade="save-update, merge, delete",
     )
 
     category: Mapped[LabelStr]

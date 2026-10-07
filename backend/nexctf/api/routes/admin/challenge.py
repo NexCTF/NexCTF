@@ -14,6 +14,7 @@ from nexctf.api.dep import (
     SessionDep,
     validate_body,
 )
+from nexctf.module.challenge.removal import ensure_challenge_removable
 from nexctf.plugins.registry import RegistryEntry, challenge_registry
 from nexctf.schema.challenge import AdminChallengeRead, AdminChallengeTypeInfo
 from nexctf.util.pydantic import resolve_dynamic_defaults
@@ -110,6 +111,7 @@ async def delete_challenge(
     ctx: ChallengeCtxDep,
 ) -> Response[None]:
     crud_inst, _, _ = ctx
+    await ensure_challenge_removable(session, uuid)
     return await crud_inst.delete(
         session=session, filters=[crud_inst.model.id == uuid], return_response=True
     )

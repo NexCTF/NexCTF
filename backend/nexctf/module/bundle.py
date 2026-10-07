@@ -14,7 +14,7 @@ from uuid import UUID
 
 from pydantic import ValidationError
 from redis.asyncio import Redis
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectin_polymorphic, selectinload
 
@@ -49,7 +49,6 @@ from nexctf.core.appconfig import REDIS_HASH, ConfigType
 from nexctf.enums import InputType
 from nexctf.model import (
     Challenge,
-    ChallengeFeedback,
     ConfigEntry,
     CustomFieldDefinition,
     CustomFieldTarget,
@@ -57,18 +56,20 @@ from nexctf.model import (
     CustomPage,
     File,
     Hint,
-    HintUnlock,
     Link,
     Question,
-    ScoreAdjustment,
     Solution,
-    Submission,
     User,
 )
 from nexctf.model.link import Visibility
 from nexctf.model.question import question_files_table
 from nexctf.module.audit import REDACTED, audit_actor
 from nexctf.module.challenge.compute import solution_load_option
+from nexctf.module.challenge.removal import (
+    challenge_history,
+    hint_history,
+    question_history,
+)
 from nexctf.module.events import emit
 from nexctf.plugins.loader import get_plugin_metadata
 from nexctf.plugins.registry import (
@@ -464,56 +465,16 @@ async def _blocked_deletes(
 ) -> dict[tuple[str, str], str]:
     """Reasons the destructive entries cannot be carried out, keyed by plan key."""
     destructive = {Action.DELETE, Action.RECREATE}
-    challenge_ids = _ids(entries, EntityKind.CHALLENGE, destructive)
-    question_ids = _ids(entries, EntityKind.QUESTION, destructive)
-    hint_ids = _ids(entries, EntityKind.HINT, {Action.DELETE})
-
+    checks = (
+        (EntityKind.CHALLENGE, destructive, challenge_history),
+        (EntityKind.QUESTION, destructive, question_history),
+        (EntityKind.HINT, {Action.DELETE}, hint_history),
+    )
     blocked: dict[tuple[str, str], str] = {}
-    if challenge_ids:
-        owned = await session.execute(
-            select(Question.challenge_id, func.count(Submission.id))
-            .join(Submission, Submission.question_id == Question.id)
-            .where(Question.challenge_id.in_(challenge_ids))
-            .group_by(Question.challenge_id)
-        )
-        for challenge_id, count in owned.all():
-            blocked[(EntityKind.CHALLENGE.value, str(challenge_id))] = (
-                f"{count} submission(s) reference this challenge's questions"
-            )
-        for model, label in (
-            (ChallengeFeedback, "feedback"),
-            (ScoreAdjustment, "score adjustment"),
-        ):
-            rows = await session.execute(
-                select(model.challenge_id, func.count(model.id))
-                .where(model.challenge_id.in_(challenge_ids))
-                .group_by(model.challenge_id)
-            )
-            for challenge_id, count in rows.all():
-                blocked.setdefault(
-                    (EntityKind.CHALLENGE.value, str(challenge_id)),
-                    f"{count} {label} row(s) reference this challenge",
-                )
-    if question_ids:
-        rows = await session.execute(
-            select(Submission.question_id, func.count(Submission.id))
-            .where(Submission.question_id.in_(question_ids))
-            .group_by(Submission.question_id)
-        )
-        for question_id, count in rows.all():
-            blocked[(EntityKind.QUESTION.value, str(question_id))] = (
-                f"{count} submission(s) reference this question"
-            )
-    if hint_ids:
-        rows = await session.execute(
-            select(HintUnlock.hint_id, func.count(HintUnlock.id))
-            .where(HintUnlock.hint_id.in_(hint_ids))
-            .group_by(HintUnlock.hint_id)
-        )
-        for hint_id, count in rows.all():
-            blocked[(EntityKind.HINT.value, str(hint_id))] = (
-                f"{count} team(s) unlocked this hint"
-            )
+    for kind, actions, history in checks:
+        reasons = await history(session, _ids(entries, kind, actions))
+        for entity_id, reason in reasons.items():
+            blocked[(kind.value, str(entity_id))] = reason
     return blocked
 
 
@@ -924,48 +885,14 @@ class _Writer:
         return self.deletes.get(kind.value, set()) - keep
 
     async def _drop_challenge(self, challenge_id: UUID) -> None:
-        """Delete a challenge bottom-up: no FK on questions declares a cascade."""
-        questions = (
-            (
-                await self.session.execute(
-                    select(Question)
-                    .where(Question.challenge_id == challenge_id)
-                    .options(
-                        selectinload(Question.hints),
-                        selectinload(Question.solutions),
-                        selectinload(Question.files),
-                    )
-                )
-            )
-            .scalars()
-            .all()
-        )
-        for question in questions:
-            await self._drop_question(question)
         challenge = await self._get(Challenge, challenge_id)
         if challenge is not None:
             await self.session.delete(challenge)
 
-    async def _drop_question(self, question: Any) -> None:
-        for child in (*question.hints, *question.solutions):
-            await self.session.delete(child)
-        question.files = []
-        await self.session.delete(question)
-
     async def _deletes(self) -> None:
         """Pruned entities, children before parents, files last."""
         for question_id in self.deletes.get(EntityKind.QUESTION.value, set()):
-            question = await self.session.get(
-                Question,
-                question_id,
-                options=[
-                    selectinload(Question.hints),
-                    selectinload(Question.solutions),
-                    selectinload(Question.files),
-                ],
-            )
-            if question is not None:
-                await self._drop_question(question)
+            await self._delete_simple(Question, question_id)
         await self.session.flush()
 
         for challenge_id in self.deletes.get(EntityKind.CHALLENGE.value, set()):
