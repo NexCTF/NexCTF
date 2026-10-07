@@ -14,12 +14,12 @@ from fastapi_toolsets.exceptions import (
 )
 from pydantic import BaseModel, ValidationError
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
 from nexctf.api.scope import VERB_OF_METHOD, enforce_token_scope, token_scopes_of
-from nexctf.api.security import auth, cookie_auth
+from nexctf.api.security import auth, client_of, cookie_auth
 from nexctf.core import appconfig
 from nexctf.core.cache import get_redis
 from nexctf.core.db import db
@@ -31,6 +31,7 @@ from nexctf.exceptions import (
 )
 from nexctf.model import Challenge, OAuthProvider, Solution, Team, User, UserRole
 from nexctf.module.audit import AuditContext, set_audit_context
+from nexctf.module.client import category_expression, record_sighting
 from nexctf.module.session import track_session_ip
 from nexctf.plugins.registry import (
     challenge_registry,
@@ -47,11 +48,20 @@ _AuthedAdmin = Annotated[User, Security(auth.require(role=UserRole.admin))]
 _MaybeAuthedUser = Annotated[User | None, Security(auth.optional())]
 
 
-async def _current_user(
-    request: Request, session: SessionDep, user: _AuthedUser
-) -> User:
-    """Authenticate, refreshing the cookie session's current IP as a side effect."""
+async def _on_authenticated(request: Request, redis: Redis, user: User) -> None:
+    """Enforce the token's scope and record the client, once per request."""
+    if getattr(request.state, "authenticated_hooks_ran", False):
+        return
+    request.state.authenticated_hooks_ran = True
     enforce_token_scope(request)
+    await record_sighting(redis, user, client_of(request))
+
+
+async def _current_user(
+    request: Request, session: SessionDep, redis: RedisDep, user: _AuthedUser
+) -> User:
+    """Authenticate, recording the session's current IP and client as side effects."""
+    await _on_authenticated(request, redis, user)
     sid = cookie_auth.session_id_of(request)
     if sid is not None:
         await track_session_ip(session, sid, get_client_ip(request))
@@ -84,6 +94,14 @@ async def _config_overrides(redis: RedisDep) -> dict[str, str]:
 
 
 ConfigDep = Annotated[dict[str, str], Depends(_config_overrides)]
+
+
+async def _client_category(overrides: ConfigDep) -> ColumnElement[str]:
+    """The SQL classifying a sighting's user-agent from the configured patterns."""
+    return category_expression(overrides)
+
+
+ClientCategoryDep = Annotated[ColumnElement[str], Depends(_client_category)]
 
 _WRITE_METHODS = frozenset(m for m, verb in VERB_OF_METHOD.items() if verb == "write")
 
@@ -157,10 +175,12 @@ async def bind_audit_context(request: Request, user: CurrentUserDep) -> None:
     set_audit_context(AuditContext(actor_id=user.id, ip=get_client_ip(request)))
 
 
-async def _optional_auth(request: Request, user: _MaybeAuthedUser) -> User | None:
+async def _optional_auth(
+    request: Request, redis: RedisDep, user: _MaybeAuthedUser
+) -> User | None:
     """Authenticate when the request carries a credential, else stay anonymous."""
     if user is not None:
-        enforce_token_scope(request)
+        await _on_authenticated(request, redis, user)
     return user
 
 

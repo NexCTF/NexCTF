@@ -11,6 +11,9 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.model import Team, User
+from nexctf.model.question import Question
+from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
+from nexctf.plugins.builtin.solution.match.model import MatchSolution
 
 NULL_UUID = "00000000-0000-0000-0000-000000000000"
 
@@ -41,6 +44,21 @@ async def make_team(db_session: AsyncSession, name: str) -> Team:
     db_session.add(team)
     await db_session.flush()
     return team
+
+
+async def make_solvable(
+    db_session: AsyncSession, user: User, flag: str
+) -> tuple[StandardChallenge, Question]:
+    """Put *user* in a team and create an active challenge the flag solves."""
+    await put_in_team(db_session, user)
+    challenge = StandardChallenge(title="Hook Test", is_active=True)
+    db_session.add(challenge)
+    await db_session.flush()
+    question = Question(label="Q", points=100, challenge_id=challenge.id)
+    db_session.add(question)
+    await db_session.flush()
+    db_session.add(MatchSolution(value=flag, question_id=question.id))
+    return challenge, question
 
 
 async def get_data(client: AsyncClient, url: str) -> Any:

@@ -11,7 +11,7 @@ from uuid import UUID
 
 from fastapi import Request
 from fastapi_multiauth import hash_token
-from sqlalchemy import Select, func, select
+from sqlalchemy import Row, Uuid, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
@@ -51,6 +51,11 @@ class _Grouping(NamedTuple):
     addresses: dict[str, list[AdminAddressAccountRead]]
     session_count: int
     account_count: int
+
+
+def login_team_meta(user: User) -> dict[str, str | None]:
+    """The team a user signs in under, recorded on the login event."""
+    return {"team_id": str(user.team_id) if user.team_id else None}
 
 
 async def start_session(
@@ -190,6 +195,11 @@ async def _live_grouping(db: AsyncSession) -> _Grouping:
 
 async def _login_grouping(db: AsyncSession, window: SessionWindow) -> _Grouping:
     """Login events, grouped by the address each account signed in from."""
+    # Logins recorded before the event carried a team fall back to the current one
+    login_team_id = case(
+        (Event.meta.has_key("team_id"), Event.meta["team_id"].astext.cast(Uuid)),
+        else_=User.team_id,
+    )
     stmt = (
         select(
             Event.ip,
@@ -201,22 +211,23 @@ async def _login_grouping(db: AsyncSession, window: SessionWindow) -> _Grouping:
             func.max(Event.created_at).label("last_seen_at"),
         )
         .join(User, Event.actor_id == User.id)
-        .outerjoin(Team, User.team_id == Team.id)
+        .outerjoin(Team, Team.id == login_team_id)
         .where(Event.event_type == LOGIN_EVENT, Event.ip.is_not(None))
         .group_by(Event.ip, Event.actor_id, User.username, Team.id, Team.name)
     )
-    rows = (await db.execute(_since(stmt, window))).all()
+    rows = (await db.execute(stmt.where(*window_filters(window)))).all()
 
     addresses: dict[str, list[AdminAddressAccountRead]] = defaultdict(list)
-    for row in rows:
-        addresses[row.ip].append(
+    for (ip, user_id), team_rows in _by_address_account(rows).items():
+        latest = max(team_rows, key=lambda row: row.last_seen_at)
+        addresses[ip].append(
             AdminAddressAccountRead(
-                user_id=row.actor_id,
-                username=row.username,
-                team_id=row.team_id,
-                team_name=row.team_name,
-                session_count=row.logins,
-                last_seen_at=row.last_seen_at,
+                user_id=user_id,
+                username=latest.username,
+                team_id=latest.team_id,
+                team_name=latest.team_name,
+                session_count=sum(row.logins for row in team_rows),
+                last_seen_at=latest.last_seen_at,
                 user_agent=None,
                 opened_here=True,
             )
@@ -227,6 +238,14 @@ async def _login_grouping(db: AsyncSession, window: SessionWindow) -> _Grouping:
         session_count=sum(row.logins for row in rows),
         account_count=len({row.actor_id for row in rows}),
     )
+
+
+def _by_address_account(rows: Sequence[Row]) -> dict[tuple[str, UUID], list[Row]]:
+    """Login rows per (address, account), one row per team signed in under."""
+    grouped: dict[tuple[str, UUID], list[Row]] = defaultdict(list)
+    for row in rows:
+        grouped[(row.ip, row.actor_id)].append(row)
+    return grouped
 
 
 def _account_read(
@@ -283,7 +302,7 @@ async def failed_logins_by_address(
         )
         .group_by(Event.ip, username, Event.actor_id)
     )
-    rows = (await db.execute(_since(stmt, window))).all()
+    rows = (await db.execute(stmt.where(*window_filters(window)))).all()
 
     addresses: dict[str, list[Any]] = defaultdict(list)
     for row in rows:
@@ -329,11 +348,11 @@ def _failed_login_read(address: str, tried: list[Any]) -> AdminFailedLoginAddres
     )
 
 
-def _since(stmt: Select[Any], window: SessionWindow) -> Select[Any]:
-    """Limit an events query to *window*; ``live`` covers the last 24 hours."""
+def window_filters(window: SessionWindow, column: Any = Event.created_at) -> list[Any]:
+    """Conditions keeping rows whose *column* falls in *window*; ``live`` is 24 hours."""
     if window is SessionWindow.ALL:
-        return stmt
-    return stmt.where(Event.created_at >= datetime.now(UTC) - DAY_WINDOW)
+        return []
+    return [column >= datetime.now(UTC) - DAY_WINDOW]
 
 
 async def track_session_ip(db: AsyncSession, sid: str, ip: str | None) -> None:

@@ -22,6 +22,7 @@ import {
   type PaginatedResponse,
   type QuestionStats,
 } from "@/lib/api";
+import { clientPage } from "@/lib/client-page";
 
 export const Route = createFileRoute("/admin/_admin/")({
   component: Dashboard,
@@ -238,51 +239,24 @@ const SORTERS: Record<string, (cs: ChallengeStats) => string | number> = {
   attempt_count: (cs) => cs.attempt_count,
 };
 
-/** Feed DataTable from an unpaginated endpoint: search, filter, sort and slice here. */
-export function clientPage(
+/** The dashboard's per-challenge table, paged in the browser. */
+export function challengePage(
   rows: ChallengeStats[],
   state: TableState,
 ): PaginatedResponse<ChallengeStats> {
-  const needle = state.search.trim().toLowerCase();
-  const categories = state.filters.category ?? [];
-  const matched = rows.filter(
-    (cs) =>
-      (categories.length === 0 || categories.includes(cs.category ?? "")) &&
-      (needle === "" ||
-        cs.challenge_title.toLowerCase().includes(needle) ||
-        (cs.category?.toLowerCase().includes(needle) ?? false)),
-  );
-
-  const sorter = state.sortColumn ? SORTERS[state.sortColumn] : undefined;
-  const dir = state.sortDirection === "asc" ? 1 : -1;
-  const sorted = sorter
-    ? [...matched].sort((a, b) => {
-        const av = sorter(a);
-        const bv = sorter(b);
-        return av > bv ? dir : av < bv ? -dir : 0;
-      })
-    : [...matched].sort((a, b) => b.teams_solved - a.teams_solved);
-
-  const start = (state.page - 1) * state.perPage;
-  return {
-    status: "SUCCESS",
-    message: "",
-    error_code: null,
-    data: sorted.slice(start, start + state.perPage),
-    pagination: {
-      total_count: sorted.length,
-      items_per_page: state.perPage,
-      page: state.page,
-      has_more: start + state.perPage < sorted.length,
-      pages: Math.max(1, Math.ceil(sorted.length / state.perPage)),
+  return clientPage(rows, state, {
+    searchText: (cs) => `${cs.challenge_title} ${cs.category ?? ""}`,
+    filters: {
+      category: {
+        options: [
+          ...new Set(rows.map((cs) => cs.category).filter((c): c is string => Boolean(c))),
+        ].sort(),
+        matches: (cs, value) => (cs.category ?? "") === value,
+      },
     },
-    pagination_type: "offset",
-    filter_attributes: {
-      category: [...new Set(rows.map((cs) => cs.category).filter(Boolean))].sort(),
-    },
-    search_columns: [],
-    order_columns: Object.keys(SORTERS),
-  };
+    sorters: SORTERS,
+    defaultSort: (a, b) => b.teams_solved - a.teams_solved,
+  });
 }
 
 function useChallengeColumns(teams: number): Column<ChallengeStats>[] {
@@ -503,7 +477,7 @@ function Dashboard() {
   const challengeTable = useTableState({ perPage: 10 });
   const challengeColumns = useChallengeColumns(teams);
   const challengeResponse = useMemo(
-    () => challengeStats && clientPage(challengeStats, challengeTable.state),
+    () => challengeStats && challengePage(challengeStats, challengeTable.state),
     [challengeStats, challengeTable.state],
   );
 

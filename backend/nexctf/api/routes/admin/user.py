@@ -7,7 +7,7 @@ from fastapi_toolsets.schemas import PaginatedResponse, Response
 from sqlalchemy.exc import IntegrityError
 
 from nexctf import crud
-from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
+from nexctf.api.dep import ClientCategoryDep, CurrentUserDep, RedisDep, SessionDep
 from nexctf.api.security import (
     PWD_RESET_KEY_PREFIX,
     PWD_RESET_TTL,
@@ -17,6 +17,7 @@ from nexctf.api.security import (
 )
 from nexctf.model import CustomFieldValue, User
 from nexctf.model.event import Event
+from nexctf.module.client import user_clients
 from nexctf.module.custom_field import replace_custom_field_values
 from nexctf.module.events import emit
 from nexctf.module.session import (
@@ -27,6 +28,7 @@ from nexctf.module.session import (
 from nexctf.schema.custom_field import AdminCustomFieldValueRead
 from nexctf.schema.event import AdminEventRead
 from nexctf.schema.user import (
+    AdminUserClientRead,
     AdminUserCreate,
     AdminUserDetailRead,
     AdminUserUpdate,
@@ -144,6 +146,16 @@ async def get_user_sessions(
             for row in await live_sessions(session, uuid)
         ]
     )
+
+
+@user_router.get("/{uuid}/clients")
+async def get_user_clients(
+    session: SessionDep,
+    category: ClientCategoryDep,
+    uuid: UUID,
+) -> Response[list[AdminUserClientRead]]:
+    """Every user-agent a user was seen with, most recently active first."""
+    return Response(data=await user_clients(session, uuid, category))
 
 
 @user_router.delete("/{uuid}/sessions/{session_id}", status_code=204)

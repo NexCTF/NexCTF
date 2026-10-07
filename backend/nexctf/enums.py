@@ -14,3 +14,18 @@ class SessionWindow(str, Enum):
     LIVE = "live"
     DAY = "day"
     ALL = "all"
+
+
+class ClientSource(str, Enum):
+    """How a request authenticated: browser cookie or API token."""
+
+    cookie = "cookie"
+    token = "token"
+
+
+class ClientCategory(str, Enum):
+    """What kind of client a user-agent belongs to."""
+
+    AI = "ai"
+    AUTOMATION = "automation"
+    BROWSER = "browser"

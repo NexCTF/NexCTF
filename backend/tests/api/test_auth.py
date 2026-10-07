@@ -20,7 +20,7 @@ from nexctf.model import Event, OAuthAccount, OAuthProvider, User, UserToken
 from nexctf.schema import UserCreate
 from nexctf.schema.user import AdminUserUpdate
 
-from ..base import NULL_UUID
+from ..base import NULL_UUID, make_team, make_user
 
 
 class TestRegister:
@@ -226,6 +226,25 @@ class TestLogin:
             )
         ).all()
         assert sorted(rows) == [("user.login", None), ("user.login_failed", None)]
+
+    @pytest.mark.parametrize("in_team", [True, False])
+    async def test_login_event_records_the_team(
+        self, http_client, db_session, override_db_context, in_team
+    ):
+        team = await make_team(db_session, "Red") if in_team else None
+        user = await make_user(db_session, "teamed", team)
+        user.hashed_password = hash_password("right")
+        await db_session.flush()
+
+        await http_client.post(
+            "/auth/token", data={"username": "teamed", "password": "right"}
+        )
+
+        event = await db_session.scalar(
+            select(Event).where(Event.event_type == "user.login")
+        )
+        assert event is not None
+        assert event.meta["team_id"] == (str(team.id) if team else None)
 
     async def test_login_nonexistent_user(self, http_client):
         resp = await http_client.post(

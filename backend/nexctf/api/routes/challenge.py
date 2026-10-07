@@ -25,6 +25,7 @@ from nexctf.api.dep import (
     SessionDep,
     check_visibility,
 )
+from nexctf.api.security import client_of
 from nexctf.core import appconfig
 from nexctf.core.rate_limit import check_config_rate_limit
 from nexctf.exceptions import (
@@ -449,9 +450,11 @@ async def submit_answer(
 
     # Emit events before commit so they're part of the same transaction
     client_ip = get_client_ip(request)
+    client_meta = client_of(request).event_meta()
     event_meta_base = {
         "challenge_title": challenge.title,
         "question_label": question.label,
+        **client_meta,
     }
     for exc in timed_out:
         await emit_event(
@@ -496,7 +499,7 @@ async def submit_answer(
                 target_id=challenge.id,
                 target_label=challenge.title,
                 ip=client_ip,
-                meta={"team_id": str(user.team_id)},
+                meta={"team_id": str(user.team_id), **client_meta},
             )
     else:
         await emit_event(

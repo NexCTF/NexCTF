@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi_toolsets.schemas import PydanticBase
 from pydantic import EmailStr
 
+from nexctf.enums import ClientCategory, ClientSource
 from nexctf.model import UserRole
 from nexctf.schema.custom_field import AdminCustomFieldValueRead, EditableCustomField
 from nexctf.schema.team import Link, LinkListInput
@@ -149,6 +150,32 @@ class AdminFailedLoginOverviewRead(PydanticBase):
     # Addresses where more than one username was tried
     spray_address_count: int
     addresses: list[AdminFailedLoginAddressRead]
+
+
+class AdminUserClientRead(PydanticBase):
+    id: UUID
+    user_agent: str
+    category: ClientCategory
+    source: ClientSource
+    token_name: str | None
+    first_seen_at: datetime
+    last_seen_at: datetime
+
+
+class AdminClientSightingRead(AdminUserClientRead):
+    user_id: UUID
+    username: str
+    # Team of the user when the client was last seen
+    team_id: UUID | None
+    team_name: str | None
+
+
+class AdminClientSummaryRead(PydanticBase):
+    client_count: int
+    account_count: int
+    ai_account_count: int
+    automation_account_count: int
+    token_account_count: int
 
 
 class UserCreate(PydanticBase):

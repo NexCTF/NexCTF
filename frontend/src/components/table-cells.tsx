@@ -3,6 +3,7 @@ import { ArrowUpRight, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Column } from "@/components/data-table";
 import { IdCell } from "@/components/id-cell";
+import { formatLastSeen } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 type TFn = ReturnType<typeof useTranslation>["t"];
@@ -156,6 +157,16 @@ export function DateCell({ value }: { value: string | null | undefined }) {
   return (
     <span className="text-muted-foreground text-xs whitespace-nowrap">
       {DATE_FORMAT.format(new Date(value))}
+    </span>
+  );
+}
+
+/** How long ago a timestamp was, in the UI language. */
+export function LastSeenCell({ value }: { value: string }) {
+  const { i18n } = useTranslation();
+  return (
+    <span className="text-muted-foreground whitespace-nowrap">
+      {formatLastSeen(value, i18n.language)}
     </span>
   );
 }

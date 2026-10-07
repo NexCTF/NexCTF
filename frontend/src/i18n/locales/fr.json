@@ -189,6 +189,25 @@
       "select_type": "Choisir un type de challenge",
       "type_hint": "Type de challenge"
     },
+    "clients": {
+      "category_ai": "IA",
+      "category_automation": "Automatisation",
+      "category_browser": "Navigateur",
+      "col_category": "Catégorie",
+      "col_last_seen": "Vu pour la dernière fois",
+      "col_source": "Source",
+      "col_user_agent": "User-agent",
+      "hint": "Le user-agent est envoyé par le client et facile à falsifier : une correspondance est un indice, son absence ne prouve rien. Les motifs se règlent dans les paramètres Bêta.",
+      "no_user_agent": "Aucun user-agent envoyé",
+      "source_cookie": "Session navigateur",
+      "source_token": "Token d'API",
+      "source_token_named": "Token d'API : {{name}}",
+      "stat_accounts": "Comptes vus",
+      "stat_ai_accounts": "Comptes sur des clients IA",
+      "stat_automation_accounts": "Comptes automatisés",
+      "stat_clients": "Clients",
+      "stat_token_accounts": "Comptes utilisant des tokens"
+    },
     "custom_fields": {
       "col_key": "Clé",
       "col_label": "Libellé",
@@ -515,43 +534,32 @@
       "reason_placeholder": "Raison de l'ajustement"
     },
     "security": {
+      "tab_clients": "Clients",
       "tab_failed_logins": "Connexions échouées",
       "tab_sessions": "Sessions"
     },
     "sessions": {
       "account_logins": "{{total}} connexions",
       "account_sessions": "{{total}} sessions",
-      "address_accounts_one": "{{count}} compte",
-      "address_accounts_many": "{{count}} comptes",
-      "address_accounts_other": "{{count}} comptes",
-      "count_matching": "{{shown}} adresses sur {{total}} correspondent",
-      "count_shown": "{{shown}} adresses affichées sur {{total}}",
+      "col_accounts": "Comptes",
+      "col_address": "Adresse",
+      "col_known": "Comptes existants",
+      "col_last_attempt": "Dernière tentative",
+      "col_teams": "Équipes",
+      "col_tried": "Essayés",
+      "col_usernames": "Noms d'utilisateur",
       "cross_team": "Équipes différentes",
-      "empty": "Personne n'est connecté.",
-      "empty_search": "Aucune session active ne provient d'une adresse correspondant à {{query}}.",
-      "empty_search_window": "Aucune connexion ne provient d'une adresse correspondant à {{query}}.",
-      "empty_shared": "Aucune adresse n'a plus d'un compte connecté.",
-      "empty_window": "Aucune connexion enregistrée sur cette période.",
-      "failed_attempts": "{{total}} tentatives",
-      "failed_empty": "Aucune connexion échouée sur cette période.",
-      "failed_empty_search": "Aucune connexion échouée ne provient d'une adresse correspondant à {{query}}.",
-      "failed_empty_sprayed": "Aucune adresse n'a essayé plus d'un nom d'utilisateur.",
-      "failed_known_one": "{{count}} correspond à un compte",
-      "failed_known_many": "{{count}} correspondent à un compte",
-      "failed_known_other": "{{count}} correspondent à un compte",
       "failed_more": "+{{hidden}} de plus",
-      "failed_show_all": "Afficher toutes les adresses en échec",
-      "failed_show_sprayed": "Plusieurs noms d'utilisateur uniquement",
       "failed_stat_attempts": "Tentatives",
       "failed_stat_sprayed": "Plusieurs noms d'utilisateur essayés",
-      "failed_usernames_one": "{{count}} nom d'utilisateur",
-      "failed_usernames_many": "{{count}} noms d'utilisateur",
-      "failed_usernames_other": "{{count}} noms d'utilisateur",
+      "filter_one": "Un seul",
+      "filter_many": "Plusieurs",
+      "filter_known": "Correspond à un compte",
+      "filter_shared": "Partagée",
+      "filter_single": "Un seul compte",
+      "filter_unknown": "Aucune correspondance",
       "moved_here": "Déplacé ici",
       "same_team": "Même équipe",
-      "search": "Rechercher une adresse",
-      "show_all": "Afficher toutes les adresses",
-      "show_shared": "Partagées uniquement",
       "stat_accounts": "Comptes connectés",
       "stat_addresses": "Adresses",
       "stat_cross_team": "Multi-équipes",
@@ -604,6 +612,9 @@
       "submissions_title": "Soumissions"
     },
     "users": {
+      "client_seen": "Vu pour la première fois {{first}} · Dernière fois {{last}}",
+      "clients_empty": "Aucun client enregistré pour l'instant.",
+      "clients_title": "Clients",
       "create": "Nouvel utilisateur",
       "create_error": "Échec de la création de l'utilisateur",
       "created": "Utilisateur créé",
@@ -777,6 +788,16 @@
       "scoring": "Notation",
       "security": "Sécurité",
       "visibility": "Visibilité"
+    },
+    "clients": {
+      "ai_patterns": {
+        "description": "Un motif par ligne, recherché n'importe où dans le user-agent sans tenir compte de la casse. Les clients correspondants sont signalés comme IA sur la page Sécurité",
+        "label": "Motifs de user-agent IA"
+      },
+      "automation_patterns": {
+        "description": "Un motif par ligne, recherché n'importe où dans le user-agent sans tenir compte de la casse. Les clients correspondants, et ceux qui n'en envoient aucun, sont signalés comme automatisation",
+        "label": "Motifs de user-agent d'automatisation"
+      }
     },
     "ctf": {
       "allow_registration": {

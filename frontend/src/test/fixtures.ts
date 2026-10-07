@@ -1,5 +1,7 @@
 import type {
   ApiToken,
+  ClientSighting,
+  ClientSummary,
   FailedLoginAddress,
   FailedLoginOverview,
   FailedLoginUsername,
@@ -15,6 +17,7 @@ import type {
   SharedAddress,
   SharedAddressAccount,
   User,
+  UserClient,
   UserSession,
 } from "@/lib/api";
 import { DEFAULT_BRANDING } from "@/lib/branding";
@@ -333,5 +336,46 @@ export function failedLoginOverview(
     spray_address_count: 0,
     ...overrides,
     addresses,
+  };
+}
+
+export function userClient(overrides: Partial<UserClient> = {}): UserClient {
+  return {
+    id: "44444444-4444-4444-8444-444444444444",
+    user_agent: "Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
+    category: "browser",
+    source: "cookie",
+    token_name: null,
+    first_seen_at: new Date().toISOString(),
+    last_seen_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+export function clientSighting(overrides: Partial<ClientSighting> = {}): ClientSighting {
+  return {
+    id: "55555555-5555-4555-8555-555555555555",
+    user_id: "22222222-2222-4222-8222-222222222222",
+    username: "alice",
+    team_id: null,
+    team_name: null,
+    user_agent: "curl/8.10.1",
+    category: "automation",
+    source: "cookie",
+    token_name: null,
+    first_seen_at: new Date().toISOString(),
+    last_seen_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+export function clientSummary(overrides: Partial<ClientSummary> = {}): ClientSummary {
+  return {
+    client_count: 0,
+    account_count: 0,
+    ai_account_count: 0,
+    automation_account_count: 0,
+    token_account_count: 0,
+    ...overrides,
   };
 }

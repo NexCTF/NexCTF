@@ -10,6 +10,39 @@ from nexctf.core.appconfig import ConfigDef, ConfigRegistry, ConfigType
 
 config = ConfigRegistry()
 
+AI_USER_AGENTS = (
+    "ClaudeBot",
+    "Claude-User",
+    "Claude-SearchBot",
+    "anthropic-ai",
+    "GPTBot",
+    "ChatGPT-User",
+    "OAI-SearchBot",
+    "PerplexityBot",
+    "Perplexity-User",
+    "MistralAI-User",
+    "cohere-ai",
+    "meta-externalagent",
+    "DuckAssistBot",
+)
+
+AUTOMATION_USER_AGENTS = (
+    "curl/",
+    "Wget/",
+    "python-requests",
+    "python-httpx",
+    "python-urllib",
+    "aiohttp",
+    "Go-http-client",
+    "node-fetch",
+    "undici",
+    "axios/",
+    "okhttp",
+    "PostmanRuntime",
+    "HeadlessChrome",
+    "Playwright",
+)
+
 
 @config.category("competition", "config.category.competition", icon="trophy")
 def _competition():
@@ -315,5 +348,19 @@ def _beta():
             label="config.canary.enabled.label",
             default=False,
             description="config.canary.enabled.description",
+        ),
+        ConfigDef(
+            key="clients.ai_patterns",
+            label="config.clients.ai_patterns.label",
+            default="\n".join(AI_USER_AGENTS),
+            description="config.clients.ai_patterns.description",
+            type=ConfigType.TEXT,
+        ),
+        ConfigDef(
+            key="clients.automation_patterns",
+            label="config.clients.automation_patterns.label",
+            default="\n".join(AUTOMATION_USER_AGENTS),
+            description="config.clients.automation_patterns.description",
+            type=ConfigType.TEXT,
         ),
     ]

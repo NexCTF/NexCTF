@@ -175,15 +175,16 @@ async def http_client(client_factory) -> AsyncGenerator[AsyncClient]:
 def override_db_context(
     db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Patch the session contexts in security.py to reuse the test session.
+    """Patch the session contexts in security.py and module/client.py.
 
-    Functions like _verify_cookie() and create_api_token() open a session
+    Functions like _verify_cookie(), create_api_token() and record_sighting() open a session
     directly instead of using FastAPI dependency injection. Patching it in the
     security module namespace ensures they reuse the test session instead of
     opening a second connection on the same async task. Flushes on clean exit,
     as the real context commits.
     """
     from nexctf.api import security
+    from nexctf.module import client
 
     @asynccontextmanager
     async def _test_db_context() -> AsyncIterator[AsyncSession]:
@@ -192,6 +193,7 @@ def override_db_context(
 
     monkeypatch.setattr(security, "get_db_context", _test_db_context)
     monkeypatch.setattr(security, "get_auth_db_context", _test_db_context)
+    monkeypatch.setattr(client, "get_auth_db_context", _test_db_context)
 
 
 @asynccontextmanager

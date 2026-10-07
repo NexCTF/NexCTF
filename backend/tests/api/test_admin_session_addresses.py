@@ -34,13 +34,18 @@ async def _add_session(
 
 
 async def _add_login(
-    db_session, user: User, *, ip: str | None, hours_ago: float = 0
+    db_session,
+    user: User,
+    *,
+    ip: str | None,
+    hours_ago: float = 0,
+    team_meta: dict[str, str | None] | None = None,
 ) -> Event:
     row = Event(
         event_type="user.login",
         actor_id=user.id,
         ip=ip,
-        meta={"username": user.username},
+        meta={"username": user.username, **(team_meta or {})},
         created_at=datetime.now(UTC) - timedelta(hours=hours_ago),
     )
     db_session.add(row)
@@ -326,7 +331,7 @@ class TestLoginWindowAddresses:
         assert every["address_count"] == day["address_count"] + 1
         assert every["session_count"] == day["session_count"] + 1
 
-    async def test_teams_on_a_past_address_are_the_teams_held_now(
+    async def test_logins_without_a_recorded_team_use_the_team_held_now(
         self, admin_client, db_session
     ):
         c, _ = admin_client
@@ -339,6 +344,56 @@ class TestLoginWindowAddresses:
 
         assert shared["team_count"] == 2
         assert shared["same_team"] is False
+
+    async def test_teams_are_the_ones_held_at_login(self, admin_client, db_session):
+        c, _ = admin_client
+        red = await make_team(db_session, "Red")
+        alice = await make_user(db_session, "alice", red)
+        await _add_login(
+            db_session, alice, ip="198.51.100.29", team_meta={"team_id": str(red.id)}
+        )
+        alice.team_id = (await make_team(db_session, "Blue")).id
+        await db_session.flush()
+
+        [account] = (await _addresses(c, "?window=all"))["198.51.100.29"]["accounts"]
+
+        assert account["team_name"] == "Red"
+
+    async def test_a_teamless_login_stays_teamless(self, admin_client, db_session):
+        c, _ = admin_client
+        alice = await make_user(db_session, "alice", await make_team(db_session, "Red"))
+        await _add_login(
+            db_session, alice, ip="198.51.100.30", team_meta={"team_id": None}
+        )
+
+        [account] = (await _addresses(c, "?window=all"))["198.51.100.30"]["accounts"]
+
+        assert account["team_id"] is None
+
+    async def test_an_account_that_changed_team_is_listed_once(
+        self, admin_client, db_session
+    ):
+        """Its latest team wins, and logins under both teams are counted."""
+        c, _ = admin_client
+        red = await make_team(db_session, "Red")
+        blue = await make_team(db_session, "Blue")
+        alice = await make_user(db_session, "alice", blue)
+        await _add_login(
+            db_session,
+            alice,
+            ip="198.51.100.31",
+            hours_ago=2,
+            team_meta={"team_id": str(red.id)},
+        )
+        await _add_login(
+            db_session, alice, ip="198.51.100.31", team_meta={"team_id": str(blue.id)}
+        )
+
+        listed = (await _addresses(c, "?window=all"))["198.51.100.31"]
+
+        assert listed["account_count"] == 1
+        assert listed["session_count"] == 2
+        assert listed["accounts"][0]["team_name"] == "Blue"
 
     async def test_a_deleted_account_leaves_its_logins_out(
         self, admin_client, db_session

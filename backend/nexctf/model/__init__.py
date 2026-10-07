@@ -20,7 +20,14 @@ from .question import Hint, Question
 from .scheduler import SchedulerJob, SchedulerTask
 from .solution import Solution
 from .submission import ScoreAdjustment, Submission
-from .user import Team, User, UserRole, UserSession, UserToken
+from .user import (
+    Team,
+    User,
+    UserAgentSighting,
+    UserRole,
+    UserSession,
+    UserToken,
+)
 
 __all__ = [
     "Base",
@@ -49,6 +56,7 @@ __all__ = [
     "Submission",
     "Team",
     "User",
+    "UserAgentSighting",
     "UserRole",
     "UserSession",
     "UserToken",
