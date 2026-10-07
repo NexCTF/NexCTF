@@ -14,7 +14,7 @@ from nexctf.schema.plugin import AdminPluginRead, PluginManifestEntry
 
 plugin_router = APIRouter(prefix="/plugins", tags=["Plugins"])
 
-_OFFICIAL_PLUGINS = frozenset({"nexctf_sandbox", "nexctf_plugin_orchestrator"})
+_OFFICIAL_PLUGINS = frozenset({"nexctf_sandbox"})
 
 
 def _is_official(meta: PluginMeta) -> bool:
