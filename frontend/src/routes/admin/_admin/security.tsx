@@ -1,20 +1,28 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { RefreshCw, ShieldAlert } from "lucide-react";
-import { Fragment, memo, type ReactNode, useDeferredValue, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { ShieldAlert } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BetaBadge } from "@/components/beta-badge";
+import {
+  ClientCategoryBadge,
+  ClientSourceBadge,
+  UserAgentText,
+  useClientLabels,
+} from "@/components/client-badges";
+import { type Column, DataTable, useTableState } from "@/components/data-table";
 import { PageHeader } from "@/components/page-header";
-import { SearchInput } from "@/components/search-input";
 import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
-import { TeamLink, UserLink } from "@/components/table-cells";
+import { LastSeenCell, TeamLink, UserLink } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  type ClientSighting,
   type FailedLoginAddress,
   getAdminSessionAddresses,
+  getAdminSessionClients,
+  getAdminSessionClientsSummary,
   getAdminSessionFailedLogins,
   SESSION_WINDOWS,
   type SessionOverview,
@@ -22,13 +30,14 @@ import {
   type SharedAddress,
   type SharedAddressAccount,
 } from "@/lib/api";
+import { type ClientPageSpec, clientPage } from "@/lib/client-page";
 import { describeDevice, formatLastSeen } from "@/lib/session";
 
-const TABS = ["sessions", "failed-logins"] as const;
+const TABS = ["sessions", "failed-logins", "clients"] as const;
 
 type SecurityTab = (typeof TABS)[number];
 
-const FAILED_WINDOWS: readonly SessionWindow[] = ["day", "all"];
+const PAST_WINDOWS: readonly SessionWindow[] = ["day", "all"];
 
 export const Route = createFileRoute("/admin/_admin/security")({
   component: SecurityPage,
@@ -41,14 +50,10 @@ function WindowBar({
   value,
   options,
   onChange,
-  onRefresh,
-  busy,
 }: {
   value: SessionWindow;
   options: readonly SessionWindow[];
   onChange: (window: SessionWindow) => void;
-  onRefresh: () => void;
-  busy: boolean;
 }) {
   const { t } = useTranslation();
   const labels: Record<SessionWindow, string> = {
@@ -58,118 +63,43 @@ function WindowBar({
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <fieldset
-        className="flex gap-1"
-        aria-label={t("admin.sessions.window_label", { defaultValue: "Window" })}
-      >
-        {options.map((option) => (
-          <Button
-            key={option}
-            size="sm"
-            variant={option === value ? "default" : "outline"}
-            aria-pressed={option === value}
-            onClick={() => onChange(option)}
-          >
-            {labels[option]}
-          </Button>
-        ))}
-      </fieldset>
-      <Button
-        variant="outline"
-        size="icon-sm"
-        onClick={onRefresh}
-        disabled={busy}
-        aria-label={t("table.refresh", { defaultValue: "Refresh" })}
-      >
-        <RefreshCw className={`size-3.5 ${busy ? "animate-spin" : ""}`} />
-      </Button>
-    </div>
+    <fieldset
+      className="flex flex-wrap gap-1"
+      aria-label={t("admin.sessions.window_label", { defaultValue: "Window" })}
+    >
+      {options.map((option) => (
+        <Button
+          key={option}
+          size="sm"
+          variant={option === value ? "default" : "outline"}
+          aria-pressed={option === value}
+          onClick={() => onChange(option)}
+        >
+          {labels[option]}
+        </Button>
+      ))}
+    </fieldset>
   );
+}
+
+/** A time window and the table it feeds: a new window goes back to page 1. */
+function useWindowedTable(initial: SessionWindow) {
+  const [sessionWindow, setSessionWindow] = useState(initial);
+  const table = useTableState();
+  const setWindow = (next: SessionWindow) => {
+    setSessionWindow(next);
+    table.setPage(1);
+  };
+  return { sessionWindow, setWindow, table };
 }
 
 function IpChip({ ip }: { ip: string }) {
   return <code className="rounded bg-muted px-2 py-1 font-mono text-sm">{ip}</code>;
 }
 
-/** Searchable card grid over addresses, flagged ones only unless widened. */
-function AddressList<T extends { ip: string }>({
-  addresses,
-  total,
-  isLoading,
-  isFlagged,
-  toggleLabels,
-  emptyMessage,
-  renderCard,
-}: {
-  addresses: T[];
-  total: number;
-  isLoading: boolean;
-  isFlagged: (address: T) => boolean;
-  toggleLabels: { flagged: string; all: string };
-  emptyMessage: (query: string) => string;
-  renderCard: (address: T) => ReactNode;
-}) {
-  const { t } = useTranslation();
-  const [search, setSearch] = useState("");
-  const [showAll, setShowAll] = useState(false);
-  const query = useDeferredValue(search).trim();
-  const shown = addresses.filter((address) =>
-    query ? address.ip.includes(query) : showAll || isFlagged(address),
-  );
-
-  return (
-    <>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          {query
-            ? t("admin.sessions.count_matching", {
-                shown: shown.length,
-                total,
-                defaultValue: "{{shown}} of {{total}} addresses match",
-              })
-            : t("admin.sessions.count_shown", {
-                shown: shown.length,
-                total,
-                defaultValue: "Showing {{shown}} of {{total}} addresses",
-              })}
-          {!query && (
-            <button
-              type="button"
-              onClick={() => setShowAll((prev) => !prev)}
-              className="ml-2 text-link underline-offset-2 hover:underline"
-            >
-              {showAll ? toggleLabels.flagged : toggleLabels.all}
-            </button>
-          )}
-        </p>
-        <div className="w-full sm:max-w-64">
-          <SearchInput
-            value={search}
-            onValueChange={setSearch}
-            aria-label={t("admin.sessions.search", { defaultValue: "Search an address" })}
-            placeholder={t("admin.sessions.search", { defaultValue: "Search an address" })}
-          />
-        </div>
-      </div>
-
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
-      ) : shown.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{emptyMessage(query)}</p>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-          {shown.map((address) => (
-            <Fragment key={address.ip}>{renderCard(address)}</Fragment>
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
-
 function TeamBadge({ address }: { address: SharedAddress }) {
   const { t } = useTranslation();
+  if (address.account_count < 2) return null;
   if (address.same_team) {
     return (
       <StatusBadge tone="muted">
@@ -185,9 +115,9 @@ function TeamBadge({ address }: { address: SharedAddress }) {
   );
 }
 
-function AccountRow({ account, live }: { account: SharedAddressAccount; live: boolean }) {
+function AddressAccount({ account, live }: { account: SharedAddressAccount; live: boolean }) {
   const { t, i18n } = useTranslation();
-  const { browser, os, icon: DeviceIcon } = describeDevice(account.user_agent);
+  const { browser, os } = describeDevice(account.user_agent);
   const volume = live
     ? t("admin.sessions.account_sessions", {
         total: account.session_count,
@@ -199,63 +129,98 @@ function AccountRow({ account, live }: { account: SharedAddressAccount; live: bo
       });
   const meta = [
     [browser, os].filter(Boolean).join(" "),
-    account.session_count > 1 ? volume : "",
+    volume,
     formatLastSeen(account.last_seen_at, i18n.language),
   ].filter(Boolean);
 
   return (
-    <div className="space-y-1 rounded-lg border px-3 py-2">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <UserLink id={account.user_id} name={account.username} />
+    <span className="inline-flex items-center gap-1" title={meta.join(" · ")}>
+      <UserLink id={account.user_id} name={account.username} />
+      {(account.team_id || account.team_name) && (
         <TeamLink id={account.team_id} name={account.team_name} />
-        {!account.opened_here && (
-          <StatusBadge tone="amber">
-            {t("admin.sessions.moved_here", { defaultValue: "Moved here" })}
-          </StatusBadge>
-        )}
-      </div>
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        {account.user_agent && <DeviceIcon className="size-3 shrink-0" />}
-        {meta.join(" · ")}
-      </p>
-    </div>
+      )}
+      {!account.opened_here && (
+        <StatusBadge tone="amber">
+          {t("admin.sessions.moved_here", { defaultValue: "Moved here" })}
+        </StatusBadge>
+      )}
+    </span>
   );
 }
 
-const AddressCard = memo(function AddressCard({
-  address,
-  live,
-}: {
-  address: SharedAddress;
-  live: boolean;
-}) {
-  const { t, i18n } = useTranslation();
-  const summary = [
-    t("admin.sessions.address_accounts", {
-      count: address.account_count,
-      defaultValue: "{{count}} account",
-      defaultValue_other: "{{count}} accounts",
-    }),
-    formatLastSeen(address.last_seen_at, i18n.language),
-  ].join(" · ");
+const ADDRESS_PAGE: ClientPageSpec<SharedAddress> = {
+  searchText: (address) =>
+    [address.ip, ...address.accounts.flatMap((a) => [a.username, a.team_name ?? ""])].join(" "),
+  filters: {
+    account_count: {
+      options: ["shared", "single"],
+      matches: (address, value) => address.account_count > 1 === (value === "shared"),
+    },
+    team_count: {
+      options: ["cross_team", "same_team"],
+      matches: (address, value) =>
+        value === "cross_team"
+          ? address.team_count > 1
+          : address.same_team && address.account_count > 1,
+    },
+  },
+  sorters: {
+    ip: (address) => address.ip,
+    account_count: (address) => address.account_count,
+    team_count: (address) => address.team_count,
+    session_count: (address) => address.session_count,
+    last_seen_at: (address) => address.last_seen_at,
+  },
+  defaultSort: (a, b) =>
+    b.account_count - a.account_count || b.last_seen_at.localeCompare(a.last_seen_at),
+};
 
-  return (
-    <Card>
-      <CardContent className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <IpChip ip={address.ip} />
-          {address.account_count > 1 && <TeamBadge address={address} />}
-        </div>
-        <p className="text-xs text-muted-foreground">{summary}</p>
-        <div className="space-y-2">
+function useAddressColumns(live: boolean): Column<SharedAddress>[] {
+  const { t } = useTranslation();
+  return [
+    {
+      key: "ip",
+      header: t("admin.sessions.col_address", { defaultValue: "Address" }),
+      cell: (address) => <IpChip ip={address.ip} />,
+    },
+    {
+      key: "account_count",
+      header: t("admin.sessions.col_accounts", { defaultValue: "Accounts" }),
+      filterOptions: {
+        shared: t("admin.sessions.filter_shared", { defaultValue: "Shared" }),
+        single: t("admin.sessions.filter_single", { defaultValue: "Single account" }),
+      },
+      cell: (address) => (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {address.accounts.map((account) => (
-            <AccountRow key={account.user_id} account={account} live={live} />
+            <AddressAccount key={account.user_id} account={account} live={live} />
           ))}
         </div>
-      </CardContent>
-    </Card>
-  );
-});
+      ),
+    },
+    {
+      key: "team_count",
+      header: t("admin.sessions.col_teams", { defaultValue: "Teams" }),
+      filterOptions: {
+        cross_team: t("admin.sessions.cross_team", { defaultValue: "Different teams" }),
+        same_team: t("admin.sessions.same_team", { defaultValue: "Same team" }),
+      },
+      cell: (address) => <TeamBadge address={address} />,
+    },
+    {
+      key: "session_count",
+      header: live
+        ? t("admin.sessions.stat_sessions", { defaultValue: "Live sessions" })
+        : t("admin.sessions.stat_logins", { defaultValue: "Logins" }),
+      className: "tabular-nums",
+    },
+    {
+      key: "last_seen_at",
+      header: t("admin.clients.col_last_seen", { defaultValue: "Last seen" }),
+      cell: (address) => <LastSeenCell value={address.last_seen_at} />,
+    },
+  ];
+}
 
 function SessionSummary({ overview, live }: { overview: SessionOverview; live: boolean }) {
   const { t } = useTranslation();
@@ -290,9 +255,9 @@ function SessionSummary({ overview, live }: { overview: SessionOverview; live: b
 }
 
 function SessionsTab() {
-  const { t } = useTranslation();
-  const [sessionWindow, setSessionWindow] = useState<SessionWindow>("live");
+  const { sessionWindow, setWindow, table } = useWindowedTable("live");
   const live = sessionWindow === "live";
+  const columns = useAddressColumns(live);
 
   const {
     data: overview,
@@ -304,119 +269,127 @@ function SessionsTab() {
     queryFn: () => getAdminSessionAddresses(sessionWindow),
     placeholderData: (prev) => prev,
   });
-  const total = overview?.address_count ?? 0;
-
-  function emptyMessage(query: string) {
-    if (query) {
-      return live
-        ? t("admin.sessions.empty_search", {
-            query,
-            defaultValue: "No live session comes from an address matching {{query}}.",
-          })
-        : t("admin.sessions.empty_search_window", {
-            query,
-            defaultValue: "No login came from an address matching {{query}}.",
-          });
-    }
-    if (total === 0) {
-      return live
-        ? t("admin.sessions.empty", { defaultValue: "No one is signed in." })
-        : t("admin.sessions.empty_window", {
-            defaultValue: "No login was recorded in this window.",
-          });
-    }
-    return t("admin.sessions.empty_shared", {
-      defaultValue: "No address has more than one account signed in.",
-    });
-  }
+  const response = useMemo(
+    () => overview && clientPage(overview.addresses, table.state, ADDRESS_PAGE),
+    [overview, table.state],
+  );
 
   return (
     <div className="space-y-6">
-      <WindowBar
-        value={sessionWindow}
-        options={SESSION_WINDOWS}
-        onChange={setSessionWindow}
-        onRefresh={() => void refetch()}
-        busy={isFetching}
-      />
+      <WindowBar value={sessionWindow} options={SESSION_WINDOWS} onChange={setWindow} />
       {overview && <SessionSummary overview={overview} live={live} />}
-      <AddressList
-        addresses={overview?.addresses ?? []}
-        total={total}
+      <DataTable
+        columns={columns}
+        response={response}
+        table={table}
         isLoading={isLoading}
-        isFlagged={(address) => address.account_count > 1}
-        toggleLabels={{
-          flagged: t("admin.sessions.show_shared", { defaultValue: "Shared only" }),
-          all: t("admin.sessions.show_all", { defaultValue: "Show every address" }),
-        }}
-        emptyMessage={emptyMessage}
-        renderCard={(address) => <AddressCard address={address} live={live} />}
+        isFetching={isFetching}
+        rowKey={(address) => address.ip}
+        onRefresh={() => void refetch()}
       />
     </div>
   );
 }
 
-const FailedLoginCard = memo(function FailedLoginCard({
-  address,
-}: {
-  address: FailedLoginAddress;
-}) {
-  const { t, i18n } = useTranslation();
-  const meta = [
-    t("admin.sessions.failed_attempts", {
-      total: address.attempt_count,
-      defaultValue: "{{total}} attempts",
-    }),
-    address.known_username_count > 0
-      ? t("admin.sessions.failed_known", {
-          count: address.known_username_count,
-          defaultValue: "{{count}} matches an account",
-          defaultValue_other: "{{count}} match an account",
-        })
-      : "",
-    formatLastSeen(address.last_attempt_at, i18n.language),
-  ].filter(Boolean);
+function TriedUsernames({ address }: { address: FailedLoginAddress }) {
+  const { t } = useTranslation();
   const hidden = address.username_count - new Set(address.usernames.map((u) => u.username)).size;
-
   return (
-    <Card>
-      <CardContent className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <IpChip ip={address.ip} />
-          <StatusBadge tone={address.username_count > 1 ? "amber" : "muted"}>
-            {t("admin.sessions.failed_usernames", {
-              count: address.username_count,
-              defaultValue: "{{count}} username",
-              defaultValue_other: "{{count}} usernames",
-            })}
-          </StatusBadge>
-        </div>
-        <p className="text-xs text-muted-foreground">{meta.join(" · ")}</p>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-          {address.usernames.map((tried) => (
-            <span key={`${tried.username}-${tried.user_id}`} className="flex items-center gap-1">
-              {tried.user_id ? (
-                <UserLink id={tried.user_id} name={tried.username} />
-              ) : (
-                <span className="text-muted-foreground">{tried.username}</span>
-              )}
-              <span className="text-muted-foreground">({tried.attempt_count})</span>
-            </span>
-          ))}
-          {hidden > 0 && (
-            <span className="text-muted-foreground">
-              {t("admin.sessions.failed_more", { hidden, defaultValue: "+{{hidden}} more" })}
-            </span>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+      {address.usernames.map((tried) => (
+        <span key={`${tried.username}-${tried.user_id}`} className="flex items-center gap-1">
+          {tried.user_id ? (
+            <UserLink id={tried.user_id} name={tried.username} />
+          ) : (
+            <span className="text-muted-foreground">{tried.username}</span>
           )}
-        </div>
-      </CardContent>
-    </Card>
+          <span className="text-muted-foreground">({tried.attempt_count})</span>
+        </span>
+      ))}
+      {hidden > 0 && (
+        <span className="text-muted-foreground">
+          {t("admin.sessions.failed_more", { hidden, defaultValue: "+{{hidden}} more" })}
+        </span>
+      )}
+    </div>
   );
-});
+}
+
+const FAILED_LOGIN_PAGE: ClientPageSpec<FailedLoginAddress> = {
+  searchText: (address) => [address.ip, ...address.usernames.map((u) => u.username)].join(" "),
+  filters: {
+    username_count: {
+      options: ["many", "one"],
+      matches: (address, value) => address.username_count > 1 === (value === "many"),
+    },
+    known_username_count: {
+      options: ["known", "unknown"],
+      matches: (address, value) => address.known_username_count > 0 === (value === "known"),
+    },
+  },
+  sorters: {
+    ip: (address) => address.ip,
+    attempt_count: (address) => address.attempt_count,
+    username_count: (address) => address.username_count,
+    known_username_count: (address) => address.known_username_count,
+    last_attempt_at: (address) => address.last_attempt_at,
+  },
+  defaultSort: (a, b) => b.username_count - a.username_count || b.attempt_count - a.attempt_count,
+};
+
+function useFailedLoginColumns(): Column<FailedLoginAddress>[] {
+  const { t } = useTranslation();
+  return [
+    {
+      key: "ip",
+      header: t("admin.sessions.col_address", { defaultValue: "Address" }),
+      cell: (address) => <IpChip ip={address.ip} />,
+    },
+    {
+      key: "attempt_count",
+      header: t("admin.sessions.failed_stat_attempts", { defaultValue: "Attempts" }),
+      className: "tabular-nums",
+    },
+    {
+      key: "username_count",
+      header: t("admin.sessions.col_usernames", { defaultValue: "Usernames" }),
+      filterOptions: {
+        many: t("admin.sessions.filter_many", { defaultValue: "Several" }),
+        one: t("admin.sessions.filter_one", { defaultValue: "One" }),
+      },
+      cell: (address) => (
+        <StatusBadge tone={address.username_count > 1 ? "amber" : "muted"}>
+          {address.username_count}
+        </StatusBadge>
+      ),
+    },
+    {
+      key: "known_username_count",
+      header: t("admin.sessions.col_known", { defaultValue: "Known accounts" }),
+      className: "tabular-nums",
+      filterOptions: {
+        known: t("admin.sessions.filter_known", { defaultValue: "Matches an account" }),
+        unknown: t("admin.sessions.filter_unknown", { defaultValue: "No match" }),
+      },
+    },
+    {
+      key: "usernames",
+      header: t("admin.sessions.col_tried", { defaultValue: "Tried" }),
+      sortable: false,
+      cell: (address) => <TriedUsernames address={address} />,
+    },
+    {
+      key: "last_attempt_at",
+      header: t("admin.sessions.col_last_attempt", { defaultValue: "Last attempt" }),
+      cell: (address) => <LastSeenCell value={address.last_attempt_at} />,
+    },
+  ];
+}
 
 function FailedLoginsTab() {
   const { t } = useTranslation();
-  const [failedWindow, setFailedWindow] = useState<SessionWindow>("day");
+  const columns = useFailedLoginColumns();
+  const { sessionWindow: failedWindow, setWindow, table } = useWindowedTable("day");
 
   const {
     data: overview,
@@ -428,32 +401,14 @@ function FailedLoginsTab() {
     queryFn: () => getAdminSessionFailedLogins(failedWindow),
     placeholderData: (prev) => prev,
   });
-  const total = overview?.address_count ?? 0;
-
-  function emptyMessage(query: string) {
-    if (query) {
-      return t("admin.sessions.failed_empty_search", {
-        query,
-        defaultValue: "No failed login came from an address matching {{query}}.",
-      });
-    }
-    if (total === 0) {
-      return t("admin.sessions.failed_empty", { defaultValue: "No failed login in this window." });
-    }
-    return t("admin.sessions.failed_empty_sprayed", {
-      defaultValue: "No address tried more than one username.",
-    });
-  }
+  const response = useMemo(
+    () => overview && clientPage(overview.addresses, table.state, FAILED_LOGIN_PAGE),
+    [overview, table.state],
+  );
 
   return (
     <div className="space-y-6">
-      <WindowBar
-        value={failedWindow}
-        options={FAILED_WINDOWS}
-        onChange={setFailedWindow}
-        onRefresh={() => void refetch()}
-        busy={isFetching}
-      />
+      <WindowBar value={failedWindow} options={PAST_WINDOWS} onChange={setWindow} />
       {overview && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <StatCard
@@ -472,17 +427,135 @@ function FailedLoginsTab() {
           />
         </div>
       )}
-      <AddressList
-        addresses={overview?.addresses ?? []}
-        total={total}
+      <DataTable
+        columns={columns}
+        response={response}
+        table={table}
         isLoading={isLoading}
-        isFlagged={(address) => address.username_count > 1}
-        toggleLabels={{
-          flagged: t("admin.sessions.failed_show_sprayed", { defaultValue: "Many usernames only" }),
-          all: t("admin.sessions.failed_show_all", { defaultValue: "Show every failing address" }),
-        }}
-        emptyMessage={emptyMessage}
-        renderCard={(address) => <FailedLoginCard address={address} />}
+        isFetching={isFetching}
+        rowKey={(address) => address.ip}
+        onRefresh={() => void refetch()}
+      />
+    </div>
+  );
+}
+
+function ClientSummaryCards({ sessionWindow }: { sessionWindow: SessionWindow }) {
+  const { t } = useTranslation();
+  const { data: summary } = useQuery({
+    queryKey: ["admin", "session-clients-summary", sessionWindow],
+    queryFn: () => getAdminSessionClientsSummary(sessionWindow),
+    placeholderData: (prev) => prev,
+  });
+  if (!summary) return null;
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <StatCard
+        label={t("admin.clients.stat_clients", { defaultValue: "Clients" })}
+        value={summary.client_count}
+      />
+      <StatCard
+        label={t("admin.clients.stat_accounts", { defaultValue: "Accounts seen" })}
+        value={summary.account_count}
+      />
+      <StatCard
+        label={t("admin.clients.stat_ai_accounts", { defaultValue: "Accounts on AI clients" })}
+        value={summary.ai_account_count}
+      />
+      <StatCard
+        label={t("admin.clients.stat_automation_accounts", {
+          defaultValue: "Accounts on automation",
+        })}
+        value={summary.automation_account_count}
+      />
+      <StatCard
+        label={t("admin.clients.stat_token_accounts", {
+          defaultValue: "Accounts using tokens",
+        })}
+        value={summary.token_account_count}
+      />
+    </div>
+  );
+}
+
+function useClientColumns(): Column<ClientSighting>[] {
+  const { t } = useTranslation();
+  const labels = useClientLabels();
+  return [
+    {
+      key: "user__username",
+      header: t("table.col_username", { defaultValue: "Username" }),
+      cell: (row) => <UserLink id={row.user_id} name={row.username} />,
+    },
+    {
+      key: "team__name",
+      header: t("table.col_team", { defaultValue: "Team" }),
+      cell: (row) => <TeamLink id={row.team_id} name={row.team_name} />,
+    },
+    {
+      key: "category",
+      header: t("admin.clients.col_category", { defaultValue: "Category" }),
+      filterOptions: labels.category,
+      cell: (row) => <ClientCategoryBadge category={row.category} />,
+    },
+    {
+      key: "source",
+      header: t("admin.clients.col_source", { defaultValue: "Source" }),
+      filterOptions: labels.source,
+      cell: (row) => <ClientSourceBadge source={row.source} tokenName={row.token_name} />,
+    },
+    {
+      key: "user_agent",
+      header: t("admin.clients.col_user_agent", { defaultValue: "User-agent" }),
+      cell: (row) => <UserAgentText userAgent={row.user_agent} truncate />,
+    },
+    {
+      key: "last_seen_at",
+      header: t("admin.clients.col_last_seen", { defaultValue: "Last seen" }),
+      cell: (row) => <LastSeenCell value={row.last_seen_at} />,
+    },
+  ];
+}
+
+function ClientsTab() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const columns = useClientColumns();
+  const { sessionWindow: clientWindow, setWindow, table } = useWindowedTable("day");
+
+  const {
+    data: response,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
+    queryKey: ["admin", "session-clients", clientWindow, table.queryString],
+    queryFn: () => getAdminSessionClients(clientWindow, table.queryString),
+    placeholderData: (prev) => prev,
+  });
+
+  return (
+    <div className="space-y-6">
+      <WindowBar value={clientWindow} options={PAST_WINDOWS} onChange={setWindow} />
+      <ClientSummaryCards sessionWindow={clientWindow} />
+      <p className="text-xs text-muted-foreground">
+        {t("admin.clients.hint", {
+          defaultValue:
+            "User-agents are sent by the client and easy to fake: a match is a hint, its absence proves nothing. Patterns are set under Beta settings.",
+        })}
+      </p>
+      <DataTable
+        columns={columns}
+        response={response}
+        table={table}
+        isLoading={isLoading}
+        isFetching={isFetching}
+        rowKey={(row) => row.id}
+        onRefresh={() => void refetch()}
+        onRowClick={(row) =>
+          void navigate({ to: "/admin/users/$userId", params: { userId: row.user_id } })
+        }
       />
     </div>
   );
@@ -513,12 +586,18 @@ function SecurityPage() {
           <TabsTrigger value="failed-logins">
             {t("admin.security.tab_failed_logins", { defaultValue: "Failed logins" })}
           </TabsTrigger>
+          <TabsTrigger value="clients">
+            {t("admin.security.tab_clients", { defaultValue: "Clients" })}
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="sessions">
           <SessionsTab />
         </TabsContent>
         <TabsContent value="failed-logins">
           <FailedLoginsTab />
+        </TabsContent>
+        <TabsContent value="clients">
+          <ClientsTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -4,6 +4,7 @@ import { Ban, ExternalLink, KeyRound, LogOut, Pencil, ShieldCheck, ShieldOff } f
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ClientCategoryBadge, ClientSourceBadge, UserAgentText } from "@/components/client-badges";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CustomFieldValuesList } from "@/components/custom-field-values-list";
 import { CustomFieldsSection, useCustomFieldDefs } from "@/components/custom-fields-section";
@@ -31,11 +32,13 @@ import {
   adminResetUserTotp,
   apiErrorMessage,
   getAdminUser,
+  getAdminUserClients,
   getAdminUserEvents,
   getAdminUserSessions,
   revokeAdminUserSession,
   setAdminCustomFieldValue,
   USER_ROLES,
+  type UserClient,
   type UserSession,
   updateAdminUser,
 } from "@/lib/api";
@@ -161,6 +164,52 @@ function SessionsSection({ userId, onRevoked }: { userId: string; onRevoked: () 
         <div className="space-y-2">
           {sessions.map((session) => (
             <SessionRow key={session.id} userId={userId} session={session} onRevoked={invalidate} />
+          ))}
+        </div>
+      )}
+    </DetailSection>
+  );
+}
+
+function ClientRow({ client }: { client: UserClient }) {
+  const { t, i18n } = useTranslation();
+  return (
+    <div className="space-y-1.5 rounded-lg border px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <ClientCategoryBadge category={client.category} />
+        <ClientSourceBadge source={client.source} tokenName={client.token_name} />
+      </div>
+      <UserAgentText userAgent={client.user_agent} />
+      <p className="text-xs text-muted-foreground">
+        {t("admin.users.client_seen", {
+          first: formatLastSeen(client.first_seen_at, i18n.language),
+          last: formatLastSeen(client.last_seen_at, i18n.language),
+          defaultValue: "First seen {{first}} · Last seen {{last}}",
+        })}
+      </p>
+    </div>
+  );
+}
+
+function ClientsSection({ userId }: { userId: string }) {
+  const { t } = useTranslation();
+  const { data: clients = [], isLoading } = useQuery({
+    queryKey: ["admin", "user-clients", userId],
+    queryFn: () => getAdminUserClients(userId),
+  });
+
+  return (
+    <DetailSection title={t("admin.users.clients_title", { defaultValue: "Clients" })}>
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+      ) : clients.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {t("admin.users.clients_empty", { defaultValue: "No client recorded yet." })}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {clients.map((client) => (
+            <ClientRow key={client.id} client={client} />
           ))}
         </div>
       )}
@@ -593,6 +642,8 @@ function UserDetailPage() {
               })
             }
           />
+
+          <ClientsSection userId={userId} />
 
           <CustomFieldValuesList
             entityId={userId}

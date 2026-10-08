@@ -3,17 +3,19 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import {
   getAdminUser,
+  getAdminUserClients,
   getAdminUserEvents,
   getAdminUserSessions,
   revokeAdminUserSession,
 } from "@/lib/api";
-import { paginated, user, userSession } from "@/test/fixtures";
+import { paginated, user, userClient, userSession } from "@/test/fixtures";
 import { renderRoute } from "@/test/render";
 import { Route } from "./users_.$userId";
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   getAdminUser: vi.fn(),
+  getAdminUserClients: vi.fn(),
   getAdminUserEvents: vi.fn(),
   getAdminUserSessions: vi.fn(),
   revokeAdminUserSession: vi.fn(),
@@ -29,6 +31,7 @@ beforeEach(() => {
   });
   vi.mocked(getAdminUserEvents).mockResolvedValue(paginated([]));
   vi.mocked(getAdminUserSessions).mockResolvedValue([userSession()]);
+  vi.mocked(getAdminUserClients).mockResolvedValue([]);
   vi.mocked(revokeAdminUserSession).mockResolvedValue(undefined);
 });
 
@@ -60,4 +63,30 @@ it("does not offer to revoke the admin's own session", async () => {
 
   await screen.findByText("Your session");
   expect(screen.queryByRole("button", { name: "Sign out" })).toBeNull();
+});
+
+it("lists the clients the user was seen with", async () => {
+  vi.mocked(getAdminUserClients).mockResolvedValue([
+    userClient({
+      id: "c1",
+      user_agent: "curl/8.10.1",
+      category: "automation",
+      source: "token",
+      token_name: "solver",
+    }),
+    userClient({ id: "c2", user_agent: "" }),
+  ]);
+  render();
+
+  expect(await screen.findByText("curl/8.10.1")).toBeTruthy();
+  expect(screen.getByText("Automation")).toBeTruthy();
+  expect(screen.getByText("API token: solver")).toBeTruthy();
+  expect(screen.getByText("No user-agent sent")).toBeTruthy();
+  expect(getAdminUserClients).toHaveBeenCalledWith("u1");
+});
+
+it("says so when no client was recorded", async () => {
+  render();
+
+  expect(await screen.findByText("No client recorded yet.")).toBeTruthy();
 });

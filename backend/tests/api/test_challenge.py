@@ -13,8 +13,7 @@ from nexctf.api.routes.challenge import _writeup_visible
 from nexctf.model import HintUnlock, Team, User
 from nexctf.model.question import Hint, Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
-from nexctf.plugins.builtin.solution.match.model import MatchSolution
-from tests.base import put_in_team
+from tests.base import make_solvable, put_in_team
 
 NULL_UUID = "00000000-0000-0000-0000-000000000000"
 
@@ -307,21 +306,6 @@ class TestHintUnlockChargesOnce:
 # ── lifecycle hooks ────────────────────────────────────────────────────────────
 
 
-async def _solvable(
-    db_session: AsyncSession, user: User, flag: str
-) -> tuple[StandardChallenge, Question]:
-    """Create an active challenge with one question the flag solves."""
-    await put_in_team(db_session, user)
-    challenge = StandardChallenge(title="Hook Test", is_active=True)
-    db_session.add(challenge)
-    await db_session.flush()
-    question = Question(label="Q", points=100, challenge_id=challenge.id)
-    db_session.add(question)
-    await db_session.flush()
-    db_session.add(MatchSolution(value=flag, question_id=question.id))
-    return challenge, question
-
-
 class TestHookFailure:
     async def test_raising_hook_does_not_break_submit(
         self,
@@ -332,7 +316,7 @@ class TestHookFailure:
         """Hooks are best-effort: an override that raises still scores the flag."""
         flag = "NexCTF{hook_test}"
         c, user = user_client
-        challenge, question = await _solvable(db_session, user, flag)
+        challenge, question = await make_solvable(db_session, user, flag)
 
         async def _boom(*_args: object, **_kwargs: object) -> None:
             raise RuntimeError("plugin exploded")
@@ -356,7 +340,7 @@ class TestHookFailure:
         """A hook that aborts the transaction must not cost the user the flag."""
         flag = "NexCTF{hook_sql}"
         c, user = user_client
-        challenge, question = await _solvable(db_session, user, flag)
+        challenge, question = await make_solvable(db_session, user, flag)
 
         async def _bad_sql(self: StandardChallenge, *_a: object, **_kw: object) -> None:
             session = async_object_session(self)

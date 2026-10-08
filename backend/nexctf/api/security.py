@@ -15,10 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from nexctf import crud
-from nexctf.api.scope import set_token_scopes, with_implied_reads
+from nexctf.api.scope import bind_token, token_id_of, with_implied_reads
 from nexctf.core.config import settings
 from nexctf.core.db import get_auth_db_context, get_db_context
 from nexctf.model import User, UserRole, UserToken
+from nexctf.module.client import ClientInfo
 from nexctf.module.session import SESSION_TTL, start_session, touch_live_session
 from nexctf.schema import UserTokenCreate
 
@@ -119,7 +120,7 @@ async def _verify_token(
             .values(last_used_at=now)
         )
 
-        set_token_scopes(request, user_token.scopes)
+        bind_token(request, user_token.id, user_token.scopes)
         return user
 
 
@@ -164,6 +165,11 @@ cookie_auth = APIKeyCookieAuth(
     session_id=True,
 )
 auth = MultiAuth(bearer_auth, cookie_auth)
+
+
+def client_of(request: Request) -> ClientInfo:
+    """The client behind an authenticated *request*."""
+    return ClientInfo.build(request.headers.get("user-agent"), token_id_of(request))
 
 
 def current_sid_hash(request: Request) -> str | None:

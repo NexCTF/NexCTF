@@ -23,6 +23,7 @@ from nexctf.model import (
     Submission,
     Team,
     User,
+    UserAgentSighting,
     UserSession,
     UserToken,
 )
@@ -114,6 +115,31 @@ class UserSessionCrud(AsyncCrud[UserSession]):
         UserSession.created_at,
     ]
     default_load_options = []
+
+
+class UserAgentSightingCrud(AsyncCrud[UserAgentSighting]):
+    model = UserAgentSighting
+    cursor_column = UserAgentSighting.last_seen_at
+    searchable_fields = [
+        UserAgentSighting.user_agent,
+        (UserAgentSighting.user, User.username),
+        (UserAgentSighting.team, Team.name),
+    ]
+    facet_fields = [UserAgentSighting.source, (UserAgentSighting.team, Team.name)]
+    order_fields = [
+        UserAgentSighting.last_seen_at,
+        UserAgentSighting.first_seen_at,
+        UserAgentSighting.user_agent,
+        UserAgentSighting.source,
+        (UserAgentSighting.user, User.username),
+        (UserAgentSighting.team, Team.name),
+        UserAgentSighting.created_at,
+    ]
+    default_load_options = [
+        joinedload(UserAgentSighting.user),
+        joinedload(UserAgentSighting.team),
+        joinedload(UserAgentSighting.token),
+    ]
 
 
 class OAuthProviderCrud(AuditedCrud[OAuthProvider]):

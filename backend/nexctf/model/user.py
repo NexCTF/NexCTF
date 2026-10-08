@@ -7,9 +7,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Enum, ForeignKey, String, text
+from sqlalchemy import Enum, ForeignKey, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, query_expression, relationship
+
+from nexctf.enums import ClientCategory, ClientSource
 
 from .base import Base, LabelStr
 
@@ -131,3 +133,52 @@ class UserSession(Base):
     user_id: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
+
+
+class UserAgentSighting(Base):
+    """One user-agent a user was seen with, per authentication source."""
+
+    __tablename__ = "user_agent_sightings"
+    __table_args__ = (
+        UniqueConstraint("user_id", "source", "ua_hash", name="uq_user_agent_sighting"),
+    )
+
+    user_agent: Mapped[str] = mapped_column(String(512))
+    ua_hash: Mapped[str] = mapped_column(String(64))
+    source: Mapped[ClientSource] = mapped_column(
+        Enum(
+            ClientSource,
+            native_enum=False,
+            length=16,
+            values_callable=lambda e: [m.value for m in e],
+        )
+    )
+    first_seen_at: Mapped[datetime]
+    last_seen_at: Mapped[datetime] = mapped_column(index=True)
+    # Classified from the configured patterns, loaded with ``with_expression``
+    category: Mapped[ClientCategory | None] = query_expression()
+
+    user: Mapped[User] = relationship()
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # Team of the user when the client was last seen
+    team: Mapped[Team | None] = relationship()
+    team_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("teams.id", ondelete="SET NULL"), nullable=True
+    )
+    # Last API token the client used, for token sightings
+    token: Mapped[UserToken | None] = relationship()
+    token_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("user_tokens.id", ondelete="SET NULL"), nullable=True
+    )
+
+    @property
+    def username(self) -> str:
+        return self.user.username
+
+    @property
+    def team_name(self) -> str | None:
+        return self.team.name if self.team is not None else None
+
+    @property
+    def token_name(self) -> str | None:
+        return self.token.name if self.token is not None else None

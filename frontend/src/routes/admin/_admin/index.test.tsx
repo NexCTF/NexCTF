@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import type { TableState } from "@/components/data-table";
 import type { ChallengeStats } from "@/lib/api";
-import { byCategory, clientPage, scoreBuckets } from "./index";
+import { byCategory, challengePage, scoreBuckets } from "./index";
 
 it("groups team totals into equal-width brackets", () => {
   const buckets = scoreBuckets([0, 100, 250, 800]);
@@ -59,29 +59,29 @@ const STATE: TableState = {
 };
 
 it("pages the list and defaults to the most-solved first", () => {
-  const first = clientPage(ROWS, STATE);
+  const first = challengePage(ROWS, STATE);
   expect(first.data.map((r) => r.challenge_title)).toEqual(["Beta", "Alpha"]);
   expect(first.pagination).toMatchObject({ total_count: 3, pages: 2, has_more: true });
 
-  const second = clientPage(ROWS, { ...STATE, page: 2 });
+  const second = challengePage(ROWS, { ...STATE, page: 2 });
   expect(second.data.map((r) => r.challenge_title)).toEqual(["Gamma"]);
   expect(second.pagination.has_more).toBe(false);
 });
 
 it("searches title and category, and filters by category", () => {
-  expect(clientPage(ROWS, { ...STATE, search: "amm" }).data).toHaveLength(1);
-  expect(clientPage(ROWS, { ...STATE, search: "pwn" }).data[0].challenge_title).toBe("Beta");
+  expect(challengePage(ROWS, { ...STATE, search: "amm" }).data).toHaveLength(1);
+  expect(challengePage(ROWS, { ...STATE, search: "pwn" }).data[0].challenge_title).toBe("Beta");
 
-  const filtered = clientPage(ROWS, { ...STATE, filters: { category: ["web"] } });
+  const filtered = challengePage(ROWS, { ...STATE, filters: { category: ["web"] } });
   expect(filtered.data.map((r) => r.challenge_title)).toEqual(["Alpha", "Gamma"]);
   expect(filtered.filter_attributes.category).toEqual(["pwn", "web"]);
 });
 
 it("sorts by the requested column in both directions", () => {
-  const asc = clientPage(ROWS, { ...STATE, perPage: 10, sortColumn: "challenge_title" });
+  const asc = challengePage(ROWS, { ...STATE, perPage: 10, sortColumn: "challenge_title" });
   expect(asc.data.map((r) => r.challenge_title)).toEqual(["Alpha", "Beta", "Gamma"]);
 
-  const desc = clientPage(ROWS, {
+  const desc = challengePage(ROWS, {
     ...STATE,
     perPage: 10,
     sortColumn: "challenge_title",

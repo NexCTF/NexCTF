@@ -42,6 +42,8 @@ export interface Column<T> {
   sortable?: boolean;
   cell?: (row: T) => ReactNode;
   className?: string;
+  /** Display names of the values of the facet sharing this column's key */
+  filterOptions?: Record<string, string>;
 }
 
 export interface TableState {
@@ -281,16 +283,19 @@ export function DataTable<T>({
   const resolvedFilters = useMemo(() => {
     const attrs = response?.filter_attributes ?? {};
     return Object.entries(attrs)
-      .map(([key, rawValues]) => ({
-        key,
-        label: humanizeKey(key),
-        options: (rawValues as unknown[]).map((v) => ({
-          value: String(v),
-          label: humanizeValue(v),
-        })),
-      }))
+      .map(([key, rawValues]) => {
+        const column = columns.find((col) => col.key === key);
+        return {
+          key,
+          label: column?.header ?? humanizeKey(key),
+          options: (rawValues as unknown[]).map((v) => ({
+            value: String(v),
+            label: column?.filterOptions?.[String(v)] ?? humanizeValue(v),
+          })),
+        };
+      })
       .filter((f) => f.options.length > 0);
-  }, [response?.filter_attributes]);
+  }, [response?.filter_attributes, columns]);
 
   const searchColumns = response?.search_columns ?? [];
   const orderColumns = response?.order_columns ?? [];

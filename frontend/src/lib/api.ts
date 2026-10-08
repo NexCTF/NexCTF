@@ -762,6 +762,60 @@ export async function getAdminSessionFailedLogins(
   return request<FailedLoginOverview>(`/admin/session/failed-logins?window=${window}`);
 }
 
+export type ClientCategory = "ai" | "automation" | "browser";
+
+export type ClientSource = "cookie" | "token";
+
+export interface UserClient {
+  id: string;
+  user_agent: string;
+  category: ClientCategory;
+  source: ClientSource;
+  token_name: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+}
+
+/** Every user-agent one account was seen with, most recently active first. */
+export async function getAdminUserClients(userId: string): Promise<UserClient[]> {
+  return request<UserClient[]>(`/admin/user/${userId}/clients`);
+}
+
+export interface ClientSighting {
+  id: string;
+  user_id: string;
+  username: string;
+  /** Team of the user when the client was last seen */
+  team_id: string | null;
+  team_name: string | null;
+  user_agent: string;
+  category: ClientCategory;
+  source: ClientSource;
+  token_name: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+}
+
+/** Each account and user-agent pair seen over a window, most recent first. */
+export async function getAdminSessionClients(
+  window: SessionWindow,
+  queryString: string,
+): Promise<PaginatedResponse<ClientSighting>> {
+  return requestPaginated<ClientSighting>(`/admin/session/clients?window=${window}&${queryString}`);
+}
+
+export interface ClientSummary {
+  client_count: number;
+  account_count: number;
+  ai_account_count: number;
+  automation_account_count: number;
+  token_account_count: number;
+}
+
+export async function getAdminSessionClientsSummary(window: SessionWindow): Promise<ClientSummary> {
+  return request<ClientSummary>(`/admin/session/clients/summary?window=${window}`);
+}
+
 export async function adminResetUserTotp(userId: string): Promise<void> {
   await rawRequest(`/admin/user/${userId}/totp/reset`, { method: "POST" });
 }

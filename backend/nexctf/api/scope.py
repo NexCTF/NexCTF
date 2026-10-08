@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from uuid import UUID
 
 from fastapi import FastAPI, Request
 from fastapi.routing import APIRoute, iter_route_contexts
@@ -69,9 +70,15 @@ ADMIN_EVENTS_SCOPE = "read:admin.config"
 _table: dict[int, str] | None = None
 
 
-def set_token_scopes(request: Request, scopes: Iterable[str]) -> None:
-    """Bind the authenticating token's scopes to *request*."""
+def bind_token(request: Request, token_id: UUID, scopes: Iterable[str]) -> None:
+    """Bind the authenticating token's id and scopes to *request*."""
+    request.state.token_id = token_id
     request.state.token_scopes = frozenset(scopes)
+
+
+def token_id_of(request: Request) -> UUID | None:
+    """Return *request*'s token id, or None for a cookie session."""
+    return getattr(request.state, "token_id", None)
 
 
 def token_scopes_of(request: Request) -> frozenset[str] | None:
