@@ -18,6 +18,7 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
   "submission.trap": "bg-red-700/10 text-red-700 dark:text-red-300",
   "submission.canary": "bg-red-700/10 text-red-700 dark:text-red-300",
   "solution.timeout": "bg-orange-600/10 text-orange-700 dark:text-orange-400",
+  "challenge.viewed": "bg-slate-500/10 text-slate-600 dark:text-slate-400",
   "challenge.complete": "bg-purple-500/10 text-purple-600 dark:text-purple-400",
   "hint.unlock": "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   "challenge.feedback": "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",

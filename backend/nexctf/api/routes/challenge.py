@@ -44,7 +44,11 @@ from nexctf.model import (
     User,
 )
 from nexctf.module import canary
-from nexctf.module.challenge import get_detail_structure, get_list_structure
+from nexctf.module.challenge import (
+    get_detail_structure,
+    get_list_structure,
+    record_first_view,
+)
 from nexctf.module.challenge.compute import QuestionStructure, solution_load_option
 from nexctf.module.events import emit as emit_event
 from nexctf.module.scoreboard import invalidate as invalidate_scoreboard
@@ -270,6 +274,7 @@ async def list_challenges(
 
 @challenge_router.get("/{challenge_id}")
 async def get_challenge(
+    request: Request,
     session: SessionDep,
     redis: RedisDep,
     challenge_id: UUID,
@@ -280,6 +285,16 @@ async def get_challenge(
     _check_challenge_visibility(user, overrides)
     structure = await get_detail_structure(session, redis, challenge_id)
     questions = structure.questions
+    if user is not None:
+        await record_first_view(
+            session,
+            redis,
+            user,
+            structure.id,
+            structure.title,
+            get_client_ip(request),
+            client_of(request),
+        )
 
     solved = await _solved_ids(session, user, [q.id for q in questions])
     all_hint_ids = [h.id for q in questions for h in q.hints]

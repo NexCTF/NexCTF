@@ -53,8 +53,8 @@ class _Grouping(NamedTuple):
     account_count: int
 
 
-def login_team_meta(user: User) -> dict[str, str | None]:
-    """The team a user signs in under, recorded on the login event."""
+def team_meta(user: User) -> dict[str, str | None]:
+    """The team a user acts under, recorded on the events they trigger."""
     return {"team_id": str(user.team_id) if user.team_id else None}
 
 

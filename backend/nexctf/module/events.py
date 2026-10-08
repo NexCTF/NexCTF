@@ -41,6 +41,7 @@ EVENT_CATEGORIES: dict[str, str] = {
     "submission.canary": "security",
     "solution.timeout": "security",
     "hint.unlock": "gameplay",
+    "challenge.viewed": "gameplay",
     "challenge.complete": "gameplay",
     "challenge.feedback": "gameplay",
     "score_adjustment.created": "admin",

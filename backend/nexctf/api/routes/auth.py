@@ -73,9 +73,9 @@ from nexctf.module.events import emit
 from nexctf.module.session import (
     FAILED_LOGIN_EVENT,
     LOGIN_EVENT,
-    login_team_meta,
     revoke_session,
     revoke_user_sessions,
+    team_meta,
 )
 from nexctf.schema import (
     OAuthAccountCreate,
@@ -307,7 +307,7 @@ async def login(
         event_type=LOGIN_EVENT,
         actor_id=user.id,
         ip=client_ip,
-        meta={"username": user.username, **login_team_meta(user)},
+        meta={"username": user.username, **team_meta(user)},
     )
 
 
@@ -729,7 +729,7 @@ async def oauth_callback(
         meta={
             "username": user.username,
             "provider": provider.slug,
-            **login_team_meta(user),
+            **team_meta(user),
         },
     )
 
