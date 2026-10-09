@@ -1,5 +1,6 @@
 """Unit tests for nexctf.module.info.version semver comparison."""
 
+from datetime import timedelta
 from typing import Any
 
 import pytest
@@ -28,7 +29,7 @@ class _FakePipeline:
     def __init__(self, store: dict[str, bytes]) -> None:
         self.store = store
 
-    def setex(self, key: str, _ttl: int, value: bytes) -> None:
+    def set(self, key: str, value: bytes, ex: timedelta) -> None:
         self.store[key] = value
 
     def sadd(self, _registry: str, _key: str) -> None:

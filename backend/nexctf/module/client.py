@@ -111,7 +111,7 @@ def category_expression(overrides: dict[str, str]) -> ColumnElement[str]:
 def sighting_load_options(category: ColumnElement[str]) -> list[ExecutableOption]:
     """Load a sighting's relations along with its *category*."""
     return [
-        *crud.UserAgentSightingCrud.default_load_options,
+        *(crud.UserAgentSightingCrud.default_load_options or ()),
         with_expression(UserAgentSighting.category, category),
     ]
 

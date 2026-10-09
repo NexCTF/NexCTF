@@ -1,6 +1,7 @@
 """Tests for the OAuth2 authorization server endpoints (/oauth2/*)."""
 
 import json
+from typing import Any
 from unittest.mock import AsyncMock
 from urllib.parse import parse_qsl, urlparse
 
@@ -30,6 +31,13 @@ _CODE_PAYLOAD = json.dumps(
         "state": None,
     }
 )
+
+
+def _stored(mock_redis: AsyncMock, prefix: str) -> list[tuple[Any, ...]]:
+    """Return the positional args of each ``redis.set`` call keyed under ``prefix``."""
+    return [
+        c.args for c in mock_redis.set.call_args_list if c.args[0].startswith(prefix)
+    ]
 
 
 class TestOAuthServerMetadata:
@@ -208,7 +216,7 @@ class TestOAuth2Approve:
         mock_redis,
     ) -> None:
         c, _ = user_client
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
 
         resp = await c.post(
             "/oauth2/authorize/approve",
@@ -222,7 +230,7 @@ class TestOAuth2Approve:
         redirect_to = resp.json()["data"]["redirect_to"]
         assert redirect_to.startswith(_REDIRECT_URI)
         assert "code=" in redirect_to
-        mock_redis.setex.assert_called_once()
+        assert len(_stored(mock_redis, "oauth:code:")) == 1
 
     async def test_approve_with_state(
         self,
@@ -231,7 +239,7 @@ class TestOAuth2Approve:
         mock_redis,
     ) -> None:
         c, _ = user_client
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
 
         resp = await c.post(
             "/oauth2/authorize/approve",
@@ -255,7 +263,7 @@ class TestOAuth2Approve:
         # A state with '&'/'#'/space must be percent-encoded so it cannot
         # inject extra params or a fragment into the redirect querystring.
         c, _ = user_client
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
 
         resp = await c.post(
             "/oauth2/authorize/approve",
@@ -312,7 +320,7 @@ class TestOAuth2Approve:
     ) -> None:
         """A redirect_uri that already carries a query string stays well-formed."""
         c, _ = user_client
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
 
         resp = await c.post(
             "/oauth2/authorize/approve",
@@ -354,7 +362,7 @@ class TestOAuth2Token:
     ) -> None:
         mock_redis.get = AsyncMock(return_value=_CODE_PAYLOAD)
         mock_redis.delete = AsyncMock()
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
 
         resp = await http_client.post(
             "/oauth2/token",
@@ -371,7 +379,7 @@ class TestOAuth2Token:
         assert "access_token" in data
         assert data["token_type"] == "bearer"
         assert data["expires_in"] > 0
-        mock_redis.setex.assert_called_once()
+        assert len(_stored(mock_redis, "oauth:token:")) == 1
 
     async def test_invalid_code(
         self,
@@ -437,7 +445,7 @@ class TestOAuth2Token:
             )
         )
         mock_redis.delete = AsyncMock()
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
 
         resp = await http_client.post(
             "/oauth2/token",
@@ -451,7 +459,7 @@ class TestOAuth2Token:
         )
         assert resp.status_code == 403
         assert resp.json()["error"] == "access_denied"
-        mock_redis.setex.assert_not_called()
+        assert not _stored(mock_redis, "oauth:code:")
 
     async def test_unsupported_grant_type(
         self,
@@ -540,7 +548,7 @@ class TestOAuth2PKCE:
         mock_redis,
     ) -> None:
         c, _ = user_client
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
 
         resp = await c.post(
             "/oauth2/authorize/approve",
@@ -553,7 +561,7 @@ class TestOAuth2PKCE:
             },
         )
         assert resp.status_code == 200
-        stored_payload = json.loads(mock_redis.setex.call_args.args[2])
+        stored_payload = json.loads(_stored(mock_redis, "oauth:code:")[0][1])
         assert stored_payload["code_challenge"] == _PKCE_CHALLENGE
 
     async def test_approve_rejects_non_s256_method(
@@ -585,7 +593,7 @@ class TestOAuth2PKCE:
     ) -> None:
         mock_redis.get = AsyncMock(return_value=self._CODE_PAYLOAD_PKCE)
         mock_redis.delete = AsyncMock()
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
 
         resp = await http_client.post(
             "/oauth2/token",
@@ -697,7 +705,7 @@ class TestOAuth2RoleRestriction:
         mock_redis,
     ) -> None:
         c, _ = user_client
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
         resp = await c.post(
             "/oauth2/authorize/approve",
             json={
@@ -708,7 +716,7 @@ class TestOAuth2RoleRestriction:
         )
         assert resp.status_code == 403
         # No authorization code may be minted for a forbidden role.
-        mock_redis.setex.assert_not_called()
+        assert not _stored(mock_redis, "oauth:code:")
 
     async def test_approve_allows_permitted_role(
         self,
@@ -717,7 +725,7 @@ class TestOAuth2RoleRestriction:
         mock_redis,
     ) -> None:
         c, _ = admin_client
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
         resp = await c.post(
             "/oauth2/authorize/approve",
             json={

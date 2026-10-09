@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nexctf.core import appconfig
 from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.db import get_db_context
+from nexctf.model import Challenge
 from nexctf.model.scheduler import SchedulerJob, SchedulerTask
 from nexctf.module import backup
 from nexctf.module.challenge import invalidate as invalidate_challenges
@@ -31,6 +32,7 @@ from nexctf.module.notification import create_and_publish
 from nexctf.plugins.declare import CronDef, JobDef, Plugin, TaskDef
 from nexctf.plugins.registry import SchedulerEntry, scheduler_registry
 from nexctf.schema.backup import BackupDatabaseParams, BackupSource
+from nexctf.schema.notification import AdminNotificationCreate
 from nexctf.schema.scheduler import (
     SchedulerRunPayload,
     SendNotificationParams,
@@ -65,8 +67,6 @@ _QUEUE_LOG = table(
 async def handle_send_notification(
     job: SchedulerJob, session: AsyncSession, redis: Redis
 ) -> None:
-    from nexctf.schema.notification import AdminNotificationCreate
-
     params = SendNotificationParams.model_validate(job.params)
 
     await create_and_publish(
@@ -85,8 +85,6 @@ async def handle_send_notification(
 async def handle_toggle_challenge(
     job: SchedulerJob, session: AsyncSession, redis: Redis
 ) -> None:
-    from nexctf.model import Challenge
-
     params = ToggleChallengeParams.model_validate(job.params)
 
     challenge = await session.get(Challenge, params.challenge_id)

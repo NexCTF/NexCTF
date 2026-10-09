@@ -254,7 +254,7 @@ async def list_challenges(
     _check_challenge_visibility(user, overrides)
     structure = await get_list_structure(session, redis)
 
-    all_q_ids = [qid for item in structure for qid in item.question_ids]
+    all_q_ids = [*item.question_ids for item in structure]
     solved = await _solved_ids(session, user, all_q_ids)
 
     return Response(

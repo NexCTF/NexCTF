@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
@@ -56,7 +57,7 @@ class TeamChallengeStats(PydanticBase):
     points_earned: int
     first_solve_at: datetime | None
     last_solve_at: datetime | None
-    questions: list[TeamQuestionStats] = []
+    questions: Sequence[TeamQuestionStats] = []
 
 
 class TeamHintUnlock(PydanticBase):

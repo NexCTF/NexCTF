@@ -59,7 +59,7 @@ async def get_or_compute[T](
             logger.info("cache.stale_payload key=%s", key)
     result = await compute()
     pipe = redis.pipeline()
-    pipe.setex(key, int(ttl.total_seconds()), adapter.dump_json(result))
+    pipe.set(key, adapter.dump_json(result), ex=ttl)
     if registry is not None:
         pipe.sadd(registry, key)
     await pipe.execute()

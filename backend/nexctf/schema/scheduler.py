@@ -5,9 +5,12 @@ from uuid import UUID
 
 from fastapi_toolsets.schemas import PydanticBase
 from pydantic import AfterValidator, Field, model_validator
+lazy from sqlalchemy import select
 
 from nexctf.util.cron import validate_cron
 from nexctf.util.pydantic import InlineSelect, SelectOption
+lazy from nexctf.core.db import get_db_context
+lazy from nexctf.model.challenge import Challenge
 
 CronExpression = Annotated[str, Field(max_length=128), AfterValidator(validate_cron)]
 
@@ -28,11 +31,6 @@ class SendNotificationParams(PydanticBase):
 
 
 async def _get_challenge_options() -> list[SelectOption]:
-    from sqlalchemy import select
-
-    from nexctf.core.db import get_db_context
-    from nexctf.model.challenge import Challenge
-
     async with get_db_context() as session:
         rows = await session.execute(
             select(Challenge.id, Challenge.title).order_by(Challenge.title)

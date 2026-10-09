@@ -434,7 +434,7 @@ class TestAdminPasswordResetToken:
         c, _ = admin_client
         user = fixture_user_members[0]
 
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
         resp = await c.post(f"{self.PREFIX}/{user.id}/password-reset-token")
         assert resp.status_code == 200
         token = resp.json()["data"]
@@ -442,9 +442,7 @@ class TestAdminPasswordResetToken:
 
         # Confirm the hashed token was stored in redis
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        mock_redis.setex.assert_called_once_with(
-            f"pwd_reset:{token_hash}", 3600, str(user.id)
-        )
+        mock_redis.set.assert_any_call(f"pwd_reset:{token_hash}", str(user.id), ex=3600)
 
     async def test_not_found(self, admin_client: tuple[AsyncClient, User]) -> None:
         c, _ = admin_client

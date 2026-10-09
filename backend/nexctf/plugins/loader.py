@@ -12,6 +12,9 @@ from email.utils import getaddresses
 from pathlib import Path
 from typing import TYPE_CHECKING, get_args
 
+from fastapi import APIRouter, FastAPI
+from sqlalchemy import Table
+
 from nexctf.plugins.config import plugin_config_defs, register_config
 from nexctf.plugins.declare import (
     NavSection,
@@ -28,21 +31,25 @@ from nexctf.plugins.registry import (
     task_registry,
 )
 from nexctf.plugins.routes import route_registry
+lazy from nexctf.api.dep import AdminAuthDep, UserAuthDep
+lazy from nexctf.api.scope import plugin_prefix_conflict, reset_table
+lazy from nexctf.core.appconfig import ConfigDef, sync_to_redis
+lazy from nexctf.core.cache import get_client as get_redis_client
+lazy from nexctf.core.config import settings
+lazy from nexctf.crud import ChallengeCrud, SolutionCrud
+lazy from nexctf.model import Base
 
 if TYPE_CHECKING:
-    from fastapi import FastAPI
     from sqlalchemy.ext.asyncio import AsyncSession
-
-    from nexctf.core.appconfig import ConfigDef
 
 logger = logging.getLogger(__name__)
 
 _ENTRY_POINT_GROUP = "nexctf.plugins"
 _DISABLED_ENV = "NEXCTF_DISABLED_PLUGINS"
-_BUILTINS = {
-    "challenge": "nexctf.plugins.builtin.challenge",
-    "solution": "nexctf.plugins.builtin.solution",
-}
+_BUILTINS = frozendict(
+    challenge="nexctf.plugins.builtin.challenge",
+    solution="nexctf.plugins.builtin.solution",
+)
 _CORE_KEY = "core"
 _CORE_MODULES = ("nexctf.module.scheduler", "nexctf.tasks.maintenance")
 
@@ -146,13 +153,14 @@ def _installed_metadata(
         The assembled metadata.
     """
     metadata = dist.metadata
+    name = metadata.get("Name") or key
     urls = _project_urls(dist)
     return PluginMeta(
         key=key,
-        name=metadata["Name"] or key,
-        display_name=_display_name(metadata["Name"] or key),
-        version=metadata["Version"],
-        description=metadata["Summary"],
+        name=name,
+        display_name=_display_name(name),
+        version=metadata.get("Version"),
+        description=metadata.get("Summary"),
         authors=_authors(dist),
         repo_url=urls.get("repository") or urls.get("source"),
         homepage_url=urls.get("homepage"),
@@ -172,10 +180,6 @@ def derive_owned_tables(package: str) -> frozenset[str]:
     Returns:
         The set of table names declared by models inside that package.
     """
-    from sqlalchemy import Table
-
-    from nexctf.model import Base
-
     prefix = f"{package}."
     return frozenset(
         mapper.local_table.name
@@ -223,8 +227,6 @@ def get_plugin_packages() -> dict[str, str]:
 
 def _validate_routers(routers: list[RouterDef]) -> None:
     """Raise if a router has an unknown scope or a malformed or taken prefix."""
-    from nexctf.api.scope import plugin_prefix_conflict
-
     for router in routers:
         if router.scope not in _ROUTER_SCOPES:
             raise ValueError(
@@ -386,8 +388,6 @@ def load_plugin_registries(*, include_disabled: bool = False) -> None:
 
 def _patch_crud_classes() -> None:
     """Patch base CRUD classes with plugin-registered load options."""
-    from nexctf.crud import ChallengeCrud, SolutionCrud
-
     challenge_registry.apply(ChallengeCrud)
     solution_registry.apply(SolutionCrud)
 
@@ -398,12 +398,6 @@ def mount_plugin_routes(app: FastAPI) -> None:
     Args:
         app: The FastAPI application to mount the routers on.
     """
-    from fastapi import APIRouter
-
-    from nexctf.api.dep import AdminAuthDep, UserAuthDep
-    from nexctf.api.scope import reset_table
-    from nexctf.core.config import settings
-
     parents = {
         "admin": APIRouter(
             prefix=f"{settings.API_V1_STR}/admin", dependencies=[AdminAuthDep]
@@ -427,9 +421,6 @@ async def init_plugins(app: FastAPI, session: AsyncSession) -> None:
         app: The FastAPI application to wire plugin routes into.
         session: An open async database session.
     """
-    from nexctf.core.appconfig import sync_to_redis
-    from nexctf.core.cache import get_client as get_redis_client
-
     load_plugin_registries()
     _patch_crud_classes()
     await sync_to_redis(session, get_redis_client())

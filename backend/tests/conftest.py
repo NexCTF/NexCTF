@@ -155,7 +155,7 @@ def client_factory(app_overrides):
     """Returns a context manager that creates an isolated AsyncClient with test overrides."""
 
     @asynccontextmanager
-    async def _create() -> AsyncIterator[AsyncClient]:
+    async def _create() -> AsyncGenerator[AsyncClient]:
         async with create_async_client(
             app=app, base_url="http://127.0.0.1/api/v1"
         ) as c:
@@ -187,7 +187,7 @@ def override_db_context(
     from nexctf.module import client
 
     @asynccontextmanager
-    async def _test_db_context() -> AsyncIterator[AsyncSession]:
+    async def _test_db_context() -> AsyncGenerator[AsyncSession]:
         yield db_session
         await db_session.flush()
 
@@ -203,7 +203,7 @@ async def _role_client(
     username: str,
     password: str,
     role: UserRole,
-) -> AsyncIterator[tuple[AsyncClient, User]]:
+) -> AsyncGenerator[tuple[AsyncClient, User]]:
     """Create a logged-in AsyncClient for a user with the given role."""
     from nexctf.api.security import hash_password
 

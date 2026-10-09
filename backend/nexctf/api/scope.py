@@ -11,57 +11,60 @@ from fastapi.routing import APIRoute, iter_route_contexts
 from nexctf.core.config import settings
 from nexctf.exceptions import InsufficientScopeError, UnscopableEndpointError
 from nexctf.plugins.routes import route_registry
+lazy from nexctf.plugins import load_plugin_registries
 
-VERB_OF_METHOD = {
-    "GET": "read",
-    "HEAD": "read",
-    "OPTIONS": "read",
-    "POST": "write",
-    "PUT": "write",
-    "PATCH": "write",
-    "DELETE": "write",
-}
-_PREFIX_GROUPS: dict[str, str] = {
-    "/admin/backup": "admin.backup",
-    "/admin/bundle": "admin.bundle",
-    "/admin/challenge": "admin.challenge",
-    "/admin/question": "admin.challenge",
-    "/admin/solution": "admin.challenge",
-    "/admin/hint": "admin.challenge",
-    "/admin/submission": "admin.challenge",
-    "/admin/score-adjustment": "admin.challenge",
-    "/admin/file": "admin.challenge",
-    "/admin/scoreboard": "admin.scoreboard",
-    "/admin/stats": "admin.scoreboard",
-    "/admin/team": "admin.team",
-    "/admin/user": "admin.user",
-    "/admin/session": "admin.user",
-    "/admin/custom-field": "admin.user",
-    "/admin/notification": "admin.notification",
-    "/admin/email": "admin.notification",
-    "/admin/page": "admin.content",
-    "/admin/link": "admin.content",
-    "/admin/config": "admin.config",
-    "/admin/event": "admin.config",
-    "/admin/scheduler": "admin.config",
-    "/admin/feedback": "admin.config",
-    "/admin/oauth-provider": "admin.config",
-    "/admin/oauth-client": "admin.config",
-    "/admin/plugins": "admin.config",
-    "/info/admin": "admin.config",
-    "/info/me": "profile",
-    "/challenges": "challenge",
-    "/file": "challenge",
-    "/scoreboard": "scoreboard",
-    "/team": "team",
-    "/me/tokens": "token",
-    "/me": "profile",
-    "/notification": "notification",
-    "/stream": "notification",
-    "/info": "content",
-    "/page": "content",
-    "/plugins": "content",
-}
+VERB_OF_METHOD = frozendict(
+    GET="read",
+    HEAD="read",
+    OPTIONS="read",
+    POST="write",
+    PUT="write",
+    PATCH="write",
+    DELETE="write",
+)
+_PREFIX_GROUPS: frozendict[str, str] = frozendict(
+    {
+        "/admin/backup": "admin.backup",
+        "/admin/bundle": "admin.bundle",
+        "/admin/challenge": "admin.challenge",
+        "/admin/question": "admin.challenge",
+        "/admin/solution": "admin.challenge",
+        "/admin/hint": "admin.challenge",
+        "/admin/submission": "admin.challenge",
+        "/admin/score-adjustment": "admin.challenge",
+        "/admin/file": "admin.challenge",
+        "/admin/scoreboard": "admin.scoreboard",
+        "/admin/stats": "admin.scoreboard",
+        "/admin/team": "admin.team",
+        "/admin/user": "admin.user",
+        "/admin/session": "admin.user",
+        "/admin/custom-field": "admin.user",
+        "/admin/notification": "admin.notification",
+        "/admin/email": "admin.notification",
+        "/admin/page": "admin.content",
+        "/admin/link": "admin.content",
+        "/admin/config": "admin.config",
+        "/admin/event": "admin.config",
+        "/admin/scheduler": "admin.config",
+        "/admin/feedback": "admin.config",
+        "/admin/oauth-provider": "admin.config",
+        "/admin/oauth-client": "admin.config",
+        "/admin/plugins": "admin.config",
+        "/info/admin": "admin.config",
+        "/info/me": "profile",
+        "/challenges": "challenge",
+        "/file": "challenge",
+        "/scoreboard": "scoreboard",
+        "/team": "team",
+        "/me/tokens": "token",
+        "/me": "profile",
+        "/notification": "notification",
+        "/stream": "notification",
+        "/info": "content",
+        "/page": "content",
+        "/plugins": "content",
+    }
+)
 # Core route prefixes that belong to no token group; plugins may not claim them either.
 _UNGROUPED_PREFIXES = ("/auth", "/oauth2", "/admin/custom-field-value")
 # The admin audit channel rides the notification group, so it gates on its own scope.
@@ -126,8 +129,6 @@ def all_groups() -> frozenset[str]:
 
 def full_admin_scopes() -> list[str]:
     """Every scope an admin may hold, loading installed plugins first."""
-    from nexctf.plugins import load_plugin_registries
-
     load_plugin_registries()
     return sorted(grantable_scopes(is_admin=True))
 

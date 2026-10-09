@@ -70,7 +70,7 @@ async def issue_single_use_token(
     the caller to embed in a link. Shared by password-reset and email-verification.
     """
     token = secrets.token_urlsafe(32)
-    await redis.setex(f"{prefix}{_hash_token(token)}", ttl, str(subject_id))
+    await redis.set(f"{prefix}{_hash_token(token)}", str(subject_id), ex=ttl)
     return token
 
 

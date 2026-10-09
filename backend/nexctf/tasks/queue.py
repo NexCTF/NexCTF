@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncGenerator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from datetime import timedelta
 from typing import Self
@@ -104,7 +104,7 @@ class SessionDriver(_SqlAlchemyDriver):
         self._session = session
 
     @asynccontextmanager
-    async def _connection(self) -> AsyncIterator[AsyncConnection]:
+    async def _connection(self) -> AsyncGenerator[AsyncConnection]:
         yield await self._session.connection()
 
 

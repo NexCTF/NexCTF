@@ -95,7 +95,7 @@ async def compute_admin_team_challenge_stats(
         q_ids = {q.id for q in challenge.questions}
         q_count = len(q_ids)
 
-        c_subs = [s for qid in q_ids for s in subs_by_question.get(qid, [])]
+        c_subs = [*subs_by_question.get(qid, []) for qid in q_ids]
         correct_subs = [s for s in c_subs if s.is_correct]
 
         solved_q_ids = {s.question_id for s in correct_subs}
