@@ -2328,10 +2328,11 @@ export interface SchedulerJob {
 export interface SchedulerTask {
   id: string;
   job_id: string;
-  status: "pending" | "success" | "failed";
+  status: "pending" | "success" | "failed" | "skipped" | "cancelled";
   started_at: string;
   completed_at: string | null;
-  error: string | null;
+  /** The task-queue job running it, whose dashboard page holds any traceback. */
+  queue_job_id: number | null;
   created_at: string;
 }
 

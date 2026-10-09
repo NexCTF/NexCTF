@@ -66,15 +66,20 @@ export default defineConfig(({ command }) => ({
       // SSE endpoint — disable timeout so the long-lived connection isn't killed
       "/api/v1/stream": {
         target: "http://localhost:8000",
-        changeOrigin: true,
         // xfwd sends the real client IP; pairs with TRUSTED_PROXY_COUNT=1
+        xfwd: true,
+        timeout: 0,
+        proxyTimeout: 0,
+      },
+      // Task dashboard's SSE endpoint, likewise long-lived
+      "/api/admin/tasks/events": {
+        target: "http://localhost:8000",
         xfwd: true,
         timeout: 0,
         proxyTimeout: 0,
       },
       "/api": {
         target: "http://localhost:8000",
-        changeOrigin: true,
         xfwd: true,
       },
     },

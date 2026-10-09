@@ -8,9 +8,9 @@ from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 
 from nexctf import crud
-from nexctf.api.dep import ConfigDep, CurrentUserDep, RedisDep, SessionDep
+from nexctf.api.dep import ConfigDep, CurrentUserDep, SessionDep
 from nexctf.model.scheduler import SchedulerJob, SchedulerTask
-from nexctf.module.scheduler import force_run_job, next_fire_from_now
+from nexctf.module.scheduler import next_fire_from_now, run_now
 from nexctf.plugins.registry import SchedulerEntry, scheduler_registry
 from nexctf.schema.scheduler import (
     AdminSchedulerJobCreate,
@@ -160,15 +160,10 @@ async def delete_job(session: SessionDep, uuid: UUID) -> Response[None]:
 
 
 @scheduler_router.post("/jobs/{uuid}/run")
-async def run_job(
-    session: SessionDep,
-    redis: RedisDep,
-    uuid: UUID,
-) -> Response[AdminSchedulerTaskRead]:
-    job = await crud.SchedulerJobCrud.get(
-        session, filters=[SchedulerJob.id == uuid], with_for_update=True
-    )
-    task = await force_run_job(job, session, redis)
+async def run_job(session: SessionDep, uuid: UUID) -> Response[AdminSchedulerTaskRead]:
+    """Queue a run of the job now, leaving its schedule as is."""
+    job = await crud.SchedulerJobCrud.get(session, filters=[SchedulerJob.id == uuid])
+    task = await run_now(session, job)
     return Response(data=AdminSchedulerTaskRead.model_validate(task))
 
 

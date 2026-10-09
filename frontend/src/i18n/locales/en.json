@@ -348,6 +348,7 @@
       "security": "Security",
       "settings": "Settings",
       "submissions": "Submissions",
+      "tasks": "Task queue",
       "teams": "Teams",
       "users": "Users"
     },
@@ -463,7 +464,7 @@
       "active_hint": "Enable the job to fire at the scheduled time",
       "col_last_run": "Last run",
       "col_task_completed": "Completed",
-      "col_task_error": "Error",
+      "col_task_details": "Details",
       "col_task_started": "Started",
       "col_task_status": "Status",
       "create": "New job",
@@ -496,13 +497,14 @@
       "not_found": "Job not found.",
       "run": "Run now",
       "run_error": "Execution failed",
-      "run_failed": "Execution failed",
-      "run_success": "Job executed",
+      "run_queued": "Run queued",
+      "run_skipped": "A run of this job is already queued or running",
       "save_error": "Failed to save job",
       "saved": "Job saved",
       "tasks_title": "Execution history",
       "toggle_error": "Failed to update job",
-      "type_placeholder": "Select a job type…"
+      "type_placeholder": "Select a job type…",
+      "view_in_task_queue": "View in task queue"
     },
     "scoreboard": {
       "add_adjustment": "Add Adjustment",
@@ -580,6 +582,10 @@
     "tags": {
       "input_placeholder": "Add a tag…",
       "remove": "Remove tag {{name}}"
+    },
+    "tasks": {
+      "open_in_new_tab": "Open in new tab",
+      "refresh": "Refresh"
     },
     "teams": {
       "add_link": "Add link",

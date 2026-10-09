@@ -1,19 +1,24 @@
 """Tests for the scheduler sweep and runs: one-shot retirement, cron rescheduling."""
 
+import contextlib
+from collections.abc import Awaitable, Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import func, select, text
+from pgqueuer import Queries
+from pgqueuer.types import JobId
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from nexctf.model import User, UserRole
 from nexctf.model.scheduler import SchedulerJob, SchedulerTask
 from nexctf.module.scheduler import (
     RUN_JOB_TASK,
-    fail_lost_runs,
+    run_now,
     run_queued_job,
+    settle_lost_runs,
     sweep_due_jobs,
 )
 from nexctf.plugins.declare import JobDef
@@ -46,7 +51,9 @@ async def _tick(session: AsyncSession, redis: Any) -> None:
     """Sweep, then execute and dequeue every queued run, as the worker would."""
     await sweep_due_jobs(session, redis)
     for task_id, _ in await _queued_runs(session):
-        await run_queued_job(session, redis, task_id)
+        # The worker logs a failed run and holds its job.
+        with contextlib.suppress(Exception):
+            await run_queued_job(session, redis, task_id)
     await session.execute(text(f"DELETE FROM {DB_SETTINGS.qualified.queue_table}"))
     await session.commit()
 
@@ -59,23 +66,39 @@ async def owner(db_session: AsyncSession, task_queue: Any) -> User:
     return user
 
 
+Handler = Callable[[SchedulerJob, AsyncSession, Any], Awaitable[None]]
+
+
 @pytest.fixture
-def counting_job_type() -> Any:
+def register_job_type() -> Iterator[Callable[[Handler], str]]:
+    """Register throwaway job types, each removed after the test."""
+    names: list[str] = []
+
+    def register(handler: Handler) -> str:
+        name = f"test_job_{uuid4().hex[:8]}"
+        scheduler_registry.add(
+            JobDef(name, handler, SendNotificationParams, SendNotificationParams),
+            owner="tests",
+        )
+        names.append(name)
+        return name
+
+    yield register
+    for name in names:
+        scheduler_registry._entries.pop(name, None)
+
+
+@pytest.fixture
+def counting_job_type(
+    register_job_type: Callable[[Handler], str],
+) -> tuple[str, list[UUID]]:
     """Register a throwaway job type that records every invocation."""
     calls: list[UUID] = []
-    type_name = f"test_counter_{uuid4().hex[:8]}"
 
     async def handler(job: SchedulerJob, session: AsyncSession, redis: Any) -> None:
         calls.append(job.id)
 
-    scheduler_registry.add(
-        JobDef(type_name, handler, SendNotificationParams, SendNotificationParams),
-        owner="tests",
-    )
-    try:
-        yield type_name, calls
-    finally:
-        scheduler_registry._entries.pop(type_name, None)
+    return register_job_type(handler), calls
 
 
 def _job(owner: User, job_type: str, **kwargs: Any) -> SchedulerJob:
@@ -87,6 +110,18 @@ def _job(owner: User, job_type: str, **kwargs: Any) -> SchedulerJob:
         created_by_id=owner.id,
         **kwargs,
     )
+
+
+async def _queue_one(
+    session: AsyncSession, redis: Any, owner: User, job_type: str
+) -> tuple[SchedulerJob, UUID]:
+    """Add a due job of ``job_type`` and sweep it; return it and its queued run."""
+    job = _job(owner, job_type)
+    session.add(job)
+    await session.flush()
+    await sweep_due_jobs(session, redis)
+    ((task_id, _),) = await _queued_runs(session)
+    return job, task_id
 
 
 async def _task_count(session: AsyncSession, job: SchedulerJob) -> int:
@@ -152,35 +187,30 @@ async def test_missed_windows_do_not_replay_a_backlog(
 
 
 async def test_failing_cron_job_still_reschedules(
-    db_session: AsyncSession, mock_redis: Any, owner: User
+    db_session: AsyncSession,
+    mock_redis: Any,
+    owner: User,
+    register_job_type: Callable[[Handler], str],
 ) -> None:
-    type_name = f"test_boom_{uuid4().hex[:8]}"
-
     async def handler(job: SchedulerJob, session: AsyncSession, redis: Any) -> None:
         raise RuntimeError("boom")
 
-    scheduler_registry.add(
-        JobDef(type_name, handler, SendNotificationParams, SendNotificationParams),
-        owner="tests",
-    )
-    try:
-        job = _job(owner, type_name, cron_expression="0 * * * *")
-        db_session.add(job)
-        await db_session.flush()
+    job = _job(owner, register_job_type(handler), cron_expression="0 * * * *")
+    db_session.add(job)
+    await db_session.flush()
 
-        await _tick(db_session, mock_redis)
+    await _tick(db_session, mock_redis)
+    # The failed run rolled back, expiring the job.
+    await db_session.refresh(job)
 
-        task = (
-            await db_session.execute(
-                select(SchedulerTask).where(SchedulerTask.job_id == job.id)
-            )
-        ).scalar_one()
-        assert task.status == TaskStatus.FAILED
-        assert task.error == "boom"
-        assert job.is_active is True
-        assert job.scheduled_at > datetime.now(UTC)
-    finally:
-        scheduler_registry._entries.pop(type_name, None)
+    task = (
+        await db_session.execute(
+            select(SchedulerTask).where(SchedulerTask.job_id == job.id)
+        )
+    ).scalar_one()
+    assert task.status == TaskStatus.FAILED
+    assert job.is_active is True
+    assert job.scheduled_at > datetime.now(UTC)
 
 
 async def test_unparsable_cron_deactivates_instead_of_looping(
@@ -207,6 +237,8 @@ async def test_unregistered_job_type_retires_a_one_shot_job(
     await db_session.flush()
 
     await _tick(db_session, mock_redis)
+    # The failed run rolled back, expiring the job.
+    await db_session.refresh(job)
 
     assert job.is_active is False
     task = (
@@ -226,6 +258,8 @@ async def test_unregistered_job_type_keeps_a_cron_job_alive(
     await db_session.flush()
 
     await _tick(db_session, mock_redis)
+    # The failed run rolled back, expiring the job.
+    await db_session.refresh(job)
 
     assert job.is_active is True
     assert job.scheduled_at > datetime.now(UTC)
@@ -253,11 +287,10 @@ def test_next_fire_is_strictly_after(
     assert next_fire(expr, after) == expected
 
 
-async def test_force_run_toggle_challenge_invalidates_the_cache(
+async def test_run_now_queues_a_run_that_invalidates_the_cache(
     db_session: AsyncSession, mock_redis: Any, owner: User
 ) -> None:
     """Run-now must drop the cached challenge structures, like the tick does."""
-    from nexctf.module.scheduler import force_run_job
     from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 
     challenge = StandardChallenge(title="Toggle me", is_active=False)
@@ -269,14 +302,65 @@ async def test_force_run_toggle_challenge_invalidates_the_cache(
         "toggle_challenge",
         params={"challenge_id": str(challenge.id), "make_active": True},
     )
+    job.scheduled_at = datetime.now(UTC) + timedelta(days=1)
     db_session.add(job)
     await db_session.flush()
 
-    task = await force_run_job(job, db_session, mock_redis)
+    task = await run_now(db_session, job)
+    await db_session.commit()
 
+    assert task.status == TaskStatus.PENDING
+    assert await _queued_runs(db_session) == [(task.id, f"scheduler:{job.id}")]
+    await run_queued_job(db_session, mock_redis, task.id)
     assert task.status == TaskStatus.SUCCESS
     assert challenge.is_active is True
     assert mock_redis.delete.called
+    assert job.scheduled_at > datetime.now(UTC)
+
+
+async def test_a_failed_run_is_rolled_back_recorded_and_reraised(
+    db_session: AsyncSession,
+    mock_redis: Any,
+    owner: User,
+    register_job_type: Callable[[Handler], str],
+) -> None:
+    """The queue keeps the traceback; the handler's partial writes are dropped."""
+
+    async def handler(job: SchedulerJob, session: AsyncSession, redis: Any) -> None:
+        job.name = "half-done"
+        await session.flush()
+        raise RuntimeError("boom")
+
+    job, task_id = await _queue_one(
+        db_session, mock_redis, owner, register_job_type(handler)
+    )
+
+    with pytest.raises(RuntimeError, match="boom"):
+        await run_queued_job(db_session, mock_redis, task_id)
+
+    task = await db_session.get_one(SchedulerTask, task_id)
+    assert task.status == TaskStatus.FAILED
+    assert task.completed_at is not None
+    await db_session.refresh(job)
+    assert job.name == "job"
+
+
+async def test_a_requeued_failed_run_runs_again(
+    db_session: AsyncSession, mock_redis: Any, owner: User, counting_job_type: Any
+) -> None:
+    type_name, calls = counting_job_type
+    job, task_id = await _queue_one(db_session, mock_redis, owner, type_name)
+    await db_session.execute(
+        update(SchedulerTask)
+        .where(SchedulerTask.id == task_id)
+        .values(status=TaskStatus.FAILED)
+    )
+
+    await run_queued_job(db_session, mock_redis, task_id)
+
+    assert calls == [job.id]
+    task = await db_session.get_one(SchedulerTask, task_id)
+    assert task.status == TaskStatus.SUCCESS
 
 
 async def test_a_second_worker_skips_jobs_the_first_is_holding(
@@ -329,6 +413,7 @@ async def test_a_sweep_queues_a_pending_run_deduplicated_per_job(
     ).scalar_one()
     assert task.status == TaskStatus.PENDING
     assert await _queued_runs(db_session) == [(task.id, f"scheduler:{job.id}")]
+    assert task.queue_job_id is not None
     assert calls == []
 
 
@@ -346,28 +431,24 @@ async def test_a_run_still_queued_skips_the_next_firing(
     await db_session.flush()
     await sweep_due_jobs(db_session, mock_redis)
 
-    statuses = (
+    runs = (
         await db_session.execute(
-            select(SchedulerTask.status, SchedulerTask.error)
+            select(SchedulerTask.status, SchedulerTask.queue_job_id)
             .where(SchedulerTask.job_id == job.id)
             .order_by(SchedulerTask.created_at)
         )
     ).all()
-    assert [s for s, _ in statuses] == [TaskStatus.PENDING, TaskStatus.FAILED]
-    assert "still in progress" in (statuses[1][1] or "")
+    assert [status for status, _ in runs] == [TaskStatus.PENDING, TaskStatus.SKIPPED]
+    assert runs[1].queue_job_id is None
     assert len(await _queued_runs(db_session)) == 1
 
 
-async def test_a_run_executes_only_while_pending(
+async def test_a_run_that_succeeded_does_not_run_again(
     db_session: AsyncSession, mock_redis: Any, owner: User, counting_job_type: Any
 ) -> None:
-    """A redelivered run whose task already finished does not run the job again."""
+    """A redelivered run whose task already succeeded does not run the job again."""
     type_name, calls = counting_job_type
-    job = _job(owner, type_name)
-    db_session.add(job)
-    await db_session.flush()
-    await sweep_due_jobs(db_session, mock_redis)
-    ((task_id, _),) = await _queued_runs(db_session)
+    job, task_id = await _queue_one(db_session, mock_redis, owner, type_name)
 
     await run_queued_job(db_session, mock_redis, task_id)
     await run_queued_job(db_session, mock_redis, task_id)
@@ -394,21 +475,16 @@ async def test_a_pending_run_without_a_live_job_is_failed(
     lose_it: str,
 ) -> None:
     type_name, _ = counting_job_type
-    job = _job(owner, type_name)
-    db_session.add(job)
-    await db_session.flush()
-    await sweep_due_jobs(db_session, mock_redis)
-    ((task_id, _),) = await _queued_runs(db_session)
+    _, task_id = await _queue_one(db_session, mock_redis, owner, type_name)
 
-    await fail_lost_runs(db_session)
+    await settle_lost_runs(db_session)
     task = await db_session.get_one(SchedulerTask, task_id)
     assert task.status == TaskStatus.PENDING
 
     await db_session.execute(text(lose_it))
-    await fail_lost_runs(db_session)
+    await settle_lost_runs(db_session)
     await db_session.refresh(task)
     assert task.status == TaskStatus.FAILED
-    assert (task.error or "").startswith("lost:")
 
 
 async def test_a_job_due_within_the_window_is_queued_for_its_exact_second(
@@ -455,3 +531,27 @@ async def test_a_job_due_after_the_window_waits_for_a_later_sweep(
 
     assert await _queued_runs(db_session) == []
     assert job.is_active is True
+
+
+@pytest.mark.parametrize("stop", ["cancel", "delete"])
+async def test_a_pending_run_whose_job_was_stopped_is_cancelled(
+    db_session: AsyncSession,
+    mock_redis: Any,
+    task_queue: Queries,
+    owner: User,
+    counting_job_type: Any,
+    stop: str,
+) -> None:
+    type_name, _ = counting_job_type
+    _, task_id = await _queue_one(db_session, mock_redis, owner, type_name)
+    task = await db_session.get_one(SchedulerTask, task_id)
+    assert task.queue_job_id is not None
+
+    if stop == "cancel":
+        await task_queue.mark_job_as_cancelled([JobId(task.queue_job_id)])
+    else:
+        await task_queue.clear_queue(task_registry.name_of(RUN_JOB_TASK))
+    await settle_lost_runs(db_session)
+    await db_session.refresh(task)
+    assert task.status == TaskStatus.CANCELLED
+    assert task.completed_at is not None

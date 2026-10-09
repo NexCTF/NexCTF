@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from httpx import AsyncClient
+from pgqueuer import Queries
 
 from nexctf.model import User
 
@@ -201,7 +202,7 @@ class TestTaskHistory:
         assert resp.status_code == 404
 
     async def test_history_is_scoped_to_its_own_job(
-        self, admin_client: tuple[AsyncClient, User]
+        self, admin_client: tuple[AsyncClient, User], task_queue: Queries
     ) -> None:
         c, _ = admin_client
         scheduled_at = (datetime.now(UTC) + timedelta(days=1)).isoformat()
@@ -222,6 +223,22 @@ class TestTaskHistory:
 
         other_resp = await c.get(f"{PREFIX}/jobs/{other}/tasks")
         assert {r["job_id"] for r in other_resp.json()["data"]} == {other}
+
+    async def test_run_now_queues_once_while_a_run_is_live(
+        self, admin_client: tuple[AsyncClient, User], task_queue: Queries
+    ) -> None:
+        c, _ = admin_client
+        scheduled_at = (datetime.now(UTC) + timedelta(days=1)).isoformat()
+        job_id = (
+            await c.post(PREFIX + "/jobs", json=_payload(scheduled_at=scheduled_at))
+        ).json()["data"]["id"]
+
+        first = (await c.post(f"{PREFIX}/jobs/{job_id}/run")).json()["data"]
+        second = (await c.post(f"{PREFIX}/jobs/{job_id}/run")).json()["data"]
+
+        assert (first["status"], second["status"]) == ("pending", "skipped")
+        assert first["queue_job_id"] is not None
+        assert second["queue_job_id"] is None
 
     async def test_job_detail_no_longer_embeds_every_task(
         self, admin_client: tuple[AsyncClient, User]

@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   Link2,
   ListChecks,
+  ListTodo,
   LogOut,
   MessageSquareHeart,
   Puzzle,
@@ -126,6 +127,7 @@ const NAV_SECTIONS: NavSection[] = [
     id: "system",
     items: [
       { to: "/admin/plugins", label: "admin.nav.plugins", icon: Puzzle, exact: true },
+      { to: "/admin/tasks", label: "admin.nav.tasks", icon: ListTodo },
       { to: "/admin/backups", label: "admin.nav.backups", icon: DatabaseBackup, beta: true },
       { to: "/admin/bundle", label: "admin.nav.bundle", icon: FolderSync, beta: true },
       {

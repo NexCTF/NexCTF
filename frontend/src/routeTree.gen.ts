@@ -44,6 +44,7 @@ import { Route as AdminAdminScoreboardRouteImport } from './routes/admin/_admin/
 import { Route as AdminAdminSecurityRouteImport } from './routes/admin/_admin/security'
 import { Route as AdminAdminSettingsRouteImport } from './routes/admin/_admin/settings'
 import { Route as AdminAdminSubmissionsRouteImport } from './routes/admin/_admin/submissions'
+import { Route as AdminAdminTasksRouteImport } from './routes/admin/_admin/tasks'
 import { Route as AdminAdminTeamsRouteImport } from './routes/admin/_admin/teams'
 import { Route as AdminAdminUsersRouteImport } from './routes/admin/_admin/users'
 import { Route as UserPluginsKeySplatRouteImport } from './routes/_user/plugins.$key.$'
@@ -232,6 +233,11 @@ const AdminAdminSubmissionsRoute = AdminAdminSubmissionsRouteImport.update({
   path: '/submissions',
   getParentRoute: () => AdminAdminRoute,
 } as any)
+const AdminAdminTasksRoute = AdminAdminTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
 const AdminAdminTeamsRoute = AdminAdminTeamsRouteImport.update({
   id: '/teams',
   path: '/teams',
@@ -320,6 +326,7 @@ export interface FileRoutesByFullPath {
   '/admin/security': typeof AdminAdminSecurityRoute
   '/admin/settings': typeof AdminAdminSettingsRoute
   '/admin/submissions': typeof AdminAdminSubmissionsRoute
+  '/admin/tasks': typeof AdminAdminTasksRoute
   '/admin/teams': typeof AdminAdminTeamsRoute
   '/admin/users': typeof AdminAdminUsersRoute
   '/admin/': typeof AdminAdminIndexRoute
@@ -365,6 +372,7 @@ export interface FileRoutesByTo {
   '/admin/security': typeof AdminAdminSecurityRoute
   '/admin/settings': typeof AdminAdminSettingsRoute
   '/admin/submissions': typeof AdminAdminSubmissionsRoute
+  '/admin/tasks': typeof AdminAdminTasksRoute
   '/admin/teams': typeof AdminAdminTeamsRoute
   '/admin/users': typeof AdminAdminUsersRoute
   '/admin': typeof AdminAdminIndexRoute
@@ -413,6 +421,7 @@ export interface FileRoutesById {
   '/admin/_admin/security': typeof AdminAdminSecurityRoute
   '/admin/_admin/settings': typeof AdminAdminSettingsRoute
   '/admin/_admin/submissions': typeof AdminAdminSubmissionsRoute
+  '/admin/_admin/tasks': typeof AdminAdminTasksRoute
   '/admin/_admin/teams': typeof AdminAdminTeamsRoute
   '/admin/_admin/users': typeof AdminAdminUsersRoute
   '/admin/_admin/': typeof AdminAdminIndexRoute
@@ -461,6 +470,7 @@ export interface FileRouteTypes {
     | '/admin/security'
     | '/admin/settings'
     | '/admin/submissions'
+    | '/admin/tasks'
     | '/admin/teams'
     | '/admin/users'
     | '/admin/'
@@ -506,6 +516,7 @@ export interface FileRouteTypes {
     | '/admin/security'
     | '/admin/settings'
     | '/admin/submissions'
+    | '/admin/tasks'
     | '/admin/teams'
     | '/admin/users'
     | '/admin'
@@ -553,6 +564,7 @@ export interface FileRouteTypes {
     | '/admin/_admin/security'
     | '/admin/_admin/settings'
     | '/admin/_admin/submissions'
+    | '/admin/_admin/tasks'
     | '/admin/_admin/teams'
     | '/admin/_admin/users'
     | '/admin/_admin/'
@@ -824,6 +836,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAdminSubmissionsRouteImport
       parentRoute: typeof AdminAdminRoute
     }
+    '/admin/_admin/tasks': {
+      id: '/admin/_admin/tasks'
+      path: '/tasks'
+      fullPath: '/admin/tasks'
+      preLoaderRoute: typeof AdminAdminTasksRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
     '/admin/_admin/teams': {
       id: '/admin/_admin/teams'
       path: '/teams'
@@ -942,6 +961,7 @@ interface AdminAdminRouteChildren {
   AdminAdminSecurityRoute: typeof AdminAdminSecurityRoute
   AdminAdminSettingsRoute: typeof AdminAdminSettingsRoute
   AdminAdminSubmissionsRoute: typeof AdminAdminSubmissionsRoute
+  AdminAdminTasksRoute: typeof AdminAdminTasksRoute
   AdminAdminTeamsRoute: typeof AdminAdminTeamsRoute
   AdminAdminUsersRoute: typeof AdminAdminUsersRoute
   AdminAdminIndexRoute: typeof AdminAdminIndexRoute
@@ -973,6 +993,7 @@ const AdminAdminRouteChildren: AdminAdminRouteChildren = {
   AdminAdminSecurityRoute: AdminAdminSecurityRoute,
   AdminAdminSettingsRoute: AdminAdminSettingsRoute,
   AdminAdminSubmissionsRoute: AdminAdminSubmissionsRoute,
+  AdminAdminTasksRoute: AdminAdminTasksRoute,
   AdminAdminTeamsRoute: AdminAdminTeamsRoute,
   AdminAdminUsersRoute: AdminAdminUsersRoute,
   AdminAdminIndexRoute: AdminAdminIndexRoute,
