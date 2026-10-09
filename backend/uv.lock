@@ -846,7 +846,7 @@ dependencies = [
     { name = "fastapi", extra = ["standard-no-fastapi-cloud-cli"] },
     { name = "fastapi-multiauth", extra = ["oauth"] },
     { name = "fastapi-toolsets", extra = ["all"] },
-    { name = "pgqueuer" },
+    { name = "pgqueuer", extra = ["web"] },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyotp" },
@@ -877,7 +877,7 @@ requires-dist = [
     { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.141.1" },
     { name = "fastapi-multiauth", extras = ["oauth"], specifier = ">=0.6.0" },
     { name = "fastapi-toolsets", extras = ["all"], specifier = ">=5.1.4" },
-    { name = "pgqueuer", specifier = ">=1.4.0,<1.5" },
+    { name = "pgqueuer", extras = ["web"], specifier = ">=1.5.0,<1.6" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.15.0" },
     { name = "pyotp", specifier = ">=2.10.0" },
@@ -907,7 +907,7 @@ wheels = [
 
 [[package]]
 name = "pgqueuer"
-version = "1.4.0"
+version = "1.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -918,9 +918,16 @@ dependencies = [
     { name = "typer" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/56/0f/b40f336d39a8ad2bb509964fbaa311a19a82cbb8ea4f429694f212bb05ef/pgqueuer-1.4.0.tar.gz", hash = "sha256:0cc94d36933c6d4487ac337c3a81765c18b694602b297dda8c48bc0e3632c5cd", size = 556181, upload-time = "2026-09-14T14:29:15.754Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/30/b1/906fc61b6e7889a0271b44456ebf77631e32158dd4940938d2ca97f01f57/pgqueuer-1.5.0.tar.gz", hash = "sha256:8c433007e2baf95eefd162fb2f398b3e43eda391e92018d794b914dcf6bdc25e", size = 603687, upload-time = "2026-10-04T20:17:23.483Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/db/67/c027a622518e990ec4dbd6cb4a70a986d22307cdff6dd498b18cfdaadcc3/pgqueuer-1.4.0-py3-none-any.whl", hash = "sha256:8cb10ff75ce36add811f24c540d0bafb1d6d985e393b124a4d6434c33570b586", size = 154026, upload-time = "2026-09-14T14:29:14.217Z" },
+    { url = "https://files.pythonhosted.org/packages/78/32/410c7b7ebc948c9bc5cbca81a3996d77b6a00fd476725028c0a3494824b6/pgqueuer-1.5.0-py3-none-any.whl", hash = "sha256:57563a7e1cc1d3a2de970d212447708d5972e58363f0b907c469f9c102978672", size = 174262, upload-time = "2026-10-04T20:17:21.968Z" },
+]
+
+[package.optional-dependencies]
+web = [
+    { name = "fastapi" },
+    { name = "jinja2" },
+    { name = "uvicorn" },
 ]
 
 [[package]]

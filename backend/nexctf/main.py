@@ -20,6 +20,7 @@ from nexctf.core.config import settings
 from nexctf.core.db import auth_db, db, get_db_context
 from nexctf.exceptions import OAuth2ProtocolError
 from nexctf.plugins import init_plugins
+from nexctf.tasks.dashboard import install_dashboard, live_dashboard
 
 _ADMIN_PREFIX = f"{settings.API_V1_STR}/admin"
 
@@ -69,7 +70,8 @@ async def lifespan(app: FastAPI):
         async with get_db_context() as session:
             await sync_to_redis(session, get_redis_client())
             await init_plugins(app, session)
-        yield
+        async with live_dashboard(app):
+            yield
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
@@ -125,3 +127,4 @@ v1_router.include_router(router=router)
 app.include_router(v1_router)
 
 setup_docs(app, _ADMIN_PREFIX)
+install_dashboard(app)

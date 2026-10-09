@@ -10,11 +10,11 @@ from cronsim import CronSimError
 from redis.asyncio import Redis
 from sqlalchemy import (
     String,
+    case,
     cast,
     column,
     delete,
     exists,
-    literal,
     select,
     table,
     update,
@@ -50,7 +50,13 @@ _RUN_DEDUPE_PREFIX = "scheduler:"
 _SWEEP_WINDOW = timedelta(minutes=1)
 _QUEUE = table(
     DB_SETTINGS.queue_table,
-    column("dedupe_key"),
+    column("id"),
+    column("status"),
+    schema=DB_SETTINGS.db_schema,
+)
+_QUEUE_LOG = table(
+    DB_SETTINGS.queue_table_log,
+    column("job_id"),
     column("status"),
     schema=DB_SETTINGS.db_schema,
 )
@@ -99,64 +105,24 @@ async def handle_backup_database(
     await backup.prune(params.keep_last)
 
 
-async def _run_handler(
-    task: SchedulerTask,
-    job: SchedulerJob,
-    entry: SchedulerEntry,
-    session: AsyncSession,
-    redis: Redis,
-) -> None:
-    """Run a job's handler and record the outcome on ``task``."""
+def _entry_for(job: SchedulerJob) -> SchedulerEntry:
+    """Return the registered handler of ``job``'s type."""
     try:
-        await call_maybe_async(entry.handler, job, session, redis)
-        task.status = TaskStatus.SUCCESS
-    except Exception as exc:
-        task.status = TaskStatus.FAILED
-        task.error = str(exc)[:500]
-        logger.exception("Job %s failed", job.id)
-    task.completed_at = datetime.now(UTC)
-    await session.flush()
-
-
-async def force_run_job(
-    job: SchedulerJob, session: AsyncSession, redis: Redis
-) -> SchedulerTask:
-    """Execute a job immediately without modifying its scheduled state."""
-    now = datetime.now(UTC)
-    task = await _pending_task(session, job, now)
-
-    try:
-        entry = scheduler_registry.get(job.job_type)
+        return scheduler_registry.get(job.job_type)
     except KeyError:
-        _fail(task, f"unregistered job type: {job.job_type}", now)
-        await session.flush()
-        return task
-
-    await _run_handler(task, job, entry, session, redis)
-    await _prune_task_history(session, job)
-
-    if entry.invalidate is not None:
-        # The request session commits only once the response has been sent.
-        await session.commit()
-        await entry.invalidate(redis)
-    return task
+        raise LookupError(f"unregistered job type: {job.job_type}") from None
 
 
-async def _pending_task(
-    session: AsyncSession, job: SchedulerJob, now: datetime
-) -> SchedulerTask:
-    """Record a pending run of ``job``."""
-    task = SchedulerTask(job_id=job.id, status=TaskStatus.PENDING, started_at=now)
-    session.add(task)
-    await session.flush()
-    return task
-
-
-def _fail(task: SchedulerTask, error: str, now: datetime) -> None:
-    """Mark a run as failed with ``error``."""
-    task.status = TaskStatus.FAILED
-    task.completed_at = now
-    task.error = error
+async def _record(
+    session: AsyncSession, task_id: UUID, status: TaskStatus, started_at: datetime
+) -> None:
+    """Commit the outcome of a run."""
+    await session.execute(
+        update(SchedulerTask)
+        .where(SchedulerTask.id == task_id)
+        .values(status=status, started_at=started_at, completed_at=datetime.now(UTC))
+    )
+    await session.commit()
 
 
 async def _prune_task_history(session: AsyncSession, job: SchedulerJob) -> None:
@@ -196,18 +162,33 @@ def _run_dedupe_key(job_id: UUID) -> str:
 
 async def _queue_run(
     session: AsyncSession, job: SchedulerJob, fire_at: datetime, now: datetime
-) -> None:
-    """Record a pending run of ``job`` and queue it to start at ``fire_at``."""
-    task = await _pending_task(session, job, fire_at)
-    queued = await enqueue(
+) -> SchedulerTask:
+    """Record a run of ``job`` and queue it to start at ``fire_at``.
+
+    The run is skipped while another run of the job is queued or running.
+    """
+    task = SchedulerTask(job_id=job.id, status=TaskStatus.PENDING, started_at=fire_at)
+    session.add(task)
+    await session.flush()
+    task.queue_job_id = await enqueue(
         session,
         RUN_JOB_TASK,
         SchedulerRunPayload(task_id=task.id),
         dedupe_key=_run_dedupe_key(job.id),
         delay=fire_at - now,
     )
-    if queued is None:
-        _fail(task, "skipped: the previous run is still in progress", now)
+    if task.queue_job_id is None:
+        task.status = TaskStatus.SKIPPED
+        task.completed_at = now
+    return task
+
+
+async def run_now(session: AsyncSession, job: SchedulerJob) -> SchedulerTask:
+    """Queue a run of ``job`` right away, leaving its schedule as is."""
+    now = datetime.now(UTC)
+    task = await _queue_run(session, job, now, now)
+    await _prune_task_history(session, job)
+    return task
 
 
 async def sweep_due_jobs(session: AsyncSession, redis: Redis) -> None:
@@ -245,43 +226,49 @@ async def sweep_due_jobs(session: AsyncSession, redis: Redis) -> None:
     await session.commit()
 
 
-async def fail_lost_runs(session: AsyncSession) -> None:
-    """Fail every pending run whose job no longer has a queued or running job."""
+async def settle_lost_runs(session: AsyncSession) -> None:
+    """Close every pending run whose queue job is no longer queued or running.
+
+    A run whose queue job was cancelled or deleted is cancelled, any other failed.
+    """
     live_run = exists().where(
-        _QUEUE.c.dedupe_key
-        == literal(_RUN_DEDUPE_PREFIX) + cast(SchedulerTask.job_id, String),
+        _QUEUE.c.id == SchedulerTask.queue_job_id,
         cast(_QUEUE.c.status, String).in_(("queued", "picked")),
+    )
+    stopped = exists().where(
+        _QUEUE_LOG.c.job_id == SchedulerTask.queue_job_id,
+        cast(_QUEUE_LOG.c.status, String).in_(("canceled", "deleted")),
     )
     await session.execute(
         update(SchedulerTask)
         .where(SchedulerTask.status == TaskStatus.PENDING, ~live_run)
         .values(
-            status=TaskStatus.FAILED,
+            status=case((stopped, TaskStatus.CANCELLED), else_=TaskStatus.FAILED),
             completed_at=datetime.now(UTC),
-            error="lost: the run ended without recording a result",
         )
     )
     await session.commit()
 
 
 async def run_queued_job(session: AsyncSession, redis: Redis, task_id: UUID) -> None:
-    """Execute the pending run ``task_id``; a run no longer pending is skipped."""
+    """Execute the queued run ``task_id``, unless it already succeeded.
+
+    A failure rolls the handler back, is recorded, then re-raised.
+    """
     task = await session.get(SchedulerTask, task_id, with_for_update=True)
-    if task is None or task.status != TaskStatus.PENDING:
+    if task is None or task.status in (TaskStatus.SUCCESS, TaskStatus.SKIPPED):
         return
     job = await session.get_one(SchedulerJob, task.job_id)
 
+    started_at = datetime.now(UTC)
     try:
-        entry = scheduler_registry.get(job.job_type)
-    except KeyError:
-        logger.warning("Job %s: unregistered type '%s'", job.id, job.job_type)
-        _fail(task, f"unregistered job type: {job.job_type}", datetime.now(UTC))
-        await session.commit()
-        return
-
-    task.started_at = datetime.now(UTC)
-    await _run_handler(task, job, entry, session, redis)
-    await session.commit()
+        entry = _entry_for(job)
+        await call_maybe_async(entry.handler, job, session, redis)
+    except Exception:
+        await session.rollback()
+        await _record(session, task_id, TaskStatus.FAILED, started_at)
+        raise
+    await _record(session, task_id, TaskStatus.SUCCESS, started_at)
 
     if entry.invalidate is not None:
         await entry.invalidate(redis)
@@ -294,7 +281,7 @@ async def _run_job_task(payload: SchedulerRunPayload) -> None:
 
 async def _sweep_cron() -> None:
     async with get_db_context() as session:
-        await fail_lost_runs(session)
+        await settle_lost_runs(session)
         await sweep_due_jobs(session, get_redis_client())
 
 

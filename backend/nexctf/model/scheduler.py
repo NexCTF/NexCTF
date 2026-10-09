@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Index, String
+from sqlalchemy import BigInteger, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -40,10 +40,11 @@ class SchedulerTask(Base):
     __tablename__ = "scheduler_tasks"
     __table_args__ = (Index("ix_scheduler_tasks_job_created", "job_id", "created_at"),)
 
-    status: Mapped[str]  # 'pending', 'success', 'failed'
+    status: Mapped[str]  # 'pending', 'success', 'failed', 'skipped', 'cancelled'
     started_at: Mapped[datetime]
     completed_at: Mapped[datetime | None]
-    error: Mapped[str | None]
+    # The pgqueuer job running it, whose log holds the traceback of a failure.
+    queue_job_id: Mapped[int | None] = mapped_column(BigInteger)
 
     job_id: Mapped[UUID] = mapped_column(
         ForeignKey("scheduler_jobs.id", ondelete="CASCADE")

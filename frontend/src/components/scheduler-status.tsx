@@ -20,6 +20,8 @@ const TASK_STATUS_STYLES = {
   pending: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
   success: "bg-green-500/10 text-green-600 dark:text-green-400",
   failed: "bg-red-500/10 text-red-600 dark:text-red-400",
+  skipped: "bg-muted text-muted-foreground",
+  cancelled: "bg-muted text-muted-foreground",
 } as const;
 
 export function JobStatusBadge({ job }: { job: SchedulerJob }) {

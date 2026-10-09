@@ -349,6 +349,7 @@
       "security": "Sécurité",
       "settings": "Paramètres",
       "submissions": "Soumissions",
+      "tasks": "",
       "teams": "Équipes",
       "users": "Utilisateurs"
     },
@@ -465,7 +466,7 @@
       "active_hint": "Activer la tâche pour qu'elle s'exécute à l'heure prévue",
       "col_last_run": "Dernière exécution",
       "col_task_completed": "Terminée",
-      "col_task_error": "Erreur",
+      "col_task_details": "",
       "col_task_started": "Démarrée",
       "col_task_status": "Statut",
       "create": "Nouvelle tâche",
@@ -498,13 +499,14 @@
       "not_found": "Tâche introuvable.",
       "run": "Exécuter maintenant",
       "run_error": "Échec de l'exécution",
-      "run_failed": "Échec de l'exécution",
-      "run_success": "Tâche exécutée",
+      "run_queued": "",
+      "run_skipped": "",
       "save_error": "Échec de l'enregistrement",
       "saved": "Tâche enregistrée",
       "tasks_title": "Historique d'exécution",
       "toggle_error": "Échec de la mise à jour",
-      "type_placeholder": "Sélectionner un type…"
+      "type_placeholder": "Sélectionner un type…",
+      "view_in_task_queue": ""
     },
     "scoreboard": {
       "add_adjustment": "Ajouter un ajustement",
@@ -582,6 +584,10 @@
     "tags": {
       "input_placeholder": "Ajouter un tag…",
       "remove": "Retirer le tag {{name}}"
+    },
+    "tasks": {
+      "open_in_new_tab": "",
+      "refresh": ""
     },
     "teams": {
       "add_link": "Ajouter un lien",

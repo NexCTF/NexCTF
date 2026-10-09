@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Play, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -74,6 +74,9 @@ function SchedulerJobDetailPage() {
     queryKey: ["admin", "scheduler", "tasks", jobId, taskTable.queryString],
     queryFn: () => getAdminSchedulerJobTasks(jobId, taskTable.queryString),
     placeholderData: (prev) => prev,
+    // Follow a run the worker has yet to finish.
+    refetchInterval: (query) =>
+      query.state.data?.data.some((task) => task.status === "pending") ? 2000 : false,
   });
 
   const taskColumns: Column<SchedulerTask>[] = [
@@ -94,18 +97,19 @@ function SchedulerJobDetailPage() {
       cell: (task) => <DateCell value={task.completed_at} />,
     },
     {
-      key: "error",
-      header: t("admin.scheduler.col_task_error", { defaultValue: "Error" }),
+      key: "queue_job_id",
+      header: t("admin.scheduler.col_task_details", { defaultValue: "Details" }),
       cell: (task) =>
-        task.error ? (
-          <span
-            className="block max-w-64 truncate text-destructive text-xs font-mono"
-            title={task.error}
-          >
-            {task.error}
-          </span>
-        ) : (
+        task.queue_job_id === null ? (
           <EmptyCell />
+        ) : (
+          <Link
+            to="/admin/tasks"
+            search={{ job: task.queue_job_id }}
+            className="text-link text-xs hover:underline"
+          >
+            {t("admin.scheduler.view_in_task_queue", { defaultValue: "View in task queue" })}
+          </Link>
         ),
     },
   ];
@@ -184,13 +188,15 @@ function SchedulerJobDetailPage() {
   const runMutation = useMutation({
     mutationFn: () => runAdminSchedulerJob(jobId),
     onSuccess: (task) => {
-      toast.success(
-        task.status === "failed"
-          ? t("admin.scheduler.run_failed", {
-              defaultValue: "Execution failed",
-            })
-          : t("admin.scheduler.run_success", { defaultValue: "Job executed" }),
-      );
+      if (task.status === "skipped") {
+        toast.info(
+          t("admin.scheduler.run_skipped", {
+            defaultValue: "A run of this job is already queued or running",
+          }),
+        );
+      } else {
+        toast.success(t("admin.scheduler.run_queued", { defaultValue: "Run queued" }));
+      }
       refreshJob();
     },
     onError: (err) =>

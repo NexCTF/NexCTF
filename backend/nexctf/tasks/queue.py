@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+import json
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from datetime import timedelta
 from typing import Self
 
@@ -18,8 +20,8 @@ from pgqueuer.adapters.persistence.qb import (
 from pgqueuer.core.tm import TaskManager
 from pgqueuer.ports.driver import Driver
 from pydantic import BaseModel
-from sqlalchemy import make_url
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import RowMapping, make_url
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession
 
 from nexctf.core.config import settings
 from nexctf.plugins.declare import TaskDef
@@ -45,21 +47,31 @@ async def connect(url: str | None = None) -> asyncpg.Connection:
     return await asyncpg.connect(dsn)
 
 
-class SessionDriver:
-    """PgQueuer driver running its queries in a SQLAlchemy session's transaction."""
+def _json_as_text(row: RowMapping) -> dict[str, object]:
+    """Re-encode the JSON objects SQLAlchemy decoded: pgqueuer parses the text."""
+    return {
+        str(key): json.dumps(value) if isinstance(value, dict) else value
+        for key, value in row.items()
+    }
 
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
+
+class _SqlAlchemyDriver:
+    """PgQueuer driver running its queries on a SQLAlchemy connection."""
+
+    def __init__(self) -> None:
         self._shutdown = asyncio.Event()
 
+    def _connection(self) -> AbstractAsyncContextManager[AsyncConnection]:
+        raise NotImplementedError
+
     async def fetch(self, query: str, *args: object) -> list[dict[str, object]]:
-        conn = await self._session.connection()
-        result = await conn.exec_driver_sql(query, args or None)
-        return [dict(row) for row in result.mappings()]
+        async with self._connection() as conn:
+            result = await conn.exec_driver_sql(query, args or None)
+            return [_json_as_text(row) for row in result.mappings()]
 
     async def execute(self, query: str, *args: object) -> str:
-        conn = await self._session.connection()
-        await conn.exec_driver_sql(query, args or None)
+        async with self._connection() as conn:
+            await conn.exec_driver_sql(query, args or None)
         return ""
 
     async def notify(self, channel: str, payload: str) -> None:
@@ -68,7 +80,7 @@ class SessionDriver:
     async def add_listener(
         self, channel: str, callback: Callable[[str | bytes | bytearray], None]
     ) -> None:
-        raise NotImplementedError("a session driver cannot LISTEN")
+        raise NotImplementedError("a SQLAlchemy driver cannot LISTEN")
 
     @property
     def shutdown(self) -> asyncio.Event:
@@ -82,6 +94,29 @@ class SessionDriver:
         return self
 
     async def __aexit__(self, *_: object) -> None: ...
+
+
+class SessionDriver(_SqlAlchemyDriver):
+    """PgQueuer driver running its queries in a SQLAlchemy session's transaction."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__()
+        self._session = session
+
+    @asynccontextmanager
+    async def _connection(self) -> AsyncIterator[AsyncConnection]:
+        yield await self._session.connection()
+
+
+class EngineDriver(_SqlAlchemyDriver):
+    """PgQueuer driver running each query in autocommit on a pool."""
+
+    def __init__(self, engine: AsyncEngine) -> None:
+        super().__init__()
+        self._engine = engine.execution_options(isolation_level="AUTOCOMMIT")
+
+    def _connection(self) -> AbstractAsyncContextManager[AsyncConnection]:
+        return self._engine.connect()
 
 
 async def enqueue(

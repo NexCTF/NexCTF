@@ -12,6 +12,8 @@ import type {
   PublicChallengeDetail,
   PublicInfo,
   PublicQuestion,
+  SchedulerJob,
+  SchedulerTask,
   Scoreboard,
   SessionOverview,
   SharedAddress,
@@ -376,6 +378,35 @@ export function clientSummary(overrides: Partial<ClientSummary> = {}): ClientSum
     ai_account_count: 0,
     automation_account_count: 0,
     token_account_count: 0,
+    ...overrides,
+  };
+}
+
+export function schedulerJob(overrides: Partial<SchedulerJob> = {}): SchedulerJob {
+  return {
+    id: "66666666-6666-4666-8666-666666666666",
+    name: "nightly",
+    job_type: "send_notification",
+    is_active: true,
+    scheduled_at: new Date().toISOString(),
+    cron_expression: null,
+    params: {},
+    last_run: null,
+    created_at: new Date().toISOString(),
+    created_by_id: "22222222-2222-4222-8222-222222222222",
+    ...overrides,
+  };
+}
+
+export function schedulerTask(overrides: Partial<SchedulerTask> = {}): SchedulerTask {
+  return {
+    id: "77777777-7777-4777-8777-777777777777",
+    job_id: schedulerJob().id,
+    status: "success",
+    started_at: new Date().toISOString(),
+    completed_at: new Date().toISOString(),
+    queue_job_id: 42,
+    created_at: new Date().toISOString(),
     ...overrides,
   };
 }

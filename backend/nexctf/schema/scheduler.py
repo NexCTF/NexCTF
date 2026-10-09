@@ -16,6 +16,8 @@ class TaskStatus(StrEnum):
     PENDING = "pending"
     SUCCESS = "success"
     FAILED = "failed"
+    SKIPPED = "skipped"
+    CANCELLED = "cancelled"
 
 
 class SendNotificationParams(PydanticBase):
@@ -78,7 +80,7 @@ class AdminSchedulerTaskRead(PydanticBase):
     status: TaskStatus
     started_at: datetime
     completed_at: datetime | None
-    error: str | None
+    queue_job_id: int | None
     created_at: datetime
 
 
