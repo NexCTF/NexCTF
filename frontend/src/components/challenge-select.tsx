@@ -20,7 +20,7 @@ interface ChallengeSelectProps {
 export function ChallengeSelect({ value, onChange }: ChallengeSelectProps) {
   const { t } = useTranslation();
   // ponytail: one page of challenges, truncated past 100. Switch to the cursor
-  // search in use-team-search.ts if a CTF ever runs more than that.
+  // search in team-combobox.tsx if a CTF ever runs more than that.
   const { data } = useQuery({
     queryKey: ["admin", "challenges", "picker"],
     queryFn: () => getAdminChallenges("items_per_page=100&order_by=title&order=asc"),

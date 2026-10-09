@@ -363,7 +363,6 @@
       "field_content": "Contenu",
       "field_teams": "Équipes",
       "field_title": "Titre",
-      "load_more": "Charger plus",
       "n_teams_selected_one": "{{count}} équipe(s) sélectionnée(s)",
       "n_teams_selected_many": "{{count}} équipe(s) sélectionnée(s)",
       "n_teams_selected_other": "{{count}} équipe(s) sélectionnée(s)",
@@ -588,6 +587,10 @@
     "tasks": {
       "open_in_new_tab": "",
       "refresh": ""
+    },
+    "team_select": {
+      "clear": "Effacer l'équipe",
+      "remove": "Retirer {{name}}"
     },
     "teams": {
       "add_link": "Ajouter un lien",

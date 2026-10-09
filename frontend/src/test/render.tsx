@@ -79,6 +79,18 @@ export function renderRoute(
   return { ...result, router, auth: authValue };
 }
 
+/** Render a bare component that needs a query client. */
+export function renderWithQuery(ui: ReactNode) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(ui, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    ),
+  });
+}
+
 /** Render a bare component that needs router context (links, navigation). */
 export function renderWithRouter(ui: ReactNode) {
   const rootRoute = createRootRoute({ component: () => ui });
