@@ -2,6 +2,7 @@ import type {
   ApiToken,
   ClientSighting,
   ClientSummary,
+  CursorPaginatedResponse,
   FailedLoginAddress,
   FailedLoginOverview,
   FailedLoginUsername,
@@ -85,6 +86,17 @@ export function paginated<T>(items: T[]): PaginatedResponse<T> {
       pages: 1,
     },
     pagination_type: "offset",
+    filter_attributes: {},
+    search_columns: [],
+    order_columns: [],
+  };
+}
+
+export function cursorPaginated<T>(items: T[]): CursorPaginatedResponse<T> {
+  return {
+    data: items,
+    pagination: { next_cursor: null, prev_cursor: null, has_more: false },
+    pagination_type: "cursor",
     filter_attributes: {},
     search_columns: [],
     order_columns: [],

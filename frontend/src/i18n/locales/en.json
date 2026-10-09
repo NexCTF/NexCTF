@@ -362,7 +362,6 @@
       "field_content": "Content",
       "field_teams": "Teams",
       "field_title": "Title",
-      "load_more": "Load more",
       "n_teams_selected_one": "{{count}} team(s) selected",
       "n_teams_selected_other": "{{count}} team(s) selected",
       "no_teams": "No teams found",
@@ -586,6 +585,10 @@
     "tasks": {
       "open_in_new_tab": "Open in new tab",
       "refresh": "Refresh"
+    },
+    "team_select": {
+      "clear": "Clear team",
+      "remove": "Remove {{name}}"
     },
     "teams": {
       "add_link": "Add link",
