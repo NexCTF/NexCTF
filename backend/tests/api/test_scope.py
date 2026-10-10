@@ -1,6 +1,6 @@
 """API-token scope enforcement and route-coverage guards."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -257,7 +257,7 @@ class TestGrantableScopes:
     ) -> None:
         """A seed token computed before any plugin loaded would miss their groups."""
         monkeypatch.setattr(
-            "nexctf.plugins.load_plugin_registries",
+            "nexctf.api.scope.load_plugin_registries",
             lambda: _add_router("/demo", "admin", "demo"),
         )
         assert "write:admin.plugin.demo" in full_admin_scopes()
@@ -283,7 +283,7 @@ def token_client(client_factory, db_session: AsyncSession, override_db_context):
     @asynccontextmanager
     async def _make(
         role: UserRole, scopes: list[str]
-    ) -> AsyncIterator[tuple[AsyncClient, User]]:
+    ) -> AsyncGenerator[tuple[AsyncClient, User]]:
         user = User(username=f"scoped_{role.value}", role=role)
         db_session.add(user)
         await db_session.flush()

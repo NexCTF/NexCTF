@@ -45,7 +45,7 @@ class TestRegisterVerification:
         # A verification token was stored and a verification email scheduled.
         assert any(
             call.args[0].startswith("email_verify:")
-            for call in mock_redis.setex.await_args_list
+            for call in mock_redis.set.await_args_list
         )
         dispatch.assert_awaited_once()
 
@@ -196,7 +196,7 @@ class TestForgotPassword:
         assert resp.status_code == 204
         assert any(
             call.args[0].startswith("pwd_reset:")
-            for call in mock_redis.setex.await_args_list
+            for call in mock_redis.set.await_args_list
         )
         dispatch.assert_awaited_once()
         assert await _event_count(db_session, "user.password_reset_requested") == 1
@@ -235,7 +235,7 @@ class TestForgotPassword:
         dispatch.assert_not_awaited()
         assert not any(
             call.args[0].startswith("pwd_reset:")
-            for call in mock_redis.setex.await_args_list
+            for call in mock_redis.set.await_args_list
         )
 
 

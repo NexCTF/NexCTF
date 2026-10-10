@@ -1,5 +1,5 @@
 import io
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
 
 import aioboto3
@@ -63,7 +63,7 @@ async def download_file(key: str, path: str) -> None:
 
 
 @asynccontextmanager
-async def stream(key: str) -> AsyncIterator[AsyncIterator[bytes]]:
+async def stream(key: str) -> AsyncGenerator[AsyncIterator[bytes]]:
     """Yield an S3 object's body in chunks, holding the client open throughout."""
     async with _client() as client:
         obj = await client.get_object(Bucket=settings.S3_BUCKET, Key=key)

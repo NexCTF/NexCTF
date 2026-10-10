@@ -10,11 +10,12 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel
 
+lazy from nexctf.core.appconfig import ConfigDef, get_with_overrides
+
 if TYPE_CHECKING:
     from fastapi import APIRouter
     from redis.asyncio import Redis
 
-    from nexctf.core.appconfig import ConfigDef
     from nexctf.enums import InputType
 
 type SchemaClass = type[BaseModel]
@@ -148,8 +149,6 @@ class ConfigCategory:
             raise LookupError(
                 f"config {self.display_name!r} belongs to no loaded plugin"
             )
-        from nexctf.core.appconfig import get_with_overrides
-
         return get_with_overrides(f"{self.key}.{name}", overrides)
 
 

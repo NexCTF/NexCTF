@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 from fastapi_toolsets.crud import CrudFactory
 from pydantic import BaseModel
 from sqlalchemy import inspect
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectin_polymorphic, selectinload
 
 from nexctf.enums import InputType
 from nexctf.plugins.declare import CronDef, JobDef, SchemaClass, TaskDef, TypeDef
@@ -124,8 +124,6 @@ class PolymorphicRegistry(_OwnedNames):
         self._applied = True
         extra = list(self._extra_load_options)
         if self._polymorphic_subclasses:
-            from sqlalchemy.orm import selectin_polymorphic
-
             extra.insert(
                 0,
                 selectin_polymorphic(

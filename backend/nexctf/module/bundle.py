@@ -635,11 +635,13 @@ async def _author_ids(session: AsyncSession, bundle: Bundle) -> dict[str, UUID]:
     return {username: user_id for username, user_id in rows.all()}
 
 
-_SIMPLE_DELETE_MODELS: dict[EntityKind, Any] = {
-    EntityKind.PAGE: CustomPage,
-    EntityKind.LINK: Link,
-    EntityKind.CUSTOM_FIELD: CustomFieldDefinition,
-}
+_SIMPLE_DELETE_MODELS: frozendict[EntityKind, Any] = frozendict(
+    {
+        EntityKind.PAGE: CustomPage,
+        EntityKind.LINK: Link,
+        EntityKind.CUSTOM_FIELD: CustomFieldDefinition,
+    }
+)
 
 
 class _Writer:

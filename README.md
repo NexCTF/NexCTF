@@ -10,7 +10,7 @@ A self-hosted, extensible Capture The Flag platform with multi-question challeng
 [![ty](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ty/main/assets/badge/v0.json)](https://github.com/astral-sh/ty)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.15](https://img.shields.io/badge/python-3.15-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Screenshots
@@ -104,7 +104,7 @@ See [roadmap.md](roadmap.md) for planned features and progress toward v1.0.
 ## Tech Stack
 | Layer | Technology |
 |---|---|
-| Backend | Python 3.14 + FastAPI + SQLAlchemy 2 (async) |
+| Backend | Python 3.15 + FastAPI + SQLAlchemy 2 (async) |
 | Frontend | React 19 + TanStack Router/Query + Tailwind CSS 4 + shadcn |
 | Database | PostgreSQL 18+ |
 | Task queue | PgQueuer (on PostgreSQL) |

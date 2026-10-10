@@ -375,10 +375,9 @@ class TestBearerAuth:
         assert create_resp.status_code == 201
         raw_token = create_resp.json()["data"]["token"]
 
+        c.cookies.clear()
         resp = await c.get(
-            "/me/tokens",
-            headers={"Authorization": f"Bearer {raw_token}"},
-            cookies={},
+            "/me/tokens", headers={"Authorization": f"Bearer {raw_token}"}
         )
         assert resp.status_code == 200
 

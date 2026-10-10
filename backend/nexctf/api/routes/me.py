@@ -363,7 +363,7 @@ async def totp_setup(
     provisioning_uri = pyotp.TOTP(secret).provisioning_uri(
         name=user.username, issuer_name="NexCTF"
     )
-    await redis.setex(_TOTP_SETUP_PREFIX + str(user.id), _TOTP_SETUP_TTL, secret)
+    await redis.set(_TOTP_SETUP_PREFIX + str(user.id), secret, ex=_TOTP_SETUP_TTL)
     return Response(data=TotpSetupResponse(provisioning_uri=provisioning_uri))
 
 

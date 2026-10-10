@@ -43,7 +43,7 @@ async def create_question(
 async def get_question(session: SessionDep, uuid: UUID) -> Response[AdminQuestionRead]:
     return await crud.QuestionCrud.get(
         session=session,
-        filters=[crud.QuestionCrud.model.id == uuid],
+        filters=[Question.id == uuid],
         schema=AdminQuestionRead,
     )
 
@@ -61,7 +61,7 @@ async def update_question(
     )
     result = await crud.QuestionCrud.update(
         session=session,
-        filters=[crud.QuestionCrud.model.id == uuid],
+        filters=[Question.id == uuid],
         obj=obj,
         schema=AdminQuestionRead,
     )
@@ -75,6 +75,6 @@ async def delete_question(session: SessionDep, uuid: UUID) -> Response[None]:
     await ensure_question_removable(session, uuid)
     return await crud.QuestionCrud.delete(
         session=session,
-        filters=[crud.QuestionCrud.model.id == uuid],
+        filters=[Question.id == uuid],
         return_response=True,
     )

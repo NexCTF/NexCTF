@@ -6,7 +6,7 @@ import asyncio
 import contextlib
 import logging
 from collections import defaultdict
-from collections.abc import Iterator, Sequence
+from collections.abc import Generator, Sequence
 from typing import cast
 
 from redis.asyncio import Redis
@@ -61,7 +61,7 @@ async def publish_event(redis: Redis, channels: Sequence[str], data: str) -> Non
 
 
 @contextlib.contextmanager
-def subscription(channels: Sequence[str]) -> Iterator[asyncio.Queue[tuple[str, str]]]:
+def subscription(channels: Sequence[str]) -> Generator[asyncio.Queue[tuple[str, str]]]:
     """Hold a bounded queue registered for *channels* for the duration of the block."""
     queue: asyncio.Queue[tuple[str, str]] = asyncio.Queue(maxsize=_QUEUE_MAXSIZE)
     for channel in channels:

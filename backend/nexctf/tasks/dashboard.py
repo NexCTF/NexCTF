@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -52,7 +52,7 @@ def install_dashboard(app: FastAPI) -> None:
 
 
 @asynccontextmanager
-async def live_dashboard(app: FastAPI) -> AsyncIterator[None]:
+async def live_dashboard(app: FastAPI) -> AsyncGenerator[None]:
     """Push queue changes to open dashboards, over one LISTEN connection.
 
     Should that connection drop, the dashboard pages fall back to polling.

@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from functools import partial
@@ -39,7 +39,7 @@ _LOG_FORMAT = "%(asctime)s [%(name)s] %(levelname)s: %(message)s"
 
 
 @asynccontextmanager
-async def _logged(label: str, timeout: float, level: int) -> AsyncIterator[None]:
+async def _logged(label: str, timeout: float, level: int) -> AsyncGenerator[None]:
     """Log a run's start and outcome with its duration, and cap it at ``timeout``."""
     logger.log(level, "%s started", label)
     start = time.monotonic()
@@ -132,7 +132,7 @@ async def _load_registries() -> None:
 
 
 @asynccontextmanager
-async def factory() -> AsyncIterator[PgQueuer]:
+async def factory() -> AsyncGenerator[PgQueuer]:
     """Yield the worker's PgQueuer; the ``pgqueuer run`` CLI entry point."""
     _configure_logging()
     await _load_registries()

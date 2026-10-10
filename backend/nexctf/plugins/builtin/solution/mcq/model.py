@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from uuid import UUID
 
 from sqlalchemy import ForeignKey
@@ -21,8 +22,6 @@ class MCQSolution(Solution):
 
     async def verify(self, submission: str, *, team_id=None) -> bool:
         if self.is_multi_select():
-            import json
-
             try:
                 selected = {s.strip() for s in json.loads(submission)}
             except Exception:  # noqa: BLE001

@@ -38,12 +38,12 @@ oauth_router = APIRouter(prefix="/oauth2", tags=["oauth2"])
 _CODE_TTL = timedelta(minutes=10)
 _TOKEN_TTL = timedelta(hours=1)
 
-_SCOPE_DESCRIPTIONS = {
-    "openid": "Identify you with a unique user ID",
-    "profile": "Read your username",
-    "email": "Read your email address",
-    "roles": "Read your platform role (admin / user)",
-}
+_SCOPE_DESCRIPTIONS = frozendict(
+    openid="Identify you with a unique user ID",
+    profile="Read your username",
+    email="Read your email address",
+    roles="Read your platform role (admin / user)",
+)
 
 _CODE_PREFIX = "oauth:code:"
 _TOKEN_PREFIX = "oauth:token:"
@@ -60,7 +60,7 @@ def _verify_pkce(verifier: str, challenge: str) -> bool:
     if not 43 <= len(verifier) <= 128 or not verifier.isascii():
         return False
     digest = hashlib.sha256(verifier.encode("ascii")).digest()
-    computed = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+    computed = base64.urlsafe_b64encode(digest, padded=False).decode("ascii")
     return hmac.compare_digest(computed, challenge)
 
 
@@ -249,7 +249,7 @@ async def approve(
             "code_challenge": obj.code_challenge,
         }
     )
-    await redis.setex(_CODE_PREFIX + code, int(_CODE_TTL.total_seconds()), payload)
+    await redis.set(_CODE_PREFIX + code, payload, ex=_CODE_TTL)
 
     params = {"code": code}
     if obj.state:
@@ -320,11 +320,7 @@ async def token(
             "scopes": data["scopes"],
         }
     )
-    await redis.setex(
-        _TOKEN_PREFIX + token_hash,
-        int(_TOKEN_TTL.total_seconds()),
-        token_payload,
-    )
+    await redis.set(_TOKEN_PREFIX + token_hash, token_payload, ex=_TOKEN_TTL)
 
     return OAuthTokenResponse(
         access_token=raw_token,
