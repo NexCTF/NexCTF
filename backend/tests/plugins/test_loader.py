@@ -36,7 +36,6 @@ def _isolate_loader_state(
     monkeypatch.setattr(loader, "_plugin_metadata", {})
     monkeypatch.setattr(loader, "_plugin_tables", set())
     monkeypatch.setattr(loader, "_plugin_migrations", {})
-    monkeypatch.setattr(loader, "_plugin_packages", {})
 
 
 @pytest.fixture
@@ -166,10 +165,6 @@ def test_two_plugins_get_separate_keys(
 
     assert set(loader._plugin_metadata) == {"nexctf_one", "nexctf_two"}
     assert {"one_pkg", "two_pkg"} <= set(sys.modules)
-    assert loader.get_plugin_packages() == {
-        "nexctf_one": "one_pkg",
-        "nexctf_two": "two_pkg",
-    }
 
 
 def test_installed_plugin_failure_is_captured_not_raised(

@@ -19,7 +19,7 @@ from nexctf.model import (
     Submission,
 )
 
-_Check = tuple[Select[Any], str]
+_Check = tuple[Select[UUID, int], str]
 
 
 async def challenge_history(
@@ -129,7 +129,7 @@ def _question_checks(
     ]
 
 
-def _count_by(key: Any, counted: Any, ids: Collection[UUID]) -> Select[Any]:
+def _count_by(key: Any, counted: Any, ids: Collection[UUID]) -> Select[UUID, int]:
     """``SELECT key, count(counted)`` for the rows whose *key* is in *ids*."""
     return select(key, func.count(counted)).where(key.in_(ids)).group_by(key)
 
@@ -140,6 +140,6 @@ async def _first_reasons(
     """Run each (id, count) query; an id keeps the reason of its first hit."""
     reasons: dict[UUID, str] = {}
     for stmt, template in checks:
-        for entity_id, count in (await session.execute(stmt)).tuples():
+        for entity_id, count in await session.execute(stmt):
             reasons.setdefault(entity_id, template.format(count=count))
     return reasons

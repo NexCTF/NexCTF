@@ -36,8 +36,8 @@ from nexctf.schema import (
     TeamScoreSeries,
 )
 
-type SubmissionRow = Row[tuple[UUID, UUID, int, datetime]]
-type AdjustmentRow = Row[tuple[UUID, int, datetime]]
+type SubmissionRow = Row[UUID, UUID, int, datetime]
+type AdjustmentRow = Row[UUID, int, datetime]
 
 
 async def _fetch_all_submissions(
@@ -96,7 +96,7 @@ async def _fetch_all_hint_unlocks(
         stmt = stmt.where(HintUnlock.created_at <= before)
     if team_id is not None:
         stmt = stmt.where(HintUnlock.team_id == team_id)
-    return list((await session.execute(stmt)).tuples().all())
+    return list((await session.execute(stmt)).all())
 
 
 def _first_solve_times(

@@ -61,7 +61,6 @@ _PAGE_PATH_RE = re.compile(r"([a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*)?")
 _plugin_tables: set[str] = set()
 _plugin_metadata: dict[str, PluginMeta] = {}
 _plugin_migrations: dict[str, tuple[Path, frozenset[str]]] = {}
-_plugin_packages: dict[str, str] = {}
 
 
 @dataclass
@@ -216,15 +215,6 @@ def get_plugin_migrations() -> dict[str, tuple[Path, frozenset[str]]]:
     return _plugin_migrations
 
 
-def get_plugin_packages() -> dict[str, str]:
-    """Return the root package of every loaded installed plugin.
-
-    Returns:
-        A mapping of plugin key to the package its modules, and loggers, live in.
-    """
-    return _plugin_packages
-
-
 def _validate_routers(routers: list[RouterDef]) -> None:
     """Raise if a router has an unknown scope or a malformed or taken prefix."""
     for router in routers:
@@ -321,7 +311,7 @@ def load_builtin_plugins() -> None:
     for key, module_path in _BUILTINS.items():
         if key in _plugin_metadata:
             continue
-        logger.debug("plugin.load name=%s module=%s builtin=true", key, module_path)
+        logger.info("plugin.load name=%s module=%s builtin=true", key, module_path)
         commit_plugin(importlib.import_module(module_path).plugin, key)
         _plugin_metadata[key] = _builtin_metadata(key)
 
@@ -352,7 +342,7 @@ def _load_installed_plugins(*, include_disabled: bool = False) -> None:
             )
             continue
         try:
-            logger.debug("plugin.load name=%s module=%s", key, ep.module)
+            logger.info("plugin.load name=%s module=%s", key, ep.module)
             package = ep.module.split(".")[0]
             plugin = _import_plugin(ep)
             # Models and migrations live in the root package, not the entry-point module
@@ -361,7 +351,6 @@ def _load_installed_plugins(*, include_disabled: bool = False) -> None:
             versions = Path(root.__file__ or "").parent / "alembic" / "versions"
             commit_plugin(plugin, key)
             _plugin_metadata[key] = _installed_metadata(key, ep.dist)
-            _plugin_packages[key] = package
             _plugin_tables.update(owned)
             if versions.is_dir():
                 _plugin_migrations[key] = (versions, owned)

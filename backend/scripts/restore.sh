@@ -13,6 +13,11 @@ KEY="$1"
 
 STATUS_FILE=/tmp/nexctf-restore.status
 
+# Mirror the output into the container log, besides the restore log file.
+if [ -w /proc/1/fd/1 ]; then
+    exec > >(tee -a /proc/1/fd/1) 2>&1
+fi
+
 log() { echo "[restore] $*"; }
 
 # Record the outcome for the UI to read and bring the app back, whether or not

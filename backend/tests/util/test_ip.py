@@ -1,24 +1,17 @@
 """Unit tests for nexctf.util.ip.get_client_ip."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-from starlette.datastructures import Headers
+from fastapi import Request
 
 from nexctf.core.config import settings
 from nexctf.util.ip import get_client_ip
 
 
-def _request(xff: str | None = None, client_host: str | None = "1.2.3.4") -> MagicMock:
-    req = MagicMock()
-    headers: dict[str, str] = {}
-    if xff is not None:
-        headers["x-forwarded-for"] = xff
-    req.headers = Headers(headers=headers)
-    if client_host is not None:
-        req.client = MagicMock(host=client_host)
-    else:
-        req.client = None
-    return req
+def _request(xff: str | None = None, client_host: str | None = "1.2.3.4") -> Request:
+    headers = [(b"x-forwarded-for", xff.encode())] if xff is not None else []
+    client = (client_host, 1234) if client_host is not None else None
+    return Request({"type": "http", "headers": headers, "client": client})
 
 
 def test_xff_single_ip():

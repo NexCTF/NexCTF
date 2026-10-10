@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nexctf.core import appconfig
 from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.db import get_db_context
+from nexctf.core.logging import bind_log_context
 from nexctf.model import Challenge
 from nexctf.model.scheduler import SchedulerJob, SchedulerTask
 from nexctf.module import backup
@@ -259,6 +260,7 @@ async def run_queued_job(session: AsyncSession, redis: Redis, task_id: UUID) -> 
     job = await session.get_one(SchedulerJob, task.job_id)
 
     started_at = datetime.now(UTC)
+    bind_log_context(job_id=str(job.id), job_type=job.job_type)
     try:
         entry = _entry_for(job)
         await call_maybe_async(entry.handler, job, session, redis)

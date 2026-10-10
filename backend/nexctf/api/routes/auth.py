@@ -49,6 +49,7 @@ from nexctf.core.email_render import (
     build_password_reset_email,
     build_verification_email,
 )
+from nexctf.core.logging import bind_user_context
 from nexctf.core.rate_limit import (
     check_config_rate_limit,
     check_rate_limit,
@@ -187,6 +188,8 @@ async def register(
     except IntegrityError:
         raise ConflictError(detail="Username or email already taken")
     if result.data is not None:
+        bind_user_context(result.data.id, result.data.username)
+        logger.info("registered %s", result.data.username)
         await emit(
             session,
             redis,
@@ -216,6 +219,12 @@ async def _record_login_failure(
     The login handler raises an HTTP error right after, which would otherwise
     roll the event back before the request-end commit runs.
     """
+    logger.warning(
+        "login failed for %s (%s)",
+        username,
+        reason,
+        extra={"username": username, "reason": reason},
+    )
     await emit(
         session,
         redis,
@@ -301,6 +310,8 @@ async def login(
         )
         raise EmailNotVerifiedError()
     await issue_session_cookie(session, response, user, request)
+    bind_user_context(user.id, user.username)
+    logger.info("login for %s", user.username)
     await emit(
         session,
         redis,
@@ -332,6 +343,7 @@ async def reset_password(
     )
     if not user:
         raise NotFoundError()
+    bind_user_context(user.id, user.username)
     await crud.UserCrud.update(
         session=session,
         filters=[User.id == user.id],
@@ -343,6 +355,7 @@ async def reset_password(
     )
     await crud.UserTokenCrud.delete(session, filters=[UserToken.user_id == user.id])
     await revoke_user_sessions(session, user)
+    logger.info("password reset completed for %s", user.username)
     await emit(
         session,
         redis,
@@ -383,6 +396,8 @@ async def verify_email(
         filters=[User.id == user.id],
         obj=UserEmailVerifiedUpdate(id=user.id, email_verified=True),
     )
+    bind_user_context(user.id, user.username)
+    logger.info("email verified for %s", user.username)
     await emit(
         session,
         redis,
@@ -477,6 +492,8 @@ async def forgot_password(
     background_tasks.add_task(
         _deliver_branded_email, redis, user.email, link, build_password_reset_email
     )
+    bind_user_context(user.id, user.username)
+    logger.info("password reset requested for %s", user.username)
     await emit(
         session,
         redis,
@@ -711,6 +728,13 @@ async def oauth_callback(
         raise AccountDisabledError()
 
     client_ip = get_client_ip(request)
+    bind_user_context(user.id, user.username)
+    logger.info(
+        "oauth login for %s via %s",
+        user.username,
+        provider.slug,
+        extra={"provider": provider.slug, "new_user": is_new_user},
+    )
     if is_new_user:
         await emit(
             db,

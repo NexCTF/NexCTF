@@ -8,18 +8,19 @@ from datetime import timedelta
 from typing import Any
 
 import pytest
+from fastapi_toolsets.logger import bind_log_context, current_log_context
+from fastapi_toolsets.logger.context import skip_logged_exceptions
 from pgqueuer import Queries
 from pgqueuer.db import AsyncpgDriver
 from pgqueuer.types import QueueExecutionMode
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.plugins import loader
 from nexctf.plugins.declare import CronDef, TaskDef
 from nexctf.plugins.registry import task_registry
 from nexctf.tasks import enqueue
 from nexctf.tasks.queue import DB_SETTINGS, connect
-from nexctf.tasks.worker import _log_plugins_at_info, build_pgqueuer
+from nexctf.tasks.worker import _logged, build_pgqueuer
 
 
 class _Payload(BaseModel):
@@ -204,15 +205,22 @@ async def test_the_worker_schedules_every_registered_cron(
     assert ("core.purge_task_queue", "0 3 * * *") in scheduled
 
 
-def test_the_worker_logs_each_loaded_plugin_at_info(
-    monkeypatch: pytest.MonkeyPatch,
+async def test_a_failed_run_is_logged_once_with_its_bound_fields(
+    context_caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Plugins log under their own package, which the WARNING root would drop."""
-    monkeypatch.setattr(loader, "_plugin_packages", {"nexctf_demo": "demo_pkg"})
-    plugin_logger = logging.getLogger("demo_pkg.tasks")
-    monkeypatch.setattr(logging.getLogger("demo_pkg"), "level", logging.NOTSET)
-    monkeypatch.setattr(logging.getLogger(), "level", logging.WARNING)
+    """The failure keeps the fields the handler bound; later copies are dropped."""
+    with (
+        context_caplog.at_level(logging.INFO, logger="nexctf.tasks.worker"),
+        pytest.raises(RuntimeError) as raised,
+    ):
+        async with _logged("task t #1", 5, logging.INFO):
+            bind_log_context(job_id="j1")
+            raise RuntimeError("boom")
 
-    _log_plugins_at_info()
-
-    assert plugin_logger.isEnabledFor(logging.INFO)
+    failed = next(r for r in context_caplog.records if r.levelno == logging.ERROR)
+    assert failed.exc_info is not None
+    assert failed.exc_info[1] is raised.value
+    assert vars(failed)["job_id"] == "j1"
+    requeued = logging.makeLogRecord({"exc_info": (RuntimeError, raised.value, None)})
+    assert not skip_logged_exceptions(requeued)
+    assert current_log_context() == {}
