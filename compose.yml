@@ -48,6 +48,11 @@ x-app-env: &app-env
   # The demo accounts have no password; the admin comes from DEFAULT_ADMIN_*.
   DEMO_DATA: ${DEMO_DATA:-}
 
+  # Prometheus metrics at https://${DOMAIN}/metrics, on by default but only
+  # served once METRICS_TOKEN is set.
+  METRICS_ENABLED: ${METRICS_ENABLED:-}
+  METRICS_TOKEN: ${METRICS_TOKEN:-}
+
   # Comma-separated uv specifiers installed at start, e.g.
   #   NEXCTF_PLUGINS=nexctf-sandbox==1.2.0,git+https://github.com/org/plug@v1.0
   NEXCTF_PLUGINS: ${NEXCTF_PLUGINS:-}

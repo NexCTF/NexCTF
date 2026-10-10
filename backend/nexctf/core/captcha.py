@@ -10,6 +10,7 @@ from redis.asyncio import Redis
 
 from nexctf.core import appconfig
 from nexctf.core.config import settings
+from nexctf.core.metrics import incr_counter
 from nexctf.exceptions import CaptchaInvalidError, CaptchaRequiredError
 
 ALGORITHM = "PBKDF2/SHA-256"
@@ -48,17 +49,21 @@ async def verify_captcha(
         return
 
     if not token:
+        await incr_counter(redis, "captcha_failures", "missing")
         raise CaptchaRequiredError()
 
     try:
         payload = altcha.Payload.from_base64(token)
     except ValueError, KeyError, TypeError:
+        await incr_counter(redis, "captcha_failures", "malformed")
         raise CaptchaInvalidError()
 
     if not altcha.verify_solution(payload, _hmac_secret()).verified:
+        await incr_counter(redis, "captcha_failures", "invalid")
         raise CaptchaInvalidError()
 
     if not await redis.set(
         f"captcha:used:{payload.challenge.signature}", 1, nx=True, ex=TTL
     ):
+        await incr_counter(redis, "captcha_failures", "replayed")
         raise CaptchaInvalidError()

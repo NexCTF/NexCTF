@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 from fastapi_toolsets.schemas import Response
-from sqlalchemy import ColumnElement, ScalarSelect, func, select
+from sqlalchemy import func, select
 
 from nexctf.api.dep import AdminAuthDep, CurrentUserDep, RedisDep, SessionDep
 from nexctf.model import (
-    Base,
     Challenge,
     HintUnlock,
     Submission,
@@ -18,13 +17,9 @@ from nexctf.model import (
 from nexctf.module.info import get_public_info, get_version_info
 from nexctf.schema import PublicUserRead
 from nexctf.schema.info import AdminStats, PublicInfo
+from nexctf.util.sql import count_of
 
 info_router = APIRouter(prefix="/info", tags=["info"])
-
-
-def _count_of(model: type[Base], *filters: ColumnElement[bool]) -> ScalarSelect[int]:
-    """Row count for *model* as a scalar subquery, so counts share one round-trip."""
-    return select(func.count()).select_from(model).where(*filters).scalar_subquery()
 
 
 @info_router.get("")
@@ -58,12 +53,12 @@ async def admin_info(
     ) = (
         await session.execute(
             select(
-                _count_of(User),
-                _count_of(Team),
-                _count_of(Challenge),
-                _count_of(Submission),
-                _count_of(Submission, Submission.is_correct.is_(True)),
-                _count_of(HintUnlock),
+                count_of(User),
+                count_of(Team),
+                count_of(Challenge),
+                count_of(Submission),
+                count_of(Submission, Submission.is_correct.is_(True)),
+                count_of(HintUnlock),
                 select(func.coalesce(func.sum(HintUnlock.cost_paid), 0))
                 .select_from(HintUnlock)
                 .scalar_subquery(),

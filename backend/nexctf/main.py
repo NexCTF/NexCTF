@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # Imported for its side effect: registers the config definitions.
 import nexctf.settings as _  # noqa: F401
+from nexctf.api.metrics import metrics_router
 from nexctf.api.openapi import setup_docs
 from nexctf.api.routes import router
 from nexctf.core.appconfig import sync_to_redis
@@ -115,6 +116,10 @@ async def oauth2_protocol_error_handler(
 v1_router = APIRouter(prefix=settings.API_V1_STR)
 v1_router.include_router(router=router)
 app.include_router(v1_router)
+if settings.metrics_served:
+    app.include_router(metrics_router)
+elif settings.METRICS_ENABLED:
+    logger.warning("metrics are enabled but not served: set METRICS_TOKEN")
 
 setup_docs(app, _ADMIN_PREFIX)
 install_dashboard(app)

@@ -10,6 +10,7 @@ import aiosmtplib
 from redis.asyncio import Redis
 
 from nexctf.core import appconfig
+from nexctf.core.metrics import incr_counter
 from nexctf.exceptions import (
     EmailDisabledError,
     EmailMisconfiguredError,
@@ -66,6 +67,7 @@ async def send_email(
         logger.error(
             "email is enabled but smtp_host / smtp_port / from_address are not fully configured"
         )
+        await incr_counter(redis, "emails", "misconfigured")
         raise EmailMisconfiguredError()
 
     message = EmailMessage()
@@ -89,8 +91,10 @@ async def send_email(
         )
     except aiosmtplib.SMTPException, OSError:
         logger.exception("SMTP send to %s failed", to)
+        await incr_counter(redis, "emails", "failed")
         raise EmailSendError()
     logger.debug("email sent to %s", to, extra={"subject": subject})
+    await incr_counter(redis, "emails", "sent")
 
 
 async def dispatch_email(
