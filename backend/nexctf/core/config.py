@@ -125,6 +125,16 @@ class Settings(BaseSettings):
             )
         )
 
+    METRICS_ENABLED: bool = True
+    METRICS_TOKEN: str | None = None
+
+    @property
+    def metrics_served(self) -> bool:
+        """Whether /metrics is mounted: enabled, and token-protected outside dev."""
+        return self.METRICS_ENABLED and (
+            self.ENVIRONMENT == "development" or bool(self.METRICS_TOKEN)
+        )
+
     SSE_MAX_STREAMS: int = 1000
     SSE_MAX_PUBLIC_STREAMS: int = 1000
 

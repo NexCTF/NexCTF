@@ -145,7 +145,11 @@ async def _send_verification_email(
 async def captcha_challenge(request: Request, redis: RedisDep) -> dict:
     """Issue an ALTCHA challenge for the login and register widgets."""
     await check_rate_limit(
-        redis, client_rate_key("captcha", request), window_seconds=60, max_requests=30
+        redis,
+        client_rate_key("captcha", request),
+        name="captcha",
+        window_seconds=60,
+        max_requests=30,
     )
     return create_challenge()
 
@@ -166,6 +170,7 @@ async def register(
     await check_rate_limit(
         redis,
         client_rate_key("register", request),
+        name="register",
         window_seconds=60,
         max_requests=5,
     )
@@ -331,7 +336,11 @@ async def reset_password(
 ):
     """Consume a single-use password reset token and update the user's password."""
     await check_rate_limit(
-        redis, client_rate_key("pwd_reset", request), window_seconds=60, max_requests=5
+        redis,
+        client_rate_key("pwd_reset", request),
+        name="pwd_reset",
+        window_seconds=60,
+        max_requests=5,
     )
     user_id_str = await consume_single_use_token(
         redis, PWD_RESET_KEY_PREFIX, body.token
@@ -378,6 +387,7 @@ async def verify_email(
     await check_rate_limit(
         redis,
         client_rate_key("verify_email", request),
+        name="verify_email",
         window_seconds=60,
         max_requests=10,
     )
@@ -422,6 +432,7 @@ async def _email_action_recipient(
     await check_rate_limit(
         redis,
         client_rate_key(rate_limit_action, request),
+        name=rate_limit_action,
         window_seconds=60,
         max_requests=3,
     )
