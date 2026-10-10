@@ -37,7 +37,17 @@ manager create-admin
 DOMAIN="${DOMAIN:-localhost}"
 mkdir -p /etc/caddy
 
-if [ -f /certs/cert.pem ] && [ -f /certs/key.pem ]; then
+SCHEME=""
+SERVERS_DIRECTIVE=""
+if [ "${TLS_TERMINATED_UPSTREAM:-}" = "true" ]; then
+    SCHEME="http://"
+    TLS_DIRECTIVE=""
+    # Keep the X-Forwarded-For of the proxy in front instead of replacing it.
+    SERVERS_DIRECTIVE="servers {
+        trusted_proxies static private_ranges
+    }"
+    log "TLS: terminated upstream, serving plain HTTP"
+elif [ -f /certs/cert.pem ] && [ -f /certs/key.pem ]; then
     TLS_DIRECTIVE="tls /certs/cert.pem /certs/key.pem"
     log "TLS: using custom certificates"
 else
@@ -51,9 +61,10 @@ cat > /etc/caddy/Caddyfile << EOF
     storage file_system {
         root /data
     }
+    ${SERVERS_DIRECTIVE}
 }
 
-${DOMAIN} {
+${SCHEME}${DOMAIN} {
     ${TLS_DIRECTIVE}
 
     handle /api/* {
@@ -72,9 +83,9 @@ ${DOMAIN} {
     }
 }
 
-s3.${DOMAIN} {
+${SCHEME}s3.${DOMAIN} {
     ${TLS_DIRECTIVE}
-    reverse_proxy s3:9000
+    reverse_proxy ${S3_HOST:-s3}:${S3_PORT:-9000}
 }
 EOF
 
