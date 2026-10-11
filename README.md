@@ -92,6 +92,7 @@ Start it with `DEMO_DATA=true` to seed example challenges, teams and submissions
 - Scheduler: one-shot or cron-based jobs
 - Database backup and restore from the UI, stored on S3, schedulable with retention (beta)
 - Custom Markdown pages and external navigation links
+- Prometheus metrics
 - **Plugins**: register custom challenge types, solution strategies, scheduler jobs, background tasks and crons, and frontend components
   - Installed with uv from a package index, a git repository, or a local path
   - Plugins own their DB tables with Alembic migrations

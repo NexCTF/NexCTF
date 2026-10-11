@@ -60,6 +60,10 @@ ${DOMAIN} {
         reverse_proxy 127.0.0.1:8000
     }
 
+    handle /metrics {
+        reverse_proxy 127.0.0.1:8000
+    }
+
     handle {
         import /app/security-headers.caddy
         root * /app/frontend/dist

@@ -31,6 +31,8 @@ def env(monkeypatch: pytest.MonkeyPatch):
             "LOG_FORMAT",
             "LOG_FILES",
             "LOG_DIR",
+            "METRICS_ENABLED",
+            "METRICS_TOKEN",
         ):
             monkeypatch.delenv(name, raising=False)
         for name, value in (REQUIRED | overrides).items():
@@ -89,3 +91,17 @@ def test_explicit_log_settings_win_in_production(env) -> None:
 def test_log_dir_can_be_moved(env) -> None:
     settings = env(ENVIRONMENT="production", LOG_DIR="/srv/logs")
     assert settings.LOG_DIR == "/srv/logs"
+
+
+@pytest.mark.parametrize(
+    ("overrides", "served"),
+    [
+        ({}, True),
+        ({"METRICS_ENABLED": "false"}, False),
+        ({"ENVIRONMENT": "production"}, False),
+        ({"ENVIRONMENT": "production", "METRICS_TOKEN": "t"}, True),
+    ],
+)
+def test_metrics_served(env, overrides: dict[str, str], served: bool) -> None:
+    settings = env(SECRET_KEY="k" * 32, **overrides)
+    assert settings.metrics_served is served
