@@ -17,6 +17,7 @@ x-s3-env: &s3-env
   S3_HOST: ${S3_HOST:-s3}
   S3_PORT: ${S3_PORT:-9000}
   S3_REGION: ${S3_REGION:-us-east-1}
+  S3_TLS: ${S3_TLS:-false}
 
 x-app-env: &app-env
   WORKERS: ${WORKERS:-4}
@@ -91,6 +92,8 @@ services:
       - internal
 
   s3:
+    # Unused with an external S3 (S3_HOST, S3_PORT, S3_TLS, S3_PUBLIC_URL): it can
+    # be removed along with the app's depends_on entry for it.
     image: ghcr.io/coollabsio/maxio:0.4.2@sha256:2e7fc2a32d66fb31c44ce366e8a289218d3c38fcbe25bd6fa575b4df7c0e0272
     restart: always
     volumes:
