@@ -34,17 +34,20 @@
 ## 0.10.0
 - [x] DB backup and restore from the UI
 - [x] Fine-grained API token
+- [x] Documentation
 
 ## 0.11.0
 - [x] Event import/export
 - [x] Security hub
 - [x] Plugin rework
 
+## 0.12.0
+- [x] Frontend tests
+- [x] Prometheus metrics
+- [x] Backend logger rework
+
 ## Before v1.0 release
 - [ ] Event sync
-- [ ] Documentation
-- [ ] Frontend tests
-- [ ] Add more metrics
 - [ ] Anti-cheat / flag sharing detection
 - [ ] Support for Kubernetes deployment
 - [ ] Notification integrations (Discord/webhook)
