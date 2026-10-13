@@ -7,9 +7,14 @@ export APP_DIR="${APP_DIR:-$(pwd)}"
 
 log() { echo "[start] $*"; }
 
+# Masks the credentials of every URL in $1 (user:secret@ -> user:****@, token@ -> ****@).
+redact_urls() {
+    sed -E 's#://([^/@:]+):[^/@]*@#://\1:****@#g; s#://[^/@:]+@#://****@#g' <<< "$1"
+}
+
 # --- Prepare (dev + prod): install plugins, migrate, load fixtures ---
 if [ -n "${NEXCTF_PLUGINS:-}" ]; then
-    log "installing plugins: $NEXCTF_PLUGINS"
+    log "installing plugins: $(redact_urls "$NEXCTF_PLUGINS")"
     # shellcheck disable=SC2086 # word splitting is how the list becomes arguments
     uv pip install ${NEXCTF_PLUGINS//,/ }
 fi
