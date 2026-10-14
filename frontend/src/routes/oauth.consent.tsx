@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { ShieldCheck, ShieldX } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,15 +12,25 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ApiError, approveOAuthConsent, getOAuthConsentInfo } from "@/lib/api";
+import {
+  ApiError,
+  apiErrorMessage,
+  approveOAuthConsent,
+  getOAuthConsentInfo,
+  type OAuthConsentParams,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
+const str = (value: unknown): string | undefined => (typeof value === "string" ? value : undefined);
+
 export const Route = createFileRoute("/oauth/consent")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    client_id: typeof search.client_id === "string" ? search.client_id : "",
-    redirect_uri: typeof search.redirect_uri === "string" ? search.redirect_uri : "",
-    scope: typeof search.scope === "string" ? search.scope : "openid profile",
-    state: typeof search.state === "string" ? search.state : undefined,
+  validateSearch: (search: Record<string, unknown>): OAuthConsentParams => ({
+    client_id: str(search.client_id) ?? "",
+    redirect_uri: str(search.redirect_uri) ?? "",
+    scope: str(search.scope) ?? "openid profile",
+    state: str(search.state),
+    code_challenge: str(search.code_challenge),
+    code_challenge_method: str(search.code_challenge_method),
   }),
   component: ConsentPage,
 });
@@ -34,7 +45,8 @@ const SCOPE_ICONS: Record<string, string> = {
 function ConsentPage() {
   const { t } = useTranslation();
   const { user, isLoading: authLoading } = useAuth();
-  const { client_id, redirect_uri, scope, state } = Route.useSearch();
+  const search = Route.useSearch();
+  const { client_id, redirect_uri, scope, state } = search;
 
   const {
     data: info,
@@ -48,9 +60,19 @@ function ConsentPage() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: () => approveOAuthConsent({ client_id, redirect_uri, scope, state }),
+    mutationFn: () => approveOAuthConsent(search),
     onSuccess: ({ redirect_to }) => {
       window.location.href = redirect_to;
+    },
+    onError: (err) => {
+      if (!(err instanceof ApiError && err.status === 403)) {
+        toast.error(
+          apiErrorMessage(
+            err,
+            t("oauth_consent.approve_error", { defaultValue: "Could not authorize the app" }),
+          ),
+        );
+      }
     },
   });
 

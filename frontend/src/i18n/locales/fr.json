@@ -1037,6 +1037,7 @@
     "access_denied_title": "Accès refusé",
     "allow": "Autoriser",
     "app_requesting": "{{app}} demande l'accès à votre compte",
+    "approve_error": "",
     "authorizing": "Autorisation…",
     "deny": "Refuser",
     "invalid_request": "Demande d'autorisation invalide",

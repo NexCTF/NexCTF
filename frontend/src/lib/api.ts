@@ -2117,12 +2117,18 @@ export async function getOAuthConsentInfo(
   return request<OAuthConsentInfo>(`/oauth2/client-info?${params}`);
 }
 
-export async function approveOAuthConsent(params: {
+export interface OAuthConsentParams {
   client_id: string;
   redirect_uri: string;
   scope: string;
   state?: string;
-}): Promise<{ redirect_to: string }> {
+  code_challenge?: string;
+  code_challenge_method?: string;
+}
+
+export async function approveOAuthConsent(
+  params: OAuthConsentParams,
+): Promise<{ redirect_to: string }> {
   return request<{ redirect_to: string }>("/oauth2/authorize/approve", {
     method: "POST",
     body: JSON.stringify(params),

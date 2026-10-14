@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 from urllib.parse import parse_qsl, urlparse
 
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.model import User
 from nexctf.model.oauth_server import OAuthServerClient
@@ -360,8 +361,7 @@ class TestOAuth2Token:
         fixture_user_members,
         mock_redis,
     ) -> None:
-        mock_redis.get = AsyncMock(return_value=_CODE_PAYLOAD)
-        mock_redis.delete = AsyncMock()
+        mock_redis.getdel = AsyncMock(return_value=_CODE_PAYLOAD)
         mock_redis.set = AsyncMock(return_value=True)
 
         resp = await http_client.post(
@@ -433,7 +433,7 @@ class TestOAuth2Token:
         mock_redis,
     ) -> None:
         """A code for an admin-only client is refused once the user is not an admin."""
-        mock_redis.get = AsyncMock(
+        mock_redis.getdel = AsyncMock(
             return_value=json.dumps(
                 {
                     "client_id": _ADMIN_CLIENT_ID,
@@ -444,7 +444,6 @@ class TestOAuth2Token:
                 }
             )
         )
-        mock_redis.delete = AsyncMock()
         mock_redis.set = AsyncMock(return_value=True)
 
         resp = await http_client.post(
@@ -591,8 +590,7 @@ class TestOAuth2PKCE:
         fixture_user_members,
         mock_redis,
     ) -> None:
-        mock_redis.get = AsyncMock(return_value=self._CODE_PAYLOAD_PKCE)
-        mock_redis.delete = AsyncMock()
+        mock_redis.getdel = AsyncMock(return_value=self._CODE_PAYLOAD_PKCE)
         mock_redis.set = AsyncMock(return_value=True)
 
         resp = await http_client.post(
@@ -616,8 +614,7 @@ class TestOAuth2PKCE:
         mock_redis,
     ) -> None:
         # A challenge was bound at authorization, so omitting the verifier must fail
-        mock_redis.get = AsyncMock(return_value=self._CODE_PAYLOAD_PKCE)
-        mock_redis.delete = AsyncMock()
+        mock_redis.getdel = AsyncMock(return_value=self._CODE_PAYLOAD_PKCE)
 
         resp = await http_client.post(
             "/oauth2/token",
@@ -638,8 +635,7 @@ class TestOAuth2PKCE:
         fixture_oauth_server_client: list[OAuthServerClient],
         mock_redis,
     ) -> None:
-        mock_redis.get = AsyncMock(return_value=self._CODE_PAYLOAD_PKCE)
-        mock_redis.delete = AsyncMock()
+        mock_redis.getdel = AsyncMock(return_value=self._CODE_PAYLOAD_PKCE)
 
         resp = await http_client.post(
             "/oauth2/token",
@@ -655,7 +651,32 @@ class TestOAuth2PKCE:
         assert resp.status_code == 400
         assert resp.json()["error"] == "invalid_grant"
         # The code must be consumed even on a failed PKCE check (no retry).
-        mock_redis.delete.assert_called_once()
+        mock_redis.getdel.assert_awaited_once()
+
+    async def test_token_verifier_without_a_bound_challenge(
+        self,
+        http_client: AsyncClient,
+        fixture_oauth_server_client: list[OAuthServerClient],
+        fixture_user_members,
+        mock_redis,
+    ) -> None:
+        """A client that sent PKCE must not get a code that silently lost it."""
+        mock_redis.getdel = AsyncMock(return_value=_CODE_PAYLOAD)
+        mock_redis.set = AsyncMock(return_value=True)
+
+        resp = await http_client.post(
+            "/oauth2/token",
+            data={
+                "grant_type": "authorization_code",
+                "code": "test_code_value",
+                "redirect_uri": _REDIRECT_URI,
+                "client_id": _CLIENT_ID,
+                "client_secret": _CLIENT_SECRET,
+                "code_verifier": _PKCE_VERIFIER,
+            },
+        )
+        assert resp.status_code == 400
+        assert resp.json()["error"] == "invalid_grant"
 
 
 class TestOAuth2RoleRestriction:
@@ -781,6 +802,30 @@ class TestOAuth2Userinfo:
         assert "sub" in data
         assert data["username"] == "fx_user1"
         assert data["role"] == "user"
+
+    async def test_scopes_narrowed_since_issue_are_withheld(
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+        fixture_oauth_server_client: list[OAuthServerClient],
+        fixture_user_members,
+        mock_redis,
+    ) -> None:
+        client = next(
+            c for c in fixture_oauth_server_client if c.client_id == _CLIENT_ID
+        )
+        client.allowed_scopes = "openid profile"
+        await db_session.flush()
+        mock_redis.get = AsyncMock(return_value=self._TOKEN_PAYLOAD)
+
+        resp = await http_client.get(
+            "/oauth2/userinfo",
+            headers={"Authorization": "Bearer some_opaque_token"},
+        )
+        data = resp.json()
+        assert data["username"] == "fx_user1"
+        assert data["email"] is None
+        assert data["role"] is None
 
     async def test_role_is_rechecked_per_request(
         self,

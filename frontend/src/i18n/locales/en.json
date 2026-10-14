@@ -1035,6 +1035,7 @@
     "access_denied_title": "Access denied",
     "allow": "Allow",
     "app_requesting": "{{app}} is requesting access to your account",
+    "approve_error": "Could not authorize the app",
     "authorizing": "Authorizing…",
     "deny": "Deny",
     "invalid_request": "Invalid authorization request",
