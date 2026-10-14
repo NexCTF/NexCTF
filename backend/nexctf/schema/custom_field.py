@@ -4,6 +4,9 @@ from fastapi_toolsets.schemas import PydanticBase
 
 from nexctf.model.custom_field import CustomFieldTarget, CustomFieldType
 
+# Values keyed by definition id; empty or null clears a value
+CustomFieldValuesInput = dict[UUID, str | None]
+
 
 class AdminCustomFieldCreate(PydanticBase):
     name: str
@@ -44,18 +47,6 @@ class PublicCustomFieldValue(PydanticBase):
     label: str
     field_type: CustomFieldType
     value: str | None
-
-
-class AdminCustomFieldValueCreate(PydanticBase):
-    definition_id: UUID
-    user_id: UUID | None = None
-    team_id: UUID | None = None
-    value: str | None = None
-
-
-class AdminCustomFieldValueUpdate(PydanticBase):
-    id: UUID
-    value: str | None = None
 
 
 class AdminCustomFieldValueRead(PydanticBase):

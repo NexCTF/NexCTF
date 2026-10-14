@@ -15,6 +15,8 @@ from ..base import (
     GetItemGuardMixin,
     ListGuardMixin,
     UpdateGuardMixin,
+    custom_field_values,
+    define_custom_field,
 )
 
 
@@ -74,18 +76,9 @@ class TestCreateUser(CreateGuardMixin):
     ) -> None:
         """Values sent on create land in the same transaction as the user."""
         c, _ = admin_client
-        dresp = await c.post(
-            "/admin/custom-field",
-            json={
-                "name": "discord",
-                "label": "Discord",
-                "target": "user",
-                "is_self_editable": False,
-            },
+        definition_id = await define_custom_field(
+            c, "discord", "user", is_self_editable=False
         )
-        assert dresp.status_code == 200
-        assert dresp.json()["data"]["is_self_editable"] is False
-        definition_id = dresp.json()["data"]["id"]
 
         resp = await c.post(
             self.PREFIX,
@@ -97,11 +90,8 @@ class TestCreateUser(CreateGuardMixin):
         )
         assert resp.status_code == 201
 
-        detail = await c.get(f"{self.PREFIX}/{resp.json()['data']['id']}")
-        values = detail.json()["data"]["custom_field_values"]
-        assert [(v["definition"]["id"], v["value"]) for v in values] == [
-            (definition_id, "player#1")
-        ]
+        url = f"{self.PREFIX}/{resp.json()['data']['id']}"
+        assert await custom_field_values(c, url) == {definition_id: "player#1"}
 
     async def test_update_round_trips_is_self_editable(
         self, admin_client: tuple[AsyncClient, User]
@@ -330,6 +320,25 @@ class TestUpdateUser(UpdateGuardMixin):
         c, _ = admin_client
         resp = await c.put(f"{self.PREFIX}/{NULL_UUID}", json={"id": NULL_UUID})
         assert resp.status_code == 404
+
+    async def test_update_replaces_custom_fields(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_user_members: list[User],
+    ) -> None:
+        """Values ride the update, and omitting them leaves them untouched."""
+        c, _ = admin_client
+        u = fixture_user_members[0]
+        definition_id = await define_custom_field(
+            c, "discord", "user", is_self_editable=False
+        )
+        url = f"{self.PREFIX}/{u.id}"
+        body = {"id": str(u.id), "custom_fields": {definition_id: "player#1"}}
+        assert (await c.put(url, json=body)).status_code == 200
+        resp = await c.put(url, json={"id": str(u.id), "username": "renamed"})
+        assert resp.status_code == 200
+
+        assert await custom_field_values(c, url) == {definition_id: "player#1"}
 
     async def test_update_email_resets_verification(
         self,

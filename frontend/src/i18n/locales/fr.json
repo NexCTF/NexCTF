@@ -233,10 +233,6 @@
       "save_error": "Échec de l'enregistrement du champ",
       "saved": "Champ enregistré",
       "title": "Champs personnalisés",
-      "value_delete_confirm": "Supprimer cette valeur de champ ?",
-      "value_label": "Valeur",
-      "value_save_error": "Échec de l'enregistrement de la valeur",
-      "value_saved": "Valeur enregistrée",
       "values_title": "Champs personnalisés"
     },
     "dashboard": {

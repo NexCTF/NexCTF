@@ -6,7 +6,11 @@ from pydantic import EmailStr
 
 from nexctf.enums import ClientCategory, ClientSource
 from nexctf.model import UserRole
-from nexctf.schema.custom_field import AdminCustomFieldValueRead, EditableCustomField
+from nexctf.schema.custom_field import (
+    AdminCustomFieldValueRead,
+    CustomFieldValuesInput,
+    EditableCustomField,
+)
 from nexctf.schema.team import Link, LinkListInput
 
 
@@ -20,13 +24,18 @@ class AdminUserUpdate(PydanticBase):
     links: LinkListInput | None = None
 
 
+class AdminUserUpdateRequest(AdminUserUpdate):
+    # None leaves the user's values untouched; a dict replaces them all
+    custom_fields: CustomFieldValuesInput | None = None
+
+
 class AdminUserCreate(PydanticBase):
     username: str
     password: str
     email: EmailStr | None = None
     role: UserRole = UserRole.user
     team_id: UUID | None = None
-    custom_fields: dict[UUID, str | None] = {}
+    custom_fields: CustomFieldValuesInput = {}
 
 
 class PublicRegisterRequest(PydanticBase):
@@ -253,7 +262,7 @@ class MyProfileUpdate(PydanticBase):
     """Full replacement of the user fields a player may edit."""
 
     links: LinkListInput = []
-    custom_fields: dict[UUID, str | None] = {}
+    custom_fields: CustomFieldValuesInput = {}
 
 
 class MyProfileRead(PydanticBase):

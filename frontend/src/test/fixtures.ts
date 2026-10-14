@@ -1,8 +1,10 @@
 import type {
+  AdminUserDetail,
   ApiToken,
   ClientSighting,
   ClientSummary,
   CursorPaginatedResponse,
+  CustomFieldDefinition,
   FailedLoginAddress,
   FailedLoginOverview,
   FailedLoginUsername,
@@ -68,6 +70,27 @@ export function user(overrides: Partial<User> = {}): User {
     totp_enabled: false,
     has_password: true,
     links: [],
+    ...overrides,
+  };
+}
+
+export function adminUserDetail(overrides: Partial<AdminUserDetail> = {}): AdminUserDetail {
+  return { ...user(), ips: [], last_login_at: null, custom_field_values: [], ...overrides };
+}
+
+export function customFieldDefinition(
+  overrides: Partial<CustomFieldDefinition> = {},
+): CustomFieldDefinition {
+  return {
+    id: "cf1",
+    name: "discord",
+    label: "Discord",
+    field_type: "string",
+    target: "user",
+    is_required: false,
+    is_public: true,
+    is_self_editable: true,
+    show_in_scoreboard: false,
     ...overrides,
   };
 }

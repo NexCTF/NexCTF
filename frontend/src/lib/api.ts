@@ -611,7 +611,7 @@ export async function createAdminUser(data: {
   email?: string | null;
   role?: string;
   team_id?: string | null;
-  custom_fields?: Record<string, string | null>;
+  custom_fields?: CustomFieldValues;
 }): Promise<User> {
   return request<User>("/admin/user", {
     method: "POST",
@@ -666,6 +666,7 @@ export async function updateAdminUser(
     role?: string;
     team_id?: string | null;
     links?: Link[];
+    custom_fields?: CustomFieldValues;
   },
 ): Promise<User> {
   return request<User>(`/admin/user/${userId}`, {
@@ -885,22 +886,6 @@ export async function deleteAdminCustomField(id: string): Promise<void> {
   await rawRequest(`/admin/custom-field/${id}`, { method: "DELETE" });
 }
 
-export async function setAdminCustomFieldValue(data: {
-  definition_id: string;
-  user_id?: string;
-  team_id?: string;
-  value: string | null;
-}): Promise<CustomFieldValue> {
-  return request<CustomFieldValue>("/admin/custom-field-value", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
-
-export async function deleteAdminCustomFieldValue(id: string): Promise<void> {
-  await rawRequest(`/admin/custom-field-value/${id}`, { method: "DELETE" });
-}
-
 // ---------------------------------------------------------------------------
 // Admin – Teams
 // ---------------------------------------------------------------------------
@@ -933,7 +918,7 @@ export async function createAdminTeam(data: {
   name: string;
   country?: string | null;
   bracket?: string | null;
-  custom_fields?: Record<string, string | null>;
+  custom_fields?: CustomFieldValues;
 }): Promise<Team> {
   return request<Team>("/admin/team", {
     method: "POST",
@@ -943,7 +928,13 @@ export async function createAdminTeam(data: {
 
 export async function updateAdminTeam(
   teamId: string,
-  data: { name?: string; country?: string | null; bracket?: string | null; links?: Link[] },
+  data: {
+    name?: string;
+    country?: string | null;
+    bracket?: string | null;
+    links?: Link[];
+    custom_fields?: CustomFieldValues;
+  },
 ): Promise<Team> {
   return request<Team>(`/admin/team/${teamId}`, {
     method: "PUT",
