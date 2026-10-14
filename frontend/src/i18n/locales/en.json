@@ -708,7 +708,13 @@
     "submit_error": "Submission failed",
     "submit_wrong": "Wrong answer, try again.",
     "submitting": "Checking…",
+    "unavailable": "This challenge is not available.",
     "writeup_title": "Writeup"
+  },
+  "challenges": {
+    "question_progress_one": "{{solved}}/{{count}} question",
+    "question_progress_other": "{{solved}}/{{count}} questions",
+    "uncategorized": "Uncategorized"
   },
   "common": {
     "add": "Add",

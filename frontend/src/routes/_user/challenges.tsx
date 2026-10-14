@@ -30,7 +30,7 @@ function ChallengesPage() {
   // Group by category
   const grouped = new Map<string, PublicChallenge[]>();
   for (const c of challenges) {
-    const key = c.category ?? "Uncategorized";
+    const key = c.category ?? t("challenges.uncategorized", { defaultValue: "Uncategorized" });
     if (!grouped.has(key)) grouped.set(key, []);
     // biome-ignore lint/style/noNonNullAssertion: key guaranteed by grouped.set above
     grouped.get(key)!.push(c);
@@ -72,6 +72,7 @@ function ChallengesPage() {
 }
 
 function ChallengeCard({ challenge: c }: { challenge: PublicChallenge }) {
+  const { t } = useTranslation();
   const pct = c.question_count > 0 ? Math.round((c.solved_count / c.question_count) * 100) : 0;
   const done = c.solved_count === c.question_count && c.question_count > 0;
 
@@ -103,8 +104,11 @@ function ChallengeCard({ challenge: c }: { challenge: PublicChallenge }) {
           <Circle className="size-4 shrink-0" />
         )}
         <span>
-          {c.solved_count}/{c.question_count} question
-          {c.question_count !== 1 ? "s" : ""}
+          {t("challenges.question_progress", {
+            count: c.question_count,
+            solved: c.solved_count,
+            defaultValue: "{{solved}}/{{count}} questions",
+          })}
         </span>
       </div>
 

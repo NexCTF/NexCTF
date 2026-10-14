@@ -84,3 +84,14 @@ it("gives up on a 401 at once but retries other failures", async () => {
   expect(unauthorized).toHaveBeenCalledTimes(1);
   expect(failing).toHaveBeenCalledTimes(4);
 });
+
+it.each([
+  [new ApiError(404, "Not Found"), false],
+  [new ApiError(403, "Forbidden"), false],
+  [new ApiError(429, "Too Many Requests"), true],
+  [new ApiError(503, "Service Unavailable"), true],
+  [new TypeError("Failed to fetch"), true],
+])("retries %s: %s", (error, expected) => {
+  const retry = createQueryClient().getDefaultOptions().queries?.retry;
+  expect(typeof retry === "function" && retry(0, error)).toBe(expected);
+});

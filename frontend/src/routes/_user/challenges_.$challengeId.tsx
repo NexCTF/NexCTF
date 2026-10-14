@@ -98,7 +98,11 @@ function ChallengePage() {
   const { challengeId } = Route.useParams();
   const { user, isLoading: authLoading } = useAuth();
 
-  const { data: challenge, isLoading } = useQuery({
+  const {
+    data: challenge,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["challenge", challengeId],
     queryFn: () => getChallenge(challengeId),
     enabled: !!user,
@@ -117,7 +121,21 @@ function ChallengePage() {
     );
   }
 
-  if (!challenge) return null;
+  if (!challenge) {
+    return (
+      <div className="mx-auto max-w-screen-md space-y-4 px-4 py-20 text-center">
+        <p className="text-muted-foreground">
+          {apiErrorMessage(
+            error,
+            t("challenge.unavailable", { defaultValue: "This challenge is not available." }),
+          )}
+        </p>
+        <Link to="/challenges" className="inline-flex items-center gap-1.5 text-sm hover:underline">
+          <ArrowLeft className="size-4" /> {t("challenge.back")}
+        </Link>
+      </div>
+    );
+  }
 
   return <ChallengeView challenge={challenge} />;
 }
@@ -314,11 +332,29 @@ function QuestionCard({
   const [expanded, setExpanded] = useState(!q.is_solved && !q.is_locked);
   const queryClient = useQueryClient();
 
+  function refreshTeamProgress() {
+    void queryClient.invalidateQueries({ queryKey: ["my-team"] });
+    void queryClient.invalidateQueries({ queryKey: ["team-score"] });
+  }
+
   function refetch() {
     void queryClient.invalidateQueries({
       queryKey: ["challenge", challengeId],
     });
     void queryClient.invalidateQueries({ queryKey: ["challenges"], exact: true });
+    refreshTeamProgress();
+  }
+
+  function showUnlockedHint(hint: PublicHint) {
+    const withHint = (other: PublicQuestion) =>
+      other.id === q.id
+        ? { ...other, hints: other.hints.map((h) => (h.id === hint.id ? hint : h)) }
+        : other;
+    queryClient.setQueryData<PublicChallengeDetail>(
+      ["challenge", challengeId],
+      (old) => old && { ...old, questions: old.questions.map(withHint) },
+    );
+    refreshTeamProgress();
   }
 
   if (q.is_locked) {
@@ -424,7 +460,7 @@ function QuestionCard({
               hints={q.hints}
               challengeId={challengeId}
               questionId={q.id}
-              onUnlocked={refetch}
+              onUnlocked={showUnlockedHint}
             />
           )}
 
@@ -461,7 +497,7 @@ function HintsSection({
   hints: PublicHint[];
   challengeId: string;
   questionId: string;
-  onUnlocked: () => void;
+  onUnlocked: (hint: PublicHint) => void;
 }) {
   const { t } = useTranslation();
   const unlockMutation = useMutation({
@@ -493,7 +529,9 @@ function HintsSection({
               {h.is_unlocked && <Eye className="size-4 text-muted-foreground shrink-0" />}
             </div>
             {h.is_unlocked && h.content && (
-              <p className="text-muted-foreground leading-relaxed pl-6">{h.content}</p>
+              <Markdown className="text-muted-foreground leading-relaxed pl-6">
+                {h.content}
+              </Markdown>
             )}
           </div>
         ))}
