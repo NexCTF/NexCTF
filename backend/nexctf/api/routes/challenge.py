@@ -196,11 +196,12 @@ def _assemble_question(
     is_locked: bool,
     unlocked_hint_ids: set[UUID],
     canary_token: str | None,
+    option_seed: str,
 ) -> PublicQuestionRead:
     """Build a player question view from cached structure + per-user state.
 
     A locked question shows only its label, points and answer shape (the
-    frontend blurs it); option order is shuffled per request.
+    frontend blurs it); option order is shuffled once per team.
     """
     if is_locked:
         return PublicQuestionRead(
@@ -214,9 +215,9 @@ def _assemble_question(
             multi_select=q.multi_select,
         )
 
-    options = list(q.options) if q.options else None
+    options = sorted(q.options) if q.options else None
     if options:
-        random.shuffle(options)
+        random.Random(f"{option_seed}:{q.id}").shuffle(options)
 
     return PublicQuestionRead(
         id=q.id,
@@ -330,6 +331,7 @@ async def get_challenge(
                 break
 
     canary_token = canary.token(structure.id) if canary.enabled(overrides) else None
+    option_seed = str((user.team_id or user.id) if user else "")
     question_reads = [
         _assemble_question(
             q,
@@ -337,6 +339,7 @@ async def get_challenge(
             is_locked=locked_from is not None and i >= locked_from,
             unlocked_hint_ids=unlocked,
             canary_token=canary_token,
+            option_seed=option_seed,
         )
         for i, q in enumerate(questions)
     ]

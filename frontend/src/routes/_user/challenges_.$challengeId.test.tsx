@@ -1,10 +1,26 @@
+import { QueryClient } from "@tanstack/react-query";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, expect, it, vi } from "vitest";
-import { getChallenge, getPublicInfo, submitAnswer, submitFeedback, unlockHint } from "@/lib/api";
+import {
+  ApiError,
+  getChallenge,
+  getPublicInfo,
+  submitAnswer,
+  submitFeedback,
+  unlockHint,
+} from "@/lib/api";
 import type { AuthContext } from "@/lib/auth";
-import { challengeDetail, publicInfo, publicInfoWith, question, user } from "@/test/fixtures";
+import {
+  challengeDetail,
+  hint,
+  publicInfo,
+  publicInfoWith,
+  question,
+  team,
+  user,
+} from "@/test/fixtures";
 import { clickAndCancel, clickAndConfirm, renderRoute } from "@/test/render";
 import { Route } from "./challenges_.$challengeId";
 
@@ -24,11 +40,12 @@ beforeEach(() => {
   vi.mocked(getChallenge).mockResolvedValue(challengeDetail());
 });
 
-function renderChallenge(auth: Partial<AuthContext> = { user: user() }) {
+function renderChallenge(auth: Partial<AuthContext> = { user: user() }, queryClient?: QueryClient) {
   return renderRoute(Route, {
     path: "/challenges/c1",
     routePath: "/challenges/$challengeId",
     auth,
+    queryClient,
   });
 }
 
@@ -152,7 +169,9 @@ it("asks for confirmation before spending points on a hint", async () => {
       ],
     }),
   );
-  vi.mocked(unlockHint).mockResolvedValue(undefined as never);
+  vi.mocked(unlockHint).mockResolvedValue(
+    hint({ cost: 25, is_unlocked: true, content: "Look closer" }),
+  );
   renderChallenge();
 
   await clickAndCancel(await screen.findByRole("button", { name: "25 pts" }));
@@ -271,4 +290,66 @@ it("sends an anonymous visitor to the login page", async () => {
 
   await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
   expect(getChallenge).not.toHaveBeenCalled();
+});
+
+it("explains a challenge that cannot be opened instead of a blank page", async () => {
+  vi.mocked(getChallenge).mockRejectedValue(new ApiError(404, "Not Found", "Challenge not found"));
+  renderChallenge();
+
+  expect(await screen.findByText("Challenge not found")).toBeDefined();
+  expect(screen.getByRole("link", { name: /Back to challenges/ })).toBeDefined();
+  expect(getChallenge).toHaveBeenCalledTimes(1);
+});
+
+it("renders an unlocked hint as Markdown", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({
+      questions: [
+        question({
+          hints: [hint({ is_unlocked: true, content: "Try **base64**" })],
+        }),
+      ],
+    }),
+  );
+  const { container } = renderChallenge();
+
+  await screen.findByText("base64");
+  expect(container.querySelector("strong")?.textContent).toBe("base64");
+});
+
+it("shows an unlocked hint without reloading the challenge", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({
+      questions: [
+        question({
+          hints: [hint()],
+        }),
+      ],
+    }),
+  );
+  vi.mocked(unlockHint).mockResolvedValue(hint({ is_unlocked: true, content: "Look closer" }));
+  renderChallenge();
+
+  await userEvent.click(await screen.findByRole("button", { name: "Unlock" }));
+
+  expect(await screen.findByText("Look closer")).toBeDefined();
+  expect(getChallenge).toHaveBeenCalledTimes(1);
+});
+
+it("refreshes the team's progress after a correct solve", async () => {
+  vi.mocked(submitAnswer).mockResolvedValue({
+    is_correct: true,
+    already_solved: false,
+    points_earned: 100,
+  });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(["my-team"], team());
+  client.setQueryData(["team-score", "t1"], { total: 0 });
+  renderChallenge({ user: user() }, client);
+
+  await userEvent.type(await screen.findByPlaceholderText("Enter your answer…"), "flag_x");
+  await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+  await waitFor(() => expect(client.getQueryState(["my-team"])?.isInvalidated).toBe(true));
+  expect(client.getQueryState(["team-score", "t1"])?.isInvalidated).toBe(true);
 });

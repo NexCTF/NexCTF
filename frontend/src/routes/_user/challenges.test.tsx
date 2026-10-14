@@ -68,3 +68,13 @@ it("sends an anonymous visitor to the login page without fetching challenges", a
   await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
   expect(getChallenges).not.toHaveBeenCalled();
 });
+
+it("pluralises the question count and labels challenges without a category", async () => {
+  vi.mocked(getChallenges).mockResolvedValue([
+    challenge({ id: "c1", category: null, question_count: 1, solved_count: 0 }),
+  ]);
+  renderRoute(Route, { path: "/challenges", auth: { user: user() } });
+
+  expect(await screen.findByText("0/1 question")).toBeDefined();
+  expect(screen.getByText("Uncategorized")).toBeDefined();
+});

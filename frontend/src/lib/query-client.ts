@@ -26,14 +26,17 @@ function recheckIdentityOn401(client: QueryClient, error: unknown): void {
   }
 }
 
-function retryUnlessUnauthorized(failureCount: number, error: unknown): boolean {
-  if (isUnauthorized(error)) return false;
+/** Retry network and server failures; a client error answers the same way again. */
+function retryTransientFailures(failureCount: number, error: unknown): boolean {
+  if (error instanceof ApiError && error.status < 500 && ![408, 429].includes(error.status)) {
+    return false;
+  }
   return failureCount < 3;
 }
 
 export function createQueryClient(): QueryClient {
   const client: QueryClient = new QueryClient({
-    defaultOptions: { queries: { staleTime: 30_000, retry: retryUnlessUnauthorized } },
+    defaultOptions: { queries: { staleTime: 30_000, retry: retryTransientFailures } },
     queryCache: new QueryCache({
       onError: (error) => forgetIdentityOn401(client, error),
     }),

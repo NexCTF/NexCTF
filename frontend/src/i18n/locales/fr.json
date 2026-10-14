@@ -710,7 +710,14 @@
     "submit_error": "Échec de la soumission",
     "submit_wrong": "Mauvaise réponse, réessayez.",
     "submitting": "Vérification…",
+    "unavailable": "",
     "writeup_title": "Writeup"
+  },
+  "challenges": {
+    "question_progress_one": "",
+    "question_progress_many": "",
+    "question_progress_other": "",
+    "uncategorized": ""
   },
   "common": {
     "add": "Ajouter",

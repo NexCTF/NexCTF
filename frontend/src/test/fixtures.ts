@@ -13,6 +13,7 @@ import type {
   Plugin,
   PublicChallenge,
   PublicChallengeDetail,
+  PublicHint,
   PublicInfo,
   PublicQuestion,
   SchedulerJob,
@@ -136,6 +137,10 @@ export function challenge(overrides: Partial<PublicChallenge> = {}): PublicChall
     tags: [],
     ...overrides,
   };
+}
+
+export function hint(overrides: Partial<PublicHint> = {}): PublicHint {
+  return { id: "h1", title: "Nudge", cost: 0, is_unlocked: false, content: null, ...overrides };
 }
 
 export function question(overrides: Partial<PublicQuestion> = {}): PublicQuestion {

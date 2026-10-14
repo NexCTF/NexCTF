@@ -13,6 +13,7 @@ from nexctf.api.routes.challenge import _writeup_visible
 from nexctf.model import HintUnlock, Team, User
 from nexctf.model.question import Hint, Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
+from nexctf.plugins.builtin.solution.mcq.model import MCQSolution
 from tests.base import FUTURE, NULL_UUID, PAST, make_solvable, put_in_team
 
 # ── list challenges ────────────────────────────────────────────────────────────
@@ -466,3 +467,33 @@ class TestSequentialLock:
         assert locked["is_locked"] is True
         assert locked["description"] is None
         assert locked["tags"] == []
+
+
+# ── option order ───────────────────────────────────────────────────────────────
+
+
+class TestOptionOrder:
+    async def test_options_keep_their_order_across_reloads(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        c, user = user_client
+        challenge, question = await make_solvable(db_session, user, "a")
+        choices = [f"option {n}" for n in range(8)]
+        db_session.add(
+            MCQSolution(
+                question_id=question.id,
+                correct_answers=choices[:1],
+                other_options=choices[1:],
+            )
+        )
+        await db_session.flush()
+
+        def options(resp) -> list[str]:
+            return resp.json()["data"]["questions"][0]["options"]
+
+        first = options(await c.get(f"/challenges/{challenge.id}"))
+        second = options(await c.get(f"/challenges/{challenge.id}"))
+        assert sorted(first) == choices
+        assert first == second
