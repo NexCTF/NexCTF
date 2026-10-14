@@ -1,3 +1,4 @@
+import { QueryClient } from "@tanstack/react-query";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
@@ -192,4 +193,31 @@ it("hides the team profile form when customization is off", async () => {
 
   await screen.findByText("Invite Code");
   expect(screen.queryByText("Team profile")).toBeNull();
+});
+
+it("loads the new team's profile after leaving one team and joining another", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(publicInfoWith({ allow_team_customization: true }));
+  vi.mocked(getMyTeam).mockResolvedValue(team());
+  vi.mocked(getMyTeamProfile).mockResolvedValue(teamProfile);
+  vi.mocked(leaveTeam).mockResolvedValue(undefined);
+  renderRoute(Route, {
+    path: "/team",
+    auth: { user: user() },
+    queryClient: new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: 30_000 } },
+    }),
+  });
+  expect(await screen.findByDisplayValue("Alpha")).toBeDefined();
+
+  vi.mocked(getMyTeam).mockResolvedValue(null);
+  await clickAndConfirm(screen.getByRole("button", { name: "Leave team" }), "Leave team");
+  const bravo = team({ id: "t2", name: "Bravo" });
+  vi.mocked(joinTeam).mockResolvedValue(bravo);
+  vi.mocked(getMyTeam).mockResolvedValue(bravo);
+  vi.mocked(getMyTeamProfile).mockResolvedValue({ ...teamProfile, name: "Bravo" });
+  await userEvent.type(await screen.findByLabelText("Invite code"), "BRAVO001");
+  await userEvent.click(screen.getByRole("button", { name: "Join" }));
+
+  expect(await screen.findByDisplayValue("Bravo")).toBeDefined();
+  expect(screen.queryByDisplayValue("Alpha")).toBeNull();
 });

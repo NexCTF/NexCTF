@@ -212,6 +212,15 @@ class NotInTeamError(TeamError):
     )
 
 
+class TeamScoredError(TeamError):
+    api_error = ApiError(
+        code=409,
+        msg="Team has scored",
+        desc="You cannot leave a team once it has solved a question.",
+        err_code="TEAM-409-SCORED",
+    )
+
+
 class TeamFullError(TeamError):
     api_error = ApiError(
         code=409,

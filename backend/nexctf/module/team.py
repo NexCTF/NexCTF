@@ -3,14 +3,24 @@
 from collections.abc import Sequence
 from uuid import UUID
 
+from fastapi_toolsets.db import transaction
 from redis.asyncio import Redis
-from sqlalchemy import ColumnElement
+from sqlalchemy import ColumnElement, exists, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from nexctf import crud
-from nexctf.model import Team
+from nexctf.model import (
+    ChallengeFeedback,
+    HintUnlock,
+    ScoreAdjustment,
+    Submission,
+    Team,
+    User,
+)
 from nexctf.model.custom_field import CustomFieldDefinition, CustomFieldValue
+from nexctf.model.notification import notification_team_table
 from nexctf.module.scoreboard import get_scoreboard
 from nexctf.module.stats import get_team_challenge_stats
 from nexctf.schema.custom_field import PublicCustomFieldValue
@@ -65,6 +75,29 @@ async def _fetch_public_user_fields(
     return by_user
 
 
+async def delete_if_abandoned(session: AsyncSession, team_id: UUID) -> bool:
+    """Delete a team with no members left and no play or admin history."""
+    traces = [
+        exists().where(column == team_id)
+        for column in (
+            User.team_id,
+            Submission.team_id,
+            ScoreAdjustment.team_id,
+            HintUnlock.team_id,
+            ChallengeFeedback.team_id,
+            notification_team_table.c.team_id,
+        )
+    ]
+    if any((await session.execute(select(*traces))).one()):
+        return False
+    try:
+        async with transaction(session):
+            await crud.TeamCrud.delete(session, filters=[Team.id == team_id])
+    except IntegrityError:
+        return False
+    return True
+
+
 async def load_team_read(
     session: AsyncSession,
     redis: Redis,
@@ -89,6 +122,7 @@ async def load_team_read(
     )
     if team is None:
         return None
+    users = [u for u in team.users if u.is_active]
     stats = (
         await get_team_challenge_stats(
             session, redis, team_id, overrides=overrides, live=live
@@ -99,9 +133,7 @@ async def load_team_read(
     custom_fields = await fetch_public_team_fields(session, team_id)
     members: list[PublicTeamMember] | None = None
     if include_members:
-        member_fields = await _fetch_public_user_fields(
-            session, [u.id for u in team.users]
-        )
+        member_fields = await _fetch_public_user_fields(session, [u.id for u in users])
         members = [
             PublicTeamMember(
                 id=u.id,
@@ -109,7 +141,7 @@ async def load_team_read(
                 links=u.links or [],
                 custom_fields=member_fields.get(u.id, []),
             )
-            for u in team.users
+            for u in users
         ]
     rank: int | None = None
     score: int | None = None
@@ -127,7 +159,7 @@ async def load_team_read(
         bracket=team.bracket,
         links=team.links or [],
         members=members,
-        member_count=len(team.users),
+        member_count=len(users),
         challenge_stats=stats,
         invite_code=team.invite_code,
         custom_fields=custom_fields,

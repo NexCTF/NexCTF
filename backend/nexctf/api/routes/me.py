@@ -9,6 +9,7 @@ from fastapi_toolsets.db import transaction
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, PaginationType, Response
 from redis.asyncio import Redis
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -44,11 +45,12 @@ from nexctf.exceptions import (
     TeamChangesDisabledError,
     TeamCreationDisabledError,
     TeamFullError,
+    TeamScoredError,
     TotpAlreadyEnabledError,
     TotpNotEnabledError,
     UngrantableScopeError,
 )
-from nexctf.model import OAuthAccount, Team, User, UserRole, UserToken
+from nexctf.model import OAuthAccount, Submission, Team, User, UserRole, UserToken
 from nexctf.model.user import gen_invite_code
 from nexctf.module.custom_field import load_editable_fields, replace_custom_field_values
 from nexctf.module.events import emit
@@ -58,7 +60,7 @@ from nexctf.module.session import (
     revoke_session_by_id,
     revoke_user_sessions,
 )
-from nexctf.module.team import load_team_read
+from nexctf.module.team import delete_if_abandoned, load_team_read
 from nexctf.schema import (
     PublicApiTokenCreate,
     PublicApiTokenRead,
@@ -475,6 +477,13 @@ async def get_my_team(
     )
 
 
+async def _lock_membership(session: AsyncSession, user: User) -> UUID | None:
+    """Lock the caller's row until commit and return their current team id."""
+    return await session.scalar(
+        select(User.team_id).where(User.id == user.id).with_for_update()
+    )
+
+
 @me_router.post("/team", status_code=201)
 async def create_team(
     session: SessionDep,
@@ -487,7 +496,7 @@ async def create_team(
         raise TeamChangesDisabledError()
     if not appconfig.get_with_overrides("ctf.allow_team_creation", overrides):
         raise TeamCreationDisabledError()
-    if user.team_id is not None:
+    if await _lock_membership(session, user) is not None:
         raise AlreadyInTeamError()
 
     try:
@@ -518,17 +527,18 @@ async def join_team(
 ) -> Response[MyTeamRead]:
     if not appconfig.get_with_overrides("ctf.allow_team_changes", overrides):
         raise TeamChangesDisabledError()
-    if user.team_id is not None:
+    if await _lock_membership(session, user) is not None:
         raise AlreadyInTeamError()
 
     team = await crud.TeamCrud.first(
-        session,
-        [Team.invite_code == body.code],
-        load_options=[selectinload(Team.users)],
+        session, [Team.invite_code == body.code], with_for_update=True, load_options=[]
     )
     if team is None:
         raise InvalidInviteCodeError()
-    if len(team.users) >= int(appconfig.get_with_overrides("ctf.team_size", overrides)):
+    members = await crud.UserCrud.count(
+        session, [User.team_id == team.id, User.is_active.is_(True)]
+    )
+    if members >= int(appconfig.get_with_overrides("ctf.team_size", overrides)):
         raise TeamFullError()
 
     await crud.UserCrud.update(
@@ -549,20 +559,28 @@ async def join_team(
 async def leave_team(
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     overrides: ConfigDep,
     user: CurrentUserDep,
 ):
     if not appconfig.get_with_overrides("ctf.allow_team_changes", overrides):
         raise TeamChangesDisabledError()
-    if user.team_id is None:
+    team_id = await _lock_membership(session, user)
+    if team_id is None:
         raise NotInTeamError()
     team = await crud.TeamCrud.first(
-        session, [Team.id == user.team_id], load_options=[]
+        session, [Team.id == team_id], with_for_update=True, load_options=[]
     )
+    if await crud.SubmissionCrud.exists(
+        session, [Submission.team_id == team_id, Submission.is_correct.is_(True)]
+    ):
+        raise TeamScoredError()
     team_name = team.name if team else ""
     await crud.UserCrud.update(
         session, UserTeamUpdate(team_id=None), [User.id == user.id]
     )
+    if await delete_if_abandoned(session, team_id):
+        background_tasks.add_task(invalidate_scoreboard, redis, team_id=team_id)
     await emit(
         session,
         redis,
