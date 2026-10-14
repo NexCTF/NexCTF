@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 
@@ -46,6 +46,7 @@ async def delete_submission(
     request: Request,
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     uuid: UUID,
     admin: CurrentUserDep,
 ) -> Response[None]:
@@ -60,8 +61,8 @@ async def delete_submission(
         filters=[Submission.id == uuid],
         return_response=True,
     )
-    await invalidate_scoreboard(redis, team_id=team_id)
-    await invalidate_team(redis, team_id)
+    background_tasks.add_task(invalidate_scoreboard, redis, team_id=team_id)
+    background_tasks.add_task(invalidate_team, redis, team_id)
     await emit(
         session,
         redis,

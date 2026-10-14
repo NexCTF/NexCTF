@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from fastapi_toolsets.exceptions import NotFoundError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -323,7 +324,7 @@ async def test_zero_point_solve_triggers_hint_cost_and_shows_in_details(db_sessi
 
 
 async def test_compute_team_score_not_found(db_session):
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(NotFoundError):
         await compute_team_score(db_session, uuid4())
 
 

@@ -9,6 +9,7 @@ from nexctf.core.eventbus import publish_event
 from nexctf.exceptions import ConfigValidationError
 from nexctf.module.audit import REDACTED, audit_actor, redact
 from nexctf.module.events import emit
+from nexctf.module.info import invalidate as invalidate_info
 from nexctf.module.scoreboard import invalidate as invalidate_scoreboard
 from nexctf.module.stats import invalidate_team
 from nexctf.schema.config import AdminConfigBulkUpdate, AdminConfigRead
@@ -73,6 +74,10 @@ async def bulk_update_config(
         raise ConfigValidationError(errors)
 
     await appconfig.commit_and_store(session, redis, staged)
+    await invalidate_info(redis)
+    if "ctf.freeze_time" in staged:
+        await invalidate_scoreboard(redis)
+        await invalidate_team(redis)
     await publish_event(redis, ["config:update"], "1")
 
     overrides = {**old_overrides, **staged}
@@ -94,9 +99,5 @@ async def bulk_update_config(
             ip=ip,
             meta={"changes": changes},
         )
-
-    if "ctf.freeze_time" in staged:
-        await invalidate_scoreboard(redis)
-        await invalidate_team(redis)
 
     return Response(data=[_build_item(k, overrides) for k in appconfig.all_defs()])

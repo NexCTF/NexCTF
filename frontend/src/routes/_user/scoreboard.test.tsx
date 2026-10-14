@@ -95,9 +95,19 @@ it("announces a frozen scoreboard", async () => {
   expect(await screen.findByText(/Scoreboard frozen at/)).toBeDefined();
 });
 
-it("announces the end of the competition and drops the freeze notice", async () => {
+it("keeps the freeze notice after the end while scores stay frozen", async () => {
   vi.mocked(getPublicInfo).mockResolvedValue(
     publicInfoWith({ start_time: PAST, freeze_time: PAST, end_time: PAST }),
+  );
+  renderRoute(Route, { path: "/scoreboard" });
+
+  expect(await screen.findByText(/Competition ended on/)).toBeDefined();
+  expect(screen.getByText(/Scoreboard frozen at/)).toBeDefined();
+});
+
+it("announces the end alone once the freeze is lifted", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(
+    publicInfoWith({ start_time: PAST, freeze_time: "", end_time: PAST }),
   );
   renderRoute(Route, { path: "/scoreboard" });
 
