@@ -93,6 +93,7 @@ def _competition():
             label="config.ctf.team_size.label",
             default=4,
             description="config.ctf.team_size.description",
+            min=1,
         ),
         ConfigDef(
             key="ctf.allow_registration",
@@ -161,12 +162,14 @@ def _security():
             label="config.rate_limit.submit.max_requests.label",
             default=20,
             description="config.rate_limit.submit.max_requests.description",
+            min=1,
         ),
         ConfigDef(
             key="rate_limit.submit.window_seconds",
             label="config.rate_limit.submit.window_seconds.label",
             default=60,
             description="config.rate_limit.submit.window_seconds.description",
+            min=1,
         ),
         ConfigDef(
             key="rate_limit.login.enabled",
@@ -179,12 +182,14 @@ def _security():
             label="config.rate_limit.login.max_requests.label",
             default=10,
             description="config.rate_limit.login.max_requests.description",
+            min=1,
         ),
         ConfigDef(
             key="rate_limit.login.window_seconds",
             label="config.rate_limit.login.window_seconds.label",
             default=60,
             description="config.rate_limit.login.window_seconds.description",
+            min=1,
         ),
         ConfigDef(
             key="captcha.enabled",
@@ -216,6 +221,8 @@ def _email():
             label="config.email.smtp_port.label",
             default=587,
             description="config.email.smtp_port.description",
+            min=1,
+            max=65535,
         ),
         ConfigDef(
             key="email.smtp_username",

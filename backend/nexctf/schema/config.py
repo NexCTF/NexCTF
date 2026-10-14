@@ -9,6 +9,8 @@ class AdminConfigRead(PydanticBase):
     label: str
     description: str
     choices: list[str]
+    min: int | float | None
+    max: int | float | None
     category: str
     category_label: str
     category_icon: str | None

@@ -579,6 +579,8 @@ export interface ConfigItem {
   label: string;
   description: string;
   choices: string[];
+  min: number | null;
+  max: number | null;
   category: string;
   category_label: string;
   category_icon: string | null;

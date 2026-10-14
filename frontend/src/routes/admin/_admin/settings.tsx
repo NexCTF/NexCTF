@@ -361,17 +361,14 @@ function ConfigField({
         </FieldWrapper>
       );
     case "int":
-      return (
-        <FieldWrapper label={label} description={description}>
-          <Input type="number" step="1" value={value} onChange={(e) => onChange(e.target.value)} />
-        </FieldWrapper>
-      );
     case "float":
       return (
         <FieldWrapper label={label} description={description}>
           <Input
             type="number"
-            step="any"
+            step={item.type === "int" ? "1" : "any"}
+            min={item.min ?? undefined}
+            max={item.max ?? undefined}
             value={value}
             onChange={(e) => onChange(e.target.value)}
           />

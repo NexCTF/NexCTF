@@ -63,9 +63,9 @@ async def send_email(
 
     port = int(appconfig.get_with_overrides("email.smtp_port", overrides))
 
-    if not host or not from_address or port < 1:
+    if not host or not from_address:
         logger.error(
-            "email is enabled but smtp_host / smtp_port / from_address are not fully configured"
+            "email is enabled but smtp_host / from_address are not fully configured"
         )
         await incr_counter(redis, "emails", "misconfigured")
         raise EmailMisconfiguredError()

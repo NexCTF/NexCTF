@@ -87,3 +87,39 @@ class TestSecretRedaction:
             select(ConfigEntry).where(ConfigEntry.key == "email.smtp_password")
         )
         assert stored.scalar_one_or_none() is None
+
+
+class TestBounds:
+    """Numeric bounds are published and enforced on save."""
+
+    async def test_bounds_in_listing(
+        self,
+        admin_client: tuple[AsyncClient, User],
+    ) -> None:
+        c, _ = admin_client
+        resp = await c.get("/admin/config")
+        items = {i["key"]: i for i in resp.json()["data"]}
+        assert (items["email.smtp_port"]["min"], items["email.smtp_port"]["max"]) == (
+            1,
+            65535,
+        )
+        assert (items["ctf.name"]["min"], items["ctf.name"]["max"]) == (None, None)
+
+    @pytest.mark.parametrize(
+        ("key", "value"), [("ctf.team_size", "0"), ("email.smtp_port", "70000")]
+    )
+    async def test_out_of_range_save_is_refused(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        key: str,
+        value: str,
+    ) -> None:
+        c, _ = admin_client
+        resp = await c.put("/admin/config", json={"items": {key: value}})
+        assert resp.status_code == 422
+        assert key in resp.json()["description"]
+        stored = await db_session.execute(
+            select(ConfigEntry).where(ConfigEntry.key == key)
+        )
+        assert stored.scalar_one_or_none() is None

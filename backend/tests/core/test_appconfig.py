@@ -2,9 +2,11 @@
 
 from unittest.mock import AsyncMock
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.core import appconfig
+from nexctf.core.appconfig import ConfigDef, ConfigType
 from nexctf.model.config import ConfigEntry
 
 
@@ -81,3 +83,51 @@ class TestImageValidation:
         """A protocol-relative value is another origin, and breaks email logos."""
         overrides = {"appearance.logo_url": "//cdn/logo.png"}
         assert appconfig.get_with_overrides("appearance.logo_url", overrides) == ""
+
+
+class TestBounds:
+    """Numeric settings refuse values outside their min / max."""
+
+    @pytest.mark.parametrize("value", ["0", "65536"])
+    def test_out_of_range_value_is_refused(self, value: str) -> None:
+        with pytest.raises(ValueError, match="minimum 1|maximum 65535"):
+            appconfig._validate("email.smtp_port", value)
+
+    @pytest.mark.parametrize("value", ["1", "65535"])
+    def test_bounds_are_inclusive(self, value: str) -> None:
+        appconfig._validate("email.smtp_port", value)
+
+    def test_out_of_range_override_falls_back(self) -> None:
+        assert (
+            appconfig.get_with_overrides("ctf.team_size", {"ctf.team_size": "0"}) == 4
+        )
+
+    def test_float_bounds(self) -> None:
+        def_ = appconfig.normalize_def(
+            ConfigDef(key="t.ratio", label="x", default=0.5, min=0.0, max=1.0)
+        )
+        assert (def_.min, def_.max) == (0.0, 1.0)
+
+    @pytest.mark.parametrize(
+        ("def_", "error"),
+        [
+            (
+                ConfigDef(
+                    key="t.s", label="x", default="a", type=ConfigType.STRING, min=1
+                ),
+                "only apply to int and float",
+            ),
+            (
+                ConfigDef(key="t.n", label="x", default=5, min=10, max=1),
+                "default 5 is below",
+            ),
+            (ConfigDef(key="t.n", label="x", default=0, min=1), "default 0 is below"),
+            (
+                ConfigDef(key="t.n", label="x", default=11, max=10),
+                "default 11 is above",
+            ),
+        ],
+    )
+    def test_invalid_bounds_are_rejected(self, def_: ConfigDef, error: str) -> None:
+        with pytest.raises(ValueError, match=error):
+            appconfig.normalize_def(def_)

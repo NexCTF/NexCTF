@@ -29,6 +29,8 @@ def _build_item(key: str, overrides: dict[str, str]) -> AdminConfigRead:
         label=def_.label,
         description=def_.description,
         choices=def_.choices,
+        min=def_.min,
+        max=def_.max,
         category=def_.category,
         category_label=appconfig.get_category_meta(def_.category).label,
         category_icon=appconfig.get_category_meta(def_.category).icon,

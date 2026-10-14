@@ -55,6 +55,8 @@ class ConfigDef:
     description: str = ""  # i18n key
     type: ConfigType | None = None  # inferred from default for bool/int/float
     choices: list[str] = field(default_factory=list)
+    min: float | None = None  # INT and FLOAT only
+    max: float | None = None  # INT and FLOAT only
     category: str = "general"
 
 
@@ -94,13 +96,30 @@ def _serialize_default(default: str | float | bool) -> str:
     return str(default)
 
 
+def _check_range(def_: ConfigDef, number: float) -> None:
+    if def_.min is not None and number < def_.min:
+        raise ValueError(f"{number} is below the minimum {def_.min}")
+    if def_.max is not None and number > def_.max:
+        raise ValueError(f"{number} is above the maximum {def_.max}")
+
+
 def normalize_def(def_: ConfigDef) -> ConfigDef:
     """Return ``def_`` with its type resolved and default serialized.
 
     Raises:
-        ValueError: If the type cannot be inferred from a string default.
+        ValueError: If the type cannot be inferred from a string default, or
+            the bounds are set on a non-numeric type or exclude the default.
     """
     type_ = def_.type if def_.type is not None else _infer_type(def_.default)
+    if def_.min is not None or def_.max is not None:
+        if type_ not in (ConfigType.INT, ConfigType.FLOAT):
+            raise ValueError(
+                f"{def_.key}: min/max only apply to int and float settings"
+            )
+        try:
+            _check_range(def_, cast(float, _cast(str(def_.default), type_)))
+        except ValueError as exc:
+            raise ValueError(f"{def_.key}: default {exc}") from None
     return replace(def_, type=type_, default=_serialize_default(def_.default))
 
 
@@ -274,10 +293,8 @@ def _validate(key: str, value: str) -> None:
     """Raise ValueError if value is invalid for the key's type."""
     def_ = _DEFS[key]
 
-    if def_.type == ConfigType.INT:
-        int(value)
-    elif def_.type == ConfigType.FLOAT:
-        float(value)
+    if def_.type in (ConfigType.INT, ConfigType.FLOAT):
+        _check_range(def_, cast(float, _cast(value, def_.type)))
     elif def_.type == ConfigType.BOOL and value.lower() not in (
         "1",
         "0",

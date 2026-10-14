@@ -19,6 +19,8 @@ function item(key: string, category: string, label: string): ConfigItem {
     label,
     description: "",
     choices: [],
+    min: null,
+    max: null,
     category,
     category_label: category,
     category_icon: null,
@@ -54,4 +56,15 @@ it("records the selected tab in the URL", async () => {
 
   await waitFor(() => expect(router.state.location.search).toEqual({ category: "nexctf_demo" }));
   expect(await screen.findByText("Plugin field")).toBeDefined();
+});
+
+it("bounds a number input by the setting's min and max", async () => {
+  vi.mocked(getConfig).mockResolvedValue([
+    { ...item("a.port", "general", "Port"), type: "int", value: 587, min: 1, max: 65535 },
+  ]);
+  renderRoute(Route, { path: "/admin/settings" });
+
+  const input = await screen.findByRole("spinbutton");
+  expect(input.getAttribute("min")).toBe("1");
+  expect(input.getAttribute("max")).toBe("65535");
 });

@@ -52,7 +52,6 @@ async def test_send_email_disabled_raises():
     [
         {**CONFIGURED, "email.smtp_host": ""},
         {**CONFIGURED, "email.from_address": ""},
-        {**CONFIGURED, "email.smtp_port": "0"},
     ],
 )
 async def test_send_email_missing_required_raises(missing):
@@ -66,10 +65,11 @@ async def test_send_email_missing_required_raises(missing):
     mock_send.assert_not_called()
 
 
-async def test_send_email_unparsable_port_uses_the_default():
+@pytest.mark.parametrize("port", ["not-a-number", "0"])
+async def test_send_email_unusable_port_uses_the_default(port):
     """An unusable port resolves to the code default (587) instead of blocking the send."""
     with (
-        _patch_overrides({**CONFIGURED, "email.smtp_port": "not-a-number"}),
+        _patch_overrides({**CONFIGURED, "email.smtp_port": port}),
         _patch_smtp() as mock_send,
     ):
         await send_email(AsyncMock(), "to@example.com", "Hi", text="body")
