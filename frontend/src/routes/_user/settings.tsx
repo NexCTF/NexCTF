@@ -590,7 +590,8 @@ function SessionsSection() {
         </div>
         <ConfirmDialog
           description={t("settings.session.revoke_all_confirm", {
-            defaultValue: "Sign out on every device? You will be signed out here too.",
+            defaultValue:
+              "Sign out on every device and revoke every API token? You will be signed out here too.",
           })}
           confirmLabel={t("settings.session.revoke_all", { defaultValue: "Sign out everywhere" })}
           onConfirm={() => revokeAll.mutate()}
@@ -1015,6 +1016,7 @@ function ProfileSection() {
 
 function PasswordSection() {
   const { t } = useTranslation();
+  const qc = useQueryClient();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -1022,6 +1024,8 @@ function PasswordSection() {
   const mutation = useMutation({
     mutationFn: () => changePassword(current, next),
     onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["my-tokens"] });
+      void qc.invalidateQueries({ queryKey: ["my-sessions"] });
       toast.success(t("settings.password.changed"));
       setCurrent("");
       setNext("");

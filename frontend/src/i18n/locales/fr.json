@@ -1152,7 +1152,7 @@
       "now_used_from": "désormais utilisé depuis {{ip}}",
       "revoke": "Déconnecter cet appareil",
       "revoke_all": "Se déconnecter partout",
-      "revoke_all_confirm": "Se déconnecter sur tous les appareils ? Vous serez également déconnecté ici.",
+      "revoke_all_confirm": "Se déconnecter sur tous les appareils et révoquer tous les jetons d’API ? Vous serez également déconnecté ici.",
       "revoke_confirm": "Déconnecter {{device}} ?",
       "revoke_error": "Impossible de déconnecter cette session",
       "revoked": "Session déconnectée",

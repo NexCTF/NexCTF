@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from uuid import UUID
 
+import pyotp
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from fastapi import Request, Response
@@ -55,6 +56,7 @@ PWD_RESET_KEY_PREFIX = "pwd_reset:"
 PWD_RESET_TTL = 3600  # 1 hour
 EMAIL_VERIFY_KEY_PREFIX = "email_verify:"
 EMAIL_VERIFY_TTL = 86400  # 24 hours
+TOTP_USED_KEY_PREFIX = "totp:used:"
 
 
 def _hash_token(token: str) -> str:
@@ -62,24 +64,51 @@ def _hash_token(token: str) -> str:
 
 
 async def issue_single_use_token(
-    redis: Redis, prefix: str, ttl: int, subject_id: UUID
+    redis: Redis, prefix: str, ttl: int, subject: str
 ) -> str:
-    """Mint a single-use token and store its hash → subject id under ``prefix``.
+    """Mint a single-use token and store its hash → subject under ``prefix``.
 
     Only the token's hash is persisted (with a TTL); the raw token is returned to
     the caller to embed in a link. Shared by password-reset and email-verification.
     """
     token = secrets.token_urlsafe(32)
-    await redis.set(f"{prefix}{_hash_token(token)}", str(subject_id), ex=ttl)
+    await redis.set(f"{prefix}{_hash_token(token)}", subject, ex=ttl)
     return token
 
 
+async def issue_password_reset_token(redis: Redis, user: User) -> str:
+    """Mint a reset token that stops working once the user's password changes."""
+    return await issue_single_use_token(
+        redis, PWD_RESET_KEY_PREFIX, PWD_RESET_TTL, f"{user.id}:{user.session_version}"
+    )
+
+
 async def consume_single_use_token(redis: Redis, prefix: str, token: str) -> str | None:
-    """Atomically consume a single-use token, returning its subject id or None.
+    """Atomically consume a single-use token, returning its subject or None.
 
     Uses GETDEL so the token is invalidated on first read, preventing double-use.
     """
     return await cast(Any, redis.getdel(f"{prefix}{_hash_token(token)}"))
+
+
+async def consume_password_reset_token(
+    redis: Redis, token: str
+) -> tuple[UUID, int] | None:
+    """Consume a reset token, returning its user id and session version, or None."""
+    subject = await consume_single_use_token(redis, PWD_RESET_KEY_PREFIX, token)
+    user_id, _, session_version = (subject or "").partition(":")
+    if not session_version.isdigit():
+        return None
+    return UUID(user_id), int(session_version)
+
+
+async def verify_totp_once(redis: Redis, user_id: UUID, secret: str, code: str) -> bool:
+    """Check a TOTP code within one step of drift, refusing one already used."""
+    totp = pyotp.TOTP(secret)
+    if not totp.verify(code, valid_window=1):
+        return False
+    key = f"{TOTP_USED_KEY_PREFIX}{user_id}:{code}"
+    return bool(await redis.set(key, "1", nx=True, ex=totp.interval * 3))
 
 
 async def _verify_token(

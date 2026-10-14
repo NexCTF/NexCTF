@@ -451,7 +451,9 @@ class TestAdminPasswordResetToken:
 
         # Confirm the hashed token was stored in redis
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        mock_redis.set.assert_any_call(f"pwd_reset:{token_hash}", str(user.id), ex=3600)
+        mock_redis.set.assert_any_call(
+            f"pwd_reset:{token_hash}", f"{user.id}:{user.session_version}", ex=3600
+        )
 
     async def test_not_found(self, admin_client: tuple[AsyncClient, User]) -> None:
         c, _ = admin_client

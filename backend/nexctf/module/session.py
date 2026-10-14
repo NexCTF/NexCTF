@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
 from nexctf.enums import SessionWindow
-from nexctf.model import Event, Team, User, UserSession
+from nexctf.model import Event, Team, User, UserSession, UserToken
 from nexctf.schema.user import (
     AdminAddressAccountRead,
     AdminFailedLoginAddressRead,
@@ -402,3 +402,9 @@ async def revoke_user_sessions(db: AsyncSession, user: User) -> None:
     await crud.UserSessionCrud.delete(
         session=db, filters=[UserSession.user_id == user.id]
     )
+
+
+async def revoke_all_access(db: AsyncSession, user: User) -> None:
+    """Revoke every session and API token a user holds."""
+    await revoke_user_sessions(db, user)
+    await crud.UserTokenCrud.delete(db, filters=[UserToken.user_id == user.id])

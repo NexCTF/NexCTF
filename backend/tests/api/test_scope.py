@@ -359,6 +359,45 @@ class TestTokenEnforcement:
             assert (await c.post("/me/password", json={})).status_code == 403
             assert (await c.post("/me/totp/setup")).status_code == 403
 
+    async def test_user_scope_cannot_take_over_an_account(
+        self, token_client, db_session: AsyncSession
+    ) -> None:
+        target = User(username="target_admin", role=UserRole.admin)
+        db_session.add(target)
+        await db_session.flush()
+        async with token_client(UserRole.admin, ["write:admin.user"]) as (c, _):
+            base = f"/admin/user/{target.id}"
+            assert (await c.post(f"{base}/password-reset-token")).status_code == 403
+            assert (await c.post(f"{base}/totp/reset")).status_code == 403
+            resp = await c.put(base, json={"id": str(target.id), "email": "x@x.io"})
+            assert resp.status_code == 403
+            resp = await c.post(
+                "/admin/user",
+                json={"username": "minted", "password": "pw", "role": "admin"},
+            )
+            assert resp.status_code == 403
+
+    async def test_user_scope_still_manages_players(
+        self, token_client, db_session: AsyncSession
+    ) -> None:
+        target = User(username="target_player")
+        db_session.add(target)
+        await db_session.flush()
+        async with token_client(UserRole.admin, ["write:admin.user"]) as (c, admin):
+            resp = await c.put(
+                f"/admin/user/{target.id}",
+                json={"id": str(target.id), "username": "renamed"},
+            )
+            assert resp.status_code == 200
+            resp = await c.put(
+                f"/admin/user/{admin.id}", json={"id": str(admin.id), "role": "admin"}
+            )
+            assert resp.status_code == 200
+            resp = await c.post(
+                "/admin/user", json={"username": "player2", "password": "pw"}
+            )
+            assert resp.status_code == 201
+
     async def test_a_token_can_revoke_a_token(self, token_client) -> None:
         """Revoking narrows, so it needs write:token, not a browser session."""
         async with token_client(UserRole.user, ["write:token"]) as (c, _):

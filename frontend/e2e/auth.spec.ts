@@ -104,11 +104,11 @@ test("a player disabled mid-session is sent back to sign in", async ({ page, adm
 
 test("a player whose new email is unverified asks for another link", async ({
   page,
-  admin,
+  adminSession,
   account,
 }) => {
   const email = `${uniqueName("e2e_moved")}@e2e.nexctf.lan`;
-  await updateAccount(admin, account, { email });
+  await updateAccount(adminSession, account, { email });
 
   await signInThroughForm(page, account.username, account.password);
   await expect(page.getByText("Verify your email")).toBeVisible();

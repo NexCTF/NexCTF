@@ -354,6 +354,37 @@ class TestLogin:
         assert resp.status_code == 204
         assert "NexCTF" in resp.cookies
 
+    async def test_login_refuses_a_replayed_totp_code(
+        self, http_client, db_session, mock_redis
+    ):
+        secret = pyotp.random_base32()
+        db_session.add(
+            User(
+                username="totp_replay",
+                hashed_password=hash_password("pass"),
+                totp_secret=secret,
+            )
+        )
+        await db_session.flush()
+        taken: set[str] = set()
+
+        async def _set(key, _value, *, nx=False, **_kwargs):
+            if nx and key in taken:
+                return None
+            taken.add(key)
+            return True
+
+        mock_redis.set = AsyncMock(side_effect=_set)
+        form = {
+            "username": "totp_replay",
+            "password": "pass",
+            "totp_code": pyotp.TOTP(secret).now(),
+        }
+
+        assert (await http_client.post("/auth/token", data=form)).status_code == 204
+        replay = await http_client.post("/auth/token", data=form)
+        assert replay.json()["error_code"] == "AUTH-401-OTP"
+
 
 class TestLogout:
     async def test_logout_unauthenticated(self, http_client):
@@ -578,7 +609,7 @@ class TestPasswordReset:
 
         token = "test_reset_token_abc"
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        mock_redis.getdel = AsyncMock(return_value=str(user.id))
+        mock_redis.getdel = AsyncMock(return_value=f"{user.id}:0")
 
         resp = await http_client.post(
             "/auth/reset-password",
@@ -592,6 +623,21 @@ class TestPasswordReset:
         assert user.hashed_password is not None
         assert verify_password("newpass123", user.hashed_password)
 
+    async def test_reset_token_dies_with_the_password_it_was_for(
+        self, http_client, db_session, mock_redis, override_db_context
+    ) -> None:
+        user = User(
+            username="moved_on", hashed_password=hash_password("old"), session_version=1
+        )
+        db_session.add(user)
+        await db_session.flush()
+        mock_redis.getdel = AsyncMock(return_value=f"{user.id}:0")
+
+        resp = await http_client.post(
+            "/auth/reset-password", json={"token": "stale", "new_password": "x"}
+        )
+        assert resp.json()["error_code"] == "AUTH-400-RESET-TOKEN"
+
     async def test_reset_invalidates_api_tokens(
         self, http_client, db_session, mock_redis
     ) -> None:
@@ -603,7 +649,7 @@ class TestPasswordReset:
         db_session.add(api_token)
         await db_session.flush()
 
-        mock_redis.getdel = AsyncMock(return_value=str(user.id))
+        mock_redis.getdel = AsyncMock(return_value=f"{user.id}:0")
 
         resp = await http_client.post(
             "/auth/reset-password",
@@ -626,7 +672,7 @@ class TestPasswordReset:
         token = "single_use_token"
 
         # First call returns user_id, second returns None (token consumed atomically)
-        mock_redis.getdel = AsyncMock(side_effect=[str(user.id), None])
+        mock_redis.getdel = AsyncMock(side_effect=[f"{user.id}:0", None])
 
         resp1 = await http_client.post(
             "/auth/reset-password",
@@ -1108,7 +1154,7 @@ class TestSessionVersionInvalidation:
             assert "NexCTF" in c.cookies
 
             # Simulate a password reset that increments session_version
-            mock_redis.getdel = AsyncMock(return_value=str(user.id))
+            mock_redis.getdel = AsyncMock(return_value=f"{user.id}:0")
             reset_resp = await c.post(
                 "/auth/reset-password",
                 json={"token": "any_reset_token", "new_password": "newpass"},

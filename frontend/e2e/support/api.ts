@@ -6,6 +6,11 @@ import type { SeededQuestion } from "./challenges";
 const API_URL = process.env.E2E_API_URL ?? "http://localhost:8000";
 /** Full-admin token seeded by the development `token` fixture. */
 const ADMIN_TOKEN = process.env.E2E_ADMIN_TOKEN ?? "nexctf_admin_token";
+/** Seeded admin credentials from the development `user` fixture. */
+const ADMIN_LOGIN = {
+  username: process.env.E2E_ADMIN_USERNAME ?? "admin",
+  password: process.env.E2E_ADMIN_PASSWORD ?? "admin",
+};
 
 export interface Account {
   id: string;
@@ -33,6 +38,13 @@ export function adminApi(): Promise<APIRequestContext> {
   return tokenApi(ADMIN_TOKEN);
 }
 
+/** Request context signed in as the seeded admin with a session, for setup a token may not do. */
+export async function adminSessionApi(): Promise<APIRequestContext> {
+  const api = await request.newContext({ baseURL: `${API_URL}/api/v1/` });
+  await signIn(api, ADMIN_LOGIN);
+  return api;
+}
+
 /** Create a verified player account, skipping registration and its rate limit. */
 export async function createAccount(admin: APIRequestContext): Promise<Account> {
   const username = uniqueName("e2e");
@@ -54,7 +66,10 @@ export async function updateAccount(
 }
 
 /** Sign `api` in as `account`; a page's `request` shares its cookies with the page. */
-export async function signIn(api: APIRequestContext, account: Account): Promise<void> {
+export async function signIn(
+  api: APIRequestContext,
+  account: Pick<Account, "username" | "password">,
+): Promise<void> {
   const res = await api.post("/api/v1/auth/token", {
     form: { username: account.username, password: account.password },
   });
