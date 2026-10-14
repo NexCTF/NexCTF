@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Enum, ForeignKey, String, UniqueConstraint, text
+from sqlalchemy import Enum, ForeignKey, Index, String, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, query_expression, relationship
 
@@ -34,7 +34,7 @@ def gen_invite_code() -> str:
 class Team(Base):
     __tablename__ = "teams"
 
-    name: Mapped[str] = mapped_column(unique=True, index=True)
+    name: Mapped[str] = mapped_column(index=True)
     country: Mapped[str | None] = mapped_column(String(2), nullable=True)
     bracket: Mapped[LabelStr]
     links: Mapped[list] = mapped_column(
@@ -57,8 +57,8 @@ class Team(Base):
 class User(Base):
     __tablename__ = "users"
 
-    username: Mapped[str] = mapped_column(unique=True, index=True)
-    email: Mapped[str | None] = mapped_column(unique=True, index=True, nullable=True)
+    username: Mapped[str] = mapped_column(index=True)
+    email: Mapped[str | None] = mapped_column(index=True, nullable=True)
     email_verified: Mapped[bool] = mapped_column(
         default=False, server_default=text("false")
     )
@@ -182,3 +182,9 @@ class UserAgentSighting(Base):
     @property
     def token_name(self) -> str | None:
         return self.token.name if self.token is not None else None
+
+
+# Names and addresses are unique regardless of letter case.
+Index("uq_teams_name_lower", func.lower(Team.name), unique=True)
+Index("uq_users_username_lower", func.lower(User.username), unique=True)
+Index("uq_users_email_lower", func.lower(User.email), unique=True)

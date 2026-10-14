@@ -261,6 +261,15 @@ class UnknownCustomFieldError(ProfileError):
     )
 
 
+class RequiredCustomFieldError(ProfileError):
+    api_error = ApiError(
+        code=422,
+        msg="Required custom field missing",
+        desc="A required custom field has no value.",
+        err_code="PROFILE-422-REQUIRED",
+    )
+
+
 class InvalidCustomFieldValueError(ProfileError):
     api_error = ApiError(
         code=422,

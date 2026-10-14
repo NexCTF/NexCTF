@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { apiErrorMessage, createAdminUser, getAdminUsers, USER_ROLES, type User } from "@/lib/api";
-import { copyToClipboard, generatePassword } from "@/lib/utils";
+import { copyToClipboard, generatePassword, PASSWORD_LIMITS } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin/users")({
   component: UsersPage,
@@ -133,6 +133,7 @@ function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
                 onChange={(e) => change({ password: e.target.value })}
                 className="font-mono"
                 autoComplete="new-password"
+                {...PASSWORD_LIMITS}
                 required
               />
               <Button

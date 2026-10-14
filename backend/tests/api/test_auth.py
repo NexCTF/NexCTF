@@ -13,6 +13,7 @@ from httpx import AsyncClient
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 from nexctf import crud
 from nexctf.api.security import _verify_token, hash_password, verify_password
@@ -25,6 +26,28 @@ from ..base import NULL_UUID, make_team, make_user
 
 
 class TestRegister:
+    async def test_names_and_emails_ignore_letter_case(self, http_client):
+        first = {"username": "Casey", "password": "strongpass", "email": "c@x.io"}
+        assert (await http_client.post("/auth/register", json=first)).status_code == 201
+        for clash in (
+            {"username": "casey", "password": "strongpass", "email": "d@x.io"},
+            {"username": "other", "password": "strongpass", "email": "C@X.io"},
+        ):
+            resp = await http_client.post("/auth/register", json=clash)
+            assert resp.status_code == 409
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"username": "   ", "password": "strongpass"},
+            {"username": "u" * 33, "password": "strongpass"},
+            {"username": "shortpw", "password": "1234567"},
+        ],
+    )
+    async def test_rejects_blank_long_or_weak_input(self, http_client, payload):
+        resp = await http_client.post("/auth/register", json=payload)
+        assert resp.status_code == 422
+
     async def test_register_success(self, http_client):
         resp = await http_client.post(
             "/auth/register",
@@ -50,7 +73,7 @@ class TestRegister:
         assert resp.json()["data"]["email"] is None
 
     async def test_register_duplicate_username(self, http_client):
-        payload = {"username": "dupuser", "password": "pass123"}
+        payload = {"username": "dupuser", "password": "pass1234"}
         resp1 = await http_client.post("/auth/register", json=payload)
         assert resp1.status_code == 201
         resp2 = await http_client.post("/auth/register", json=payload)
@@ -60,18 +83,26 @@ class TestRegister:
         """A taken email is a 409 like a taken username, reported identically."""
         first = await http_client.post(
             "/auth/register",
-            json={"username": "sameuser", "password": "pass123", "email": "a@test.com"},
+            json={
+                "username": "sameuser",
+                "password": "pass1234",
+                "email": "a@test.com",
+            },
         )
         assert first.status_code == 201
         by_username = await http_client.post(
             "/auth/register",
-            json={"username": "sameuser", "password": "pass123", "email": "b@test.com"},
+            json={
+                "username": "sameuser",
+                "password": "pass1234",
+                "email": "b@test.com",
+            },
         )
         by_email = await http_client.post(
             "/auth/register",
             json={
                 "username": "otheruser",
-                "password": "pass123",
+                "password": "pass1234",
                 "email": "a@test.com",
             },
         )
@@ -185,6 +216,15 @@ class TestLogin:
         )
         assert resp.status_code == 204
         assert "NexCTF" in resp.cookies
+
+    async def test_login_ignores_username_case(self, http_client, db_session):
+        db_session.add(User(username="MixedCase", hashed_password=hash_password("pw")))
+        await db_session.flush()
+
+        resp = await http_client.post(
+            "/auth/token", data={"username": "mixedcase", "password": "pw"}
+        )
+        assert resp.status_code == 204
 
     async def test_login_wrong_password(self, http_client, db_session):
         await crud.UserCrud.create(
@@ -595,7 +635,7 @@ class TestPasswordReset:
         mock_redis.getdel = AsyncMock(return_value=None)
         resp = await http_client.post(
             "/auth/reset-password",
-            json={"token": "bad_token", "new_password": "newpass"},
+            json={"token": "bad_token", "new_password": "newpass123"},
         )
         assert resp.status_code == 400
         assert resp.json()["error_code"] == "AUTH-400-RESET-TOKEN"
@@ -634,7 +674,8 @@ class TestPasswordReset:
         mock_redis.getdel = AsyncMock(return_value=f"{user.id}:0")
 
         resp = await http_client.post(
-            "/auth/reset-password", json={"token": "stale", "new_password": "x"}
+            "/auth/reset-password",
+            json={"token": "stale", "new_password": "newpass123"},
         )
         assert resp.json()["error_code"] == "AUTH-400-RESET-TOKEN"
 
@@ -653,7 +694,7 @@ class TestPasswordReset:
 
         resp = await http_client.post(
             "/auth/reset-password",
-            json={"token": "any_token", "new_password": "newpass"},
+            json={"token": "any_token", "new_password": "newpass123"},
         )
         assert resp.status_code == 204
 
@@ -676,13 +717,13 @@ class TestPasswordReset:
 
         resp1 = await http_client.post(
             "/auth/reset-password",
-            json={"token": token, "new_password": "pass1"},
+            json={"token": token, "new_password": "password1"},
         )
         assert resp1.status_code == 204
 
         resp2 = await http_client.post(
             "/auth/reset-password",
-            json={"token": token, "new_password": "pass2"},
+            json={"token": token, "new_password": "password2"},
         )
         assert resp2.status_code == 400
 
@@ -985,7 +1026,7 @@ class TestOAuthFlow:
         exchange.assert_not_awaited()
         assert "NexCTF" not in resp.cookies
 
-    async def _provider_login(self, http_client, subject: str):
+    async def _provider_login(self, http_client, subject: str, **claims):
         """Run the provider flow end to end as the identity *subject*."""
         state = await self._authorize(http_client)
         with (
@@ -1002,7 +1043,7 @@ class TestOAuthFlow:
             patch(
                 "nexctf.api.routes.auth.oauth_fetch_userinfo",
                 new_callable=AsyncMock,
-                return_value={"sub": subject},
+                return_value={"sub": subject, **claims},
             ),
         ):
             return await http_client.get(
@@ -1010,6 +1051,33 @@ class TestOAuthFlow:
                 params={"code": "code", "state": state},
                 follow_redirects=False,
             )
+
+    @pytest.mark.parametrize(
+        ("claims", "stored"),
+        [
+            ({"email": "v@x.io", "email_verified": True}, "v@x.io"),
+            ({"email": "u@x.io"}, None),
+            ({"email": "f@x.io", "email_verified": False}, None),
+        ],
+    )
+    async def test_callback_keeps_only_a_verified_email(
+        self,
+        http_client,
+        db_session,
+        oauth_provider,
+        override_db_context,
+        claims,
+        stored,
+    ):
+        subject = f"sub-{claims['email']}"
+        assert (await self._provider_login(http_client, subject, **claims)).is_redirect
+        account = await crud.OAuthAccountCrud.first(
+            session=db_session,
+            filters=[OAuthAccount.subject == subject],
+            load_options=[selectinload(OAuthAccount.user)],
+        )
+        assert account is not None
+        assert account.user.email == stored
 
     async def test_callback_respects_closed_registration(
         self,
@@ -1157,7 +1225,7 @@ class TestSessionVersionInvalidation:
             mock_redis.getdel = AsyncMock(return_value=f"{user.id}:0")
             reset_resp = await c.post(
                 "/auth/reset-password",
-                json={"token": "any_reset_token", "new_password": "newpass"},
+                json={"token": "any_reset_token", "new_password": "newpass123"},
             )
             assert reset_resp.status_code == 204
 
@@ -1190,7 +1258,7 @@ class TestLoginRateLimit:
         )
         resp = await http_client.post(
             "/auth/reset-password",
-            json={"token": "tok", "new_password": "newpass"},
+            json={"token": "tok", "new_password": "newpass123"},
         )
         assert resp.status_code == 429
 

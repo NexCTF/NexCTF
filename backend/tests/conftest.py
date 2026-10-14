@@ -205,6 +205,24 @@ def override_db_context(
     monkeypatch.setattr(client, "get_auth_db_context", _test_db_context)
 
 
+@pytest.fixture
+def detached_auth_user(
+    user_client, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Hand handlers a detached user, as the real auth context does once closed."""
+    from nexctf.api import security
+
+    @asynccontextmanager
+    async def _detaching_context() -> AsyncGenerator[AsyncSession]:
+        yield db_session
+        await db_session.flush()
+        for obj in list(db_session.identity_map.values()):
+            if isinstance(obj, User):
+                db_session.expunge(obj)
+
+    monkeypatch.setattr(security, "get_auth_db_context", _detaching_context)
+
+
 @asynccontextmanager
 async def _role_client(
     client_factory,

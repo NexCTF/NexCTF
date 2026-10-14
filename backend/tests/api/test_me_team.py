@@ -162,6 +162,27 @@ class TestEmptyTeamCleanup:
         assert await db_session.get(Team, team.id) is not None
 
 
+class TestTeamNames:
+    async def test_names_ignore_letter_case(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        client, _ = user_client
+        db_session.add(Team(name="Taken", invite_code="CASED001"))
+        await db_session.flush()
+
+        assert (
+            await client.post("/me/team", json={"name": "TAKEN"})
+        ).status_code == 409
+
+    async def test_blank_name_is_refused(
+        self, user_client: tuple[AsyncClient, User]
+    ) -> None:
+        client, _ = user_client
+        assert (await client.post("/me/team", json={"name": "   "})).status_code == 422
+
+
 class TestTeamChanges:
     async def test_leave(
         self,

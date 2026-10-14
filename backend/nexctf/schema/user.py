@@ -1,8 +1,9 @@
 from datetime import datetime
+from typing import Annotated
 from uuid import UUID
 
 from fastapi_toolsets.schemas import PydanticBase
-from pydantic import EmailStr
+from pydantic import BeforeValidator, EmailStr, Field, StringConstraints
 
 from nexctf.enums import ClientCategory, ClientSource
 from nexctf.model import UserRole
@@ -13,10 +14,19 @@ from nexctf.schema.custom_field import (
 )
 from nexctf.schema.team import Link, LinkListInput
 
+Username = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)
+]
+NewPassword = Annotated[str, Field(min_length=8, max_length=256)]
+OptionalName = Annotated[
+    str | None,
+    BeforeValidator(lambda v: (v.strip() or None) if isinstance(v, str) else v),
+]
+
 
 class AdminUserUpdate(PydanticBase):
     id: UUID
-    username: str | None = None
+    username: Username | None = None
     email: str | None = None
     is_active: bool | None = None
     role: UserRole | None = None
@@ -30,8 +40,8 @@ class AdminUserUpdateRequest(AdminUserUpdate):
 
 
 class AdminUserCreate(PydanticBase):
-    username: str
-    password: str
+    username: Username
+    password: NewPassword
     email: EmailStr | None = None
     role: UserRole = UserRole.user
     team_id: UUID | None = None
@@ -39,8 +49,8 @@ class AdminUserCreate(PydanticBase):
 
 
 class PublicRegisterRequest(PydanticBase):
-    username: str
-    password: str
+    username: Username
+    password: NewPassword
     email: EmailStr | None = None
     captcha_token: str | None = None
 
@@ -72,7 +82,7 @@ class AdminUserDetailRead(PublicUserRead):
 
 
 class PublicApiTokenCreate(PydanticBase):
-    name: str | None = None
+    name: OptionalName = None
     expires_at: datetime | None = None
     scopes: list[str]
 
@@ -215,18 +225,23 @@ class UserPasswordUpdate(PydanticBase):
     session_version: int | None = None
 
 
+class UserLinksUpdate(PydanticBase):
+    id: UUID | None = None
+    links: list[Link]
+
+
 class UserTeamUpdate(PydanticBase):
     team_id: UUID | None
 
 
 class PasswordResetRequest(PydanticBase):
     token: str
-    new_password: str
+    new_password: NewPassword
 
 
 class PasswordChangeRequest(PydanticBase):
     current_password: str
-    new_password: str
+    new_password: NewPassword
 
 
 class ForgotPasswordRequest(PydanticBase):

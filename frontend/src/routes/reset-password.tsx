@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError, resetPassword } from "@/lib/api";
 import { useBranding } from "@/lib/branding";
+import { PASSWORD_LIMITS } from "@/lib/utils";
 
 export const Route = createFileRoute("/reset-password")({
   validateSearch: (search: Record<string, unknown>): { token?: string } => ({
@@ -111,6 +112,7 @@ function ResetPasswordPage() {
                 type="password"
                 required
                 autoComplete="new-password"
+                {...PASSWORD_LIMITS}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -122,6 +124,7 @@ function ResetPasswordPage() {
                 type="password"
                 required
                 autoComplete="new-password"
+                {...PASSWORD_LIMITS}
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
               />

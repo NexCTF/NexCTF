@@ -1,6 +1,7 @@
 """Tests for the self-service user and team profile endpoints."""
 
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.model import CustomFieldDefinition, CustomFieldValue, Team, User
@@ -56,6 +57,34 @@ class TestUserProfile:
         assert resp.status_code == 200
         assert resp.json()["data"]["custom_fields"][0]["value"] == "hello"
         assert user.links == [{"label": "blog", "url": "https://example.com"}]
+
+    async def test_update_persists_links_from_a_detached_user(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        detached_auth_user: None,
+    ) -> None:
+        client, user = user_client
+
+        resp = await client.put(
+            "/me/profile",
+            json={"links": [{"label": "blog", "url": "https://example.com"}]},
+        )
+        assert resp.status_code == 200
+        stored = await db_session.scalar(select(User.links).where(User.id == user.id))
+        assert stored == [{"label": "blog", "url": "https://example.com"}]
+
+    async def test_update_requires_a_required_value(
+        self, user_client: tuple[AsyncClient, User], db_session: AsyncSession
+    ) -> None:
+        client, _ = user_client
+        definition = await _definition(db_session, CustomFieldTarget.user)
+        definition.is_required = True
+        await db_session.flush()
+
+        resp = await client.put("/me/profile", json={"custom_fields": {}})
+        assert resp.status_code == 422
+        assert resp.json()["error_code"] == "PROFILE-422-REQUIRED"
 
     async def test_update_clears_a_value(
         self, user_client: tuple[AsyncClient, User], db_session: AsyncSession

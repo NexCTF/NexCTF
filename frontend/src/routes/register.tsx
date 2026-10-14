@@ -11,6 +11,7 @@ import { useCaptcha } from "@/hooks/use-captcha";
 import { ApiError, register as apiRegister, CAPTCHA_CHALLENGE_URL, getPublicInfo } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
+import { PASSWORD_LIMITS, USERNAME_MAX_LENGTH } from "@/lib/utils";
 
 export const Route = createFileRoute("/register")({
   component: RegisterPage,
@@ -92,6 +93,7 @@ function RegisterPage() {
                 type="text"
                 required
                 autoComplete="username"
+                maxLength={USERNAME_MAX_LENGTH}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
@@ -118,6 +120,7 @@ function RegisterPage() {
                 type="password"
                 required
                 autoComplete="new-password"
+                {...PASSWORD_LIMITS}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />

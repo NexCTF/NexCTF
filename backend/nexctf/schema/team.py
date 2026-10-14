@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi_toolsets.schemas import PydanticBase
-from pydantic import Field
+from pydantic import Field, StringConstraints
 
 from nexctf.schema.custom_field import (
     AdminCustomFieldValueRead,
@@ -16,6 +16,9 @@ from nexctf.util.pydantic import Label
 
 # ISO 3166-1 alpha-2: exactly two uppercase letters
 CountryCode = Annotated[str, Field(pattern=r"^[A-Z]{2}$")]
+TeamName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)
+]
 
 
 class Link(PydanticBase):
@@ -34,11 +37,11 @@ LinkListInput = Annotated[list[LinkInput], Field(max_length=10)]
 
 
 class TeamCreate(PydanticBase):
-    name: str
+    name: TeamName
 
 
 class AdminTeamCreate(PydanticBase):
-    name: str
+    name: TeamName
     country: CountryCode | None = None
     bracket: Label = None
     links: LinkListInput = []
@@ -50,7 +53,7 @@ class AdminTeamCreateRequest(AdminTeamCreate):
 
 class AdminTeamUpdate(PydanticBase):
     id: UUID
-    name: str | None = None
+    name: TeamName | None = None
     country: CountryCode | None = None
     bracket: Label = None
     links: LinkListInput | None = None
@@ -118,7 +121,7 @@ class TeamJoinRequest(PydanticBase):
 class MyTeamProfileUpdate(PydanticBase):
     """Full replacement of the team fields a member may edit."""
 
-    name: str
+    name: TeamName
     country: CountryCode | None = None
     links: LinkListInput = []
     custom_fields: CustomFieldValuesInput = {}

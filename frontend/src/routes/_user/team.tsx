@@ -30,7 +30,7 @@ import {
   updateMyTeamProfile,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { copyToClipboard } from "@/lib/utils";
+import { copyToClipboard, TEAM_NAME_MAX_LENGTH } from "@/lib/utils";
 
 export const Route = createFileRoute("/_user/team")({
   component: TeamPage,
@@ -108,6 +108,7 @@ function NoTeamView({
                   <Label htmlFor="team-name">{t("team.name_label")}</Label>
                   <Input
                     id="team-name"
+                    maxLength={TEAM_NAME_MAX_LENGTH}
                     value={teamName}
                     onChange={(e) => setTeamName(e.target.value)}
                     placeholder={t("team.name_placeholder")}
@@ -225,6 +226,7 @@ function TeamProfileSection() {
           <Label htmlFor="team-name">{t("team.name_label", { defaultValue: "Name" })}</Label>
           <Input
             id="team-name"
+            maxLength={TEAM_NAME_MAX_LENGTH}
             required
             value={form.name}
             onChange={(e) => form.setName(e.target.value)}
