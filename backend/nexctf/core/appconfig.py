@@ -18,7 +18,7 @@ import os
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, cast
 from urllib.parse import urlparse
 
@@ -218,7 +218,18 @@ def _env_key(key: str) -> str:
     return _ENV_PREFIX + key.upper().replace(".", "_")
 
 
+def _as_utc_iso(value: str) -> str:
+    """ISO form of a config datetime, a naive one taken as UTC; others unchanged."""
+    try:
+        dt = datetime.fromisoformat(value)
+    except ValueError:
+        return value
+    return (dt if dt.tzinfo else dt.replace(tzinfo=UTC)).isoformat()
+
+
 def _cast(value: str, type_: ConfigType | None) -> str | int | float | bool:
+    if type_ == ConfigType.DATETIME and value:
+        return _as_utc_iso(value)
     if type_ == ConfigType.INT:
         return int(value)
     if type_ == ConfigType.FLOAT:

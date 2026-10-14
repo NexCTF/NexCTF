@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getPublicInfo } from "@/lib/api";
+import { showsCountdown } from "@/lib/magic-vars";
 
 function formatDate(iso: string): string {
   if (!iso) return "";
@@ -33,7 +34,8 @@ function formatCountdown(
   return parts.join(" ");
 }
 
-export function useMagicVars(): Record<string, string> {
+/** Values for the magic variables in *content*, re-rendered each second while a countdown runs. */
+export function useMagicVars(content: string | undefined): Record<string, string> {
   const { t } = useTranslation();
   const { data: info } = useQuery({
     queryKey: ["info", "public"],
@@ -41,16 +43,21 @@ export function useMagicVars(): Record<string, string> {
     staleTime: 5 * 60 * 1000,
   });
 
-  const [, tick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
-
   const branding = info?.branding;
   const competition = info?.competition;
   const startIso = competition?.start_time ?? "";
   const endIso = competition?.end_time ?? "";
+
+  const [, tick] = useState(0);
+  const ticking =
+    !!content &&
+    showsCountdown(content) &&
+    [startIso, endIso].some((iso) => iso && Date.parse(iso) > Date.now());
+  useEffect(() => {
+    if (!ticking) return;
+    const id = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [ticking]);
 
   const unitD = t("pages.magic.unit_d", { defaultValue: "d" });
   const unitH = t("pages.magic.unit_h", { defaultValue: "h" });

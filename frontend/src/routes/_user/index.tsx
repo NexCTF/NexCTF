@@ -16,14 +16,13 @@ function Home() {
   const { t } = useTranslation();
   const { user, isLoading } = useAuth();
   const { name, logoUrl } = useBranding();
-  const magicVars = useMagicVars();
-
   const { data: homePage, isLoading: homeLoading } = useQuery({
     queryKey: ["page", "home"],
     queryFn: () => getPublishedPage("home"),
     retry: false,
     throwOnError: false,
   });
+  const magicVars = useMagicVars(homePage?.content);
 
   const { data: publicInfo } = useQuery({
     queryKey: ["info", "public"],

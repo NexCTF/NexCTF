@@ -26,6 +26,11 @@ export const MAGIC_VAR_DOCS: MagicVarDoc[] = [
   },
 ];
 
+/** Whether *content* shows a countdown, whose value changes every second. */
+export function showsCountdown(content: string): boolean {
+  return /\{\{countdown_\w+\}\}/.test(content);
+}
+
 export function applyMagicVars(content: string, vars: Record<string, string>): string {
   return content.replace(/\{\{(\w+)\}\}/g, (match, key: string) => vars[key] || match);
 }

@@ -13,7 +13,6 @@ export const Route = createFileRoute("/_user/p/$slug")({
 function PublicPage() {
   const { t } = useTranslation();
   const { slug } = Route.useParams();
-  const magicVars = useMagicVars();
 
   const {
     data: page,
@@ -24,6 +23,7 @@ function PublicPage() {
     queryFn: () => getPublishedPage(slug),
     retry: false,
   });
+  const magicVars = useMagicVars(page?.content);
 
   if (isLoading) {
     return (
