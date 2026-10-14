@@ -21,6 +21,8 @@ interface RenderRouteOptions {
   routePath?: string;
   /** Auth state the page sees; defaults to a signed-out visitor. */
   auth?: Partial<AuthContext>;
+  /** Cache the page's queries live in; defaults to no staleness and no retry. */
+  queryClient?: QueryClient;
 }
 
 /**
@@ -32,7 +34,7 @@ interface RenderRouteOptions {
  */
 export function renderRoute(
   route: AnyRoute,
-  { path = "/", routePath, auth }: RenderRouteOptions = {},
+  { path = "/", routePath, auth, queryClient: client }: RenderRouteOptions = {},
 ) {
   const authValue: AuthContext = {
     user: null,
@@ -50,9 +52,11 @@ export function renderRoute(
       </ThemeProvider>
     ),
   });
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
+  const queryClient =
+    client ??
+    new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
   // File routes carry no id/path until the generated tree calls `update` on them.
   const pattern = routePath ?? path.split("?")[0];
   const child = route.update({

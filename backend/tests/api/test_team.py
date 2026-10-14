@@ -15,7 +15,7 @@ from nexctf.model.custom_field import (
 from nexctf.model.question import Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 
-from ..base import FUTURE, NULL_UUID
+from ..base import FUTURE, NULL_UUID, make_team, make_user
 
 
 class TestGetTeamProfile:
@@ -199,3 +199,17 @@ class TestGetTeamProfile:
         resp = await http_client.get(f"{self.PREFIX}/{team.id}")
         assert resp.status_code == 200
         assert resp.json()["data"]["challenge_stats"] == []
+
+    async def test_inactive_members_hidden(
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+    ) -> None:
+        team = await make_team(db_session, "Banned")
+        await make_user(db_session, "kept", team)
+        db_session.add(User(username="banned", team_id=team.id, is_active=False))
+        await db_session.flush()
+
+        data = (await http_client.get(f"{self.PREFIX}/{team.id}")).json()["data"]
+        assert [m["username"] for m in data["members"]] == ["kept"]
+        assert data["member_count"] == 1

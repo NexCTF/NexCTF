@@ -390,9 +390,18 @@ function TeamPage() {
   const allowChanges = publicInfo?.competition.allow_team_changes ?? true;
   const teamSize = publicInfo?.competition.team_size ?? 4;
 
-  function invalidate() {
-    void queryClient.invalidateQueries({ queryKey: ["my-team"] });
-    void queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+  function onMembershipChange() {
+    queryClient.removeQueries({ queryKey: ["my-team-profile"] });
+    const teamScoped = [
+      ["my-team"],
+      ["auth", "me"],
+      ["challenges"],
+      ["challenge"],
+      ["notifications"],
+    ];
+    for (const queryKey of teamScoped) {
+      void queryClient.invalidateQueries({ queryKey });
+    }
   }
 
   function handleCodeRotated(code: string) {
@@ -403,7 +412,11 @@ function TeamPage() {
 
   if (!team) {
     return (
-      <NoTeamView allowCreation={allowCreation} allowChanges={allowChanges} onJoined={invalidate} />
+      <NoTeamView
+        allowCreation={allowCreation}
+        allowChanges={allowChanges}
+        onJoined={onMembershipChange}
+      />
     );
   }
 
@@ -412,7 +425,7 @@ function TeamPage() {
       team={team}
       allowChanges={allowChanges}
       teamSize={teamSize}
-      onLeft={invalidate}
+      onLeft={onMembershipChange}
       onCodeRotated={handleCodeRotated}
     />
   );

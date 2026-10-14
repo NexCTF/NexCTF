@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nexctf.model import Submission, Team, User
 from nexctf.model.question import Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
-from tests.base import put_in_team
+from tests.base import make_solvable, make_team, make_user, put_in_team
 
 
 class TestTeamSize:
@@ -33,6 +33,22 @@ class TestTeamSize:
         resp = await client.post("/me/team/join", json={"code": "FULLTEAM"})
         assert resp.status_code == 200
         assert user.team_id == team.id
+
+    async def test_inactive_members_do_not_take_a_seat(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        config_overrides: dict[str, str],
+    ) -> None:
+        client, _ = user_client
+        team = await make_team(db_session, "HasBanned")
+        await make_user(db_session, "active1", team)
+        db_session.add(User(username="banned1", team_id=team.id, is_active=False))
+        await db_session.flush()
+        config_overrides["ctf.team_size"] = "2"
+
+        resp = await client.post("/me/team/join", json={"code": team.invite_code})
+        assert resp.status_code == 200
 
     async def test_join_rejected_when_team_size_reached(
         self,
@@ -67,6 +83,83 @@ class TestTeamCreation:
         resp = await client.post("/me/team", json={"name": "Taken"})
         assert resp.status_code == 409
         assert user.team_id is None
+
+
+class TestLeavingAfterScoring:
+    async def test_a_team_that_scored_cannot_be_left(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        """Its members would otherwise re-score the same flags for another team."""
+        client, user = user_client
+        _, question = await make_solvable(db_session, user, "flag")
+        db_session.add(
+            Submission(
+                team_id=user.team_id,
+                question_id=question.id,
+                answer="flag",
+                is_correct=True,
+            )
+        )
+        await db_session.flush()
+
+        resp = await client.post("/me/team/leave")
+        assert resp.json()["error_code"] == "TEAM-409-SCORED"
+        assert user.team_id is not None
+
+    async def test_wrong_answers_do_not_hold_a_member(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        client, user = user_client
+        _, question = await make_solvable(db_session, user, "flag")
+        db_session.add(
+            Submission(team_id=user.team_id, question_id=question.id, answer="x")
+        )
+        await db_session.flush()
+
+        assert (await client.post("/me/team/leave")).status_code == 204
+
+
+class TestEmptyTeamCleanup:
+    async def test_last_member_leaving_an_unplayed_team_deletes_it(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        client, user = user_client
+        team = await put_in_team(db_session, user)
+
+        assert (await client.post("/me/team/leave")).status_code == 204
+        assert await db_session.get(Team, team.id) is None
+
+    async def test_a_team_with_submissions_is_kept(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        client, user = user_client
+        _, question = await make_solvable(db_session, user, "flag")
+        team_id = user.team_id
+        db_session.add(Submission(team_id=team_id, question_id=question.id, answer="x"))
+        await db_session.flush()
+
+        assert (await client.post("/me/team/leave")).status_code == 204
+        assert await db_session.get(Team, team_id) is not None
+
+    async def test_a_team_with_members_left_is_kept(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        client, user = user_client
+        team = await put_in_team(db_session, user)
+        await make_user(db_session, "stays", team)
+
+        assert (await client.post("/me/team/leave")).status_code == 204
+        assert await db_session.get(Team, team.id) is not None
 
 
 class TestTeamChanges:
