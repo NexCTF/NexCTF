@@ -38,8 +38,9 @@ admin_router = APIRouter(
 )
 
 # Writes to challenge-shaping data must drop the cached player challenge
-# structures; writes to config / OAuth providers must drop the cached public info;
-# writes to teams or custom fields must drop the cached scoreboard.
+# structures; writes to links / OAuth providers must drop the cached public info
+# (config saves drop it themselves); writes to teams or custom fields must drop
+# the cached scoreboard.
 _invalidate_challenges = [Depends(invalidate_on_write(invalidate_challenges))]
 _invalidate_info = [Depends(invalidate_on_write(invalidate_info))]
 _invalidate_scoreboard = [Depends(invalidate_on_write(invalidate_scoreboard))]
@@ -53,7 +54,7 @@ admin_router.include_router(
     router=challenge_router, dependencies=_invalidate_challenges
 )
 admin_router.include_router(router=admin_page_router)
-admin_router.include_router(router=config_router, dependencies=_invalidate_info)
+admin_router.include_router(router=config_router)
 admin_router.include_router(
     router=custom_field_router, dependencies=_invalidate_scoreboard
 )

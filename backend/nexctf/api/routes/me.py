@@ -1,10 +1,9 @@
 """Current-user self-management endpoints."""
 
-from collections.abc import AsyncGenerator
 from uuid import UUID
 
 import pyotp
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import Response as RawResponse
 from fastapi_toolsets.db import transaction
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
@@ -637,22 +636,11 @@ async def get_my_team_profile(
     )
 
 
-async def _invalidate_renamed_team(
-    request: Request, redis: RedisDep
-) -> AsyncGenerator[None]:
-    """Drop the renamed team's scoreboard entries once the write has committed."""
-    try:
-        yield
-    finally:
-        team_id = getattr(request.state, "renamed_team_id", None)
-        if team_id is not None:
-            await invalidate_scoreboard(redis, team_id=team_id)
-
-
-@me_router.put("/team/profile", dependencies=[Depends(_invalidate_renamed_team)])
+@me_router.put("/team/profile")
 async def update_my_team_profile(
-    request: Request,
     session: SessionDep,
+    redis: RedisDep,
+    background_tasks: BackgroundTasks,
     overrides: ConfigDep,
     body: MyTeamProfileUpdate,
     user: CurrentUserDep,
@@ -663,6 +651,7 @@ async def update_my_team_profile(
     team = await _my_team(session, user)
     team_id = team.id
     renamed = body.name != team.name
+    fields_before = await load_editable_fields(session, team_id=team_id)
     links = [link.model_dump() for link in body.links]
 
     try:
@@ -672,16 +661,16 @@ async def update_my_team_profile(
             team.links = links
     except IntegrityError:
         raise ConflictError(detail="Team name already taken")
-    if renamed:
-        # The scoreboard caches team names; let the route dep drop them post-commit.
-        request.state.renamed_team_id = team_id
+    custom_fields = await replace_custom_field_values(
+        session, body.custom_fields, team_id=team_id
+    )
+    if renamed or custom_fields != fields_before:
+        background_tasks.add_task(invalidate_scoreboard, redis, team_id=team_id)
     return Response(
         data=MyTeamProfileRead(
             name=body.name,
             country=body.country,
             links=links,
-            custom_fields=await replace_custom_field_values(
-                session, body.custom_fields, team_id=team_id
-            ),
+            custom_fields=custom_fields,
         )
     )

@@ -46,19 +46,19 @@ export function ScoreboardBanners() {
       </Banner>
     );
   }
-  if (isEnded) {
-    return (
-      <Banner tone="zinc" icon={Clock}>
-        {t("scoreboard.ended_banner", { date: endTime?.toLocaleString() })}
-      </Banner>
-    );
-  }
-  if (freezeTime !== null && now >= freezeTime) {
-    return (
-      <Banner tone="blue" icon={Snowflake}>
-        {t("scoreboard.frozen_banner", { date: freezeTime.toLocaleString() })}
-      </Banner>
-    );
-  }
-  return null;
+  const isFrozen = freezeTime !== null && now >= freezeTime;
+  return (
+    <>
+      {isEnded && (
+        <Banner tone="zinc" icon={Clock}>
+          {t("scoreboard.ended_banner", { date: endTime?.toLocaleString() })}
+        </Banner>
+      )}
+      {isFrozen && (
+        <Banner tone="blue" icon={Snowflake}>
+          {t("scoreboard.frozen_banner", { date: freezeTime?.toLocaleString() })}
+        </Banner>
+      )}
+    </>
+  );
 }

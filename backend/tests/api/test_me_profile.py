@@ -231,6 +231,26 @@ class TestTeamProfile:
             for call in mock_redis.delete.await_args_list
         )
 
+    async def test_field_change_flushes_the_team_scoreboard_cache(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        mock_redis,
+    ) -> None:
+        client, user = user_client
+        team = await put_in_team(db_session, user)
+        definition = await _definition(db_session, CustomFieldTarget.team)
+
+        await client.put(
+            "/me/team/profile",
+            json={"name": team.name, "custom_fields": {str(definition.id): "new"}},
+        )
+
+        assert any(
+            f"scoreboard:team:{team.id}" in call.args
+            for call in mock_redis.delete.await_args_list
+        )
+
     async def test_save_without_a_rename_leaves_the_cache_alone(
         self,
         user_client: tuple[AsyncClient, User],

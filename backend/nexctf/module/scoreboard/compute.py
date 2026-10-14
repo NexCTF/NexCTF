@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from uuid import UUID
 
+from fastapi_toolsets.exceptions import NotFoundError
 from sqlalchemy import Row, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -228,7 +229,7 @@ async def compute_team_score(
     """Compute the full score breakdown for a single team."""
     team = await session.get(Team, team_id)
     if team is None:
-        raise ValueError(f"Team {team_id} not found")
+        raise NotFoundError()
 
     solves, solve_points = await _fetch_solves(session, team_id, before=freeze_time)
     adjustments, adjustment_points = await _fetch_adjustments(

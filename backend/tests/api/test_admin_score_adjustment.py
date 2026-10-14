@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from unittest.mock import ANY, AsyncMock, patch
+
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -88,3 +91,34 @@ class TestScoreAdjustmentChallenge:
         resp = await c.put(f"{PREFIX}/{adj_id}", json={"id": adj_id, "amount": 30})
 
         assert resp.json()["data"]["challenge_id"] == str(challenge.id)
+
+
+class TestScoreAdjustmentInvalidation:
+    @pytest.mark.parametrize("method", ["post", "put", "delete"])
+    async def test_drops_the_team_scoreboard(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        method: str,
+    ) -> None:
+        c, _ = admin_client
+        team, _ = await _setup(db_session)
+        created = await c.post(
+            PREFIX, json={"team_id": str(team.id), "amount": 5, "reason": "a"}
+        )
+        adj_id = created.json()["data"]["id"]
+        invalidate = AsyncMock()
+
+        with patch(
+            "nexctf.api.routes.admin.score_adjustment.invalidate_scoreboard", invalidate
+        ):
+            if method == "post":
+                await c.post(
+                    PREFIX, json={"team_id": str(team.id), "amount": 1, "reason": "b"}
+                )
+            elif method == "put":
+                await c.put(f"{PREFIX}/{adj_id}", json={"id": adj_id, "amount": 2})
+            else:
+                await c.delete(f"{PREFIX}/{adj_id}")
+
+        invalidate.assert_awaited_once_with(ANY, team.id)

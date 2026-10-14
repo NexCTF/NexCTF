@@ -123,3 +123,28 @@ class TestBounds:
             select(ConfigEntry).where(ConfigEntry.key == key)
         )
         assert stored.scalar_one_or_none() is None
+
+
+class TestPublicInfoInvalidation:
+    async def test_info_dropped_before_clients_are_told(
+        self,
+        admin_client: tuple[AsyncClient, User],
+    ) -> None:
+        c, _ = admin_client
+        calls: list[str] = []
+
+        async def _invalidate(*_args) -> None:
+            calls.append("invalidate")
+
+        async def _publish(*_args) -> None:
+            calls.append("publish")
+
+        with (
+            patch("nexctf.api.routes.admin.config.invalidate_info", _invalidate),
+            patch("nexctf.api.routes.admin.config.publish_event", _publish),
+        ):
+            resp = await c.put(
+                "/admin/config", json={"items": {"ctf.name": "Renamed CTF"}}
+            )
+        assert resp.status_code == 200
+        assert calls[:2] == ["invalidate", "publish"]

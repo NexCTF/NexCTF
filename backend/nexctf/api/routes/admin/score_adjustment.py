@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 
@@ -40,6 +40,7 @@ async def create_score_adjustment(
     request: Request,
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     obj: AdminScoreAdjustmentCreate,
     user: CurrentUserDep,
 ) -> Response[AdminScoreAdjustmentRead]:
@@ -49,7 +50,7 @@ async def create_score_adjustment(
     result = await crud.ScoreAdjustmentCrud.create(
         session=session, obj=internal, schema=AdminScoreAdjustmentRead
     )
-    await invalidate_scoreboard(redis, obj.team_id)
+    background_tasks.add_task(invalidate_scoreboard, redis, obj.team_id)
     await emit(
         session,
         redis,
@@ -81,6 +82,7 @@ async def get_score_adjustment(
 async def update_score_adjustment(
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     uuid: UUID,
     obj: AdminScoreAdjustmentUpdate,
 ) -> Response[AdminScoreAdjustmentRead]:
@@ -91,7 +93,7 @@ async def update_score_adjustment(
         schema=AdminScoreAdjustmentRead,
     )
     if result.data is not None:
-        await invalidate_scoreboard(redis, result.data.team_id)
+        background_tasks.add_task(invalidate_scoreboard, redis, result.data.team_id)
     return result
 
 
@@ -100,6 +102,7 @@ async def delete_score_adjustment(
     request: Request,
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     uuid: UUID,
     admin: CurrentUserDep,
 ) -> Response[None]:
@@ -113,7 +116,7 @@ async def delete_score_adjustment(
         filters=[ScoreAdjustment.id == uuid],
         return_response=True,
     )
-    await invalidate_scoreboard(redis, adj.team_id)
+    background_tasks.add_task(invalidate_scoreboard, redis, adj.team_id)
     await emit(
         session,
         redis,

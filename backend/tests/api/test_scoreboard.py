@@ -136,6 +136,10 @@ class TestGetTeamScore:
         resp = await http_client.get(f"{self.PREFIX}/{t.id}")
         assert resp.status_code == 200
 
+    async def test_unknown_team(self, http_client: AsyncClient) -> None:
+        resp = await http_client.get(f"{self.PREFIX}/{NULL_UUID}")
+        assert resp.status_code == 404
+
     async def test_with_solves(
         self,
         http_client: AsyncClient,
