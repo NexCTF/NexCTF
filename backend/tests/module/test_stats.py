@@ -13,7 +13,7 @@ from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 
 
 async def test_question_net_points_deduct_hints_only_when_solved(db_session):
-    ch = StandardChallenge(title="Stats Net Points Test")
+    ch = StandardChallenge(title="Stats Net Points Test", is_active=True)
     db_session.add(ch)
     await db_session.flush()
     q_solved = Question(label="Q1", points=100, challenge_id=ch.id)
@@ -60,7 +60,7 @@ async def test_question_net_points_deduct_hints_only_when_solved(db_session):
 
 
 async def test_admin_stats_carry_hint_unlocks_public_does_not(db_session):
-    ch = StandardChallenge(title="Stats Hint Detail Test")
+    ch = StandardChallenge(title="Stats Hint Detail Test", is_active=True)
     db_session.add(ch)
     await db_session.flush()
     q = Question(label="Q1", points=100, challenge_id=ch.id)

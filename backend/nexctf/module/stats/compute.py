@@ -23,26 +23,27 @@ async def compute_team_challenge_stats(
 ) -> list[TeamChallengeStats]:
     """Compute per-challenge progress for a team, optionally frozen at *freeze_time*."""
     admin_stats = await compute_admin_team_challenge_stats(
-        session, team_id, freeze_time=freeze_time
+        session, team_id, freeze_time=freeze_time, active_only=True
     )
     return [TeamChallengeStats(**s.model_dump()) for s in admin_stats]
 
 
 async def compute_admin_team_challenge_stats(
-    session: AsyncSession, team_id: UUID, freeze_time: datetime | None = None
+    session: AsyncSession,
+    team_id: UUID,
+    freeze_time: datetime | None = None,
+    *,
+    active_only: bool = False,
 ) -> list[AdminTeamChallengeStats]:
     """Compute a team's progress with hint data, optionally frozen (admin only)."""
-    challenges = (
-        (
-            await session.execute(
-                select(Challenge)
-                .options(selectinload(Challenge.questions))
-                .order_by(Challenge.title)
-            )
-        )
-        .scalars()
-        .all()
+    challenge_stmt = (
+        select(Challenge)
+        .options(selectinload(Challenge.questions))
+        .order_by(Challenge.title)
     )
+    if active_only:
+        challenge_stmt = challenge_stmt.where(Challenge.is_active.is_(True))
+    challenges = (await session.execute(challenge_stmt)).scalars().all()
 
     if not challenges:
         return []

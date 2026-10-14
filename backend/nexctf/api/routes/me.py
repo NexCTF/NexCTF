@@ -9,6 +9,7 @@ from fastapi.responses import Response as RawResponse
 from fastapi_toolsets.db import transaction
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, PaginationType, Response
+from redis.asyncio import Redis
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -21,6 +22,7 @@ from nexctf.api.dep import (
     SessionDep,
     SessionOnlyDep,
     can_view_scoreboard,
+    challenges_hidden_before_start,
 )
 from nexctf.api.scope import grantable_scopes
 from nexctf.api.security import (
@@ -438,6 +440,28 @@ async def _my_team(session: AsyncSession, user: User) -> Team:
     return team
 
 
+async def _load_own_team(
+    session: AsyncSession,
+    redis: Redis,
+    team_id: UUID,
+    user: User,
+    overrides: dict[str, str],
+) -> MyTeamRead:
+    """The caller's own team as they see it: live stats, gated by role and time."""
+    team = await load_team_read(
+        session,
+        redis,
+        team_id,
+        overrides=overrides,
+        include_rank=can_view_scoreboard(user, overrides),
+        include_challenges=not challenges_hidden_before_start(user, overrides),
+        live=True,
+    )
+    if team is None:
+        raise NotFoundError()
+    return team
+
+
 @me_router.get("/team")
 async def get_my_team(
     session: SessionDep,
@@ -447,17 +471,9 @@ async def get_my_team(
 ) -> Response[MyTeamRead | None]:
     if user.team_id is None:
         return Response(data=None)
-    team = await load_team_read(
-        session,
-        redis,
-        user.team_id,
-        overrides=overrides,
-        include_rank=can_view_scoreboard(user, overrides),
-        live=True,
+    return Response(
+        data=await _load_own_team(session, redis, user.team_id, user, overrides)
     )
-    if team is None:
-        raise NotFoundError()
-    return Response(data=team)
 
 
 @me_router.post("/team", status_code=201)
@@ -490,17 +506,7 @@ async def create_team(
         meta={"team_name": team.name},
     )
 
-    data = await load_team_read(
-        session,
-        redis,
-        team.id,
-        overrides=overrides,
-        include_rank=can_view_scoreboard(user, overrides),
-        live=True,
-    )
-    if data is None:
-        raise NotFoundError()
-    return Response(data=data)
+    return Response(data=await _load_own_team(session, redis, team.id, user, overrides))
 
 
 @me_router.post("/team/join")
@@ -537,17 +543,7 @@ async def join_team(
         meta={"team_name": team.name},
     )
 
-    data = await load_team_read(
-        session,
-        redis,
-        team.id,
-        overrides=overrides,
-        include_rank=can_view_scoreboard(user, overrides),
-        live=True,
-    )
-    if data is None:
-        raise NotFoundError()
-    return Response(data=data)
+    return Response(data=await _load_own_team(session, redis, team.id, user, overrides))
 
 
 @me_router.post("/team/leave", status_code=204)

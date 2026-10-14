@@ -13,13 +13,7 @@ from nexctf.api.routes.challenge import _writeup_visible
 from nexctf.model import HintUnlock, Team, User
 from nexctf.model.question import Hint, Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
-from tests.base import make_solvable, put_in_team
-
-NULL_UUID = "00000000-0000-0000-0000-000000000000"
-
-FUTURE = "2099-01-01T00:00:00+00:00"
-PAST = "2000-01-01T00:00:00+00:00"
-
+from tests.base import FUTURE, NULL_UUID, PAST, make_solvable, put_in_team
 
 # ── list challenges ────────────────────────────────────────────────────────────
 
@@ -116,6 +110,21 @@ class TestSubmitAfterEnd:
         assert resp.status_code == 404
 
 
+class TestSubmitBody:
+    async def test_oversized_answer_is_refused(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        c, user = user_client
+        challenge, question = await make_solvable(db_session, user, "flag")
+        resp = await c.post(
+            f"/challenges/{challenge.id}/{question.id}/submit",
+            json={"answer": "a" * 20_000},
+        )
+        assert resp.status_code == 422
+
+
 class TestSubmitBeforeStart:
     async def test_user_blocked_when_ctf_not_started(
         self,
@@ -131,6 +140,24 @@ class TestSubmitBeforeStart:
             json={"answer": "flag"},
         )
         assert resp.status_code == 403
+
+    @pytest.mark.parametrize("path", ["submit", "hints/" + NULL_UUID + "/unlock"])
+    async def test_blocked_while_challenges_are_previewable(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        config_overrides: dict[str, str],
+        path: str,
+    ) -> None:
+        """Showing challenges before the start must not open submissions."""
+        config_overrides["ctf.start_time"] = FUTURE
+        config_overrides["ctf.hide_challenges_before_start"] = "false"
+        c, user = user_client
+        await put_in_team(db_session, user)
+        resp = await c.post(
+            f"/challenges/{NULL_UUID}/{NULL_UUID}/{path}", json={"answer": "flag"}
+        )
+        assert resp.json()["error_code"] == "CTF-403-NOT-STARTED"
 
 
 class TestSubmitRateLimitKey:
@@ -227,6 +254,22 @@ class TestHintUnlockAfterEnd:
         assert resp.json()["error_code"] == "SUB-403-TEAM"
 
 
+async def _sequential(
+    db_session: AsyncSession, **second: object
+) -> tuple[StandardChallenge, Question, Question]:
+    """An active sequential challenge with Q1 then Q2 (Q2 takes *second*)."""
+    challenge = StandardChallenge(title="Seq Test", is_active=True, sequential=True)
+    db_session.add(challenge)
+    await db_session.flush()
+    first = Question(label="Q1", points=100, index=0, challenge_id=challenge.id)
+    later = Question(
+        label="Q2", points=100, challenge_id=challenge.id, **{"index": 1, **second}
+    )
+    db_session.add_all([first, later])
+    await db_session.flush()
+    return challenge, first, later
+
+
 class TestHintUnlockSequentialLock:
     async def test_locked_question_hint_refused(
         self,
@@ -239,14 +282,7 @@ class TestHintUnlockSequentialLock:
         db_session.add(team)
         await db_session.flush()
         user.team_id = team.id
-
-        challenge = StandardChallenge(title="Seq Test", is_active=True, sequential=True)
-        db_session.add(challenge)
-        await db_session.flush()
-        first = Question(label="Q1", points=100, index=0, challenge_id=challenge.id)
-        second = Question(label="Q2", points=100, index=1, challenge_id=challenge.id)
-        db_session.add_all([first, second])
-        await db_session.flush()
+        challenge, _, second = await _sequential(db_session)
         hint = Hint(title="H", content="secret", cost=30, question_id=second.id)
         db_session.add(hint)
         await db_session.flush()
@@ -263,6 +299,25 @@ class TestHintUnlockSequentialLock:
             .where(HintUnlock.team_id == team.id)
         )
         assert count == 0
+
+
+class TestSequentialTiedIndexes:
+    async def test_the_question_shown_locked_refuses_answers(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        """Questions sharing an index still unlock one after the other."""
+        c, user = user_client
+        await put_in_team(db_session, user)
+        challenge, _, _ = await _sequential(db_session, index=0)
+
+        detail = (await c.get(f"/challenges/{challenge.id}")).json()["data"]
+        locked = next(q for q in detail["questions"] if q["is_locked"])
+        resp = await c.post(
+            f"/challenges/{challenge.id}/{locked['id']}/submit", json={"answer": "x"}
+        )
+        assert resp.json()["error_code"] == "SUB-403-SEQ"
 
 
 class TestHintUnlockChargesOnce:
@@ -389,3 +444,25 @@ class TestInvalidConfigValues:
         c, _ = user_client
         resp = await c.get("/challenges")
         assert resp.status_code == 200
+
+
+# ── sequential lock ────────────────────────────────────────────────────────────
+
+
+class TestSequentialLock:
+    async def test_locked_question_hides_its_statement(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        c, user = user_client
+        await put_in_team(db_session, user)
+        challenge, _, _ = await _sequential(
+            db_session, description="Look in /etc/secret", tags=["pivot"]
+        )
+
+        resp = await c.get(f"/challenges/{challenge.id}")
+        locked = resp.json()["data"]["questions"][1]
+        assert locked["is_locked"] is True
+        assert locked["description"] is None
+        assert locked["tags"] == []

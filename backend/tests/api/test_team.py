@@ -15,7 +15,7 @@ from nexctf.model.custom_field import (
 from nexctf.model.question import Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 
-from ..base import NULL_UUID
+from ..base import FUTURE, NULL_UUID
 
 
 class TestGetTeamProfile:
@@ -168,3 +168,34 @@ class TestGetTeamProfile:
 
         resp = await http_client.get(f"{self.PREFIX}/{team.id}")
         assert "invite_code" not in resp.json()["data"]
+
+    async def test_inactive_challenges_hidden(
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+    ) -> None:
+        team = Team(name="DraftLeak")
+        live = StandardChallenge(title="Live", is_active=True)
+        draft = StandardChallenge(title="Draft", is_active=False)
+        db_session.add_all([team, live, draft])
+        await db_session.flush()
+
+        resp = await http_client.get(f"{self.PREFIX}/{team.id}")
+        titles = [s["challenge_title"] for s in resp.json()["data"]["challenge_stats"]]
+        assert titles == ["Live"]
+
+    async def test_challenges_hidden_before_start(
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+        config_overrides: dict[str, str],
+    ) -> None:
+        config_overrides["ctf.start_time"] = FUTURE
+        config_overrides["ctf.hide_challenges_before_start"] = "true"
+        team = Team(name="EarlyBird")
+        db_session.add_all([team, StandardChallenge(title="Soon", is_active=True)])
+        await db_session.flush()
+
+        resp = await http_client.get(f"{self.PREFIX}/{team.id}")
+        assert resp.status_code == 200
+        assert resp.json()["data"]["challenge_stats"] == []

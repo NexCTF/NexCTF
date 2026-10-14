@@ -163,6 +163,11 @@ async def _question_structure(q: Question) -> QuestionStructure:
     )
 
 
+def question_order(question: Question) -> tuple[int, UUID]:
+    """Sort key placing a challenge's questions in their play order."""
+    return question.index, question.id
+
+
 async def compute_detail_structure(
     session: AsyncSession, challenge_id: UUID
 ) -> ChallengeDetailStructure:
@@ -186,7 +191,7 @@ async def compute_detail_structure(
     if challenge is None:
         raise NotFoundError(detail="Challenge not found")
 
-    questions = sorted(challenge.questions, key=lambda q: q.index)
+    questions = sorted(challenge.questions, key=question_order)
     question_structs = list(
         await asyncio.gather(*[_question_structure(q) for q in questions])
     )

@@ -24,6 +24,12 @@ def is_config_dt_past(key: str, overrides: dict[str, str]) -> bool:
     return dt is not None and datetime.now(UTC) > dt
 
 
+def is_config_dt_future(key: str, overrides: dict[str, str]) -> bool:
+    """Return True if the given appconfig datetime key is set and in the future."""
+    dt = parse_config_dt(key, overrides)
+    return dt is not None and datetime.now(UTC) < dt
+
+
 def event_timezone(overrides: dict[str, str]) -> str:
     """Return the configured event timezone name (``ctf.timezone``)."""
     return str(appconfig.get_with_overrides("ctf.timezone", overrides))

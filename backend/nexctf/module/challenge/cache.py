@@ -16,6 +16,7 @@ from nexctf.module.challenge.compute import (
     compute_detail_structure,
     compute_list_structure,
 )
+from nexctf.module.stats import invalidate_team as invalidate_team_stats
 
 _LIST_KEY = "challenge:structure:list"
 _DETAIL_PREFIX = "challenge:structure:detail:"
@@ -63,6 +64,7 @@ async def get_detail_structure(
 
 
 async def invalidate(redis: Redis) -> None:
-    """Drop every cached challenge structure (the list and all details)."""
+    """Drop every cached challenge structure and the team stats built on them."""
     await redis.delete(_LIST_KEY)
     await drop_registered(redis, _DETAIL_REGISTRY)
+    await invalidate_team_stats(redis)

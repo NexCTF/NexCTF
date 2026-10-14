@@ -48,6 +48,7 @@ from nexctf.module import canary
 from nexctf.module.challenge import (
     get_detail_structure,
     get_list_structure,
+    question_order,
     record_first_view,
 )
 from nexctf.module.challenge.compute import QuestionStructure, solution_load_option
@@ -62,7 +63,6 @@ from nexctf.schema.challenge import (
     SubmitResult,
 )
 from nexctf.schema.feedback import FeedbackBody, FeedbackUpsert, PublicFeedbackRead
-from nexctf.schema.file import PublicFileRead
 from nexctf.schema.hint import PublicHintRead
 from nexctf.schema.question import PublicQuestionRead
 from nexctf.schema.score_adjustment import PublicScoreAdjustmentRead
@@ -117,6 +117,18 @@ async def _solved_ids(
     return {r[0] for r in rows}
 
 
+async def _lock_for_team(session: SessionDep, user: User, key: UUID) -> None:
+    """Hold a transaction lock on *key* for the user's team."""
+    team_id = user.team_id
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(:team_key, :key)"),
+        {
+            "team_key": team_id.int & 0x7FFFFFFF if team_id else 0,
+            "key": key.int & 0x7FFFFFFF,
+        },
+    )
+
+
 async def _check_question_access(
     session: SessionDep, user: User, challenge: Challenge, question: Question
 ) -> None:
@@ -124,7 +136,8 @@ async def _check_question_access(
     keep every question after the first unsolved one locked."""
     if not challenge.sequential:
         return
-    prev_ids = [q.id for q in challenge.questions if q.index < question.index]
+    ordered = [q.id for q in sorted(challenge.questions, key=question_order)]
+    prev_ids = ordered[: ordered.index(question.id)]
     if len(await _solved_ids(session, user, prev_ids)) < len(prev_ids):
         raise SequentialChallengeError()
 
@@ -186,27 +199,23 @@ def _assemble_question(
 ) -> PublicQuestionRead:
     """Build a player question view from cached structure + per-user state.
 
-    Locked questions hide their files, hints and options (the frontend blurs
-    them); option order is shuffled per request.
+    A locked question shows only its label, points and answer shape (the
+    frontend blurs it); option order is shuffled per request.
     """
-    files: list[PublicFileRead] = [] if is_locked else list(q.files)
+    if is_locked:
+        return PublicQuestionRead(
+            id=q.id,
+            label=q.label,
+            points=q.points,
+            malus=q.malus,
+            input_type=q.input_type,
+            is_solved=is_solved,
+            is_locked=True,
+            multi_select=q.multi_select,
+        )
 
-    hints: list[PublicHintRead] = []
-    if not is_locked:
-        hints = [
-            PublicHintRead(
-                id=h.id,
-                title=h.title,
-                cost=h.cost,
-                is_unlocked=h.id in unlocked_hint_ids,
-                content=h.content if h.id in unlocked_hint_ids else None,
-            )
-            for h in q.hints
-        ]
-
-    options: list[str] | None = None
-    if not is_locked and q.options:
-        options = list(q.options)
+    options = list(q.options) if q.options else None
+    if options:
         random.shuffle(options)
 
     return PublicQuestionRead(
@@ -217,9 +226,17 @@ def _assemble_question(
         malus=q.malus,
         input_type=q.input_type,
         is_solved=is_solved,
-        is_locked=is_locked,
-        files=files,
-        hints=hints,
+        files=list(q.files),
+        hints=[
+            PublicHintRead(
+                id=h.id,
+                title=h.title,
+                cost=h.cost,
+                is_unlocked=h.id in unlocked_hint_ids,
+                content=h.content if h.id in unlocked_hint_ids else None,
+            )
+            for h in q.hints
+        ],
         tags=list(q.tags),
         options=options,
         multi_select=q.multi_select,
@@ -385,13 +402,7 @@ async def submit_answer(
         raise NotFoundError(detail="Question not found in this challenge")
 
     team_id = user.team_id
-    await session.execute(
-        text("SELECT pg_advisory_xact_lock(:team_key, :question_key)"),
-        {
-            "team_key": team_id.int & 0x7FFFFFFF if team_id else 0,
-            "question_key": question_id.int & 0x7FFFFFFF,
-        },
-    )
+    await _lock_for_team(session, user, question_id)
 
     solved = await _solved_ids(session, user, [question_id])
     if question_id in solved:
@@ -466,6 +477,8 @@ async def submit_answer(
     challenge_completed = False
     if is_correct:
         await dispatch_hook(session, challenge.on_solve(user, question))
+        # Serialise the team's correct answers to this challenge.
+        await _lock_for_team(session, user, challenge.id)
         all_solved = await _solved_ids(
             session, user, [q.id for q in challenge.questions]
         )
