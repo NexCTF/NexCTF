@@ -86,6 +86,32 @@ it("announces a competition that has not started", async () => {
   expect(await screen.findByText(/Competition starts on/)).toBeDefined();
 });
 
+it("announces a running competition with its end", async () => {
+  renderRoute(Route, { path: "/scoreboard" });
+
+  expect(await screen.findByText(/Competition running, ends on/)).toBeDefined();
+  expect(screen.queryByText(/Scoreboard frozen at/)).toBeNull();
+});
+
+it("announces a running competition without an end", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(
+    publicInfoWith({ start_time: PAST, freeze_time: "", end_time: "" }),
+  );
+  renderRoute(Route, { path: "/scoreboard" });
+
+  expect(await screen.findByText("Competition running")).toBeDefined();
+});
+
+it("shows no status when no event times are set", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(
+    publicInfoWith({ start_time: "", freeze_time: "", end_time: "" }),
+  );
+  renderRoute(Route, { path: "/scoreboard" });
+
+  await screen.findAllByRole("row");
+  expect(screen.queryByText(/Competition/)).toBeNull();
+});
+
 it("announces a frozen scoreboard", async () => {
   vi.mocked(getPublicInfo).mockResolvedValue(
     publicInfoWith({ start_time: PAST, freeze_time: PAST, end_time: FUTURE }),
@@ -93,6 +119,7 @@ it("announces a frozen scoreboard", async () => {
   renderRoute(Route, { path: "/scoreboard" });
 
   expect(await screen.findByText(/Scoreboard frozen at/)).toBeDefined();
+  expect(screen.getByText(/Competition running, ends on/)).toBeDefined();
 });
 
 it("keeps the freeze notice after the end while scores stay frozen", async () => {
@@ -103,6 +130,7 @@ it("keeps the freeze notice after the end while scores stay frozen", async () =>
 
   expect(await screen.findByText(/Competition ended on/)).toBeDefined();
   expect(screen.getByText(/Scoreboard frozen at/)).toBeDefined();
+  expect(screen.queryByText(/Competition running/)).toBeNull();
 });
 
 it("announces the end alone once the freeze is lifted", async () => {

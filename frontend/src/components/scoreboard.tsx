@@ -1,8 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
-import { Clock, Snowflake } from "lucide-react";
+import { Clock, Radio, Snowflake } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Banner } from "@/components/banner";
-import { getPublicInfo } from "@/lib/api";
+import { useEventPhase } from "@/lib/use-event-phase";
 
 const MEDALS: Record<number, string> = {
   1: "bg-yellow-400/20 text-yellow-500",
@@ -23,42 +22,44 @@ export function RankBadge({ rank }: { rank: number }) {
   );
 }
 
-/** Competition not-started / frozen / ended notices. */
+/** Competition not-started / running / frozen / ended notices. */
 export function ScoreboardBanners() {
   const { t } = useTranslation();
-  const { data: publicInfo } = useQuery({
-    queryKey: ["info", "public"],
-    queryFn: getPublicInfo,
-  });
+  const { start, freeze, end, upcoming, running, frozen, ended } = useEventPhase();
 
-  const now = new Date();
-  const competition = publicInfo?.competition;
-  const startTime = competition?.start_time ? new Date(competition.start_time) : null;
-  const endTime = competition?.end_time ? new Date(competition.end_time) : null;
-  const freezeTime = competition?.freeze_time ? new Date(competition.freeze_time) : null;
-
-  const isEnded = endTime !== null && now > endTime;
-
-  if (startTime !== null && now < startTime) {
+  if (upcoming) {
     return (
       <Banner tone="yellow" icon={Clock}>
-        {t("scoreboard.not_started_banner", { date: startTime.toLocaleString() })}
+        {t("scoreboard.not_started_banner", { date: start?.toLocaleString() })}
       </Banner>
     );
   }
-  const isFrozen = freezeTime !== null && now >= freezeTime;
+  if (!running && !ended && !frozen) return null;
+
+  const runningLabel = end
+    ? t("scoreboard.running_until_banner", {
+        date: end.toLocaleString(),
+        defaultValue: "Competition running, ends on {{date}}",
+      })
+    : t("scoreboard.running_banner", { defaultValue: "Competition running" });
+
   return (
-    <>
-      {isEnded && (
+    <div className="space-y-2">
+      {running && (
+        <Banner tone="green" icon={Radio}>
+          {runningLabel}
+        </Banner>
+      )}
+      {ended && (
         <Banner tone="zinc" icon={Clock}>
-          {t("scoreboard.ended_banner", { date: endTime?.toLocaleString() })}
+          {t("scoreboard.ended_banner", { date: end?.toLocaleString() })}
         </Banner>
       )}
-      {isFrozen && (
+      {frozen && (
         <Banner tone="blue" icon={Snowflake}>
-          {t("scoreboard.frozen_banner", { date: freezeTime?.toLocaleString() })}
+          {t("scoreboard.frozen_banner", { date: freeze?.toLocaleString() })}
         </Banner>
       )}
-    </>
+    </div>
   );
 }

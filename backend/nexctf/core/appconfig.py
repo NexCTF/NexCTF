@@ -283,13 +283,18 @@ async def fetch_overrides(redis: Redis) -> dict[str, str]:
     return await cast(Any, redis.hgetall(REDIS_HASH))
 
 
+async def stored_overrides(session: AsyncSession) -> dict[str, str]:
+    """Every stored config value for a known key, as the session sees it."""
+    result = await session.execute(select(ConfigEntry.key, ConfigEntry.value))
+    return {key: value for key, value in result.all() if key in _DEFS}
+
+
 async def sync_to_redis(session: AsyncSession, redis: Redis) -> None:
     """Mirror every stored config value from the database into Redis.
 
     Idempotent — call at startup and again once plugins register their keys.
     """
-    result = await session.execute(select(ConfigEntry.key, ConfigEntry.value))
-    stored = {key: value for key, value in result.all() if key in _DEFS}
+    stored = await stored_overrides(session)
     if stored:
         await cast(Any, redis).hset(REDIS_HASH, mapping=stored)
     logger.info("config synced to Redis (%d keys)", len(stored))

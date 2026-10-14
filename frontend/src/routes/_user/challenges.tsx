@@ -4,9 +4,9 @@ import { AlertTriangle, CheckCircle2, ChevronRight, Circle } from "lucide-react"
 import { useTranslation } from "react-i18next";
 import { Banner } from "@/components/banner";
 import { TagBadge } from "@/components/tag-badge";
-import { getChallenges, type PublicChallenge } from "@/lib/api";
+import { apiErrorMessage, getChallenges, type PublicChallenge } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { useEventEnded } from "@/lib/use-event-ended";
+import { useEventEnded } from "@/lib/use-event-phase";
 
 export const Route = createFileRoute("/_user/challenges")({
   component: ChallengesPage,
@@ -16,7 +16,11 @@ function ChallengesPage() {
   const { t } = useTranslation();
   const { user, isLoading: authLoading } = useAuth();
 
-  const { data: challenges = [], isLoading } = useQuery({
+  const {
+    data: challenges = [],
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["challenges"],
     queryFn: getChallenges,
     enabled: !!user,
@@ -49,6 +53,13 @@ function ChallengesPage() {
 
       {isLoading ? (
         <p className="text-muted-foreground">{t("common.loading")}</p>
+      ) : error ? (
+        <Banner tone="amber" icon={AlertTriangle}>
+          {apiErrorMessage(
+            error,
+            t("challenge.list_error", { defaultValue: "Failed to load challenges." }),
+          )}
+        </Banner>
       ) : challenges.length === 0 ? (
         <p className="text-muted-foreground">
           {t("challenge.list_empty", { defaultValue: "No challenges available yet." })}

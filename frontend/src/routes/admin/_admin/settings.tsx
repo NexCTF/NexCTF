@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { type ConfigItem, getConfig, SECRET_MASK, updateConfig } from "@/lib/api";
+import { apiErrorMessage, type ConfigItem, getConfig, SECRET_MASK, updateConfig } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin/settings")({
@@ -69,6 +69,8 @@ function SettingsPage() {
       setOverrides({});
       toast.success(t("common.saved"));
     },
+    onError: (err) =>
+      toast.error(apiErrorMessage(err, t("config.save_error", { defaultValue: "Save failed" }))),
   });
 
   function setValue(key: string, value: string) {

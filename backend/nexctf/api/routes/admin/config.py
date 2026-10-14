@@ -13,6 +13,7 @@ from nexctf.module.info import invalidate as invalidate_info
 from nexctf.module.scoreboard import invalidate as invalidate_scoreboard
 from nexctf.module.stats import invalidate_team
 from nexctf.schema.config import AdminConfigBulkUpdate, AdminConfigRead
+from nexctf.util.datetime import EVENT_TIME_KEYS, event_time_errors
 
 config_router = APIRouter(prefix="/config", tags=["Config"])
 
@@ -70,6 +71,9 @@ async def bulk_update_config(
         except ValueError as e:
             errors.append(f"{key}: {e}")
 
+    overrides = {**old_overrides, **staged}
+    if not errors and staged.keys() & EVENT_TIME_KEYS:
+        errors = event_time_errors(overrides)
     if errors:
         raise ConfigValidationError(errors)
 
@@ -79,8 +83,6 @@ async def bulk_update_config(
         await invalidate_scoreboard(redis)
         await invalidate_team(redis)
     await publish_event(redis, ["config:update"], "1")
-
-    overrides = {**old_overrides, **staged}
 
     if staged:
         actor_id, ip = audit_actor()

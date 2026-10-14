@@ -148,3 +148,60 @@ class TestPublicInfoInvalidation:
             )
         assert resp.status_code == 200
         assert calls[:2] == ["invalidate", "publish"]
+
+
+class TestEventTimeOrder:
+    """Start, freeze and end times must be saved in order."""
+
+    @pytest.fixture
+    def config_overrides(self) -> dict[str, str]:
+        return {
+            "ctf.start_time": "2099-01-01T00:00:00+00:00",
+            "ctf.end_time": "2099-01-03T00:00:00+00:00",
+        }
+
+    @pytest.mark.parametrize(
+        ("items", "error"),
+        [
+            (
+                {"ctf.end_time": "2098-12-31T00:00:00+00:00"},
+                "ctf.end_time: must be after ctf.start_time",
+            ),
+            (
+                {"ctf.freeze_time": "2099-01-04T00:00:00+00:00"},
+                "ctf.end_time: must be after ctf.freeze_time",
+            ),
+        ],
+    )
+    async def test_out_of_order_times_rejected(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        items: dict[str, str],
+        error: str,
+    ) -> None:
+        c, _ = admin_client
+        resp = await c.put("/admin/config", json={"items": items})
+        assert resp.status_code == 422
+        assert error in resp.json()["description"]
+
+    async def test_freeze_inside_event_accepted(
+        self,
+        admin_client: tuple[AsyncClient, User],
+    ) -> None:
+        c, _ = admin_client
+        with _patch_invalidate():
+            resp = await c.put(
+                "/admin/config",
+                json={"items": {"ctf.freeze_time": "2099-01-02T00:00:00+00:00"}},
+            )
+        assert resp.status_code == 200
+
+    async def test_unrelated_key_skips_the_check(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        config_overrides: dict[str, str],
+    ) -> None:
+        config_overrides["ctf.end_time"] = "2098-01-01T00:00:00+00:00"
+        c, _ = admin_client
+        resp = await c.put("/admin/config", json={"items": {"ctf.name": "NexCTF"}})
+        assert resp.status_code == 200

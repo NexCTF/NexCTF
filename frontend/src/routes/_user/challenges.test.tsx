@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
-import { getChallenges, getPublicInfo } from "@/lib/api";
+import { ApiError, getChallenges, getPublicInfo } from "@/lib/api";
 import type { AuthContext } from "@/lib/auth";
 import { challenge, publicInfo, publicInfoWith, user } from "@/test/fixtures";
 import { renderRoute } from "@/test/render";
@@ -51,6 +51,16 @@ it("shows an empty state when nothing is published", async () => {
   renderChallenges();
 
   expect(await screen.findByText("No challenges available yet.")).toBeDefined();
+});
+
+it("explains why challenges are unavailable before the start", async () => {
+  vi.mocked(getChallenges).mockRejectedValue(
+    new ApiError(403, "CTF not started", "The CTF has not started yet.", "CTF-403-NOT-STARTED"),
+  );
+  renderChallenges();
+
+  expect(await screen.findByText("The CTF has not started yet.")).toBeDefined();
+  expect(screen.queryByText("No challenges available yet.")).toBeNull();
 });
 
 it("warns once the event has ended", async () => {

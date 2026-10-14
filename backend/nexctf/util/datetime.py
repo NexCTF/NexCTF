@@ -6,6 +6,14 @@ from datetime import UTC, datetime
 
 from nexctf.core import appconfig
 
+EVENT_TIME_KEYS = frozenset({"ctf.start_time", "ctf.freeze_time", "ctf.end_time"})
+
+_EVENT_ORDER = (
+    ("ctf.start_time", "ctf.end_time"),
+    ("ctf.start_time", "ctf.freeze_time"),
+    ("ctf.freeze_time", "ctf.end_time"),
+)
+
 
 def parse_config_dt(key: str, overrides: dict[str, str]) -> datetime | None:
     """Return a timezone-aware datetime from the given appconfig key, or None if unset."""
@@ -28,6 +36,23 @@ def is_config_dt_future(key: str, overrides: dict[str, str]) -> bool:
     """Return True if the given appconfig datetime key is set and in the future."""
     dt = parse_config_dt(key, overrides)
     return dt is not None and datetime.now(UTC) < dt
+
+
+def event_time_errors(overrides: dict[str, str]) -> list[str]:
+    """Return an error for each pair of event times set out of order."""
+    times = {key: _try_parse_config_dt(key, overrides) for key in EVENT_TIME_KEYS}
+    return [
+        f"{later}: must be after {earlier}"
+        for earlier, later in _EVENT_ORDER
+        if (first := times[earlier]) and (second := times[later]) and first >= second
+    ]
+
+
+def _try_parse_config_dt(key: str, overrides: dict[str, str]) -> datetime | None:
+    try:
+        return parse_config_dt(key, overrides)
+    except ValueError:
+        return None
 
 
 def event_timezone(overrides: dict[str, str]) -> str:

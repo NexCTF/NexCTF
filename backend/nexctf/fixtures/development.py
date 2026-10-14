@@ -42,9 +42,14 @@ fixtures = FixtureRegistry(contexts=[Context.DEVELOPMENT, "demo"])
 
 @fixtures.register(contexts=[Context.DEVELOPMENT])
 def config() -> list[ConfigEntry]:
-    """Point email at mailpit (from compose.dev.yml) and turn the captcha on."""
+    """Point email at mailpit, turn the captcha off and open a week-long event."""
     stored = utils.stored_config_keys()
+    earliest = utils.earliest_submission()
+    start = min(_CTF_START, earliest) if earliest else _CTF_START
     values = {
+        "ctf.start_time": start.isoformat(),
+        "ctf.freeze_time": (start + timedelta(days=6)).isoformat(),
+        "ctf.end_time": (start + timedelta(days=7)).isoformat(),
         "email.enabled": "true",
         "email.smtp_host": "127.0.0.1",
         "email.smtp_port": "1025",

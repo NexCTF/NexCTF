@@ -212,6 +212,33 @@ class TestImportApply:
         await db_session.refresh(page)
         assert page.title == "Rules"
 
+    async def test_out_of_order_event_times_answer_400(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        exported: bytes,
+    ) -> None:
+        c, _ = admin_client
+        edited = _with_config(
+            exported,
+            {
+                "ctf.start_time": "2099-01-02T00:00:00+00:00",
+                "ctf.end_time": "2099-01-01T00:00:00+00:00",
+            },
+        )
+        plan = (
+            await c.post(
+                f"{PREFIX}/import/plan", files={"upload": ("bundle.zip", edited)}
+            )
+        ).json()["data"]
+
+        resp = await c.post(
+            f"{PREFIX}/import/apply", json={"import_key": plan["import_key"]}
+        )
+
+        assert resp.status_code == 400
+        assert "ctf.end_time: must be after ctf.start_time" in resp.text
+
     async def test_an_unknown_staged_key_answers_400(
         self, admin_client: tuple[AsyncClient, User]
     ) -> None:

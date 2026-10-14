@@ -697,6 +697,7 @@
     "hint_unlock_error": "Failed to unlock hint",
     "hints": "Hints",
     "list_empty": "No challenges available yet.",
+    "list_error": "Failed to load challenges.",
     "list_title": "Challenges",
     "loading": "Loading…",
     "progress": "{{solved}}/{{total}} questions solved",
@@ -934,6 +935,7 @@
         }
       }
     },
+    "save_error": "Save failed",
     "scoring": {
       "decay_minimum": {
         "description": "Minimum points a challenge can decay to",
@@ -1122,6 +1124,8 @@
     "frozen_banner": "Scoreboard frozen at {{date}}",
     "load_error": "Failed to load scoreboard",
     "not_started_banner": "Competition starts on {{date}}",
+    "running_banner": "Competition running",
+    "running_until_banner": "Competition running, ends on {{date}}",
     "title": "Scoreboard"
   },
   "settings": {

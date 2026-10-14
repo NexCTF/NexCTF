@@ -3,6 +3,7 @@ const TONES = {
   yellow: "border-yellow-500/30 bg-yellow-500/10 text-yellow-400",
   zinc: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",
   blue: "border-blue-500/30 bg-blue-500/10 text-blue-400",
+  green: "border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400",
 };
 
 /** Inline notice strip. */

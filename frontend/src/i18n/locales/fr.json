@@ -699,6 +699,7 @@
     "hint_unlock_error": "Échec du déblocage de l'indice",
     "hints": "Indices",
     "list_empty": "Aucun challenge disponible pour le moment.",
+    "list_error": "Impossible de charger les challenges.",
     "list_title": "Challenges",
     "loading": "Chargement…",
     "progress": "{{solved}}/{{total}} questions résolues",
@@ -937,6 +938,7 @@
         }
       }
     },
+    "save_error": "Échec de l'enregistrement",
     "scoring": {
       "decay_minimum": {
         "description": "Points minimum qu'un challenge peut atteindre",
@@ -1125,6 +1127,8 @@
     "frozen_banner": "Classement gelé au {{date}}",
     "load_error": "Échec du chargement du classement",
     "not_started_banner": "La compétition commence le {{date}}",
+    "running_banner": "Compétition en cours",
+    "running_until_banner": "Compétition en cours, se termine le {{date}}",
     "title": "Classement"
   },
   "settings": {

@@ -40,7 +40,7 @@ import {
   unlockHint,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { useEventEnded } from "@/lib/use-event-ended";
+import { useEventEnded } from "@/lib/use-event-phase";
 import { formatBytes } from "@/lib/utils";
 
 function UnlockHintButton({

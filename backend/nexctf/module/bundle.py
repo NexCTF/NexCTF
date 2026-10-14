@@ -79,6 +79,7 @@ from nexctf.plugins.registry import (
 )
 from nexctf.schema.challenge import AdminChallengeRead
 from nexctf.schema.solution import AdminSolutionRead
+from nexctf.util.datetime import EVENT_TIME_KEYS, event_time_errors
 
 logger = logging.getLogger(__name__)
 
@@ -231,12 +232,10 @@ async def _config_values(
     session: AsyncSession, *, include_secrets: bool
 ) -> dict[str, str]:
     """Every setting this build knows, at the value currently in force."""
-    defs = appconfig.all_defs()
-    rows = await session.execute(select(ConfigEntry.key, ConfigEntry.value))
-    stored = {key: value for key, value in rows.all() if key in defs}
+    stored = await appconfig.stored_overrides(session)
     return {
         key: appconfig.effective_raw(key, stored)
-        for key, def_ in defs.items()
+        for key, def_ in appconfig.all_defs().items()
         if include_secrets or def_.type is not ConfigType.SECRET
     }
 
@@ -951,6 +950,10 @@ async def _apply_config(
         except ValueError as exc:
             raise BundleError(f"config {key}: {exc}") from exc
         updates[key] = value
+    if {*updates, *removals} & EVENT_TIME_KEYS and (
+        errors := event_time_errors(await appconfig.stored_overrides(session))
+    ):
+        raise BundleError(f"config {'; '.join(errors)}")
     return updates, removals
 
 
