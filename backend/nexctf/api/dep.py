@@ -282,15 +282,20 @@ async def validate_body(schema: type[BaseModel], request: Request) -> BaseModel:
     """Validate the JSON body against *schema*, answering 422 on failure."""
     try:
         payload = await request.json()
-    except json.JSONDecodeError as exc:
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        pos, msg = (
+            (exc.pos, exc.msg)
+            if isinstance(exc, json.JSONDecodeError)
+            else (exc.start, exc.reason)
+        )
         raise RequestValidationError(
             [
                 {
                     "type": "json_invalid",
-                    "loc": ("body", exc.pos),
+                    "loc": ("body", pos),
                     "msg": "JSON decode error",
                     "input": {},
-                    "ctx": {"error": exc.msg},
+                    "ctx": {"error": msg},
                 }
             ]
         )

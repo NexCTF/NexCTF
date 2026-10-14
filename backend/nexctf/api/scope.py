@@ -114,7 +114,9 @@ def _prefix_groups() -> dict[str, str]:
 def plugin_prefix_conflict(prefix: str, scope: str) -> str | None:
     """Return the taken prefix a plugin router would share its head segment with."""
     head = _head(_mount_path(prefix, scope))
-    if scope != "admin" and head.split("/")[0] == "admin":
+    if not head:
+        return "/"
+    if head == "admin" or (scope != "admin" and head.split("/")[0] == "admin"):
         return "/admin"
     return next(
         (p for p in (*_prefix_groups(), *_UNGROUPED_PREFIXES) if _head(p) == head),
@@ -156,7 +158,11 @@ def group_for_path(path: str) -> str | None:
         return None
     relative = path[len(settings.API_V1_STR) :]
     groups = _prefix_groups()
-    match = max((p for p in groups if relative.startswith(p)), key=len, default=None)
+    match = max(
+        (p for p in groups if relative == p or relative.startswith(f"{p}/")),
+        key=len,
+        default=None,
+    )
     return groups[match] if match is not None else None
 
 

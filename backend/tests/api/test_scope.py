@@ -222,6 +222,16 @@ class TestPluginPrefixConflict:
     def test_a_non_admin_router_cannot_mount_under_admin(self) -> None:
         assert plugin_prefix_conflict("/admin/x", "user") == "/admin"
 
+    def test_a_root_prefix_is_refused(self) -> None:
+        assert plugin_prefix_conflict("", "user") == "/"
+        assert plugin_prefix_conflict("/", "anonymous") == "/"
+        assert plugin_prefix_conflict("", "admin") == "/admin"
+
+    def test_groups_match_whole_segments(self, isolated_plugins) -> None:
+        _add_router("/orch", "user", "orch")
+        assert group_for_path(f"{settings.API_V1_STR}/orch/run") == "plugin.orch"
+        assert group_for_path(f"{settings.API_V1_STR}/orchestra") is None
+
     def test_a_registered_plugin_prefix_is_taken(self, isolated_plugins) -> None:
         _add_router("/orchestrator", "user", "orch")
         assert plugin_prefix_conflict("/orchestrator/v2", "anonymous") == (
