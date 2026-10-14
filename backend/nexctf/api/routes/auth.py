@@ -564,12 +564,13 @@ async def _resolve_user_from_userinfo(
     userinfo: dict,
     *,
     current_user: User | None = None,
+    allow_registration: bool = True,
 ) -> tuple[User, bool]:
     """Return (user, is_new_user) for the given OAuth userinfo payload.
 
     Looks up an existing OAuthAccount by (provider, subject).  If none is
     found, links to *current_user* when a session is already active, otherwise
-    creates a brand-new account.  Email-based auto-linking is intentionally
+    creates a brand-new account when *allow_registration* is set.  Email-based auto-linking is intentionally
     omitted: an unverified provider email could silently take over an existing
     local account.
     """
@@ -597,6 +598,8 @@ async def _resolve_user_from_userinfo(
         user = current_user
         is_new_user = False
     else:
+        if not allow_registration:
+            raise RegistrationDisabledError()
         email = userinfo.get("email")
         # Only use the email if it is not already claimed by another local account.
         # Assigning a conflicting email would raise a unique constraint violation, and
@@ -633,10 +636,10 @@ async def _resolve_user_from_userinfo(
     return user, is_new_user
 
 
-_ALLOWED_REDIRECT_ORIGINS = {
-    urlparse(settings.FRONTEND_HOST).netloc,
-    urlparse(settings.BACKEND_HOST).netloc,
-}
+_ALLOWED_REDIRECT_HOSTS = tuple(
+    urlparse(host).hostname or ""
+    for host in (settings.FRONTEND_HOST, settings.BACKEND_HOST)
+)
 
 
 @auth_router.get("/providers/{slug}/authorize")
@@ -652,7 +655,7 @@ async def oauth_authorize(
     endpoints = await oauth_resolve_provider_urls(provider.discovery_url)
     destination = (
         redirect_url
-        if redirect_url and urlparse(redirect_url).netloc in _ALLOWED_REDIRECT_ORIGINS
+        if redirect_url and urlparse(redirect_url).hostname in _ALLOWED_REDIRECT_HOSTS
         else settings.FRONTEND_HOST
     )
     state_token = oauth_generate_state_token()
@@ -682,6 +685,7 @@ async def oauth_callback(
     redis: RedisDep,
     slug: str,
     current_user: OptionalCookieUserDep,
+    overrides: ConfigDep,
     provider: OAuthProvider = ProviderDep,
     code: str | None = None,
     error: str | None = None,
@@ -699,9 +703,11 @@ async def oauth_callback(
     destination = oauth_decode_state(
         state,
         expected_state_token=expected_state_token,
-        fallback=settings.FRONTEND_HOST,
-        allowed_hosts=tuple(_ALLOWED_REDIRECT_ORIGINS),
+        fallback="",
+        allowed_hosts=_ALLOWED_REDIRECT_HOSTS,
     )
+    if not destination:
+        raise InvalidCredentialsError()
 
     redirect = RedirectResponse(url=destination, status_code=302)
     redirect.delete_cookie(
@@ -731,9 +737,18 @@ async def oauth_callback(
         access_token=token["access_token"],
     )
 
-    user, is_new_user = await _resolve_user_from_userinfo(
-        db, provider, userinfo, current_user=current_user
-    )
+    try:
+        user, is_new_user = await _resolve_user_from_userinfo(
+            db,
+            provider,
+            userinfo,
+            current_user=current_user,
+            allow_registration=bool(
+                appconfig.get_with_overrides("ctf.allow_registration", overrides)
+            ),
+        )
+    except IntegrityError:
+        raise ConflictError(detail="Another sign-in created this account; try again")
 
     if not user.is_active:
         raise AccountDisabledError()
