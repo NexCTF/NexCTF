@@ -45,12 +45,12 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-/**
- * A post-login redirect target is only honoured when it is a same-origin path.
- * `//evil.com` is protocol-relative, so a leading-slash check alone is not enough.
- */
-function isSafeNext(next: string | undefined): next is string {
-  return !!next && next.startsWith("/") && !next.startsWith("//");
+/** Parse a post-login redirect target into an absolute same-origin URL, or null. */
+function safeNextUrl(next: string | undefined): string | null {
+  if (!next?.startsWith("/")) return null;
+  const url = new URL(next, window.location.origin);
+  if (url.origin !== window.location.origin || url.pathname.startsWith("//")) return null;
+  return url.href;
 }
 
 function LoginPage() {
@@ -138,6 +138,7 @@ function LoginPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (submitDisabled) return;
     setError(null);
     setLoading(true);
     try {
@@ -147,8 +148,9 @@ function LoginPage() {
         totpRequired ? totpCode : undefined,
         captchaEnabled ? (captchaToken ?? undefined) : undefined,
       );
-      if (isSafeNext(next)) {
-        window.location.href = next;
+      const target = safeNextUrl(next);
+      if (target) {
+        window.location.href = target;
       } else {
         navigate({ to: "/" });
       }
@@ -295,7 +297,10 @@ function LoginPage() {
                 {providers.map((provider) => (
                   <a
                     key={provider.slug}
-                    href={oauthAuthorizeUrl(provider.slug, window.location.origin)}
+                    href={oauthAuthorizeUrl(
+                      provider.slug,
+                      safeNextUrl(next) ?? window.location.origin,
+                    )}
                     className={buttonVariants({
                       variant: "outline",
                       className: "w-full",
