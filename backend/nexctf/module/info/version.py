@@ -35,6 +35,14 @@ def _parse(v: str) -> tuple[int, ...]:
     return tuple(int(p) for p in v.lstrip("v").split("."))
 
 
+def _is_newer(latest: str, current: str) -> bool:
+    """Whether release *latest* is newer than *current*; False if either is unparsable."""
+    try:
+        return _parse(latest) > _parse(current)
+    except ValueError:
+        return False
+
+
 async def _compute() -> VersionInfo:
     latest: str | None = None
     release_url: str | None = None
@@ -50,7 +58,7 @@ async def _compute() -> VersionInfo:
     except (httpx.HTTPError, KeyError, ValueError) as exc:
         logger.warning("Could not check for a new NexCTF release: %r", exc)
 
-    update_available = bool(latest and _parse(latest) > _parse(CURRENT_VERSION))
+    update_available = bool(latest and _is_newer(latest, CURRENT_VERSION))
     return VersionInfo(
         current=CURRENT_VERSION,
         latest=latest,

@@ -123,3 +123,12 @@ class TestTypedBodyValidation:
             headers={"Content-Type": "application/json"},
         )
         assert _fields(resp) == ["1"]
+
+    async def test_non_utf8_body(self, admin_client: tuple[AsyncClient, User]) -> None:
+        c, _ = admin_client
+        resp = await c.post(
+            "/admin/challenge/standard",
+            content=b'{"title": "\xff"}',
+            headers={"Content-Type": "application/json"},
+        )
+        assert resp.status_code == 422

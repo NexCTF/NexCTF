@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from nexctf.module.info.version import CURRENT_VERSION, _parse, get_version_info
+from nexctf.module.info.version import CURRENT_VERSION, _is_newer, get_version_info
 from nexctf.schema.info import VersionInfo
 
 
@@ -17,10 +17,12 @@ from nexctf.schema.info import VersionInfo
         ("0.4.0", "v0.5.0", True),
         ("0.4.0", "0.3.9", False),
         ("0.9.0", "0.10.0", True),
+        ("0.4.0", "v1.0.0-hotfix", False),
+        ("0.12.0.dev0", "0.12.0", False),
     ],
 )
 def test_update_available(current: str, latest: str, expected: bool) -> None:
-    assert (_parse(latest) > _parse(current)) is expected
+    assert _is_newer(latest, current) is expected
 
 
 class _FakePipeline:
