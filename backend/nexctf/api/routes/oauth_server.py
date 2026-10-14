@@ -285,22 +285,22 @@ async def token(
     invalid_grant = OAuth2ProtocolError(
         400, "invalid_grant", "The authorization code is invalid, expired or revoked."
     )
-    raw_payload = await redis.get(_CODE_PREFIX + code)
-    if raw_payload is None:
-        raise invalid_grant
-
     # One-time use: consume the code on any redemption attempt so a failed
     # exchange (client mismatch, bad PKCE verifier) cannot be retried.
-    await redis.delete(_CODE_PREFIX + code)
+    raw_payload = await redis.getdel(_CODE_PREFIX + code)
+    if raw_payload is None:
+        raise invalid_grant
 
     data = json.loads(raw_payload)
 
     if data["client_id"] != client_id or data["redirect_uri"] != redirect_uri:
         raise invalid_grant
 
-    # PKCE: if a challenge was bound at authorization, a valid verifier is required
+    # PKCE: a challenge and its verifier come together or not at all (RFC 9700 §2.1.1).
     challenge = data.get("code_challenge")
-    if challenge and (not code_verifier or not _verify_pkce(code_verifier, challenge)):
+    if bool(challenge) != bool(code_verifier):
+        raise invalid_grant
+    if challenge and code_verifier and not _verify_pkce(code_verifier, challenge):
         raise invalid_grant
 
     # Re-check account state and role: either may have changed since consent.
@@ -360,7 +360,7 @@ async def userinfo(
         error=OAuth2ProtocolError.bearer(403, "access_denied", _ROLE_REVOKED),
     )
 
-    scopes = set(data["scopes"].split())
+    scopes = set(data["scopes"].split()) & set(client.allowed_scope_list)
 
     return OAuthUserinfo(
         sub=str(user.id),

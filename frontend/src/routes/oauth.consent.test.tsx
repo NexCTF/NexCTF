@@ -1,5 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { beforeEach, expect, it, vi } from "vitest";
 import { ApiError, approveOAuthConsent, getOAuthConsentInfo } from "@/lib/api";
 import type { AuthContext } from "@/lib/auth";
@@ -12,6 +13,8 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   getOAuthConsentInfo: vi.fn(),
   approveOAuthConsent: vi.fn(),
 }));
+
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const CONSENT_URL =
   "/oauth/consent?client_id=app1&redirect_uri=https%3A%2F%2Fapp.example%2Fcb&scope=openid+profile&state=xyz";
@@ -59,6 +62,21 @@ it("redirects to the client on approval", async () => {
     }),
   );
   await waitFor(() => expect(window.location.href).toBe("https://app.example/cb?code=1"));
+});
+
+it("forwards the PKCE challenge on approval", async () => {
+  vi.mocked(approveOAuthConsent).mockResolvedValue({
+    redirect_to: "https://app.example/cb?code=1",
+  });
+  renderConsent(`${CONSENT_URL}&code_challenge=abc123&code_challenge_method=S256`);
+
+  await userEvent.click(await screen.findByRole("button", { name: "Allow" }));
+
+  await waitFor(() =>
+    expect(approveOAuthConsent).toHaveBeenCalledWith(
+      expect.objectContaining({ code_challenge: "abc123", code_challenge_method: "S256" }),
+    ),
+  );
 });
 
 it("bounces back with access_denied and the state on refusal", async () => {
@@ -124,4 +142,13 @@ it("sends an anonymous visitor to log in first", async () => {
 
   await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
   expect(getOAuthConsentInfo).not.toHaveBeenCalled();
+});
+
+it("reports an approval that fails for another reason than the role", async () => {
+  vi.mocked(approveOAuthConsent).mockRejectedValue(new ApiError(400, "Client deactivated"));
+  renderConsent();
+
+  await userEvent.click(await screen.findByRole("button", { name: "Allow" }));
+
+  await waitFor(() => expect(toast.error).toHaveBeenCalled());
 });
