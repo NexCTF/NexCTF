@@ -131,3 +131,19 @@ class TestBounds:
     def test_invalid_bounds_are_rejected(self, def_: ConfigDef, error: str) -> None:
         with pytest.raises(ValueError, match=error):
             appconfig.normalize_def(def_)
+
+
+@pytest.mark.parametrize(
+    ("stored", "read"),
+    [
+        ("2026-10-14T10:00:00", "2026-10-14T10:00:00+00:00"),
+        ("2026-10-14T12:00:00+02:00", "2026-10-14T12:00:00+02:00"),
+        ("", ""),
+    ],
+)
+def test_datetimes_read_with_their_timezone(stored: str, read: str) -> None:
+    """Every reader gets an offset, so browsers never parse a time as local."""
+    assert (
+        appconfig.get_with_overrides("ctf.start_time", {"ctf.start_time": stored})
+        == read
+    )
