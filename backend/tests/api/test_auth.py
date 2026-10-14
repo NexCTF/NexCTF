@@ -12,6 +12,7 @@ from fastapi_multiauth.oauth import OIDCEndpoints
 from httpx import AsyncClient
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from nexctf import crud
 from nexctf.api.security import _verify_token, hash_password, verify_password
@@ -903,6 +904,98 @@ class TestOAuthFlow:
             follow_redirects=False,
         )
         assert resp.status_code == 401
+
+    async def _authorize(self, http_client) -> str:
+        """Start the provider flow and return the state it issued."""
+        with patch(
+            "nexctf.api.routes.auth.oauth_resolve_provider_urls",
+            new_callable=AsyncMock,
+            return_value=self._FAKE_URLS,
+        ):
+            resp = await http_client.get(
+                "/auth/providers/test-idp/authorize", follow_redirects=False
+            )
+        return parse_qs(urlparse(resp.headers["location"]).query)["state"][0]
+
+    async def test_callback_mismatched_state_is_rejected(
+        self, http_client, oauth_provider
+    ):
+        await self._authorize(http_client)
+        exchange = AsyncMock(return_value={"access_token": "fake-access-token"})
+        with (
+            patch(
+                "nexctf.api.routes.auth.oauth_resolve_provider_urls",
+                new_callable=AsyncMock,
+                return_value=self._FAKE_URLS,
+            ),
+            patch("nexctf.api.routes.auth.oauth_exchange_code", exchange),
+        ):
+            resp = await http_client.get(
+                "/auth/providers/test-idp/callback",
+                params={"code": "attacker-code", "state": "tampered_state"},
+                follow_redirects=False,
+            )
+        assert resp.status_code == 401
+        exchange.assert_not_awaited()
+        assert "NexCTF" not in resp.cookies
+
+    async def _provider_login(self, http_client, subject: str):
+        """Run the provider flow end to end as the identity *subject*."""
+        state = await self._authorize(http_client)
+        with (
+            patch(
+                "nexctf.api.routes.auth.oauth_resolve_provider_urls",
+                new_callable=AsyncMock,
+                return_value=self._FAKE_URLS,
+            ),
+            patch(
+                "nexctf.api.routes.auth.oauth_exchange_code",
+                new_callable=AsyncMock,
+                return_value={"access_token": "fake-access-token"},
+            ),
+            patch(
+                "nexctf.api.routes.auth.oauth_fetch_userinfo",
+                new_callable=AsyncMock,
+                return_value={"sub": subject},
+            ),
+        ):
+            return await http_client.get(
+                "/auth/providers/test-idp/callback",
+                params={"code": "code", "state": state},
+                follow_redirects=False,
+            )
+
+    async def test_callback_respects_closed_registration(
+        self,
+        http_client,
+        db_session,
+        oauth_provider,
+        override_db_context,
+        config_overrides: dict[str, str],
+    ):
+        known = User(username="known")
+        db_session.add(known)
+        await db_session.flush()
+        db_session.add(
+            OAuthAccount(user_id=known.id, provider_id=oauth_provider.id, subject="k")
+        )
+        await db_session.flush()
+        config_overrides["ctf.allow_registration"] = "false"
+
+        resp = await self._provider_login(http_client, "stranger")
+        assert resp.json()["error_code"] == "AUTH-403-REG-DISABLED"
+        assert (await self._provider_login(http_client, "k")).status_code == 302
+
+    async def test_callback_racing_first_login_is_a_conflict(
+        self, http_client, oauth_provider, override_db_context
+    ):
+        """Two first logins for one identity collide on the unique subject."""
+        clash = IntegrityError("INSERT", {}, Exception("duplicate subject"))
+        with patch.object(
+            crud.OAuthAccountCrud, "create", AsyncMock(side_effect=clash)
+        ):
+            resp = await self._provider_login(http_client, "racer")
+        assert resp.status_code == 409
 
     async def test_callback_no_state_param_is_rejected(
         self, http_client, oauth_provider
