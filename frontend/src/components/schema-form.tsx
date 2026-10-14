@@ -5,10 +5,12 @@
  * UI hints like x-ui-options (InlineSelect) and x-ui-widget (code editor).
  */
 
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { TeamMultiSelect } from "@/components/team-multi-select";
 import { Button } from "@/components/ui/button";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MarkdownEditor } from "@/components/ui/markdown-editor";
@@ -47,6 +49,15 @@ function getUIWidget(prop: JsonSchemaProperty): string | undefined {
     return nonNull?.["x-ui-widget"];
   }
   return undefined;
+}
+
+function getFormat(prop: JsonSchemaProperty): string | undefined {
+  if (prop.format) return prop.format;
+  return prop.anyOf?.find((t) => t.type !== "null")?.format;
+}
+
+function isNullable(prop: JsonSchemaProperty): boolean {
+  return prop.anyOf?.some((t) => t.type === "null") ?? false;
 }
 
 function resolveRef(ref: string, defs: Record<string, JsonSchema>): JsonSchema {
@@ -89,7 +100,7 @@ export function initFromSchema(
       values[key] = current[key];
     } else if (prop.default !== undefined) {
       values[key] = prop.default;
-    } else if (prop.anyOf?.some((t) => t.type === "null")) {
+    } else if (isNullable(prop)) {
       values[key] = null;
     } else {
       const t = getEffectiveType(prop);
@@ -216,6 +227,59 @@ function ArrayField({
               ))}
             </div>
           ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DateField — native date input, with a clear button for nullable fields
+// ---------------------------------------------------------------------------
+
+function DateField({
+  label,
+  description,
+  value,
+  onChange,
+  onClear,
+  required,
+}: {
+  label: string;
+  description?: string;
+  value: string;
+  onChange: (v: string) => void;
+  onClear?: () => void;
+  required?: boolean;
+}) {
+  const { t } = useTranslation();
+  const id = useId();
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>
+        {label}
+        {required && " *"}
+      </Label>
+      {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      <div className="flex items-center gap-2">
+        <Input
+          id={id}
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          required={required}
+          className="w-auto flex-1"
+        />
+        {onClear && value && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("common.clear", { defaultValue: "Clear" })}
+            onClick={onClear}
+          >
+            <X />
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -395,6 +459,24 @@ export function SchemaFields({
                 }
               />
             </div>
+          );
+        }
+
+        // date-time → DateTimePicker (local time in, UTC ISO out), date → DateField
+        const format = getFormat(prop);
+        if (format === "date-time" || format === "date") {
+          const nullable = isNullable(prop);
+          const Field = format === "date-time" ? DateTimePicker : DateField;
+          return (
+            <Field
+              key={key}
+              label={label}
+              description={prop.description}
+              value={values[key] == null ? "" : String(values[key])}
+              onChange={(v) => onChange(key, v === "" && nullable ? null : v)}
+              onClear={nullable ? () => onChange(key, null) : undefined}
+              required={req}
+            />
           );
         }
 

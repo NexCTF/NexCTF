@@ -9,8 +9,10 @@
  * We convert transparently here so neither side has to worry about it.
  */
 
+import { X } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -59,8 +61,11 @@ interface DateTimePickerProps {
   /** Called with a UTC ISO string on every change */
   onChange: (utcIso: string) => void;
   label?: string;
+  description?: string;
   /** IANA zone to echo the value in, alongside UTC. Omit to show no echo. */
   echoTimezone?: string;
+  /** Shows a clear button while a value is set. */
+  onClear?: () => void;
   required?: boolean;
   disabled?: boolean;
   className?: string;
@@ -70,7 +75,9 @@ export function DateTimePicker({
   value,
   onChange,
   label,
+  description,
   echoTimezone,
+  onClear,
   required,
   disabled,
   className,
@@ -90,6 +97,7 @@ export function DateTimePicker({
           {required && " *"}
         </Label>
       )}
+      {description && <p className="text-xs text-muted-foreground">{description}</p>}
       <div className="flex items-center gap-2">
         <Input
           id={id}
@@ -101,6 +109,18 @@ export function DateTimePicker({
           className="w-auto flex-1"
         />
         <span className="text-xs text-muted-foreground shrink-0">{zone}</span>
+        {onClear && value && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("common.clear", { defaultValue: "Clear" })}
+            disabled={disabled}
+            onClick={onClear}
+          >
+            <X />
+          </Button>
+        )}
       </div>
       {utcEcho && (
         <p className="text-xs text-muted-foreground">
