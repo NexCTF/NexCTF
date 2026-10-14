@@ -71,7 +71,7 @@ class CustomFieldValueCrud(AsyncCrud[CustomFieldValue]):
     model = CustomFieldValue
     cursor_column = CustomFieldValue.created_at
     searchable_fields = []
-    facet_fields = [CustomFieldValue.definition_id]
+    facet_fields = []
     order_fields = []
     default_load_options = [joinedload(CustomFieldValue.definition)]
 

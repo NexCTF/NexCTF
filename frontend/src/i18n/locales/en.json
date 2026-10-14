@@ -232,10 +232,6 @@
       "save_error": "Failed to save field",
       "saved": "Field saved",
       "title": "Custom Fields",
-      "value_delete_confirm": "Remove this field value?",
-      "value_label": "Value",
-      "value_save_error": "Failed to save value",
-      "value_saved": "Value saved",
       "values_title": "Custom Fields"
     },
     "dashboard": {

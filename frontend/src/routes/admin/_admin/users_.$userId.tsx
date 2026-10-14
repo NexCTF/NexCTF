@@ -36,7 +36,6 @@ import {
   getAdminUserEvents,
   getAdminUserSessions,
   revokeAdminUserSession,
-  setAdminCustomFieldValue,
   USER_ROLES,
   type UserClient,
   type UserSession,
@@ -243,29 +242,16 @@ function EditUserDialog({
 
   const userDefs = useCustomFieldDefs("user", open);
 
-  const existingDefIds = new Set(user.custom_field_values.map((cfv) => cfv.definition.id));
-
   const mutation = useMutation({
-    mutationFn: async () => {
-      await updateAdminUser(userId, {
+    mutationFn: () =>
+      updateAdminUser(userId, {
         username,
         email: email || null,
         role,
         team_id: teamId,
         links,
-      });
-      await Promise.all(
-        userDefs
-          .filter((def) => cfValues[def.id] || existingDefIds.has(def.id))
-          .map((def) =>
-            setAdminCustomFieldValue({
-              definition_id: def.id,
-              user_id: userId,
-              value: cfValues[def.id] || null,
-            }),
-          ),
-      );
-    },
+        custom_fields: cfValues,
+      }),
     onSuccess: () => {
       toast.success(t("admin.users.saved"));
       setOpen(false);
@@ -645,13 +631,7 @@ function UserDetailPage() {
 
           <ClientsSection userId={userId} />
 
-          <CustomFieldValuesList
-            entityId={userId}
-            entityType="user"
-            values={user.custom_field_values}
-            onSaved={invalidateUser}
-            readOnly
-          />
+          <CustomFieldValuesList values={user.custom_field_values} />
 
           <DetailSection title={t("admin.users.events_title")}>
             <DataTable

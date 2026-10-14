@@ -15,7 +15,7 @@ from nexctf.schema.custom_field import EditableCustomField
 _HTTP_URL = re.compile(r"^https?://", re.IGNORECASE)
 
 
-def owner_scope(
+def _owner_scope(
     *, user_id: UUID | None = None, team_id: UUID | None = None
 ) -> tuple[CustomFieldTarget, ColumnElement[bool]]:
     """Resolve an owner to its definition target and a value filter."""
@@ -26,7 +26,7 @@ def owner_scope(
     return CustomFieldTarget.team, CustomFieldValue.team_id == team_id
 
 
-def validate_value(field_type: CustomFieldType, value: str) -> None:
+def _validate_value(field_type: CustomFieldType, value: str) -> None:
     """Raise InvalidCustomFieldValueError if value does not match its type."""
     if field_type == CustomFieldType.integer:
         try:
@@ -77,7 +77,7 @@ async def load_editable_fields(
     team_id: UUID | None = None,
 ) -> list[EditableCustomField]:
     """Return an owner's self-editable definitions, with that owner's values."""
-    target, value_filter = owner_scope(user_id=user_id, team_id=team_id)
+    target, value_filter = _owner_scope(user_id=user_id, team_id=team_id)
     definitions = await _definitions_for(session, target, self_service=True)
     rows = await crud.CustomFieldValueCrud.get_multi(
         session=session, filters=[value_filter]
@@ -94,19 +94,19 @@ async def replace_custom_field_values(
     self_service: bool = True,
 ) -> list[EditableCustomField]:
     """Replace an owner's custom field values with *values*, returning the result."""
-    target, value_filter = owner_scope(user_id=user_id, team_id=team_id)
+    target, value_filter = _owner_scope(user_id=user_id, team_id=team_id)
     definitions = await _definitions_for(session, target, self_service=self_service)
     by_id = {d.id: d for d in definitions}
     if not set(values) <= set(by_id):
         raise UnknownCustomFieldError()
     for definition_id, value in values.items():
         if value:
-            validate_value(by_id[definition_id].field_type, value)
+            _validate_value(by_id[definition_id].field_type, value)
 
     existing = {
         row.definition_id: row
         for row in await crud.CustomFieldValueCrud.get_multi(
-            session=session, filters=[value_filter]
+            session=session, filters=[value_filter], load_options=[]
         )
     }
     written: dict[UUID, str | None] = {}

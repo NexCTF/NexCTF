@@ -68,6 +68,24 @@ async def get_data(client: AsyncClient, url: str) -> Any:
     return resp.json()["data"]
 
 
+async def define_custom_field(
+    client: AsyncClient, name: str, target: str, **extra: Any
+) -> str:
+    """Create a custom field definition through the admin API, returning its id."""
+    resp = await client.post(
+        "/admin/custom-field",
+        json={"name": name, "label": name.title(), "target": target, **extra},
+    )
+    assert resp.status_code == 200
+    return resp.json()["data"]["id"]
+
+
+async def custom_field_values(client: AsyncClient, url: str) -> dict[str, str | None]:
+    """GET a team/user detail *url*, returning its values keyed by definition id."""
+    data = await get_data(client, url)
+    return {v["definition"]["id"]: v["value"] for v in data["custom_field_values"]}
+
+
 class ListGuardMixin:
     PREFIX: str
 

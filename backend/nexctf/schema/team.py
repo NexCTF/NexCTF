@@ -7,6 +7,7 @@ from pydantic import Field
 
 from nexctf.schema.custom_field import (
     AdminCustomFieldValueRead,
+    CustomFieldValuesInput,
     EditableCustomField,
     PublicCustomFieldValue,
 )
@@ -44,7 +45,7 @@ class AdminTeamCreate(PydanticBase):
 
 
 class AdminTeamCreateRequest(AdminTeamCreate):
-    custom_fields: dict[UUID, str | None] = {}
+    custom_fields: CustomFieldValuesInput = {}
 
 
 class AdminTeamUpdate(PydanticBase):
@@ -53,6 +54,11 @@ class AdminTeamUpdate(PydanticBase):
     country: CountryCode | None = None
     bracket: Label = None
     links: LinkListInput | None = None
+
+
+class AdminTeamUpdateRequest(AdminTeamUpdate):
+    # None leaves the team's values untouched; a dict replaces them all
+    custom_fields: CustomFieldValuesInput | None = None
 
 
 class AdminTeamRead(PydanticBase):
@@ -115,7 +121,7 @@ class MyTeamProfileUpdate(PydanticBase):
     name: str
     country: CountryCode | None = None
     links: LinkListInput = []
-    custom_fields: dict[UUID, str | None] = {}
+    custom_fields: CustomFieldValuesInput = {}
 
 
 class MyTeamProfileRead(PydanticBase):

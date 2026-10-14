@@ -7,7 +7,7 @@ from fastapi_toolsets.schemas import PaginatedResponse, Response
 from sqlalchemy.exc import IntegrityError
 
 from nexctf import crud
-from nexctf.api.dep import RedisDep, SessionDep
+from nexctf.api.dep import SessionDep
 from nexctf.model import (
     ChallengeFeedback,
     CustomFieldValue,
@@ -16,7 +16,6 @@ from nexctf.model import (
     Team,
 )
 from nexctf.module.custom_field import replace_custom_field_values
-from nexctf.module.scoreboard.cache import invalidate as invalidate_scoreboard
 from nexctf.module.scoreboard.compute import compute_team_score
 from nexctf.module.stats import compute_admin_team_challenge_stats
 from nexctf.schema.custom_field import AdminCustomFieldValueRead
@@ -32,6 +31,7 @@ from nexctf.schema.team import (
     AdminTeamMember,
     AdminTeamRead,
     AdminTeamUpdate,
+    AdminTeamUpdateRequest,
 )
 
 team_router = APIRouter(prefix="/team", tags=["Team"])
@@ -176,22 +176,24 @@ async def get_team(
 @team_router.put("/{uuid}")
 async def update_team(
     session: SessionDep,
-    redis: RedisDep,
     uuid: UUID,
-    obj: AdminTeamUpdate,
+    obj: AdminTeamUpdateRequest,
 ) -> Response[AdminTeamRead]:
     try:
         result = await crud.TeamCrud.update(
             session=session,
             filters=[Team.id == uuid],
-            obj=obj,
+            obj=AdminTeamUpdate(
+                **obj.model_dump(exclude={"custom_fields"}, exclude_unset=True)
+            ),
             schema=AdminTeamRead,
         )
     except IntegrityError:
         raise ConflictError(detail="Team name already taken")
-    # name/bracket changes affect scoreboard entries; drop this team's cached views
-    if obj.name is not None or obj.bracket is not None:
-        await invalidate_scoreboard(redis, team_id=uuid)
+    if obj.custom_fields is not None:
+        await replace_custom_field_values(
+            session, obj.custom_fields, team_id=uuid, self_service=False
+        )
     return result
 
 

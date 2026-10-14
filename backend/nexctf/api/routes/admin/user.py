@@ -32,6 +32,7 @@ from nexctf.schema.user import (
     AdminUserCreate,
     AdminUserDetailRead,
     AdminUserUpdate,
+    AdminUserUpdateRequest,
     PublicUserRead,
     UserCreate,
     UserEmailVerifiedUpdate,
@@ -203,7 +204,7 @@ async def update_user(
     session: SessionDep,
     redis: RedisDep,
     uuid: UUID,
-    obj: AdminUserUpdate,
+    obj: AdminUserUpdateRequest,
     admin: CurrentUserDep,
 ) -> Response[PublicUserRead]:
     if obj.email is not None:
@@ -215,16 +216,21 @@ async def update_user(
                 filters=[User.id == uuid],
                 obj=UserEmailVerifiedUpdate(id=uuid, email_verified=False),
             )
+    fields = obj.model_dump(exclude={"custom_fields"}, exclude_unset=True)
     try:
         result = await crud.UserCrud.update(
             session=session,
             filters=[User.id == uuid],
-            obj=obj,
+            obj=AdminUserUpdate(**fields),
             schema=PublicUserRead,
         )
     except IntegrityError:
         raise ConflictError(detail="Username or email already taken")
-    changes = obj.model_dump(exclude={"id"}, exclude_unset=True)
+    if obj.custom_fields is not None:
+        await replace_custom_field_values(
+            session, obj.custom_fields, user_id=uuid, self_service=False
+        )
+    changes = {k: v for k, v in fields.items() if k != "id"}
     await emit(
         session,
         redis,

@@ -40,7 +40,6 @@ import {
   getAdminTeamScoreAdjustments,
   getAdminTeamSubmissions,
   type Link,
-  setAdminCustomFieldValue,
   updateAdminTeam,
 } from "@/lib/api";
 import { useFacetValues } from "@/lib/use-facet-values";
@@ -71,28 +70,15 @@ function EditTeamDialog({
 
   const teamDefs = useCustomFieldDefs("team", open);
 
-  const existingDefIds = new Set(team.custom_field_values.map((cfv) => cfv.definition.id));
-
   const mutation = useMutation({
-    mutationFn: async () => {
-      await updateAdminTeam(teamId, {
+    mutationFn: () =>
+      updateAdminTeam(teamId, {
         name,
         country: country.toUpperCase() || null,
         bracket: bracket || null,
         links,
-      });
-      await Promise.all(
-        teamDefs
-          .filter((def) => cfValues[def.id] || existingDefIds.has(def.id))
-          .map((def) =>
-            setAdminCustomFieldValue({
-              definition_id: def.id,
-              team_id: teamId,
-              value: cfValues[def.id] || null,
-            }),
-          ),
-      );
-    },
+        custom_fields: cfValues,
+      }),
     onSuccess: () => {
       toast.success(t("admin.teams.info_saved"));
       setOpen(false);
@@ -342,13 +328,7 @@ function TeamDetailPage() {
               </div>
             </DetailSection>
 
-            <CustomFieldValuesList
-              entityId={teamId}
-              entityType="team"
-              values={team.custom_field_values}
-              onSaved={invalidateTeam}
-              readOnly
-            />
+            <CustomFieldValuesList values={team.custom_field_values} />
 
             <DetailSection
               title={t("admin.teams.members_title", {

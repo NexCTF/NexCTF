@@ -14,6 +14,8 @@ from ..base import (
     GetItemGuardMixin,
     ListGuardMixin,
     UpdateGuardMixin,
+    custom_field_values,
+    define_custom_field,
 )
 
 
@@ -63,12 +65,7 @@ class TestCreateTeam(CreateGuardMixin):
     ) -> None:
         """Values sent on create land in the same transaction as the team."""
         c, _ = admin_client
-        dresp = await c.post(
-            "/admin/custom-field",
-            json={"name": "school", "label": "School", "target": "team"},
-        )
-        assert dresp.status_code == 200
-        definition_id = dresp.json()["data"]["id"]
+        definition_id = await define_custom_field(c, "school", "team")
 
         resp = await c.post(
             self.PREFIX,
@@ -76,11 +73,8 @@ class TestCreateTeam(CreateGuardMixin):
         )
         assert resp.status_code == 200
 
-        detail = await c.get(f"{self.PREFIX}/{resp.json()['data']['id']}/detail")
-        values = detail.json()["data"]["custom_field_values"]
-        assert [(v["definition"]["id"], v["value"]) for v in values] == [
-            (definition_id, "MIT")
-        ]
+        url = f"{self.PREFIX}/{resp.json()['data']['id']}/detail"
+        assert await custom_field_values(c, url) == {definition_id: "MIT"}
 
     async def test_create_missing_name(
         self, admin_client: tuple[AsyncClient, User]
@@ -263,6 +257,40 @@ class TestUpdateTeam(UpdateGuardMixin):
             f"{self.PREFIX}/{NULL_UUID}", json={"id": NULL_UUID, "name": "x"}
         )
         assert resp.status_code == 404
+
+    async def test_update_replaces_custom_fields(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_team: list[Team],
+    ) -> None:
+        """Admins write every definition, self-editable or not, in one request."""
+        c, _ = admin_client
+        t = fixture_team[0]
+        school = await define_custom_field(c, "school", "team", is_self_editable=False)
+        city = await define_custom_field(c, "city", "team")
+        url = f"{self.PREFIX}/{t.id}"
+        body = {"id": str(t.id), "custom_fields": {school: "MIT", city: "Boston"}}
+        assert (await c.put(url, json=body)).status_code == 200
+
+        body = {"id": str(t.id), "custom_fields": {school: "CMU", city: ""}}
+        assert (await c.put(url, json=body)).status_code == 200
+        assert await custom_field_values(c, f"{url}/detail") == {school: "CMU"}
+
+    async def test_update_without_custom_fields_keeps_them(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_team: list[Team],
+    ) -> None:
+        c, _ = admin_client
+        t = fixture_team[0]
+        school = await define_custom_field(c, "school", "team")
+        url = f"{self.PREFIX}/{t.id}"
+        body = {"id": str(t.id), "custom_fields": {school: "MIT"}}
+        assert (await c.put(url, json=body)).status_code == 200
+
+        resp = await c.put(url, json={"id": str(t.id), "name": "renamed"})
+        assert resp.status_code == 200
+        assert await custom_field_values(c, f"{url}/detail") == {school: "MIT"}
 
 
 class TestDeleteTeam(DeleteGuardMixin):
