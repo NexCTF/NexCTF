@@ -35,6 +35,7 @@ from nexctf.api.security import (
     verify_totp_once,
 )
 from nexctf.core import appconfig
+from nexctf.core.eventbus import close_user_streams
 from nexctf.exceptions import (
     AlreadyInTeamError,
     CannotUnlinkLastOAuthError,
@@ -157,6 +158,7 @@ async def revoke_token(
     request: Request,
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     token_id: UUID,
     user: CurrentUserDep,
 ):
@@ -170,6 +172,7 @@ async def revoke_token(
         session=session,
         filters=[UserToken.id == token_id, UserToken.user_id == user.id],
     )
+    background_tasks.add_task(close_user_streams, redis, user.id)
     await emit(
         session,
         redis,
@@ -209,12 +212,14 @@ async def revoke_one_session(
     request: Request,
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     session_id: UUID,
     user: SessionOnlyDep,
 ):
     """Sign out one device."""
     if not await revoke_session_by_id(session, session_id, user.id):
         raise NotFoundError(detail="Session not found")
+    background_tasks.add_task(close_user_streams, redis, user.id)
     await emit(
         session,
         redis,
@@ -229,6 +234,7 @@ async def revoke_all_sessions(
     request: Request,
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     response: RawResponse,
     user: SessionOnlyDep,
 ):
@@ -239,6 +245,7 @@ async def revoke_all_sessions(
     session without having to guess which one is the attacker's.
     """
     await revoke_all_access(session, user)
+    background_tasks.add_task(close_user_streams, redis, user.id)
     cookie_auth.delete_cookie(response)
     await emit(
         session,
@@ -321,6 +328,7 @@ async def change_password(
     request: Request,
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     response: RawResponse,
     body: PasswordChangeRequest,
     user: SessionOnlyDep,
@@ -343,6 +351,7 @@ async def change_password(
     # Reflect the bump on the instance so the re-issued cookie carries it.
     user.session_version = session_version
     await revoke_all_access(session, user)
+    background_tasks.add_task(close_user_streams, redis, user.id)
     await issue_session_cookie(session, response, user, request)
     await emit(
         session,
@@ -491,6 +500,7 @@ async def _lock_membership(session: AsyncSession, user: User) -> UUID | None:
 async def create_team(
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     overrides: ConfigDep,
     body: TeamCreate,
     user: CurrentUserDep,
@@ -509,6 +519,7 @@ async def create_team(
     await crud.UserCrud.update(
         session, UserTeamUpdate(team_id=team.id), [User.id == user.id]
     )
+    background_tasks.add_task(close_user_streams, redis, user.id)
     await emit(
         session,
         redis,
@@ -524,6 +535,7 @@ async def create_team(
 async def join_team(
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     overrides: ConfigDep,
     body: TeamJoinRequest,
     user: CurrentUserDep,
@@ -547,6 +559,7 @@ async def join_team(
     await crud.UserCrud.update(
         session, UserTeamUpdate(team_id=team.id), [User.id == user.id]
     )
+    background_tasks.add_task(close_user_streams, redis, user.id)
     await emit(
         session,
         redis,
@@ -584,6 +597,7 @@ async def leave_team(
     )
     if await delete_if_abandoned(session, team_id):
         background_tasks.add_task(invalidate_scoreboard, redis, team_id=team_id)
+    background_tasks.add_task(close_user_streams, redis, user.id)
     await emit(
         session,
         redis,

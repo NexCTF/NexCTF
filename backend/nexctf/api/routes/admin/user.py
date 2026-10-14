@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 from sqlalchemy.exc import IntegrityError
@@ -21,6 +21,7 @@ from nexctf.api.security import (
     hash_password,
     issue_password_reset_token,
 )
+from nexctf.core.eventbus import close_user_streams
 from nexctf.model import CustomFieldValue, User, UserRole
 from nexctf.model.event import Event
 from nexctf.module.client import user_clients
@@ -176,6 +177,7 @@ async def revoke_user_session(
     request: Request,
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     uuid: UUID,
     session_id: UUID,
     admin: CurrentUserDep,
@@ -186,6 +188,7 @@ async def revoke_user_session(
         raise NotFoundError()
     if not await revoke_session_by_id(session, session_id, uuid):
         raise NotFoundError(detail="Session not found")
+    background_tasks.add_task(close_user_streams, redis, uuid)
     await emit(
         session,
         redis,
@@ -215,6 +218,7 @@ async def update_user(
     request: Request,
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     uuid: UUID,
     obj: AdminUserUpdateRequest,
     admin: CurrentUserDep,
@@ -238,6 +242,10 @@ async def update_user(
             obj=UserEmailVerifiedUpdate(id=uuid, email_verified=False),
         )
     fields = obj.model_dump(exclude={"custom_fields"}, exclude_unset=True)
+    access_changed = target is not None and any(
+        key in fields and fields[key] != getattr(target, key)
+        for key in ("role", "is_active", "team_id")
+    )
     try:
         result = await crud.UserCrud.update(
             session=session,
@@ -252,6 +260,8 @@ async def update_user(
             session, obj.custom_fields, user_id=uuid, self_service=False
         )
     changes = {k: v for k, v in fields.items() if k != "id"}
+    if access_changed:
+        background_tasks.add_task(close_user_streams, redis, uuid)
     await emit(
         session,
         redis,
@@ -319,6 +329,7 @@ async def delete_user(
     request: Request,
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     uuid: UUID,
     admin: CurrentUserDep,
 ) -> Response[None]:
@@ -326,6 +337,7 @@ async def delete_user(
     result = await crud.UserCrud.delete(
         session=session, filters=[User.id == uuid], return_response=True
     )
+    background_tasks.add_task(close_user_streams, redis, uuid)
     await emit(
         session,
         redis,

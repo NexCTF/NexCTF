@@ -1,6 +1,7 @@
 """Tests for the team membership endpoints and the team-changes lock."""
 
 from datetime import UTC, datetime
+from unittest.mock import ANY, AsyncMock, patch
 
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -311,3 +312,20 @@ class TestMyTeamStaysLive:
         assert resp.status_code == 200
         stats = resp.json()["data"]["challenge_stats"][0]
         assert stats["solved_question_count"] == 1
+
+
+class TestStreamsFollowMembership:
+    async def test_joining_closes_the_old_streams(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        """Open streams still carry the old team's channel until they reconnect."""
+        client, user = user_client
+        team = await make_team(db_session, "Joinable")
+        close = AsyncMock()
+
+        with patch("nexctf.api.routes.me.close_user_streams", close):
+            resp = await client.post("/me/team/join", json={"code": team.invite_code})
+        assert resp.is_success
+        close.assert_awaited_once_with(ANY, user.id)

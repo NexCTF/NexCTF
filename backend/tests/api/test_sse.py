@@ -218,3 +218,28 @@ class _FakePipelineRedis:
 
     async def execute(self) -> None:
         self.executes += 1
+
+
+class TestStreamClose:
+    async def test_close_channel_ends_the_stream(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A user's close signal ends their stream so the browser reconnects."""
+        monkeypatch.setattr(eventbus, "_ensure_reader", lambda: None)
+        close = "streams:user:abc"
+
+        async def _drain() -> list[str | None]:
+            seen: list[str | None] = []
+            async for event in sse._sse_listener(
+                ["config:update"], "authed", close_on=close
+            ):
+                seen.append(event.event)
+            return seen
+
+        task = asyncio.create_task(_drain())
+        await asyncio.sleep(0.05)
+        eventbus._dispatch("config:update", "1")
+        eventbus._dispatch(close, "")
+        seen = await asyncio.wait_for(task, timeout=1)
+        assert seen == ["config_update"]
+        assert sse._active["authed"] == 0

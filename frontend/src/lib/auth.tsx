@@ -15,7 +15,15 @@ export interface AuthContext {
   logout: () => Promise<void>;
 }
 
+/** Queries kept when the signed-in account changes. */
+function keptAcrossAccounts(queryKey: readonly unknown[]): boolean {
+  const [root, sub] = queryKey;
+  return (root === "auth" && sub === "me") || (root === "info" && sub === "public");
+}
+
 async function setIdentity(qc: QueryClient, user: User | null): Promise<void> {
+  closeSSE();
+  qc.removeQueries({ predicate: (query) => !keptAcrossAccounts(query.queryKey) });
   qc.setQueryData(["auth", "me"], user);
   await new Promise<void>((resolve) => notifyManager.schedule(resolve));
 }
@@ -43,7 +51,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await apiLogout();
-    closeSSE();
     await setIdentity(qc, null);
   }, [qc]);
 

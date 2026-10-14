@@ -96,8 +96,8 @@ test("a player disabled mid-session is sent back to sign in", async ({ page, adm
   await expect(page.getByRole("heading", { name: "Challenges" })).toBeVisible();
 
   await updateAccount(admin, signedIn, { is_active: false });
-  await page.getByRole("link", { name: "Teams" }).click();
 
+  // Closing the account also closes its event stream, so no navigation is needed.
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByText("Sign in to your account")).toBeVisible();
 });

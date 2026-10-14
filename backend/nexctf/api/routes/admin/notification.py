@@ -1,13 +1,13 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 
 from nexctf import crud
 from nexctf.api.dep import RedisDep, SessionDep
 from nexctf.model import Notification
-from nexctf.module.notification import create_and_publish
+from nexctf.module import notification as notifications
 from nexctf.schema.notification import (
     AdminNotificationCreate,
     AdminNotificationRead,
@@ -35,8 +35,14 @@ async def create_notification(
     session: SessionDep,
     redis: RedisDep,
     obj: AdminNotificationCreate,
+    background_tasks: BackgroundTasks,
 ) -> Response[AdminNotificationReadDetail]:
-    return await create_and_publish(session, redis, obj)
+    """Create a notification, announced to players once it is committed."""
+    notification = await notifications.create_notification(session, obj)
+    background_tasks.add_task(
+        notifications.announce_notification, redis, obj, notification
+    )
+    return Response(data=notification)
 
 
 @notification_router.get("/{uuid}")
