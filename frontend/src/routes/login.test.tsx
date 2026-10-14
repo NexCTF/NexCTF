@@ -45,20 +45,24 @@ it("follows the ?next= target after signing in", async () => {
   renderRoute(Route, { path: "/login?next=/challenges" });
   await fillAndSubmit();
 
-  await waitFor(() => expect(window.location.href).toBe("/challenges"));
+  await waitFor(() => expect(window.location.href).toBe(`${window.location.origin}/challenges`));
 });
 
-it.each(["https://evil.com", "//evil.com", "javascript:alert(1)"])(
-  "refuses %s as a redirect target and goes home instead",
-  async (target) => {
-    vi.stubGlobal("location", { ...window.location, href: "" });
-    const { router } = renderRoute(Route, { path: `/login?next=${encodeURIComponent(target)}` });
-    await fillAndSubmit();
+it.each([
+  "https://evil.com",
+  "//evil.com",
+  "javascript:alert(1)",
+  "/\\evil.com",
+  "/\t/evil.com",
+  "/a/..//evil.com",
+])("refuses %s as a redirect target and goes home instead", async (target) => {
+  vi.stubGlobal("location", { ...window.location, href: "" });
+  const { router } = renderRoute(Route, { path: `/login?next=${encodeURIComponent(target)}` });
+  await fillAndSubmit();
 
-    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
-    expect(window.location.href).toBe("");
-  },
-);
+  await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+  expect(window.location.href).toBe("");
+});
 
 it("survives the round trip from the consent page it was redirected from", async () => {
   // The consent page builds `next` from the URL the browser is actually on.
@@ -79,7 +83,7 @@ it("survives the round trip from the consent page it was redirected from", async
   renderRoute(Route, { path: redirectedTo });
   await fillAndSubmit();
 
-  await waitFor(() => expect(window.location.href).toBe(consentUrl));
+  await waitFor(() => expect(window.location.href).toBe(`${window.location.origin}${consentUrl}`));
 });
 
 it("shows the TOTP step when the backend asks for a code", async () => {
@@ -171,6 +175,17 @@ it("lists the OAuth providers", async () => {
   expect(link.getAttribute("href")).toContain("github");
 });
 
+it("carries the ?next= target through a provider sign-in", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(
+    publicInfo({ oauth_providers: [{ slug: "github", name: "GitHub", icon_url: null }] }),
+  );
+  renderRoute(Route, { path: `/login?next=${encodeURIComponent("/oauth/consent?client_id=a")}` });
+
+  const link = await screen.findByRole("link", { name: "GitHub" });
+  const redirect = new URL(link.getAttribute("href") ?? "", "http://x").searchParams;
+  expect(redirect.get("redirect_url")).toBe(`${window.location.origin}/oauth/consent?client_id=a`);
+});
+
 it("gates submit on the captcha until the widget reports a token", async () => {
   vi.mocked(getPublicInfo).mockResolvedValue(publicInfo({ captcha: { enabled: true } }));
   const { container } = renderRoute(Route, { path: "/login" });
@@ -195,4 +210,21 @@ it("passes the captcha token along with the credentials", async () => {
   await waitFor(() =>
     expect(auth.login).toHaveBeenCalledWith("alice", "hunter2", undefined, "altcha-payload"),
   );
+});
+
+it("holds the code's auto-submit until the captcha is solved again", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(publicInfo({ captcha: { enabled: true } }));
+  const login = vi
+    .fn()
+    .mockRejectedValueOnce(new ApiError(401, "Unauthorized", null, "AUTH-TOTP-REQUIRED"));
+  const { container } = renderRoute(Route, { path: "/login", auth: { login } });
+  await waitFor(() => expect(container.querySelector("altcha-widget")).not.toBeNull());
+  solveCaptcha("first");
+  await fillAndSubmit();
+  await screen.findByText("Two-factor authentication");
+
+  await userEvent.click(screen.getAllByRole("textbox")[0]);
+  await userEvent.keyboard("123456");
+
+  expect(login).toHaveBeenCalledTimes(1);
 });
