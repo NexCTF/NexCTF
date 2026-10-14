@@ -84,6 +84,7 @@ from nexctf.schema.user import (
     TotpDisableRequest,
     TotpEnableRequest,
     TotpSetupResponse,
+    UserLinksUpdate,
     UserPasswordUpdate,
 )
 from nexctf.util.ip import get_client_ip
@@ -628,10 +629,14 @@ async def update_my_profile(
 ) -> Response[MyProfileRead]:
     if not appconfig.get_with_overrides("ctf.allow_user_customization", overrides):
         raise CustomizationDisabledError()
-    user.links = [link.model_dump() for link in body.links]
+    await crud.UserCrud.update(
+        session=session,
+        filters=[User.id == user.id],
+        obj=UserLinksUpdate(id=user.id, links=body.links),
+    )
     return Response(
         data=MyProfileRead(
-            links=user.links,
+            links=body.links,
             custom_fields=await replace_custom_field_values(
                 session, body.custom_fields, user_id=user.id
             ),

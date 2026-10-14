@@ -60,7 +60,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { describeDevice, formatLastSeen } from "@/lib/session";
-import { copyToClipboard } from "@/lib/utils";
+import { copyToClipboard, PASSWORD_LIMITS } from "@/lib/utils";
 
 export const Route = createFileRoute("/_user/settings")({
   component: SettingsPage,
@@ -1078,6 +1078,7 @@ function PasswordSection() {
             type="password"
             required
             autoComplete="new-password"
+            {...PASSWORD_LIMITS}
             value={next}
             onChange={(e) => setNext(e.target.value)}
           />
@@ -1089,6 +1090,7 @@ function PasswordSection() {
             type="password"
             required
             autoComplete="new-password"
+            {...PASSWORD_LIMITS}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
           />

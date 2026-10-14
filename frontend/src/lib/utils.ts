@@ -36,6 +36,11 @@ export function copyToClipboard(text: string): void {
 const PASSWORD_ALPHABET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*?";
 
 /** Generate a random password from a CSPRNG, ambiguous characters excluded. */
+/** Input bounds mirroring the backend schemas for passwords and names. */
+export const PASSWORD_LIMITS = { minLength: 8, maxLength: 256 } as const;
+export const USERNAME_MAX_LENGTH = 32;
+export const TEAM_NAME_MAX_LENGTH = 64;
+
 export function generatePassword(length = 16): string {
   const bytes = crypto.getRandomValues(new Uint32Array(length));
   return Array.from(bytes, (b) => PASSWORD_ALPHABET[b % PASSWORD_ALPHABET.length]).join("");

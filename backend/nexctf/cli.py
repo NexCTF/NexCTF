@@ -7,6 +7,7 @@ Registered as the toolsets ``custom_cli`` (see ``[tool.fastapi-toolsets]`` in
 import typer
 from fastapi_toolsets.cli.utils import async_command
 from rich.console import Console
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
@@ -37,7 +38,7 @@ async def create_default_admin(session: AsyncSession) -> bool:
 
     existing = await crud.UserCrud.first(
         session=session,
-        filters=[User.username == settings.DEFAULT_ADMIN_USERNAME],
+        filters=[func.lower(User.username) == settings.DEFAULT_ADMIN_USERNAME.lower()],
     )
     if existing is not None:
         return False

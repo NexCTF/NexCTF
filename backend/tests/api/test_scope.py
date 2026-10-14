@@ -373,7 +373,7 @@ class TestTokenEnforcement:
             assert resp.status_code == 403
             resp = await c.post(
                 "/admin/user",
-                json={"username": "minted", "password": "pw", "role": "admin"},
+                json={"username": "minted", "password": "password1", "role": "admin"},
             )
             assert resp.status_code == 403
 
@@ -394,7 +394,7 @@ class TestTokenEnforcement:
             )
             assert resp.status_code == 200
             resp = await c.post(
-                "/admin/user", json={"username": "player2", "password": "pw"}
+                "/admin/user", json={"username": "player2", "password": "password1"}
             )
             assert resp.status_code == 201
 

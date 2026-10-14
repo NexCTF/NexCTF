@@ -7,7 +7,11 @@ from sqlalchemy import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
-from nexctf.exceptions import InvalidCustomFieldValueError, UnknownCustomFieldError
+from nexctf.exceptions import (
+    InvalidCustomFieldValueError,
+    RequiredCustomFieldError,
+    UnknownCustomFieldError,
+)
 from nexctf.model import CustomFieldDefinition, CustomFieldValue
 from nexctf.model.custom_field import CustomFieldTarget, CustomFieldType
 from nexctf.schema.custom_field import EditableCustomField
@@ -102,6 +106,10 @@ async def replace_custom_field_values(
     for definition_id, value in values.items():
         if value:
             _validate_value(by_id[definition_id].field_type, value)
+    if self_service and any(
+        d.is_required and not values.get(d.id) for d in definitions
+    ):
+        raise RequiredCustomFieldError()
 
     existing = {
         row.definition_id: row

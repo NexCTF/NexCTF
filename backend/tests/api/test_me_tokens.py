@@ -77,3 +77,12 @@ class TestTokenListingShape:
         )
         assert resp.status_code == 201
         assert resp.json()["data"]["last_used_at"] is None
+
+    async def test_blank_name_is_stored_as_none(
+        self, user_client: tuple[AsyncClient, User]
+    ) -> None:
+        client, _ = user_client
+        resp = await client.post(
+            "/me/tokens", json={"name": "   ", "scopes": ["read:token"]}
+        )
+        assert resp.json()["data"]["name"] is None

@@ -259,7 +259,7 @@ async def login(
         redis, overrides, name="login", key=client_rate_key("login", request)
     )
     user = await crud.UserCrud.first(
-        session=session, filters=[User.username == username]
+        session=session, filters=[func.lower(User.username) == username.lower()]
     )
     # Always perform an Argon2 verification — against a dummy hash when the user
     # is missing or has no password — so login timing does not reveal which
@@ -549,7 +549,9 @@ async def logout(
 async def _unique_username(db: SessionDep, desired: str) -> str:
     """Return *desired*, suffixed if another local account already holds it."""
     candidate = desired
-    while await crud.UserCrud.exists(session=db, filters=[User.username == candidate]):
+    while await crud.UserCrud.exists(
+        session=db, filters=[func.lower(User.username) == candidate.lower()]
+    ):
         candidate = f"{desired}-{secrets.token_hex(3)}"
     return candidate
 
@@ -596,13 +598,15 @@ async def _resolve_user_from_userinfo(
     else:
         if not allow_registration:
             raise RegistrationDisabledError()
-        email = userinfo.get("email")
+        email = (
+            userinfo.get("email") if userinfo.get("email_verified") is True else None
+        )
         # Only use the email if it is not already claimed by another local account.
         # Assigning a conflicting email would raise a unique constraint violation, and
         # auto-linking by email (even here) opens an account-takeover vector.
         if email:
             conflict = await crud.UserCrud.first(
-                session=db, filters=[User.email == email]
+                session=db, filters=[func.lower(User.email) == email.lower()]
             )
             if conflict:
                 email = None
@@ -615,7 +619,7 @@ async def _resolve_user_from_userinfo(
             obj=UserCreate(
                 username=username,
                 email=email,
-                # The OAuth provider already verified ownership of this address.
+                # The provider asserted ownership of this address (email_verified).
                 email_verified=True,
             ),
         )
