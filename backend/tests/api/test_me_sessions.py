@@ -7,8 +7,10 @@ from unittest.mock import patch
 from httpx import AsyncClient
 from sqlalchemy import select
 
+from nexctf import crud
+from nexctf.api.security import create_api_token
 from nexctf.core.config import settings
-from nexctf.model import UserSession
+from nexctf.model import UserSession, UserToken
 
 from ..base import NULL_UUID
 
@@ -145,6 +147,15 @@ class TestRevokeAllSessions:
             # Even replayed, the requesting session's own cookie is dead.
             c.cookies.set(COOKIE, captured)
             assert (await c.get("/info/me")).status_code == 401
+
+    async def test_revokes_api_tokens(self, user_client, db_session):
+        c, user = user_client
+        await create_api_token(user.id, scopes=["read:challenge"])
+        assert (await c.delete("/me/sessions")).status_code == 204
+        remaining = await crud.UserTokenCrud.count(
+            db_session, [UserToken.user_id == user.id]
+        )
+        assert remaining == 0
 
     async def test_clears_the_cookie(self, user_client):
         c, _ = user_client

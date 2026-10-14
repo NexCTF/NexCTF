@@ -32,6 +32,7 @@ from nexctf.api.security import (
     hash_password,
     issue_session_cookie,
     verify_password,
+    verify_totp_once,
 )
 from nexctf.core import appconfig
 from nexctf.exceptions import (
@@ -57,8 +58,8 @@ from nexctf.module.events import emit
 from nexctf.module.scoreboard.cache import invalidate as invalidate_scoreboard
 from nexctf.module.session import (
     live_sessions,
+    revoke_all_access,
     revoke_session_by_id,
-    revoke_user_sessions,
 )
 from nexctf.module.team import delete_if_abandoned, load_team_read
 from nexctf.schema import (
@@ -230,12 +231,13 @@ async def revoke_all_sessions(
     response: RawResponse,
     user: SessionOnlyDep,
 ):
-    """Sign out every device, including the one making the request.
+    """Sign out every device, including the one making the request, and revoke
+    every API token.
 
     Included so a user who suspects their cookie was stolen can end every
     session without having to guess which one is the attacker's.
     """
-    await revoke_user_sessions(session, user)
+    await revoke_all_access(session, user)
     cookie_auth.delete_cookie(response)
     await emit(
         session,
@@ -339,7 +341,7 @@ async def change_password(
     )
     # Reflect the bump on the instance so the re-issued cookie carries it.
     user.session_version = session_version
-    await revoke_user_sessions(session, user)
+    await revoke_all_access(session, user)
     await issue_session_cookie(session, response, user, request)
     await emit(
         session,
@@ -413,7 +415,7 @@ async def totp_disable(
     """Verify OTP code and disable TOTP."""
     if not user.totp_secret:
         raise TotpNotEnabledError()
-    if not pyotp.TOTP(user.totp_secret).verify(body.code, valid_window=1):
+    if not await verify_totp_once(redis, user.id, user.totp_secret, body.code):
         raise InvalidOtpError()
     await crud.UserCrud.update(
         session=session,

@@ -1,6 +1,8 @@
 """Tests for the self-service password change endpoint."""
 
-from nexctf.api.security import verify_password
+from nexctf import crud
+from nexctf.api.security import create_api_token, verify_password
+from nexctf.model import UserToken
 
 
 class TestChangePassword:
@@ -38,3 +40,16 @@ class TestChangePassword:
         c, _ = user_client
         resp = await c.get("/info/me")
         assert resp.json()["data"]["has_password"] is True
+
+    async def test_revokes_api_tokens(self, user_client, db_session):
+        c, user = user_client
+        await create_api_token(user.id, scopes=["read:challenge"])
+        resp = await c.post(
+            "/me/password",
+            json={"current_password": "userpass", "new_password": "newpass123"},
+        )
+        assert resp.status_code == 204
+        remaining = await crud.UserTokenCrud.count(
+            db_session, [UserToken.user_id == user.id]
+        )
+        assert remaining == 0

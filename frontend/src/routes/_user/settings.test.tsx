@@ -69,6 +69,16 @@ async function fillPasswordForm(next: string, confirm: string) {
   await userEvent.click(screen.getByRole("button", { name: "Change password" }));
 }
 
+it("reloads the device list after a password change signs the others out", async () => {
+  vi.mocked(changePassword).mockResolvedValue(undefined);
+  renderSettings();
+  await waitFor(() => expect(getMySessions).toHaveBeenCalledTimes(1));
+
+  await fillPasswordForm("new", "new");
+
+  await waitFor(() => expect(getMySessions).toHaveBeenCalledTimes(2));
+});
+
 it("changes the password", async () => {
   vi.mocked(changePassword).mockResolvedValue(undefined);
   renderSettings();
@@ -394,7 +404,9 @@ it("warns that signing out everywhere includes this device", async () => {
   await userEvent.click(await screen.findByRole("button", { name: /Sign out everywhere/ }));
 
   expect(
-    await screen.findByText("Sign out on every device? You will be signed out here too."),
+    await screen.findByText(
+      "Sign out on every device and revoke every API token? You will be signed out here too.",
+    ),
   ).toBeDefined();
   expect(deleteAllSessions).not.toHaveBeenCalled();
 });

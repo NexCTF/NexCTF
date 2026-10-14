@@ -7,7 +7,6 @@ from typing import Annotated
 from urllib.parse import urlparse
 from uuid import UUID
 
-import pyotp
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.responses import Response as RawResponse
@@ -31,15 +30,16 @@ from nexctf.api.dep import ConfigDep, ProviderDep, RedisDep, SessionDep
 from nexctf.api.security import (
     EMAIL_VERIFY_KEY_PREFIX,
     EMAIL_VERIFY_TTL,
-    PWD_RESET_KEY_PREFIX,
-    PWD_RESET_TTL,
+    consume_password_reset_token,
     consume_single_use_token,
     cookie_auth,
     dummy_verify_password,
     hash_password,
+    issue_password_reset_token,
     issue_session_cookie,
     issue_single_use_token,
     verify_password,
+    verify_totp_once,
 )
 from nexctf.core import appconfig
 from nexctf.core.captcha import create_challenge, verify_captcha
@@ -69,13 +69,13 @@ from nexctf.exceptions import (
     RegistrationDisabledError,
     TotpRequiredError,
 )
-from nexctf.model import OAuthAccount, OAuthProvider, User, UserToken
+from nexctf.model import OAuthAccount, OAuthProvider, User
 from nexctf.module.events import emit
 from nexctf.module.session import (
     FAILED_LOGIN_EVENT,
     LOGIN_EVENT,
+    revoke_all_access,
     revoke_session,
-    revoke_user_sessions,
     team_meta,
 )
 from nexctf.schema import (
@@ -133,7 +133,7 @@ async def _send_verification_email(
     arrives; branding/rendering and the send are deferred to a background task.
     """
     token = await issue_single_use_token(
-        redis, EMAIL_VERIFY_KEY_PREFIX, EMAIL_VERIFY_TTL, user_id
+        redis, EMAIL_VERIFY_KEY_PREFIX, EMAIL_VERIFY_TTL, str(user_id)
     )
     link = f"{settings.FRONTEND_HOST}/verify-email?token={token}"
     background_tasks.add_task(
@@ -292,7 +292,7 @@ async def login(
     if user.totp_secret:
         if not totp_code:
             raise TotpRequiredError()
-        if not pyotp.TOTP(user.totp_secret).verify(totp_code, valid_window=1):
+        if not await verify_totp_once(redis, user.id, user.totp_secret, totp_code):
             await _record_login_failure(
                 session,
                 redis,
@@ -342,16 +342,15 @@ async def reset_password(
         window_seconds=60,
         max_requests=5,
     )
-    user_id_str = await consume_single_use_token(
-        redis, PWD_RESET_KEY_PREFIX, body.token
-    )
-    if not user_id_str:
+    consumed = await consume_password_reset_token(redis, body.token)
+    if consumed is None:
         raise InvalidResetTokenError()
-    user = await crud.UserCrud.first(
-        session=session, filters=[User.id == UUID(user_id_str)]
-    )
+    user_id, session_version = consumed
+    user = await crud.UserCrud.first(session=session, filters=[User.id == user_id])
     if not user:
         raise NotFoundError()
+    if session_version != user.session_version:
+        raise InvalidResetTokenError()
     bind_user_context(user.id, user.username)
     await crud.UserCrud.update(
         session=session,
@@ -362,8 +361,7 @@ async def reset_password(
             session_version=user.session_version + 1,
         ),
     )
-    await crud.UserTokenCrud.delete(session, filters=[UserToken.user_id == user.id])
-    await revoke_user_sessions(session, user)
+    await revoke_all_access(session, user)
     logger.info("password reset completed for %s", user.username)
     await emit(
         session,
@@ -496,9 +494,7 @@ async def forgot_password(
     )
     if not user or not user.email:
         return
-    token = await issue_single_use_token(
-        redis, PWD_RESET_KEY_PREFIX, PWD_RESET_TTL, user.id
-    )
+    token = await issue_password_reset_token(redis, user)
     link = f"{settings.FRONTEND_HOST}/reset-password?token={token}"
     background_tasks.add_task(
         _deliver_branded_email, redis, user.email, link, build_password_reset_email

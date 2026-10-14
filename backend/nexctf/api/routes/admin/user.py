@@ -7,15 +7,21 @@ from fastapi_toolsets.schemas import PaginatedResponse, Response
 from sqlalchemy.exc import IntegrityError
 
 from nexctf import crud
-from nexctf.api.dep import ClientCategoryDep, CurrentUserDep, RedisDep, SessionDep
+from nexctf.api.dep import (
+    ClientCategoryDep,
+    CurrentUserDep,
+    RedisDep,
+    SessionDep,
+    SessionOnlyDep,
+    TokenScopesDep,
+    require_session,
+)
 from nexctf.api.security import (
-    PWD_RESET_KEY_PREFIX,
-    PWD_RESET_TTL,
     current_sid_hash,
     hash_password,
-    issue_single_use_token,
+    issue_password_reset_token,
 )
-from nexctf.model import CustomFieldValue, User
+from nexctf.model import CustomFieldValue, User, UserRole
 from nexctf.model.event import Event
 from nexctf.module.client import user_clients
 from nexctf.module.custom_field import replace_custom_field_values
@@ -63,8 +69,14 @@ async def create_user(
     redis: RedisDep,
     obj: AdminUserCreate,
     admin: CurrentUserDep,
+    granted: TokenScopesDep,
 ) -> Response[PublicUserRead]:
-    """Create a user directly, bypassing registration gating and email verification."""
+    """Create a user directly, bypassing registration gating and email verification.
+
+    Creating an admin needs a browser session.
+    """
+    if obj.role is UserRole.admin:
+        require_session(granted)
     try:
         result = await crud.UserCrud.create(
             session=session,
@@ -206,16 +218,25 @@ async def update_user(
     uuid: UUID,
     obj: AdminUserUpdateRequest,
     admin: CurrentUserDep,
+    granted: TokenScopesDep,
 ) -> Response[PublicUserRead]:
-    if obj.email is not None:
+    """Update a user; granting admin or changing an email needs a browser session."""
+    target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
+    email_changed = (
+        target is not None and obj.email is not None and obj.email != target.email
+    )
+    granting_admin = obj.role is UserRole.admin and (
+        target is None or target.role is not UserRole.admin
+    )
+    if email_changed or granting_admin:
+        require_session(granted)
+    if email_changed:
         # Changing the address invalidates any prior verification of it.
-        target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
-        if target and obj.email != target.email:
-            await crud.UserCrud.update(
-                session=session,
-                filters=[User.id == uuid],
-                obj=UserEmailVerifiedUpdate(id=uuid, email_verified=False),
-            )
+        await crud.UserCrud.update(
+            session=session,
+            filters=[User.id == uuid],
+            obj=UserEmailVerifiedUpdate(id=uuid, email_verified=False),
+        )
     fields = obj.model_dump(exclude={"custom_fields"}, exclude_unset=True)
     try:
         result = await crud.UserCrud.update(
@@ -248,7 +269,7 @@ async def admin_reset_totp(
     session: SessionDep,
     redis: RedisDep,
     uuid: UUID,
-    admin: CurrentUserDep,
+    admin: SessionOnlyDep,
 ):
     """Clear TOTP for a user (admin action, no OTP code required)."""
     target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
@@ -275,15 +296,13 @@ async def admin_create_password_reset_token(
     session: SessionDep,
     redis: RedisDep,
     uuid: UUID,
-    admin: CurrentUserDep,
+    admin: SessionOnlyDep,
 ) -> Response[str]:
     """Generate a single-use password reset token for a user (valid 1 hour)."""
     target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
     if not target:
         raise NotFoundError()
-    token = await issue_single_use_token(
-        redis, PWD_RESET_KEY_PREFIX, PWD_RESET_TTL, uuid
-    )
+    token = await issue_password_reset_token(redis, target)
     await emit(
         session,
         redis,

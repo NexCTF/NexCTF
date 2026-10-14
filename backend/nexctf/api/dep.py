@@ -254,10 +254,15 @@ EventEndedDep = Annotated[None, Depends(_event_ended)]
 EventActiveDep = Annotated[None, Depends(_event_active)]
 
 
-async def _session_only(user: CurrentUserDep, granted: TokenScopesDep) -> User:
-    """Require a browser session: refuse an API token."""
+def require_session(granted: frozenset[str] | None) -> None:
+    """Refuse an API token: the operation needs a browser session."""
     if granted is not None:
         raise UnscopableEndpointError()
+
+
+async def _session_only(user: CurrentUserDep, granted: TokenScopesDep) -> User:
+    """Require a browser session: refuse an API token."""
+    require_session(granted)
     return user
 
 

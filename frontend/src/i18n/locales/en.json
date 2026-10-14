@@ -1150,7 +1150,7 @@
       "now_used_from": "now used from {{ip}}",
       "revoke": "Sign out this device",
       "revoke_all": "Sign out everywhere",
-      "revoke_all_confirm": "Sign out on every device? You will be signed out here too.",
+      "revoke_all_confirm": "Sign out on every device and revoke every API token? You will be signed out here too.",
       "revoke_confirm": "Sign out {{device}}?",
       "revoke_error": "Could not sign out that session",
       "revoked": "Session signed out",
