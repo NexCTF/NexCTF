@@ -8,6 +8,7 @@ import logging
 from collections import defaultdict
 from collections.abc import Generator, Sequence
 from typing import cast
+from uuid import UUID
 
 from redis.asyncio import Redis
 
@@ -58,6 +59,16 @@ async def publish_event(redis: Redis, channels: Sequence[str], data: str) -> Non
             approximate=True,
         )
     await pipe.execute()
+
+
+def user_stream_channel(user_id: UUID) -> str:
+    """The channel that tells a user's open streams to close."""
+    return f"streams:user:{user_id}"
+
+
+async def close_user_streams(redis: Redis, user_id: UUID) -> None:
+    """Close the user's open streams, so they reconnect with fresh access."""
+    await publish_event(redis, [user_stream_channel(user_id)], "")
 
 
 @contextlib.contextmanager

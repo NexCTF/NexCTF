@@ -49,6 +49,7 @@ from nexctf.core.email_render import (
     build_password_reset_email,
     build_verification_email,
 )
+from nexctf.core.eventbus import close_user_streams
 from nexctf.core.logging import bind_user_context
 from nexctf.core.rate_limit import (
     check_config_rate_limit,
@@ -332,6 +333,7 @@ async def reset_password(
     request: Request,
     session: SessionDep,
     redis: RedisDep,
+    background_tasks: BackgroundTasks,
     body: PasswordResetRequest,
 ):
     """Consume a single-use password reset token and update the user's password."""
@@ -362,6 +364,7 @@ async def reset_password(
         ),
     )
     await revoke_all_access(session, user)
+    background_tasks.add_task(close_user_streams, redis, user.id)
     logger.info("password reset completed for %s", user.username)
     await emit(
         session,

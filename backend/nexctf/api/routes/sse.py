@@ -65,10 +65,14 @@ def _user_channels(user: User, granted: frozenset[str] | None) -> list[str]:
 
 
 async def _sse_listener(
-    channels: list[str], budget: str
+    channels: list[str], budget: str, close_on: str | None = None
 ) -> AsyncIterable[ServerSentEvent]:
-    """Yield the bus events for *channels* as typed ServerSentEvents."""
-    with eventbus.subscription(channels) as queue:
+    """Yield the bus events for *channels* as typed ServerSentEvents.
+
+    *close_on* is subscribed too, and an event on it ends the stream.
+    """
+    subscribed = [*channels, close_on] if close_on else channels
+    with eventbus.subscription(subscribed) as queue:
         _active[budget] += 1
         logger.debug(
             "sse stream opened",
@@ -77,6 +81,8 @@ async def _sse_listener(
         try:
             while True:
                 channel, data = await queue.get()
+                if channel == close_on:
+                    return
                 yield ServerSentEvent(raw_data=data, event=_event_name(channel))
         except asyncio.CancelledError:
             pass
@@ -104,7 +110,8 @@ async def event_stream(
     - ``event``            — admin audit event
     """
     channels = [*_user_channels(user, granted), "config:update"]
-    async for event in _sse_listener(channels, "authed"):
+    close_on = eventbus.user_stream_channel(user.id)
+    async for event in _sse_listener(channels, "authed", close_on=close_on):
         yield event
 
 

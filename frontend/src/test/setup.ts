@@ -16,14 +16,14 @@ window.matchMedia = (query: string) =>
 
 // jsdom has no EventSource; the SSE singleton opens one as soon as a signed-in
 // layout mounts. Inert stub — tests drive state through the query client.
-class InertEventSource {
+export class InertEventSource {
   static readonly CONNECTING = 0;
   static readonly OPEN = 1;
   static readonly CLOSED = 2;
   readyState = InertEventSource.OPEN;
   onerror: ((this: EventSource, ev: Event) => unknown) | null = null;
-  addEventListener() {}
-  removeEventListener() {}
+  addEventListener(_type: string, _listener: (e: MessageEvent<string>) => void) {}
+  removeEventListener(_type: string, _listener: (e: MessageEvent<string>) => void) {}
   close() {
     this.readyState = InertEventSource.CLOSED;
   }
