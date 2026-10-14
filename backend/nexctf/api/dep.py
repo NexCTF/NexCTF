@@ -1,6 +1,5 @@
 import json
 from collections.abc import AsyncGenerator, Awaitable, Callable
-from datetime import UTC, datetime
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -38,7 +37,7 @@ from nexctf.plugins.registry import (
     challenge_registry,
     solution_registry,
 )
-from nexctf.util.datetime import is_config_dt_past, parse_config_dt
+from nexctf.util.datetime import is_config_dt_future, is_config_dt_past
 from nexctf.util.ip import get_client_ip
 from nexctf.util.pydantic import Label
 
@@ -210,18 +209,24 @@ def _is_staff(user: User | None) -> bool:
     return user is not None and user.role is UserRole.admin
 
 
+def challenges_hidden_before_start(
+    user: User | None, overrides: dict[str, str]
+) -> bool:
+    """Whether challenges are hidden from *user* because the CTF has not started."""
+    return (
+        not _is_staff(user)
+        and bool(
+            appconfig.get_with_overrides("ctf.hide_challenges_before_start", overrides)
+        )
+        and is_config_dt_future("ctf.start_time", overrides)
+    )
+
+
 async def _event_started(
     overrides: ConfigDep, user: OptionalCurrentUserDep = None
 ) -> None:
     """Raise EventNotStartedError before the CTF starts. Admins bypass."""
-    if _is_staff(user):
-        return
-    if not bool(
-        appconfig.get_with_overrides("ctf.hide_challenges_before_start", overrides)
-    ):
-        return
-    start_time = parse_config_dt("ctf.start_time", overrides)
-    if start_time is not None and datetime.now(UTC) < start_time:
+    if challenges_hidden_before_start(user, overrides):
         raise EventNotStartedError()
 
 
@@ -239,7 +244,8 @@ async def _event_active(
     overrides: ConfigDep, user: OptionalCurrentUserDep = None
 ) -> None:
     """Raise if the CTF has not started or has already ended. Admins bypass."""
-    await _event_started(overrides, user)
+    if not _is_staff(user) and is_config_dt_future("ctf.start_time", overrides):
+        raise EventNotStartedError()
     await _event_ended(overrides, user)
 
 

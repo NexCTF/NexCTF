@@ -16,6 +16,8 @@ from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 from nexctf.plugins.builtin.solution.match.model import MatchSolution
 
 NULL_UUID = "00000000-0000-0000-0000-000000000000"
+FUTURE = "2099-01-01T00:00:00+00:00"
+PAST = "2000-01-01T00:00:00+00:00"
 
 
 async def put_in_team(db_session: AsyncSession, user: User) -> Team:
