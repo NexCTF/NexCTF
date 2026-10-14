@@ -345,7 +345,7 @@
       "security": "Sécurité",
       "settings": "Paramètres",
       "submissions": "Soumissions",
-      "tasks": "",
+      "tasks": "File d'attente des tâches",
       "teams": "Équipes",
       "users": "Utilisateurs"
     },
@@ -461,7 +461,7 @@
       "active_hint": "Activer la tâche pour qu'elle s'exécute à l'heure prévue",
       "col_last_run": "Dernière exécution",
       "col_task_completed": "Terminée",
-      "col_task_details": "",
+      "col_task_details": "Détails",
       "col_task_started": "Démarrée",
       "col_task_status": "Statut",
       "create": "Nouvelle tâche",
@@ -494,14 +494,14 @@
       "not_found": "Tâche introuvable.",
       "run": "Exécuter maintenant",
       "run_error": "Échec de l'exécution",
-      "run_queued": "",
-      "run_skipped": "",
+      "run_queued": "Exécution mise en file d'attente",
+      "run_skipped": "Une exécution de cette tâche est déjà en file d'attente ou en cours",
       "save_error": "Échec de l'enregistrement",
       "saved": "Tâche enregistrée",
       "tasks_title": "Historique d'exécution",
       "toggle_error": "Échec de la mise à jour",
       "type_placeholder": "Sélectionner un type…",
-      "view_in_task_queue": ""
+      "view_in_task_queue": "Voir dans la file d'attente"
     },
     "scoreboard": {
       "add_adjustment": "Ajouter un ajustement",
@@ -581,8 +581,8 @@
       "remove": "Retirer le tag {{name}}"
     },
     "tasks": {
-      "open_in_new_tab": "",
-      "refresh": ""
+      "open_in_new_tab": "Ouvrir dans un nouvel onglet",
+      "refresh": "Actualiser"
     },
     "team_select": {
       "clear": "Effacer l'équipe",
@@ -710,14 +710,14 @@
     "submit_error": "Échec de la soumission",
     "submit_wrong": "Mauvaise réponse, réessayez.",
     "submitting": "Vérification…",
-    "unavailable": "",
+    "unavailable": "Ce challenge n'est pas disponible.",
     "writeup_title": "Writeup"
   },
   "challenges": {
-    "question_progress_one": "",
-    "question_progress_many": "",
-    "question_progress_other": "",
-    "uncategorized": ""
+    "question_progress_one": "{{solved}}/{{count}} question",
+    "question_progress_many": "{{solved}}/{{count}} questions",
+    "question_progress_other": "{{solved}}/{{count}} questions",
+    "uncategorized": "Sans catégorie"
   },
   "common": {
     "add": "Ajouter",
@@ -1044,7 +1044,7 @@
     "access_denied_title": "Accès refusé",
     "allow": "Autoriser",
     "app_requesting": "{{app}} demande l'accès à votre compte",
-    "approve_error": "",
+    "approve_error": "Impossible d'autoriser l'application",
     "authorizing": "Autorisation…",
     "deny": "Refuser",
     "invalid_request": "Demande d'autorisation invalide",
