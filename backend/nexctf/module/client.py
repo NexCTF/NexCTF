@@ -35,11 +35,21 @@ class ClientInfo:
 
     user_agent: str
     token_id: UUID | None = None
+    token_name: str | None = None
 
     @classmethod
-    def build(cls, user_agent: str | None, token_id: UUID | None) -> ClientInfo:
+    def build(
+        cls,
+        user_agent: str | None,
+        token_id: UUID | None,
+        token_name: str | None = None,
+    ) -> ClientInfo:
         """Describe a client from its raw header and authenticating token."""
-        return cls(user_agent=(user_agent or "")[:USER_AGENT_MAX], token_id=token_id)
+        return cls(
+            user_agent=(user_agent or "")[:USER_AGENT_MAX],
+            token_id=token_id,
+            token_name=token_name,
+        )
 
     @property
     def source(self) -> ClientSource:
@@ -62,6 +72,7 @@ async def record_sighting(redis: Redis, user: User, client: ClientInfo) -> None:
         user_id=user.id,
         team_id=user.team_id,
         token_id=client.token_id,
+        token_name=client.token_name,
         user_agent=client.user_agent,
         ua_hash=digest,
         source=client.source,
@@ -75,6 +86,7 @@ async def record_sighting(redis: Redis, user: User, client: ClientInfo) -> None:
             "updated_at": now,
             "team_id": stmt.excluded.team_id,
             "token_id": stmt.excluded.token_id,
+            "token_name": stmt.excluded.token_name,
         },
     )
     async with get_auth_db_context() as db:
