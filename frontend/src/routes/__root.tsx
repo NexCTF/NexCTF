@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { PluginHostBridge } from "@/components/plugin-host-bridge";
+import { ReauthDialog } from "@/components/reauth-dialog";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
 import { BrandingProvider } from "@/lib/branding";
@@ -16,6 +17,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       <BrandingProvider>
         <AuthProvider>
           <PluginHostBridge />
+          <ReauthDialog />
           <div className="min-h-screen bg-background text-foreground">
             <Outlet />
             <Toaster />

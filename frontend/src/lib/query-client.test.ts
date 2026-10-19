@@ -1,6 +1,7 @@
 import { expect, it, vi } from "vitest";
 import { ApiError, getMe } from "@/lib/api";
 import { createQueryClient } from "@/lib/query-client";
+import { REAUTH_REQUIRED } from "@/lib/reauth";
 import { user } from "@/test/fixtures";
 
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -94,4 +95,14 @@ it.each([
 ])("retries %s: %s", (error, expected) => {
   const retry = createQueryClient().getDefaultOptions().queries?.retry;
   expect(typeof retry === "function" && retry(0, error)).toBe(expected);
+});
+
+it("keeps the identity when an action asks for a fresh sign-in", async () => {
+  const client = clientWithIdentity();
+
+  await runQuery(client, new ApiError(401, "Re-authentication required", null, REAUTH_REQUIRED));
+  await runMutation(client, new ApiError(401, "Re-authentication required", null, REAUTH_REQUIRED));
+
+  expect(client.getQueryData(["auth", "me"])).toEqual({ id: "u1", username: "player" });
+  expect(getMe).not.toHaveBeenCalled();
 });

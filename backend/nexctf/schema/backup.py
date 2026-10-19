@@ -19,6 +19,10 @@ class AdminBackupRead(PydanticBase):
     source: BackupSource | None
 
 
+class AdminBackupDownloadTicket(PydanticBase):
+    ticket: str
+
+
 class AdminBackupList(PydanticBase):
     backups: list[AdminBackupRead]
     last_restore: str | None = None

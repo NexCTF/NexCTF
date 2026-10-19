@@ -535,7 +535,7 @@ standard-no-fastapi-cloud-cli = [
 
 [[package]]
 name = "fastapi-multiauth"
-version = "0.6.0"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -544,9 +544,9 @@ dependencies = [
     { name = "httpx" },
     { name = "itsdangerous" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e0/3e/6c58728b1cd5efca1b50c20d37428d17dbbbdc4dd39b193bab0495e3f1e7/fastapi_multiauth-0.6.0.tar.gz", hash = "sha256:8298a1ef8fb76f0e03661419e9065aa9faea16241e35db17f5cae31ccb7482bd", size = 28932, upload-time = "2026-09-21T20:14:25.439Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e7/f4/8258411f09da7a61cc6cecb58dbab47fa91644a199e5b964478232c3cae3/fastapi_multiauth-0.7.0.tar.gz", hash = "sha256:f3dbcc1ac3912eb1513d31098f66ab7824240e6fd2a8c1fac3b04ac1fbcdfca7", size = 32983, upload-time = "2026-10-18T18:55:20.592Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/53/1c/ffb3678592de9f3eb47bdd51f03e262c63f8ad6985915772b84f9371eb02/fastapi_multiauth-0.6.0-py3-none-any.whl", hash = "sha256:585ca6b63c1fcf65cb0c78038ceda07f9351d8e6b66946f9c110d364d894c703", size = 39104, upload-time = "2026-09-21T20:14:24.202Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/2c/34fc7794ac58160d4aa5df08adc94d70b8273a165615834ed02e82083195/fastapi_multiauth-0.7.0-py3-none-any.whl", hash = "sha256:4288ce122130f8685e2d6102b49fac5af931700e6ec35605563eb71f6294d095", size = 42013, upload-time = "2026-10-18T18:55:19.347Z" },
 ]
 
 [package.optional-dependencies]
@@ -933,7 +933,7 @@ requires-dist = [
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "cronsim", specifier = ">=2.7" },
     { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.142.0" },
-    { name = "fastapi-multiauth", extras = ["oauth"], specifier = ">=0.6.0" },
+    { name = "fastapi-multiauth", extras = ["oauth"], specifier = ">=0.7.0" },
     { name = "fastapi-toolsets", extras = ["all"], specifier = ">=6.0.0" },
     { name = "pgqueuer", extras = ["web"], specifier = ">=1.5.0,<1.6" },
     { name = "prometheus-client", specifier = ">=0.25.0" },

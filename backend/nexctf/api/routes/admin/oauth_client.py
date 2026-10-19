@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 
 from nexctf import crud
-from nexctf.api.dep import SessionDep
+from nexctf.api.dep import FreshAuthDep, SessionDep
 from nexctf.model.oauth_server import OAuthServerClient
 from nexctf.schema.oauth_server import (
     AdminOAuthClientCreate,
@@ -36,7 +36,7 @@ async def list_oauth_clients(
     )
 
 
-@oauth_client_router.post("")
+@oauth_client_router.post("", dependencies=[FreshAuthDep])
 async def create_oauth_client(
     session: SessionDep,
     obj: AdminOAuthClientCreate,
@@ -68,7 +68,7 @@ async def get_client(
     )
 
 
-@oauth_client_router.put("/{uuid}")
+@oauth_client_router.put("/{uuid}", dependencies=[FreshAuthDep])
 async def update_client(
     session: SessionDep,
     obj: AdminOAuthClientUpdate,
@@ -82,7 +82,7 @@ async def update_client(
     )
 
 
-@oauth_client_router.delete("/{uuid}")
+@oauth_client_router.delete("/{uuid}", dependencies=[FreshAuthDep])
 async def delete_client(session: SessionDep, uuid: UUID) -> Response[None]:
     return await crud.OAuthServerClientCrud.delete(
         session=session,

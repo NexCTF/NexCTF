@@ -100,6 +100,7 @@ def _competition():
             label="config.ctf.allow_registration.label",
             default=True,
             description="config.ctf.allow_registration.description",
+            reauth=True,
         ),
         ConfigDef(
             key="ctf.timezone",
@@ -176,6 +177,7 @@ def _security():
             label="config.rate_limit.login.enabled.label",
             default=True,
             description="config.rate_limit.login.enabled.description",
+            reauth=True,
         ),
         ConfigDef(
             key="rate_limit.login.max_requests",
@@ -183,6 +185,7 @@ def _security():
             default=10,
             description="config.rate_limit.login.max_requests.description",
             min=1,
+            reauth=True,
         ),
         ConfigDef(
             key="rate_limit.login.window_seconds",
@@ -190,12 +193,14 @@ def _security():
             default=60,
             description="config.rate_limit.login.window_seconds.description",
             min=1,
+            reauth=True,
         ),
         ConfigDef(
             key="captcha.enabled",
             label="config.captcha.enabled.label",
             default=False,
             description="config.captcha.enabled.description",
+            reauth=True,
         ),
     ]
 
@@ -208,6 +213,7 @@ def _email():
             label="config.email.enabled.label",
             default=False,
             description="config.email.enabled.description",
+            reauth=True,
         ),
         ConfigDef(
             key="email.smtp_host",
@@ -215,6 +221,7 @@ def _email():
             default="",
             description="config.email.smtp_host.description",
             type=ConfigType.STRING,
+            reauth=True,
         ),
         ConfigDef(
             key="email.smtp_port",
@@ -223,6 +230,7 @@ def _email():
             description="config.email.smtp_port.description",
             min=1,
             max=65535,
+            reauth=True,
         ),
         ConfigDef(
             key="email.smtp_username",
@@ -230,6 +238,7 @@ def _email():
             default="",
             description="config.email.smtp_username.description",
             type=ConfigType.STRING,
+            reauth=True,
         ),
         ConfigDef(
             key="email.smtp_password",
@@ -237,6 +246,7 @@ def _email():
             default="",
             description="config.email.smtp_password.description",
             type=ConfigType.SECRET,
+            reauth=True,
         ),
         ConfigDef(
             key="email.security",
@@ -245,6 +255,7 @@ def _email():
             description="config.email.security.description",
             type=ConfigType.CHOICE,
             choices=["none", "starttls", "tls"],
+            reauth=True,
         ),
         ConfigDef(
             key="email.from_address",
@@ -252,6 +263,7 @@ def _email():
             default="",
             description="config.email.from_address.description",
             type=ConfigType.STRING,
+            reauth=True,
         ),
         ConfigDef(
             key="email.from_name",
@@ -259,6 +271,7 @@ def _email():
             default="",
             description="config.email.from_name.description",
             type=ConfigType.STRING,
+            reauth=True,
         ),
     ]
 
@@ -343,6 +356,7 @@ def _appearance():
             default="",
             description="config.appearance.custom_css.description",
             type=ConfigType.TEXT,
+            reauth=True,
         ),
     ]
 

@@ -5,9 +5,14 @@ Auth is checked before request-body validation, so minimal/empty payloads
 are sufficient to trigger a 403 without needing a valid body.
 """
 
+import time
+from collections.abc import Generator
+from contextlib import contextmanager
 from typing import Any
+from unittest.mock import patch
 
 from httpx import AsyncClient
+from itsdangerous import TimestampSigner
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.model import Team, User
@@ -18,6 +23,15 @@ from nexctf.plugins.builtin.solution.match.model import MatchSolution
 NULL_UUID = "00000000-0000-0000-0000-000000000000"
 FUTURE = "2099-01-01T00:00:00+00:00"
 PAST = "2000-01-01T00:00:00+00:00"
+
+
+@contextmanager
+def signed_ago(seconds: int) -> Generator[None]:
+    """Sign every cookie minted inside the block *seconds* in the past."""
+    with patch.object(
+        TimestampSigner, "get_timestamp", lambda _: int(time.time()) - seconds
+    ):
+        yield
 
 
 async def put_in_team(db_session: AsyncSession, user: User) -> Team:

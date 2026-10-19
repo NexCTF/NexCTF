@@ -1,9 +1,15 @@
 from typing import cast
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi_toolsets.schemas import Response
 
-from nexctf.api.dep import ConfigDep, RedisDep, SessionDep
+from nexctf.api.dep import (
+    ConfigDep,
+    RedisDep,
+    SessionDep,
+    TokenScopesDep,
+    require_fresh_unless_token,
+)
 from nexctf.core import appconfig
 from nexctf.core.eventbus import publish_event
 from nexctf.exceptions import ConfigValidationError
@@ -48,11 +54,17 @@ async def list_config(overrides: ConfigDep) -> Response[list[AdminConfigRead]]:
 
 @config_router.put("")
 async def bulk_update_config(
+    request: Request,
     session: SessionDep,
     redis: RedisDep,
     old_overrides: ConfigDep,
     obj: AdminConfigBulkUpdate,
+    granted: TokenScopesDep,
 ) -> Response[list[AdminConfigRead]]:
+    """Save config; from a browser, auth-related keys need a fresh session."""
+    defs = appconfig.all_defs()
+    if any(key in defs and defs[key].reauth for key in obj.items):
+        require_fresh_unless_token(request, granted)
     errors: list[str] = []
     staged: dict[str, str] = {}
 

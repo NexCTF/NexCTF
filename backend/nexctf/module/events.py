@@ -20,6 +20,7 @@ EVENT_CATEGORIES: frozendict[str, str] = frozendict(
         "user.login": "account",
         "user.logout": "account",
         "user.login_failed": "security",
+        "user.reauth": "account",
         "user.password_reset": "account",
         "user.password_changed": "account",
         "user.password_reset_requested": "security",

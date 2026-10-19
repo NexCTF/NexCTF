@@ -18,6 +18,7 @@ from nexctf import crud
 from nexctf.api.dep import (
     ConfigDep,
     CurrentUserDep,
+    FreshSessionDep,
     RedisDep,
     SessionDep,
     SessionOnlyDep,
@@ -125,7 +126,7 @@ async def create_token(
     session: SessionDep,
     redis: RedisDep,
     obj: PublicApiTokenCreate,
-    user: SessionOnlyDep,
+    user: FreshSessionDep,
 ) -> Response[PublicApiTokenRead]:
     unknown = sorted(set(obj.scopes) - _grantable_scopes(user))
     if unknown or not obj.scopes:
@@ -286,7 +287,7 @@ async def unlink_oauth_account(
     session: SessionDep,
     redis: RedisDep,
     account_id: UUID,
-    user: SessionOnlyDep,
+    user: FreshSessionDep,
 ):
     """Unlink an OAuth provider from the current user's account.
 
@@ -331,7 +332,7 @@ async def change_password(
     background_tasks: BackgroundTasks,
     response: RawResponse,
     body: PasswordChangeRequest,
-    user: SessionOnlyDep,
+    user: FreshSessionDep,
 ):
     """Verify the current password, replace it, and log out other sessions."""
     if not user.hashed_password or not verify_password(
@@ -369,7 +370,7 @@ _TOTP_SETUP_TTL = 600  # 10 minutes
 @me_router.post("/totp/setup")
 async def totp_setup(
     redis: RedisDep,
-    user: SessionOnlyDep,
+    user: FreshSessionDep,
 ) -> Response[TotpSetupResponse]:
     """Generate a new TOTP secret and store it server-side (does not activate it yet)."""
     if user.totp_secret:
@@ -388,7 +389,7 @@ async def totp_enable(
     session: SessionDep,
     redis: RedisDep,
     body: TotpEnableRequest,
-    user: SessionOnlyDep,
+    user: FreshSessionDep,
 ):
     """Read the provisional secret from Redis, verify the OTP code, and enable TOTP."""
     if user.totp_secret:
@@ -420,7 +421,7 @@ async def totp_disable(
     session: SessionDep,
     redis: RedisDep,
     body: TotpDisableRequest,
-    user: SessionOnlyDep,
+    user: FreshSessionDep,
 ):
     """Verify OTP code and disable TOTP."""
     if not user.totp_secret:

@@ -3,8 +3,10 @@
 import os
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
+from functools import partial
 from unittest.mock import AsyncMock, MagicMock
 
+import pyotp
 import pytest
 from fastapi_toolsets.logger import ContextFilter
 from fastapi_toolsets.pytest import (
@@ -38,6 +40,8 @@ from nexctf.plugins.registry import (
 )
 from nexctf.plugins.routes import route_registry
 from nexctf.tasks.queue import DB_SETTINGS, build_queries, connect
+
+from .base import signed_ago
 
 register_fixtures(test_fixture_registry, globals())
 # The test app skips the lifespan that loads plugins.
@@ -230,20 +234,36 @@ async def _role_client(
     username: str,
     password: str,
     role: UserRole,
+    *,
+    age: int = 0,
+    totp_secret: str | None = None,
 ) -> AsyncGenerator[tuple[AsyncClient, User]]:
-    """Create a logged-in AsyncClient for a user with the given role."""
+    """Create a client for a user with *role*, signed in *age* seconds ago."""
     from nexctf.api.security import hash_password
 
-    user = User(username=username, hashed_password=hash_password(password), role=role)
+    user = User(
+        username=username,
+        hashed_password=hash_password(password),
+        role=role,
+        totp_secret=totp_secret,
+    )
     db_session.add(user)
     await db_session.flush()
 
+    form = {"username": username, "password": password}
+    if totp_secret:
+        form["totp_code"] = pyotp.TOTP(totp_secret).now()
     async with client_factory() as c:
-        resp = await c.post(
-            "/auth/token", data={"username": username, "password": password}
-        )
+        with signed_ago(age):
+            resp = await c.post("/auth/token", data=form)
         assert resp.status_code == 204
         yield c, user
+
+
+@pytest.fixture
+def signed_in_client(client_factory, db_session: AsyncSession, override_db_context):
+    """Factory for ``_role_client``, for tests needing a custom sign-in."""
+    return partial(_role_client, client_factory, db_session)
 
 
 @pytest.fixture

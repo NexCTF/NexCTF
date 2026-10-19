@@ -7,7 +7,7 @@ from fastapi_toolsets.schemas import PaginatedResponse, Response
 from sqlalchemy.exc import IntegrityError
 
 from nexctf import crud
-from nexctf.api.dep import SessionDep
+from nexctf.api.dep import FreshAuthDep, SessionDep
 from nexctf.model import OAuthProvider
 from nexctf.schema.oauth import (
     AdminOAuthProviderCreate,
@@ -30,7 +30,7 @@ async def get_oauth_providers(
     )
 
 
-@oauth_router.post("")
+@oauth_router.post("", dependencies=[FreshAuthDep])
 async def create_oauth_provider(
     session: SessionDep,
     obj: AdminOAuthProviderCreate,
@@ -55,7 +55,7 @@ async def get_oauth_provider(
     )
 
 
-@oauth_router.put("/{uuid}")
+@oauth_router.put("/{uuid}", dependencies=[FreshAuthDep])
 async def update_oauth_provider(
     session: SessionDep,
     uuid: UUID,
@@ -72,7 +72,7 @@ async def update_oauth_provider(
         raise ConflictError(detail="Provider slug already taken")
 
 
-@oauth_router.delete("/{uuid}")
+@oauth_router.delete("/{uuid}", dependencies=[FreshAuthDep])
 async def delete_oauth_provider(session: SessionDep, uuid: UUID) -> Response[None]:
     return await crud.OAuthProviderCrud.delete(
         session=session,

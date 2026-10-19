@@ -1,14 +1,16 @@
 import logging
 import os
+from collections.abc import Mapping
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi_multiauth.exceptions import StaleCredentialError
 from fastapi_multiauth.exceptions import UnauthorizedError as MultiAuthUnauthorizedError
 from fastapi_toolsets.exceptions import UnauthorizedError, init_exceptions_handlers
 from fastapi_toolsets.logger import RequestLoggingMiddleware
-from fastapi_toolsets.schemas import ErrorResponse
+from fastapi_toolsets.schemas import ApiError, ErrorResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Imported for its side effect: registers the config definitions.
@@ -21,7 +23,7 @@ from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.config import settings
 from nexctf.core.db import auth_db, db, get_db_context
 from nexctf.core.logging import is_health_check, setup_logging
-from nexctf.exceptions import OAuth2ProtocolError
+from nexctf.exceptions import OAuth2ProtocolError, ReauthRequiredError
 from nexctf.module.info.version import CURRENT_VERSION, current_revision
 from nexctf.plugins import init_plugins
 from nexctf.tasks.dashboard import install_dashboard, live_dashboard
@@ -77,6 +79,22 @@ app.add_middleware(
 init_exceptions_handlers(app=app)
 
 
+def _api_error_response(
+    api_error: ApiError, headers: Mapping[str, str] | None
+) -> JSONResponse:
+    """Render *api_error* as the toolsets error body, keeping *headers*."""
+    return JSONResponse(
+        status_code=api_error.code,
+        content=ErrorResponse(
+            data=api_error.data,
+            message=api_error.msg,
+            description=api_error.desc,
+            error_code=api_error.err_code,
+        ).model_dump(),
+        headers=headers,
+    )
+
+
 @app.exception_handler(MultiAuthUnauthorizedError)
 async def multiauth_unauthorized_handler(
     request: Request, exc: MultiAuthUnauthorizedError
@@ -88,17 +106,16 @@ async def multiauth_unauthorized_handler(
     produces so the API error contract stays consistent, while preserving the
     RFC 7235 ``WWW-Authenticate`` challenge the source attached.
     """
-    api_error = UnauthorizedError.api_error
-    return JSONResponse(
-        status_code=api_error.code,
-        content=ErrorResponse(
-            data=api_error.data,
-            message=api_error.msg,
-            description=api_error.desc,
-            error_code=api_error.err_code,
-        ).model_dump(),
-        headers=exc.headers,
-    )
+    return _api_error_response(UnauthorizedError.api_error, exc.headers)
+
+
+@app.exception_handler(StaleCredentialError)
+async def stale_credential_handler(
+    request: Request, exc: StaleCredentialError
+) -> JSONResponse:
+    """Render a live but too-old session as AUTH-REAUTH-REQUIRED with its window."""
+    api_error = ReauthRequiredError(data={"max_age": int(exc.max_age or 0)}).api_error
+    return _api_error_response(api_error, exc.headers)
 
 
 @app.exception_handler(OAuth2ProtocolError)

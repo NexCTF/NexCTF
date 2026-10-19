@@ -29,6 +29,15 @@ class InvalidCredentialsError(AuthError):
     )
 
 
+class ReauthRequiredError(AuthError):
+    api_error = ApiError(
+        code=401,
+        msg="Re-authentication required",
+        desc="Confirm your identity again to continue.",
+        err_code="AUTH-REAUTH-REQUIRED",
+    )
+
+
 class AccountDisabledError(AuthError):
     api_error = ApiError(
         code=403,
