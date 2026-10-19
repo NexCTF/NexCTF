@@ -196,6 +196,15 @@ def _security():
             reauth=True,
         ),
         ConfigDef(
+            key="auth.session_idle_minutes",
+            label="config.auth.session_idle_minutes.label",
+            default=0,
+            description="config.auth.session_idle_minutes.description",
+            min=0,
+            max=1440,
+            reauth=True,
+        ),
+        ConfigDef(
             key="captcha.enabled",
             label="config.captcha.enabled.label",
             default=False,

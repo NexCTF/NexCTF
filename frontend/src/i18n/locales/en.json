@@ -779,6 +779,12 @@
         "label": "Logo URL (dark mode)"
       }
     },
+    "auth": {
+      "session_idle_minutes": {
+        "description": "Minutes without activity before a browser session is signed out, on top of the 24 h limit. 0 disables it.",
+        "label": "Idle session timeout (minutes)"
+      }
+    },
     "canary": {
       "enabled": {
         "description": "Plant a hidden marker in challenge text; submitting it is logged as a suspected AI-assisted answer",

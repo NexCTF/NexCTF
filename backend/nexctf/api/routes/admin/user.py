@@ -14,6 +14,7 @@ from nexctf.api.dep import (
     FreshSessionDep,
     RedisDep,
     SessionDep,
+    SessionIdleDep,
     TokenScopesDep,
     require_fresh_session,
     require_fresh_unless_token,
@@ -116,6 +117,7 @@ async def create_user(
 @user_router.get("/{uuid}")
 async def get_user(
     session: SessionDep,
+    idle: SessionIdleDep,
     uuid: UUID,
 ) -> Response[AdminUserDetailRead]:
     result = await crud.UserCrud.get(
@@ -125,7 +127,7 @@ async def get_user(
     )
     if result.data is None:
         raise NotFoundError()
-    origin = await account_origin(session, uuid)
+    origin = await account_origin(session, uuid, idle)
     cfv_rows = await crud.CustomFieldValueCrud.get_multi(
         session=session, filters=[CustomFieldValue.user_id == uuid]
     )
@@ -145,6 +147,7 @@ async def get_user(
 async def get_user_sessions(
     request: Request,
     session: SessionDep,
+    idle: SessionIdleDep,
     uuid: UUID,
 ) -> Response[list[UserSessionRead]]:
     """A user's live sessions, most recently active first."""
@@ -159,7 +162,7 @@ async def get_user_sessions(
                 last_seen_at=row.last_seen_at,
                 current=row.sid_hash == this_hash,
             )
-            for row in await live_sessions(session, uuid)
+            for row in await live_sessions(session, uuid, idle)
         ]
     )
 

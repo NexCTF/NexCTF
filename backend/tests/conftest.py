@@ -186,9 +186,9 @@ async def http_client(client_factory) -> AsyncGenerator[AsyncClient]:
 
 @pytest.fixture
 def override_db_context(
-    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+    db_session: AsyncSession, mock_redis, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Patch the session contexts in security.py and module/client.py.
+    """Patch the session contexts in security.py and module/client.py, and its Redis.
 
     Functions like _verify_cookie(), create_api_token() and record_sighting() open a session
     directly instead of using FastAPI dependency injection. Patching it in the
@@ -204,6 +204,7 @@ def override_db_context(
         yield db_session
         await db_session.flush()
 
+    monkeypatch.setattr(security, "get_client", lambda: mock_redis)
     monkeypatch.setattr(security, "get_db_context", _test_db_context)
     monkeypatch.setattr(security, "get_auth_db_context", _test_db_context)
     monkeypatch.setattr(client, "get_auth_db_context", _test_db_context)

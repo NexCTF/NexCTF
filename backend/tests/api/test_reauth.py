@@ -9,13 +9,12 @@ import pytest
 from fastapi_multiauth.oauth import OIDCEndpoints
 from httpx import AsyncClient
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.api.security import REAUTH_WINDOW, create_api_token
-from nexctf.model import Event, OAuthAccount, OAuthProvider, User, UserRole, UserSession
+from nexctf.model import Event, OAuthAccount, OAuthProvider, UserRole
 from nexctf.module.session import FAILED_LOGIN_EVENT
 
-from ..base import NULL_UUID
+from ..base import NULL_UUID, session_row
 
 COOKIE = "NexCTF"
 REAUTH_CODE = "AUTH-REAUTH-REQUIRED"
@@ -47,16 +46,6 @@ def _is_reauth(resp) -> bool:
 async def _reauth(c: AsyncClient, **body: str) -> None:
     resp = await c.post("/auth/reauth", json={"password": PASSWORD, **body})
     assert resp.status_code == 204, resp.text
-
-
-async def _session_row(db_session: AsyncSession, user: User) -> UserSession:
-    return (
-        await db_session.execute(
-            select(UserSession)
-            .where(UserSession.user_id == user.id)
-            .execution_options(populate_existing=True)
-        )
-    ).scalar_one()
 
 
 PLAYER_GATES = [
@@ -184,7 +173,7 @@ class TestGates:
 
     async def test_revoked_session_gets_plain_401(self, stale_user, db_session):
         c, user = stale_user
-        row = await _session_row(db_session, user)
+        row = await session_row(db_session, user)
         row.expires_at = datetime.now(UTC) - timedelta(seconds=1)
         await db_session.flush()
 
@@ -227,15 +216,15 @@ class TestApiTokens:
 
 
 class TestReauthEndpoint:
-    async def test_keeps_the_session_row(self, stale_user, db_session):
+    async def test_keeps_thesession_row(self, stale_user, db_session):
         c, user = stale_user
-        before = await _session_row(db_session, user)
+        before = await session_row(db_session, user)
         row_id, old_hash, expires_at = before.id, before.sid_hash, before.expires_at
         old_cookie = c.cookies[COOKIE]
 
         await _reauth(c)
 
-        after = await _session_row(db_session, user)
+        after = await session_row(db_session, user)
         assert after.id == row_id
         assert after.sid_hash != old_hash
         assert after.expires_at == expires_at
@@ -247,7 +236,7 @@ class TestReauthEndpoint:
     async def test_does_not_outlive_the_session(self, stale_user, db_session):
         c, user = stale_user
         await _reauth(c)
-        row = await _session_row(db_session, user)
+        row = await session_row(db_session, user)
         row.expires_at = datetime.now(UTC) - timedelta(seconds=1)
         await db_session.flush()
 
@@ -401,11 +390,11 @@ class TestReauthThroughOAuth:
         self, stale_oauth_user, db_session
     ):
         c, user = stale_oauth_user
-        before = await _session_row(db_session, user)
+        before = await session_row(db_session, user)
         row_id, expires_at = before.id, before.expires_at
 
         await _oauth_round_trip(c, "sub-1")
 
-        after = await _session_row(db_session, user)
+        after = await session_row(db_session, user)
         assert (after.id, after.expires_at) == (row_id, expires_at)
         assert not _is_reauth(await c.post("/me/totp/setup"))

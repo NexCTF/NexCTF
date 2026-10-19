@@ -587,7 +587,7 @@ async def _optional_cookie_user(request: Request) -> User | None:
     if credential is None:
         return None
     try:
-        return await cookie_auth.authenticate(credential)
+        return await cookie_auth.authenticate(credential, request=request)
     except Exception:  # noqa: BLE001
         return None
 

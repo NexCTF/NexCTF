@@ -1,36 +1,12 @@
 """Tests for /admin/session/addresses, the address-to-accounts pivot."""
 
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
 
-from nexctf.model import Event, User, UserSession
+from nexctf.model import Event, User
 
-from ..base import ListGuardMixin, get_data, make_team, make_user
+from ..base import ListGuardMixin, add_session, get_data, make_team, make_user
 
 ADDRESSES = "/admin/session/addresses"
-
-
-async def _add_session(
-    db_session,
-    user: User,
-    *,
-    ip: str | None,
-    last_ip: str | None = None,
-    minutes_ago: int = 0,
-) -> UserSession:
-    now = datetime.now(UTC)
-    row = UserSession(
-        user_id=user.id,
-        sid_hash=uuid4().hex,
-        ip=ip,
-        last_ip=last_ip if last_ip is not None else ip,
-        user_agent="Mozilla/5.0",
-        last_seen_at=now - timedelta(minutes=minutes_ago),
-        expires_at=now + timedelta(hours=1),
-    )
-    db_session.add(row)
-    await db_session.flush()
-    return row
 
 
 async def _add_login(
@@ -68,8 +44,8 @@ class TestListSessionAddresses(ListGuardMixin):
         c, _ = admin_client
         alice = await make_user(db_session, "alice")
         bob = await make_user(db_session, "bob")
-        await _add_session(db_session, alice, ip="198.51.100.7", minutes_ago=5)
-        await _add_session(db_session, bob, ip="198.51.100.7")
+        await add_session(db_session, alice, ip="198.51.100.7", minutes_ago=5)
+        await add_session(db_session, bob, ip="198.51.100.7")
 
         rows = await _addresses(c)
 
@@ -85,7 +61,7 @@ class TestListSessionAddresses(ListGuardMixin):
         c, _ = admin_client
         alice = await make_user(db_session, "alice")
         for _ in range(3):
-            await _add_session(db_session, alice, ip="198.51.100.8")
+            await add_session(db_session, alice, ip="198.51.100.8")
 
         listed = (await _addresses(c))["198.51.100.8"]
 
@@ -98,8 +74,8 @@ class TestListSessionAddresses(ListGuardMixin):
         c, _ = admin_client
         alice = await make_user(db_session, "alice")
         bob = await make_user(db_session, "bob")
-        await _add_session(db_session, alice, ip=None)
-        await _add_session(db_session, bob, ip=None)
+        await add_session(db_session, alice, ip=None)
+        await add_session(db_session, bob, ip=None)
 
         listed = await _addresses(c)
 
@@ -118,10 +94,10 @@ class TestListSessionAddresses(ListGuardMixin):
         c, _ = admin_client
         alice = await make_user(db_session, "alice")
         bob = await make_user(db_session, "bob")
-        await _add_session(
+        await add_session(
             db_session, alice, ip="198.51.100.1", last_ip="203.0.113.9", minutes_ago=5
         )
-        await _add_session(db_session, bob, ip="203.0.113.9")
+        await add_session(db_session, bob, ip="203.0.113.9")
 
         shared = (await _addresses(c))["203.0.113.9"]
 
@@ -134,8 +110,8 @@ class TestListSessionAddresses(ListGuardMixin):
         team = await make_team(db_session, "MyTeam")
         alice = await make_user(db_session, "alice", team)
         bob = await make_user(db_session, "bob", team)
-        await _add_session(db_session, alice, ip="198.51.100.2")
-        await _add_session(db_session, bob, ip="198.51.100.2")
+        await add_session(db_session, alice, ip="198.51.100.2")
+        await add_session(db_session, bob, ip="198.51.100.2")
 
         shared = (await _addresses(c))["198.51.100.2"]
 
@@ -146,8 +122,8 @@ class TestListSessionAddresses(ListGuardMixin):
         c, _ = admin_client
         alice = await make_user(db_session, "alice", await make_team(db_session, "Red"))
         bob = await make_user(db_session, "bob", await make_team(db_session, "Blue"))
-        await _add_session(db_session, alice, ip="198.51.100.9")
-        await _add_session(db_session, bob, ip="198.51.100.9")
+        await add_session(db_session, alice, ip="198.51.100.9")
+        await add_session(db_session, bob, ip="198.51.100.9")
 
         shared = (await _addresses(c))["198.51.100.9"]
 
@@ -161,8 +137,8 @@ class TestListSessionAddresses(ListGuardMixin):
         team = await make_team(db_session, "MyTeam")
         alice = await make_user(db_session, "alice", team)
         nomad = await make_user(db_session, "nomad")
-        await _add_session(db_session, alice, ip="198.51.100.3")
-        await _add_session(db_session, nomad, ip="198.51.100.3")
+        await add_session(db_session, alice, ip="198.51.100.3")
+        await add_session(db_session, nomad, ip="198.51.100.3")
 
         shared = (await _addresses(c))["198.51.100.3"]
 
@@ -178,8 +154,8 @@ class TestListSessionAddresses(ListGuardMixin):
         c, _ = admin_client
         alice = await make_user(db_session, "alice")
         bob = await make_user(db_session, "bob")
-        await _add_session(db_session, alice, ip="198.51.100.10")
-        await _add_session(db_session, bob, ip="198.51.100.10")
+        await add_session(db_session, alice, ip="198.51.100.10")
+        await add_session(db_session, bob, ip="198.51.100.10")
 
         shared = (await _addresses(c))["198.51.100.10"]
 
@@ -190,9 +166,9 @@ class TestListSessionAddresses(ListGuardMixin):
         c, _ = admin_client
         alice = await make_user(db_session, "alice")
         bob = await make_user(db_session, "bob")
-        stale = await _add_session(db_session, alice, ip="198.51.100.4")
+        stale = await add_session(db_session, alice, ip="198.51.100.4")
         stale.expires_at = datetime.now(UTC) - timedelta(minutes=1)
-        await _add_session(db_session, bob, ip="198.51.100.4")
+        await add_session(db_session, bob, ip="198.51.100.4")
         await db_session.flush()
 
         listed = (await _addresses(c))["198.51.100.4"]
@@ -203,9 +179,9 @@ class TestListSessionAddresses(ListGuardMixin):
         c, _ = admin_client
         users = [await make_user(db_session, f"u{n}") for n in range(3)]
         for user in users:
-            await _add_session(db_session, user, ip="198.51.100.5")
+            await add_session(db_session, user, ip="198.51.100.5")
         for user in users[:2]:
-            await _add_session(db_session, user, ip="198.51.100.6")
+            await add_session(db_session, user, ip="198.51.100.6")
 
         listed = [
             row["ip"]
@@ -220,9 +196,9 @@ class TestListSessionAddresses(ListGuardMixin):
         c, _ = admin_client
         alice = await make_user(db_session, "alice")
         bob = await make_user(db_session, "bob")
-        await _add_session(db_session, alice, ip="198.51.100.11")
-        await _add_session(db_session, bob, ip="198.51.100.11")
-        await _add_session(db_session, alice, ip="198.51.100.12")
+        await add_session(db_session, alice, ip="198.51.100.11")
+        await add_session(db_session, bob, ip="198.51.100.11")
+        await add_session(db_session, alice, ip="198.51.100.12")
 
         overview = await _overview(c)
 

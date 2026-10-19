@@ -7,7 +7,7 @@ from fastapi_toolsets.schemas import PaginatedResponse, Response
 from sqlalchemy import ColumnElement
 
 from nexctf import crud
-from nexctf.api.dep import ClientCategoryDep, SessionDep
+from nexctf.api.dep import ClientCategoryDep, SessionDep, SessionIdleDep
 from nexctf.enums import ClientCategory, SessionWindow
 from nexctf.model import UserAgentSighting
 from nexctf.module.client import clients_summary, sighting_load_options
@@ -29,10 +29,11 @@ session_router = APIRouter(prefix="/session", tags=["Session"])
 @session_router.get("/addresses")
 async def get_session_addresses(
     session: SessionDep,
+    idle: SessionIdleDep,
     window: SessionWindow = SessionWindow.LIVE,
 ) -> Response[AdminSessionOverviewRead]:
     """Session totals over *window*, plus every address they are reached from."""
-    return Response(data=await sessions_by_address(session, window))
+    return Response(data=await sessions_by_address(session, window, idle))
 
 
 @session_router.get("/failed-logins")

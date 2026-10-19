@@ -8,14 +8,17 @@ are sufficient to trigger a 403 without needing a valid body.
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import patch
+from uuid import uuid4
 
 from httpx import AsyncClient
 from itsdangerous import TimestampSigner
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.model import Team, User
+from nexctf.model import Team, User, UserSession
 from nexctf.model.question import Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 from nexctf.plugins.builtin.solution.match.model import MatchSolution
@@ -32,6 +35,41 @@ def signed_ago(seconds: int) -> Generator[None]:
         TimestampSigner, "get_timestamp", lambda _: int(time.time()) - seconds
     ):
         yield
+
+
+async def add_session(
+    db_session: AsyncSession,
+    user: User,
+    *,
+    ip: str | None,
+    last_ip: str | None = None,
+    minutes_ago: int = 0,
+) -> UserSession:
+    """Give *user* an unexpired session last used *minutes_ago*."""
+    now = datetime.now(UTC)
+    row = UserSession(
+        user_id=user.id,
+        sid_hash=uuid4().hex,
+        ip=ip,
+        last_ip=last_ip if last_ip is not None else ip,
+        user_agent="Mozilla/5.0",
+        last_seen_at=now - timedelta(minutes=minutes_ago),
+        expires_at=now + timedelta(hours=1),
+    )
+    db_session.add(row)
+    await db_session.flush()
+    return row
+
+
+async def session_row(db_session: AsyncSession, user: User) -> UserSession:
+    """*user*'s only session, reloaded from the database."""
+    return (
+        await db_session.execute(
+            select(UserSession)
+            .where(UserSession.user_id == user.id)
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
 
 
 async def put_in_team(db_session: AsyncSession, user: User) -> Team:
