@@ -2,31 +2,18 @@
 
 from datetime import UTC, datetime, timedelta
 
-from nexctf.model import Event, User
+from nexctf.model import Event
 
-from ..base import ListGuardMixin, add_session, get_data, make_team, make_user
+from ..base import (
+    ListGuardMixin,
+    add_login,
+    add_session,
+    get_data,
+    make_team,
+    make_user,
+)
 
 ADDRESSES = "/admin/session/addresses"
-
-
-async def _add_login(
-    db_session,
-    user: User,
-    *,
-    ip: str | None,
-    hours_ago: float = 0,
-    team_meta: dict[str, str | None] | None = None,
-) -> Event:
-    row = Event(
-        event_type="user.login",
-        actor_id=user.id,
-        ip=ip,
-        meta={"username": user.username, **(team_meta or {})},
-        created_at=datetime.now(UTC) - timedelta(hours=hours_ago),
-    )
-    db_session.add(row)
-    await db_session.flush()
-    return row
 
 
 async def _overview(client, query: str = "") -> dict:
@@ -219,8 +206,8 @@ class TestLoginWindowAddresses:
         c, _ = admin_client
         alice = await make_user(db_session, "alice")
         bob = await make_user(db_session, "bob")
-        await _add_login(db_session, alice, ip="198.51.100.20", hours_ago=2)
-        await _add_login(db_session, bob, ip="198.51.100.20")
+        await add_login(db_session, alice, ip="198.51.100.20", hours_ago=2)
+        await add_login(db_session, bob, ip="198.51.100.20")
 
         shared = (await _addresses(c, "?window=all"))["198.51.100.20"]
 
@@ -233,7 +220,7 @@ class TestLoginWindowAddresses:
         c, _ = admin_client
         alice = await make_user(db_session, "alice")
         for hours in range(3):
-            await _add_login(db_session, alice, ip="198.51.100.21", hours_ago=hours)
+            await add_login(db_session, alice, ip="198.51.100.21", hours_ago=hours)
 
         listed = (await _addresses(c, "?window=all"))["198.51.100.21"]
 
@@ -244,8 +231,8 @@ class TestLoginWindowAddresses:
     async def test_day_window_excludes_older_logins(self, admin_client, db_session):
         c, _ = admin_client
         alice = await make_user(db_session, "alice")
-        await _add_login(db_session, alice, ip="198.51.100.22", hours_ago=2)
-        await _add_login(db_session, alice, ip="198.51.100.23", hours_ago=30)
+        await add_login(db_session, alice, ip="198.51.100.22", hours_ago=2)
+        await add_login(db_session, alice, ip="198.51.100.23", hours_ago=30)
 
         listed = await _addresses(c, "?window=day")
 
@@ -259,7 +246,7 @@ class TestLoginWindowAddresses:
         """The gap the live view leaves: signed in this morning, gone since."""
         c, _ = admin_client
         alice = await make_user(db_session, "alice")
-        await _add_login(db_session, alice, ip="198.51.100.24", hours_ago=4)
+        await add_login(db_session, alice, ip="198.51.100.24", hours_ago=4)
 
         assert "198.51.100.24" not in await _addresses(c)
         assert "198.51.100.24" in await _addresses(c, "?window=all")
@@ -270,7 +257,7 @@ class TestLoginWindowAddresses:
         """An event records one address and no user agent, so it claims neither."""
         c, _ = admin_client
         alice = await make_user(db_session, "alice")
-        await _add_login(db_session, alice, ip="198.51.100.25")
+        await add_login(db_session, alice, ip="198.51.100.25")
 
         account = (await _addresses(c, "?window=all"))["198.51.100.25"]["accounts"][0]
 
@@ -280,7 +267,7 @@ class TestLoginWindowAddresses:
     async def test_logins_without_an_ip_are_ignored(self, admin_client, db_session):
         c, _ = admin_client
         alice = await make_user(db_session, "alice")
-        await _add_login(db_session, alice, ip=None)
+        await add_login(db_session, alice, ip=None)
 
         listed = await _addresses(c, "?window=all")
 
@@ -298,8 +285,8 @@ class TestLoginWindowAddresses:
         """Totals follow the window, so the strip cannot outrun the listing."""
         c, _ = admin_client
         alice = await make_user(db_session, "alice")
-        await _add_login(db_session, alice, ip="198.51.100.26", hours_ago=2)
-        await _add_login(db_session, alice, ip="198.51.100.27", hours_ago=30)
+        await add_login(db_session, alice, ip="198.51.100.26", hours_ago=2)
+        await add_login(db_session, alice, ip="198.51.100.27", hours_ago=30)
 
         day = await _overview(c, "?window=day")
         every = await _overview(c, "?window=all")
@@ -313,8 +300,8 @@ class TestLoginWindowAddresses:
         c, _ = admin_client
         alice = await make_user(db_session, "alice", await make_team(db_session, "Red"))
         bob = await make_user(db_session, "bob", await make_team(db_session, "Blue"))
-        await _add_login(db_session, alice, ip="198.51.100.28")
-        await _add_login(db_session, bob, ip="198.51.100.28")
+        await add_login(db_session, alice, ip="198.51.100.28")
+        await add_login(db_session, bob, ip="198.51.100.28")
 
         shared = (await _addresses(c, "?window=all"))["198.51.100.28"]
 
@@ -325,7 +312,7 @@ class TestLoginWindowAddresses:
         c, _ = admin_client
         red = await make_team(db_session, "Red")
         alice = await make_user(db_session, "alice", red)
-        await _add_login(
+        await add_login(
             db_session, alice, ip="198.51.100.29", team_meta={"team_id": str(red.id)}
         )
         alice.team_id = (await make_team(db_session, "Blue")).id
@@ -338,7 +325,7 @@ class TestLoginWindowAddresses:
     async def test_a_teamless_login_stays_teamless(self, admin_client, db_session):
         c, _ = admin_client
         alice = await make_user(db_session, "alice", await make_team(db_session, "Red"))
-        await _add_login(
+        await add_login(
             db_session, alice, ip="198.51.100.30", team_meta={"team_id": None}
         )
 
@@ -354,14 +341,14 @@ class TestLoginWindowAddresses:
         red = await make_team(db_session, "Red")
         blue = await make_team(db_session, "Blue")
         alice = await make_user(db_session, "alice", blue)
-        await _add_login(
+        await add_login(
             db_session,
             alice,
             ip="198.51.100.31",
             hours_ago=2,
             team_meta={"team_id": str(red.id)},
         )
-        await _add_login(
+        await add_login(
             db_session, alice, ip="198.51.100.31", team_meta={"team_id": str(blue.id)}
         )
 

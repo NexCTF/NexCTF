@@ -138,7 +138,6 @@ class UserAgentSightingCrud(AsyncCrud[UserAgentSighting]):
     default_load_options = [
         joinedload(UserAgentSighting.user),
         joinedload(UserAgentSighting.team),
-        joinedload(UserAgentSighting.token),
     ]
 
 

@@ -22,7 +22,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from nexctf import crud
-from nexctf.api.scope import bind_token, token_id_of, with_implied_reads
+from nexctf.api.scope import (
+    bind_token,
+    token_id_of,
+    token_name_of,
+    with_implied_reads,
+)
 from nexctf.core import appconfig
 from nexctf.core.cache import get_client
 from nexctf.core.config import settings
@@ -165,7 +170,7 @@ async def _verify_token(
             .values(last_used_at=now)
         )
 
-        bind_token(request, user_token.id, user_token.scopes)
+        bind_token(request, user_token.id, user_token.name, user_token.scopes)
         return user
 
 
@@ -229,7 +234,9 @@ auth = MultiAuth(bearer_auth, cookie_auth)
 
 def client_of(request: Request) -> ClientInfo:
     """The client behind an authenticated *request*."""
-    return ClientInfo.build(request.headers.get("user-agent"), token_id_of(request))
+    return ClientInfo.build(
+        request.headers.get("user-agent"), token_id_of(request), token_name_of(request)
+    )
 
 
 def current_sid_hash(request: Request) -> str | None:

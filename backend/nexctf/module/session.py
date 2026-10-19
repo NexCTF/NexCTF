@@ -12,13 +12,28 @@ from uuid import UUID
 
 from fastapi import Request
 from fastapi_multiauth import hash_token
-from sqlalchemy import ColumnElement, Row, Uuid, case, func, select, update
+from sqlalchemy import (
+    ColumnElement,
+    Row,
+    Uuid,
+    case,
+    delete,
+    func,
+    select,
+    update,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
 from nexctf.core import appconfig
 from nexctf.enums import SessionWindow
-from nexctf.model import Event, Team, User, UserSession, UserToken
+from nexctf.model import (
+    Event,
+    Team,
+    User,
+    UserSession,
+    UserToken,
+)
 from nexctf.schema.user import (
     AdminAddressAccountRead,
     AdminFailedLoginAddressRead,
@@ -41,6 +56,8 @@ DAY_WINDOW = timedelta(hours=24)
 FAILED_USERNAME_LIMIT = 20
 FAILED_USERNAME_MAX = 64
 IDLE_TIMEOUT_KEY = "auth.session_idle_minutes"
+TOKEN_RETENTION = timedelta(days=7)
+PURGE_BATCH = 10_000
 
 
 class AccountOrigin(NamedTuple):
@@ -436,6 +453,29 @@ async def revoke_user_sessions(db: AsyncSession, user: User) -> None:
     await crud.UserSessionCrud.delete(
         session=db, filters=[UserSession.user_id == user.id]
     )
+
+
+async def purge_expired_access(db: AsyncSession) -> None:
+    """Delete expired sessions, and API tokens expired over ``TOKEN_RETENTION``."""
+    now = datetime.now(UTC)
+    while await _purge_session_batch(db, now) == PURGE_BATCH:
+        pass
+    await db.execute(
+        delete(UserToken).where(UserToken.expires_at < now - TOKEN_RETENTION)
+    )
+
+
+async def _purge_session_batch(db: AsyncSession, now: datetime) -> int:
+    """Delete and commit up to ``PURGE_BATCH`` expired sessions, returning how many."""
+    expired = select(UserSession.id).where(UserSession.expires_at < now)
+    deleted = await db.scalars(
+        delete(UserSession)
+        .where(UserSession.id.in_(expired.limit(PURGE_BATCH)))
+        .returning(UserSession.id)
+    )
+    count = len(deleted.all())
+    await db.commit()
+    return count
 
 
 async def revoke_all_access(db: AsyncSession, user: User) -> None:

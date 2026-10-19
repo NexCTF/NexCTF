@@ -127,7 +127,7 @@ class UserSession(Base):
     last_ip: Mapped[str | None]
     user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
     last_seen_at: Mapped[datetime]
-    expires_at: Mapped[datetime]
+    expires_at: Mapped[datetime] = mapped_column(index=True)
 
     user: Mapped[User] = relationship(back_populates="sessions")
     user_id: Mapped[UUID] = mapped_column(
@@ -165,11 +165,11 @@ class UserAgentSighting(Base):
     team_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("teams.id", ondelete="SET NULL"), nullable=True
     )
-    # Last API token the client used, for token sightings
-    token: Mapped[UserToken | None] = relationship()
+    # Last API token the client used and its name, for token sightings
     token_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("user_tokens.id", ondelete="SET NULL"), nullable=True
+        ForeignKey("user_tokens.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    token_name: Mapped[str | None]
 
     @property
     def username(self) -> str:
@@ -178,10 +178,6 @@ class UserAgentSighting(Base):
     @property
     def team_name(self) -> str | None:
         return self.team.name if self.team is not None else None
-
-    @property
-    def token_name(self) -> str | None:
-        return self.token.name if self.token is not None else None
 
 
 # Names and addresses are unique regardless of letter case.

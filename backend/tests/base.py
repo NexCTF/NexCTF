@@ -13,13 +13,16 @@ from typing import Any
 from unittest.mock import patch
 from uuid import uuid4
 
+from fastapi_multiauth import hash_token
 from httpx import AsyncClient
 from itsdangerous import TimestampSigner
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.model import Team, User, UserSession
+from nexctf.enums import ClientSource
+from nexctf.model import Event, Team, User, UserAgentSighting, UserSession, UserToken
 from nexctf.model.question import Question
+from nexctf.module.session import LOGIN_EVENT
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 from nexctf.plugins.builtin.solution.match.model import MatchSolution
 
@@ -57,8 +60,9 @@ async def add_session(
     ip: str | None,
     last_ip: str | None = None,
     minutes_ago: int = 0,
+    expires_in: timedelta = timedelta(hours=1),
 ) -> UserSession:
-    """Give *user* an unexpired session last used *minutes_ago*."""
+    """Give *user* a session last used *minutes_ago*, expiring in *expires_in*."""
     now = datetime.now(UTC)
     row = UserSession(
         user_id=user.id,
@@ -67,7 +71,55 @@ async def add_session(
         last_ip=last_ip if last_ip is not None else ip,
         user_agent="Mozilla/5.0",
         last_seen_at=now - timedelta(minutes=minutes_ago),
-        expires_at=now + timedelta(hours=1),
+        expires_at=now + expires_in,
+    )
+    db_session.add(row)
+    await db_session.flush()
+    return row
+
+
+async def add_sighting(
+    db_session: AsyncSession,
+    user: User,
+    user_agent: str,
+    *,
+    source: ClientSource = ClientSource.cookie,
+    token: UserToken | None = None,
+    hours_ago: float = 0,
+) -> UserAgentSighting:
+    """Record that *user* was seen with *user_agent*, through *token* if given."""
+    seen = datetime.now(UTC) - timedelta(hours=hours_ago)
+    row = UserAgentSighting(
+        user_id=user.id,
+        team_id=user.team_id,
+        token_id=token.id if token else None,
+        token_name=token.name if token else None,
+        user_agent=user_agent,
+        ua_hash=hash_token(user_agent),
+        source=ClientSource.token if token else source,
+        first_seen_at=seen,
+        last_seen_at=seen,
+    )
+    db_session.add(row)
+    await db_session.flush()
+    return row
+
+
+async def add_login(
+    db_session: AsyncSession,
+    user: User,
+    *,
+    ip: str | None,
+    hours_ago: float = 0,
+    team_meta: dict[str, str | None] | None = None,
+) -> Event:
+    """Record a sign-in by *user* from *ip*, *hours_ago*."""
+    row = Event(
+        event_type=LOGIN_EVENT,
+        actor_id=user.id,
+        ip=ip,
+        meta={"username": user.username, **(team_meta or {})},
+        created_at=datetime.now(UTC) - timedelta(hours=hours_ago),
     )
     db_session.add(row)
     await db_session.flush()

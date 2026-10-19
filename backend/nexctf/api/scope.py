@@ -73,15 +73,23 @@ ADMIN_EVENTS_SCOPE = "read:admin.config"
 _table: dict[int, str] | None = None
 
 
-def bind_token(request: Request, token_id: UUID, scopes: Iterable[str]) -> None:
-    """Bind the authenticating token's id and scopes to *request*."""
+def bind_token(
+    request: Request, token_id: UUID, name: str | None, scopes: Iterable[str]
+) -> None:
+    """Bind the authenticating token's id, name and scopes to *request*."""
     request.state.token_id = token_id
+    request.state.token_name = name
     request.state.token_scopes = frozenset(scopes)
 
 
 def token_id_of(request: Request) -> UUID | None:
     """Return *request*'s token id, or None for a cookie session."""
     return getattr(request.state, "token_id", None)
+
+
+def token_name_of(request: Request) -> str | None:
+    """Return *request*'s token name, or None for a cookie session or unnamed token."""
+    return getattr(request.state, "token_name", None)
 
 
 def token_scopes_of(request: Request) -> frozenset[str] | None:
