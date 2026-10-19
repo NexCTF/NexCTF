@@ -1,8 +1,9 @@
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
-import { ApiError, getMe } from "@/lib/api";
+import { ApiError, getMe, isReauthRequired } from "@/lib/api";
 
+/** A 401 on a dead session; one asking for a fresh sign-in is not counted. */
 function isUnauthorized(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 401;
+  return error instanceof ApiError && error.status === 401 && !isReauthRequired(error);
 }
 
 /**

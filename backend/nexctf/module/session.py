@@ -12,7 +12,7 @@ from uuid import UUID
 
 from fastapi import Request
 from fastapi_multiauth import hash_token
-from sqlalchemy import Row, Uuid, case, func, select
+from sqlalchemy import Row, Uuid, case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
@@ -80,6 +80,20 @@ async def start_session(
         )
     )
     await db.flush()
+
+
+async def rotate_session(db: AsyncSession, old_sid: str, new_sid: str) -> bool:
+    """Move a live session onto *new_sid*, keeping its row. False when none matched."""
+    moved = await db.scalar(
+        update(UserSession)
+        .where(
+            UserSession.sid_hash == hash_token(old_sid),
+            UserSession.expires_at > datetime.now(UTC),
+        )
+        .values(sid_hash=hash_token(new_sid))
+        .returning(UserSession.id)
+    )
+    return moved is not None
 
 
 async def touch_live_session(db: AsyncSession, sid: str, user_id: UUID) -> bool:

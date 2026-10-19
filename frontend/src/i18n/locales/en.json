@@ -14,6 +14,7 @@
       "delete_hint": "Delete this dump from storage",
       "deleted": "Backup deleted",
       "download": "Download",
+      "download_error": "Download failed",
       "download_hint": "Download this dump to your computer",
       "empty": "No backups yet.",
       "last_restore_failed": "The last restore did not complete: {{status}}",
@@ -1076,6 +1077,15 @@
     "saved": "Profile saved",
     "section_hint": "Shown next to your name on your team's public page.",
     "section_title": "Profile"
+  },
+  "reauth": {
+    "description": "This action needs a recent sign-in. Confirm your identity to continue.",
+    "failed": "Could not confirm it's you.",
+    "or_provider": "Or sign in again with",
+    "password": "Password",
+    "submit": "Confirm",
+    "title": "Confirm it's you",
+    "totp": "Authentication code"
   },
   "register": {
     "email": "Email (optional)",

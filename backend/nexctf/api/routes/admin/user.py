@@ -10,11 +10,13 @@ from nexctf import crud
 from nexctf.api.dep import (
     ClientCategoryDep,
     CurrentUserDep,
+    FreshAuthDep,
+    FreshSessionDep,
     RedisDep,
     SessionDep,
-    SessionOnlyDep,
     TokenScopesDep,
-    require_session,
+    require_fresh_session,
+    require_fresh_unless_token,
 )
 from nexctf.api.security import (
     current_sid_hash,
@@ -74,10 +76,10 @@ async def create_user(
 ) -> Response[PublicUserRead]:
     """Create a user directly, bypassing registration gating and email verification.
 
-    Creating an admin needs a browser session.
+    Creating an admin needs a recently signed-in browser session.
     """
     if obj.role is UserRole.admin:
-        require_session(granted)
+        require_fresh_session(request, granted)
     try:
         result = await crud.UserCrud.create(
             session=session,
@@ -224,7 +226,11 @@ async def update_user(
     admin: CurrentUserDep,
     granted: TokenScopesDep,
 ) -> Response[PublicUserRead]:
-    """Update a user; granting admin or changing an email needs a browser session."""
+    """Update a user.
+
+    Granting admin or changing an email needs a fresh session; demoting or
+    deactivating an admin needs one unless called with an API token.
+    """
     target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
     email_changed = (
         target is not None and obj.email is not None and obj.email != target.email
@@ -232,8 +238,15 @@ async def update_user(
     granting_admin = obj.role is UserRole.admin and (
         target is None or target.role is not UserRole.admin
     )
+    disarming_admin = (
+        target is not None
+        and target.role is UserRole.admin
+        and (obj.role not in (None, UserRole.admin) or obj.is_active is False)
+    )
     if email_changed or granting_admin:
-        require_session(granted)
+        require_fresh_session(request, granted)
+    elif disarming_admin:
+        require_fresh_unless_token(request, granted)
     if email_changed:
         # Changing the address invalidates any prior verification of it.
         await crud.UserCrud.update(
@@ -279,7 +292,7 @@ async def admin_reset_totp(
     session: SessionDep,
     redis: RedisDep,
     uuid: UUID,
-    admin: SessionOnlyDep,
+    admin: FreshSessionDep,
 ):
     """Clear TOTP for a user (admin action, no OTP code required)."""
     target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
@@ -306,7 +319,7 @@ async def admin_create_password_reset_token(
     session: SessionDep,
     redis: RedisDep,
     uuid: UUID,
-    admin: SessionOnlyDep,
+    admin: FreshSessionDep,
 ) -> Response[str]:
     """Generate a single-use password reset token for a user (valid 1 hour)."""
     target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
@@ -324,7 +337,7 @@ async def admin_create_password_reset_token(
     return Response(data=token)
 
 
-@user_router.delete("/{uuid}")
+@user_router.delete("/{uuid}", dependencies=[FreshAuthDep])
 async def delete_user(
     request: Request,
     session: SessionDep,

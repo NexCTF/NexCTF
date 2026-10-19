@@ -244,6 +244,11 @@ class PasswordChangeRequest(PydanticBase):
     new_password: NewPassword
 
 
+class ReauthRequest(PydanticBase):
+    password: str | None = None
+    totp_code: str | None = None
+
+
 class ForgotPasswordRequest(PydanticBase):
     email: EmailStr
 

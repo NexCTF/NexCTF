@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from uuid import UUID
@@ -8,7 +9,12 @@ import pyotp
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from fastapi import Request, Response
-from fastapi_multiauth import APIKeyCookieAuth, HTTPBearerAuth, MultiAuth
+from fastapi_multiauth import (
+    APIKeyCookieAuth,
+    HTTPBearerAuth,
+    MultiAuth,
+    StaleCredentialError,
+)
 from fastapi_toolsets.exceptions import ForbiddenError, UnauthorizedError
 from redis.asyncio import Redis
 from sqlalchemy import or_, update
@@ -21,11 +27,17 @@ from nexctf.core.config import settings
 from nexctf.core.db import get_auth_db_context, get_db_context
 from nexctf.model import User, UserRole, UserToken
 from nexctf.module.client import ClientInfo
-from nexctf.module.session import SESSION_TTL, start_session, touch_live_session
+from nexctf.module.session import (
+    SESSION_TTL,
+    rotate_session,
+    start_session,
+    touch_live_session,
+)
 from nexctf.schema import UserTokenCreate
 
 TOKEN_PREFIX = "nexctf_"
 LAST_USED_THROTTLE = timedelta(minutes=5)
+REAUTH_WINDOW = 600  # 10 minutes
 
 _ph = PasswordHasher(time_cost=2, memory_cost=19456, parallelism=1)
 
@@ -69,7 +81,8 @@ async def issue_single_use_token(
     """Mint a single-use token and store its hash → subject under ``prefix``.
 
     Only the token's hash is persisted (with a TTL); the raw token is returned to
-    the caller to embed in a link. Shared by password-reset and email-verification.
+    the caller to embed in a link. Shared by password-reset, email-verification
+    and backup downloads.
     """
     token = secrets.token_urlsafe(32)
     await redis.set(f"{prefix}{_hash_token(token)}", subject, ex=ttl)
@@ -207,14 +220,38 @@ def current_sid_hash(request: Request) -> str | None:
     return _hash_token(sid) if sid else None
 
 
+def require_fresh_cookie(request: Request) -> None:
+    """Refuse a session cookie signed longer ago than the re-authentication window."""
+    signed_at = cookie_auth.authenticated_at(request.cookies.get(cookie_auth.name, ""))
+    if signed_at is None or not 0 <= time.time() - signed_at <= REAUTH_WINDOW:
+        raise StaleCredentialError(max_age=REAUTH_WINDOW)
+
+
+def _set_session_cookie(response: Response, user: User) -> str:
+    """Set a newly signed session cookie for *user*, returning its session id."""
+    sid = cookie_auth.set_cookie(response, f"{user.id}:{user.session_version}")
+    if sid is None:  # session_id=True always mints one
+        raise RuntimeError("cookie_auth must be built with session_id=True")
+    return sid
+
+
 async def issue_session_cookie(
     db: AsyncSession, response: Response, user: User, request: Request
 ) -> None:
     """Sign the user in on this device: set the cookie and record its session."""
-    sid = cookie_auth.set_cookie(response, f"{user.id}:{user.session_version}")
-    if sid is None:  # session_id=True always mints one
-        raise RuntimeError("cookie_auth must be built with session_id=True")
+    sid = _set_session_cookie(response, user)
     await start_session(db, sid, user=user, request=request)
+
+
+async def reissue_session_cookie(
+    db: AsyncSession, response: Response, user: User, request: Request
+) -> None:
+    """Re-sign this device's cookie in place, keeping its session row and expiry."""
+    old_sid = cookie_auth.session_id_of(request)
+    if old_sid is None:
+        raise UnauthorizedError()
+    if not await rotate_session(db, old_sid, _set_session_cookie(response, user)):
+        raise UnauthorizedError()
 
 
 async def create_api_token(

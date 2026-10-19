@@ -10,8 +10,16 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.routing import RouteContext, iter_route_contexts
 
-from nexctf.api.dep import AdminAuthDep, _current_user, _optional_auth, _session_only
+from nexctf.api.dep import (
+    AdminAuthDep,
+    _current_user,
+    _fresh_session,
+    _fresh_unless_token,
+    _optional_auth,
+    _session_only,
+)
 from nexctf.api.scope import VERB_OF_METHOD, group_for_path
+from nexctf.api.security import REAUTH_WINDOW
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -21,6 +29,12 @@ _SESSION_ONLY_NOTE = (
     "**API tokens:** not accepted, this endpoint needs a browser session."
 )
 _PUBLIC_NOTE = "**Authentication:** none required, this endpoint is public."
+_FRESH_SESSION_NOTE = (
+    "**Re-authentication:** the session must have signed in within the last "
+    f"{REAUTH_WINDOW // 60} minutes, else `AUTH-REAUTH-REQUIRED`; "
+    "renew it with `POST /auth/reauth`."
+)
+_TOKENS_SKIP = " API tokens skip this check."
 
 
 def flat_dependency_calls(dependant: Dependant) -> set[Callable[..., Any]]:
@@ -61,6 +75,7 @@ def _annotate_scopes(
     """Publish each operation's required token scope, in the body and the docs."""
     session_only = _session_only_operations(contexts)
     authenticated = _authenticated_operations(contexts)
+    fresh = _operations_reaching(contexts, _fresh_session, _fresh_unless_token)
     for path, operations in schema.get("paths", {}).items():
         group = group_for_path(path)
         for method, operation in operations.items():
@@ -73,6 +88,9 @@ def _annotate_scopes(
                 scope = f"{verb}:{group}"
                 operation["x-token-scope"] = scope
                 note = f"**Required token scope:** `{scope}`"
+            if (path, method) in fresh:
+                skip = "" if (path, method) in session_only else _TOKENS_SKIP
+                note = f"{note}\n\n{_FRESH_SESSION_NOTE}{skip}"
             description = operation.get("description", "")
             operation["description"] = f"{description}\n\n{note}".lstrip()
     return schema

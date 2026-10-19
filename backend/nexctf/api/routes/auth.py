@@ -26,7 +26,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from nexctf import crud
-from nexctf.api.dep import ConfigDep, ProviderDep, RedisDep, SessionDep
+from nexctf.api.dep import (
+    ConfigDep,
+    ProviderDep,
+    RedisDep,
+    SessionDep,
+    SessionOnlyDep,
+)
 from nexctf.api.security import (
     EMAIL_VERIFY_KEY_PREFIX,
     EMAIL_VERIFY_TTL,
@@ -38,6 +44,7 @@ from nexctf.api.security import (
     issue_password_reset_token,
     issue_session_cookie,
     issue_single_use_token,
+    reissue_session_cookie,
     verify_password,
     verify_totp_once,
 )
@@ -89,6 +96,7 @@ from nexctf.schema.user import (
     EmailVerifyRequest,
     ForgotPasswordRequest,
     PasswordResetRequest,
+    ReauthRequest,
     ResendVerificationRequest,
     UserEmailVerifiedUpdate,
     UserPasswordUpdate,
@@ -325,6 +333,66 @@ async def login(
         actor_id=user.id,
         ip=client_ip,
         meta={"username": user.username, **team_meta(user)},
+    )
+
+
+async def _reauth_failure_reason(
+    redis: Redis, user: User, body: ReauthRequest
+) -> str | None:
+    """Why *body* does not re-prove *user*'s identity, or None when it does."""
+    if not (user.hashed_password or user.totp_secret):
+        return "no_factor"
+    if user.hashed_password and not verify_password(
+        body.password or "", user.hashed_password
+    ):
+        return "bad_password"
+    if user.totp_secret:
+        if not body.totp_code:
+            raise TotpRequiredError()
+        if not await verify_totp_once(redis, user.id, user.totp_secret, body.totp_code):
+            return "bad_totp"
+    return None
+
+
+@auth_router.post("/reauth", status_code=204)
+async def reauth(
+    request: Request,
+    session: SessionDep,
+    redis: RedisDep,
+    response: RawResponse,
+    overrides: ConfigDep,
+    body: ReauthRequest,
+    user: SessionOnlyDep,
+):
+    """Re-prove the signed-in user's identity and re-sign this session in place.
+
+    Takes the password, plus a TOTP code when 2FA is on; an account without a
+    password re-proves with its TOTP code alone, or by signing in through OAuth.
+    """
+    await check_config_rate_limit(
+        redis, overrides, name="login", key=client_rate_key("login", request)
+    )
+    client_ip = get_client_ip(request)
+    reason = await _reauth_failure_reason(redis, user, body)
+    if reason is not None:
+        await _record_login_failure(
+            session,
+            redis,
+            username=user.username,
+            ip=client_ip,
+            actor_id=user.id,
+            reason=f"reauth_{reason}",
+        )
+        raise InvalidOtpError() if reason == "bad_totp" else InvalidCredentialsError()
+    await reissue_session_cookie(session, response, user, request)
+    logger.info("reauth for %s", user.username)
+    await emit(
+        session,
+        redis,
+        event_type="user.reauth",
+        actor_id=user.id,
+        ip=client_ip,
+        meta={"username": user.username},
     )
 
 
@@ -786,5 +854,8 @@ async def oauth_callback(
         },
     )
 
-    await issue_session_cookie(db, redirect, user, request)
+    if current_user is not None:
+        await reissue_session_cookie(db, redirect, user, request)
+    else:
+        await issue_session_cookie(db, redirect, user, request)
     return redirect

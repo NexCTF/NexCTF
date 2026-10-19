@@ -14,6 +14,7 @@
       "delete_hint": "Supprimer cette sauvegarde du stockage",
       "deleted": "Sauvegarde supprimée",
       "download": "Télécharger",
+      "download_error": "Échec du téléchargement",
       "download_hint": "Télécharger cette sauvegarde sur votre ordinateur",
       "empty": "Aucune sauvegarde pour le moment.",
       "last_restore_failed": "La dernière restauration n'a pas abouti : {{status}}",
@@ -1079,6 +1080,15 @@
     "saved": "Profil enregistré",
     "section_hint": "Affiché à côté de votre nom sur la page publique de votre équipe.",
     "section_title": "Profil"
+  },
+  "reauth": {
+    "description": "Cette action nécessite une connexion récente. Confirmez votre identité pour continuer.",
+    "failed": "Impossible de confirmer votre identité.",
+    "or_provider": "Ou reconnectez-vous avec",
+    "password": "Mot de passe",
+    "submit": "Confirmer",
+    "title": "Confirmez votre identité",
+    "totp": "Code d’authentification"
   },
   "register": {
     "email": "Email (optionnel)",

@@ -7,23 +7,32 @@ from pathlib import Path
 from botocore.exceptions import ClientError
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
+from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import Response
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.api.dep import RedisDep, SessionDep
+from nexctf.api.dep import FreshAuthDep, RedisDep, SessionDep
+from nexctf.api.security import consume_single_use_token, issue_single_use_token
 from nexctf.core import s3
 from nexctf.exceptions import BackupFailedError
 from nexctf.module import backup
 from nexctf.module.audit import audit_actor
 from nexctf.module.events import emit
-from nexctf.schema.backup import AdminBackupList, AdminBackupRead, BackupSource
+from nexctf.schema.backup import (
+    AdminBackupDownloadTicket,
+    AdminBackupList,
+    AdminBackupRead,
+    BackupSource,
+)
 
 backup_router = APIRouter(prefix="/backup", tags=["Backup"])
 
 _RESTORE_SCRIPT = Path(__file__).resolve().parents[4] / "scripts/restore.sh"
 _RESTORE_LOG = "/tmp/nexctf-restore.log"
 _RESTORE_STATUS = Path("/tmp/nexctf-restore.status")
+_DOWNLOAD_PREFIX = "backup_download:"
+_DOWNLOAD_TTL = 60
 
 
 def _key_or_400(key: str) -> str:
@@ -103,10 +112,23 @@ async def create_backup(
     )
 
 
-@backup_router.get("/download")
-async def download_backup(key: str) -> StreamingResponse:
-    """Stream a dump through the authenticated API."""
+@backup_router.post("/download", dependencies=[FreshAuthDep])
+async def issue_download_ticket(
+    session: SessionDep, redis: RedisDep, key: str
+) -> Response[AdminBackupDownloadTicket]:
+    """Issue a one-time, short-lived ticket to download a dump."""
     _key_or_400(key)
+    ticket = await issue_single_use_token(redis, _DOWNLOAD_PREFIX, _DOWNLOAD_TTL, key)
+    await _audit(session, redis, "backup.downloaded", key)
+    return Response(data=AdminBackupDownloadTicket(ticket=ticket))
+
+
+@backup_router.get("/download")
+async def download_backup(redis: RedisDep, ticket: str) -> StreamingResponse:
+    """Stream the dump a download ticket was issued for."""
+    key = await consume_single_use_token(redis, _DOWNLOAD_PREFIX, ticket)
+    if key is None:
+        raise NotFoundError()
 
     async def body():
         async with s3.stream(key) as chunks:
@@ -121,7 +143,7 @@ async def download_backup(key: str) -> StreamingResponse:
     )
 
 
-@backup_router.post("/restore")
+@backup_router.post("/restore", dependencies=[FreshAuthDep])
 async def restore_backup(
     session: SessionDep, redis: RedisDep, key: str
 ) -> Response[None]:
@@ -150,7 +172,7 @@ async def restore_backup(
     return Response(message="Restore started; the platform is restarting.")
 
 
-@backup_router.delete("")
+@backup_router.delete("", dependencies=[FreshAuthDep])
 async def delete_backup(
     session: SessionDep, redis: RedisDep, key: str
 ) -> Response[None]:

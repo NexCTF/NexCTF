@@ -125,6 +125,20 @@ function BackupRow({
       ),
   });
 
+  const download = useMutation({
+    mutationFn: () => adminBackupDownloadUrl(backup.key),
+    onSuccess: (url) => {
+      window.location.href = url;
+    },
+    onError: (err) =>
+      toast.error(
+        apiErrorMessage(
+          err,
+          t("admin.backups.download_error", { defaultValue: "Download failed" }),
+        ),
+      ),
+  });
+
   const name = backup.key.replace(PREFIX, "");
 
   return (
@@ -151,9 +165,8 @@ function BackupRow({
             title={t("admin.backups.download_hint", {
               defaultValue: "Download this dump to your computer",
             })}
-            onClick={() => {
-              window.location.href = adminBackupDownloadUrl(backup.key);
-            }}
+            disabled={download.isPending}
+            onClick={() => download.mutate()}
           >
             <Download className="size-3.5" />
           </Button>

@@ -58,6 +58,7 @@ class ConfigDef:
     min: float | None = None  # INT and FLOAT only
     max: float | None = None  # INT and FLOAT only
     category: str = "general"
+    reauth: bool = False  # saving it from a browser needs a fresh sign-in
 
 
 _DEFS: dict[str, ConfigDef] = {}

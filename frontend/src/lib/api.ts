@@ -1,3 +1,5 @@
+import { promptReauth, REAUTH_REQUIRED } from "@/lib/reauth";
+
 const BASE = "/api/v1";
 
 // ---------------------------------------------------------------------------
@@ -59,7 +61,17 @@ async function throwIfNotOk(res: Response): Promise<void> {
   }
 }
 
+/** Send once more after the user signs in again, when the API asks for it. */
 async function rawRequest(path: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await sendRequest(path, init);
+  } catch (err) {
+    if (!isReauthRequired(err) || !(await promptReauth())) throw err;
+    return sendRequest(path, init);
+  }
+}
+
+async function sendRequest(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(`${BASE}${path}`, {
     credentials: "include",
     ...init,
@@ -143,6 +155,11 @@ function formatFieldError({ field, message }: FieldError): string {
   return field === "root" ? text : `${field}: ${text}`;
 }
 
+/** Whether the API refused an action until the user signs in again. */
+export function isReauthRequired(err: unknown): boolean {
+  return err instanceof ApiError && err.errCode === REAUTH_REQUIRED;
+}
+
 /** Extract a human-readable message from an error, falling back to a provided string. */
 export function apiErrorMessage(err: unknown, fallback: string): string {
   if (!(err instanceof ApiError)) return fallback;
@@ -195,6 +212,14 @@ export async function login(
     body,
   });
   await throwIfNotOk(res);
+}
+
+/** Prove the signed-in user's identity again, renewing this session in place. */
+export async function reauth(password: string | null, totpCode: string | null): Promise<void> {
+  await rawRequest("/auth/reauth", {
+    method: "POST",
+    body: JSON.stringify({ password, totp_code: totpCode }),
+  });
 }
 
 export async function logout(): Promise<void> {
@@ -2200,9 +2225,13 @@ export async function deleteAdminBackup(key: string): Promise<void> {
   await rawRequest(`/admin/backup?key=${encodeURIComponent(key)}`, { method: "DELETE" });
 }
 
-/** URL of the authenticated endpoint streaming a dump; navigate to it to download. */
-export function adminBackupDownloadUrl(key: string): string {
-  return `${BASE}/admin/backup/download?key=${encodeURIComponent(key)}`;
+/** Issue a one-time ticket and return the URL streaming the dump; navigate to it to download. */
+export async function adminBackupDownloadUrl(key: string): Promise<string> {
+  const { ticket } = await request<{ ticket: string }>(
+    `/admin/backup/download?key=${encodeURIComponent(key)}`,
+    { method: "POST" },
+  );
+  return `${BASE}/admin/backup/download?ticket=${encodeURIComponent(ticket)}`;
 }
 
 // ---------------------------------------------------------------------------

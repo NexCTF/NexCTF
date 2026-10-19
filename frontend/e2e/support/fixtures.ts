@@ -17,6 +17,8 @@ import {
 } from "./api";
 
 interface Fixtures {
+  /** The seeded admin freshly signed in, for setup an API token is refused. */
+  adminSession: APIRequestContext;
   /** A fresh, verified account that is not signed in anywhere yet. */
   account: Account;
   /** `account`, signed in on `page` but without a team. */
@@ -27,8 +29,6 @@ interface Fixtures {
 
 interface WorkerFixtures {
   admin: APIRequestContext;
-  /** The seeded admin with a browser session, for setup an API token is refused. */
-  adminSession: APIRequestContext;
 }
 
 export const test = base.extend<Fixtures, WorkerFixtures>({
@@ -41,15 +41,12 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     },
     { scope: "worker" },
   ],
-  adminSession: [
-    // biome-ignore lint/correctness/noEmptyPattern: Playwright requires the destructuring
-    async ({}, use) => {
-      const admin = await adminSessionApi();
-      await use(admin);
-      await admin.dispose();
-    },
-    { scope: "worker" },
-  ],
+  // biome-ignore lint/correctness/noEmptyPattern: Playwright requires the destructuring
+  adminSession: async ({}, use) => {
+    const admin = await adminSessionApi();
+    await use(admin);
+    await admin.dispose();
+  },
   account: async ({ admin }, use) => {
     await use(await createAccount(admin));
   },

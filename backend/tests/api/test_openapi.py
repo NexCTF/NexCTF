@@ -67,3 +67,21 @@ async def test_optional_auth_operations_declare_their_security(
             checked += 1
 
     assert checked, "no optional-auth operation found in the public schema"
+
+
+async def test_reauth_gates_are_documented(
+    admin_client: tuple[AsyncClient, User],
+) -> None:
+    """Operations behind the re-auth window say so, and whether tokens skip it."""
+    c, _ = admin_client
+    public = (await c.get(f"{_ROOT}/api/openapi.json")).json()["paths"]
+    admin = (await c.get(f"{_ROOT}/api/admin/openapi.json")).json()["paths"]
+
+    token_mint = public[f"{settings.API_V1_STR}/me/tokens"]["post"]["description"]
+    user_delete = admin[f"{_ADMIN_PREFIX}/user/{{uuid}}"]["delete"]["description"]
+    token_list = public[f"{settings.API_V1_STR}/me/tokens"]["get"]["description"]
+
+    assert "AUTH-REAUTH-REQUIRED" in token_mint
+    assert "API tokens skip this check" not in token_mint
+    assert "API tokens skip this check" in user_delete
+    assert "AUTH-REAUTH-REQUIRED" not in token_list
