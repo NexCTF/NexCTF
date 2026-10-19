@@ -34,6 +34,7 @@ from nexctf.module.session import (
     account_origin,
     live_sessions,
     revoke_session_by_id,
+    revoke_user_sessions,
 )
 from nexctf.schema.custom_field import AdminCustomFieldValueRead
 from nexctf.schema.event import AdminEventRead
@@ -42,6 +43,7 @@ from nexctf.schema.user import (
     AdminUserCreate,
     AdminUserDetailRead,
     AdminUserUpdate,
+    AdminUserUpdateRead,
     AdminUserUpdateRequest,
     PublicUserRead,
     UserCreate,
@@ -228,8 +230,8 @@ async def update_user(
     obj: AdminUserUpdateRequest,
     admin: CurrentUserDep,
     granted: TokenScopesDep,
-) -> Response[PublicUserRead]:
-    """Update a user.
+) -> Response[AdminUserUpdateRead]:
+    """Update a user; granting admin signs them out everywhere.
 
     Granting admin or changing an email needs a fresh session; demoting or
     deactivating an admin needs one unless called with an API token.
@@ -250,6 +252,8 @@ async def update_user(
         require_fresh_session(request, granted)
     elif disarming_admin:
         require_fresh_unless_token(request, granted)
+    if target is None:
+        raise NotFoundError()
     if email_changed:
         # Changing the address invalidates any prior verification of it.
         await crud.UserCrud.update(
@@ -258,7 +262,7 @@ async def update_user(
             obj=UserEmailVerifiedUpdate(id=uuid, email_verified=False),
         )
     fields = obj.model_dump(exclude={"custom_fields"}, exclude_unset=True)
-    access_changed = target is not None and any(
+    access_changed = any(
         key in fields and fields[key] != getattr(target, key)
         for key in ("role", "is_active", "team_id")
     )
@@ -267,7 +271,7 @@ async def update_user(
             session=session,
             filters=[User.id == uuid],
             obj=AdminUserUpdate(**fields),
-            schema=PublicUserRead,
+            schema=AdminUserUpdateRead,
         )
     except IntegrityError:
         raise ConflictError(detail="Username or email already taken")
@@ -275,7 +279,11 @@ async def update_user(
         await replace_custom_field_values(
             session, obj.custom_fields, user_id=uuid, self_service=False
         )
-    changes = {k: v for k, v in fields.items() if k != "id"}
+    changes = {k: str(v) for k, v in fields.items() if k != "id"}
+    meta = {"target_user_id": str(uuid), **changes}
+    if granting_admin:
+        await revoke_user_sessions(session, target)
+        meta["sessions_revoked"] = "true"
     if access_changed:
         background_tasks.add_task(close_user_streams, redis, uuid)
     await emit(
@@ -284,8 +292,10 @@ async def update_user(
         event_type="admin.user_updated",
         actor_id=admin.id,
         ip=get_client_ip(request),
-        meta={"target_user_id": str(uuid), **{k: str(v) for k, v in changes.items()}},
+        meta=meta,
     )
+    if result.data is not None:
+        result.data.sessions_revoked = granting_admin
     return result
 
 

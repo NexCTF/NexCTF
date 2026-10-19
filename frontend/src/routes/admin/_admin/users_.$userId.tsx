@@ -252,8 +252,15 @@ function EditUserDialog({
         links,
         custom_fields: cfValues,
       }),
-    onSuccess: () => {
-      toast.success(t("admin.users.saved"));
+    onSuccess: (saved) => {
+      toast.success(t("admin.users.saved"), {
+        description: saved.sessions_revoked
+          ? t("admin.users.promoted_signed_out", {
+              defaultValue: "{{username}} was signed out everywhere and must sign in again.",
+              username: saved.username,
+            })
+          : undefined,
+      });
       setOpen(false);
       onSaved();
     },

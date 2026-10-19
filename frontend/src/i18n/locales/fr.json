@@ -647,6 +647,7 @@
       "no_team": "Aucune équipe",
       "not_found": "Utilisateur introuvable.",
       "password_hint": "Copiez-le avant de créer : il ne sera plus affiché.",
+      "promoted_signed_out": "{{username}} a été déconnecté partout et doit se reconnecter.",
       "pwd_reset_btn": "Token de réinitialisation",
       "pwd_reset_copied": "Token copié dans le presse-papiers",
       "pwd_reset_dialog_desc": "Partagez ce token à usage unique avec l'utilisateur. Il expire dans 1 heure.",

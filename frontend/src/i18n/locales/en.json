@@ -645,6 +645,7 @@
       "no_team": "No team",
       "not_found": "User not found.",
       "password_hint": "Copy it before creating: it is not shown again.",
+      "promoted_signed_out": "{{username}} was signed out everywhere and must sign in again.",
       "pwd_reset_btn": "Password reset token",
       "pwd_reset_copied": "Token copied to clipboard",
       "pwd_reset_dialog_desc": "Share this single-use token with the user. It expires in 1 hour.",
