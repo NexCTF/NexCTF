@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, Metric
 from redis.asyncio import Redis
@@ -19,12 +19,12 @@ from nexctf.model import (
     UserRole,
     UserSession,
 )
-from nexctf.module.session import FAILED_LOGIN_EVENT
+from nexctf.module.session import FAILED_LOGIN_EVENT, live_filter, session_idle
 from nexctf.module.stats import get_all_challenge_stats
 from nexctf.util.sql import count_of
 
 
-async def _counts(session: AsyncSession) -> dict[str, int]:
+async def _counts(session: AsyncSession, idle: timedelta | None) -> dict[str, int]:
     """Every plain row count, fetched in one round-trip."""
     queries = {
         **{
@@ -37,7 +37,7 @@ async def _counts(session: AsyncSession) -> dict[str, int]:
         "submissions_true": count_of(Submission, Submission.is_correct.is_(True)),
         "submissions_false": count_of(Submission, Submission.is_correct.is_(False)),
         "hint_unlocks": count_of(HintUnlock),
-        "sessions": count_of(UserSession, UserSession.expires_at > datetime.now(UTC)),
+        "sessions": count_of(UserSession, *live_filter(datetime.now(UTC), idle)),
     }
     row = await session.execute(
         select(*(query.label(name) for name, query in queries.items()))
@@ -75,9 +75,11 @@ async def _solves(session: AsyncSession, redis: Redis) -> Metric:
     return solves
 
 
-async def domain_metrics(session: AsyncSession, redis: Redis) -> list[Metric]:
+async def domain_metrics(
+    session: AsyncSession, redis: Redis, overrides: dict[str, str]
+) -> list[Metric]:
     """Users, teams, challenges, submissions, solves, hints, sessions and logins."""
-    counts = await _counts(session)
+    counts = await _counts(session, session_idle(overrides))
 
     users = GaugeMetricFamily("nexctf_users", "Registered users.", labels=["role"])
     for role in UserRole:
@@ -106,7 +108,7 @@ async def domain_metrics(session: AsyncSession, redis: Redis) -> list[Metric]:
         ),
         GaugeMetricFamily(
             "nexctf_active_sessions",
-            "Signed-in browser sessions that have not expired.",
+            "Signed-in browser sessions that have not expired or gone idle.",
             value=counts["sessions"],
         ),
         await _login_failures(session),

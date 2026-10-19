@@ -782,6 +782,12 @@
         "label": "URL du logo (mode sombre)"
       }
     },
+    "auth": {
+      "session_idle_minutes": {
+        "description": "Minutes sans activité avant qu’une session de navigateur soit déconnectée, en plus de la limite de 24 h. 0 la désactive.",
+        "label": "Expiration des sessions inactives (minutes)"
+      }
+    },
     "canary": {
       "enabled": {
         "description": "Place un marqueur invisible dans le texte des épreuves. Sa soumission est journalisée comme réponse assistée par IA suspectée",

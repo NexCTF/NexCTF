@@ -2,6 +2,7 @@
 
 import pytest
 from fastapi_toolsets.exceptions import UnauthorizedError
+from starlette.requests import Request
 
 from nexctf.api.security import _verify_cookie
 
@@ -19,4 +20,6 @@ class TestVerifyCookie:
     )
     async def test_malformed_payload_is_unauthorized(self, credential: str) -> None:
         with pytest.raises(UnauthorizedError):
-            await _verify_cookie(credential, session_id="irrelevant")
+            await _verify_cookie(
+                credential, session_id="irrelevant", request=Request({"type": "http"})
+            )

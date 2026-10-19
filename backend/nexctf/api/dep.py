@@ -1,5 +1,6 @@
 import json
 from collections.abc import AsyncGenerator, Awaitable, Callable
+from datetime import timedelta
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -18,7 +19,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
 from nexctf.api.scope import VERB_OF_METHOD, enforce_token_scope, token_scopes_of
-from nexctf.api.security import auth, client_of, cookie_auth, require_fresh_cookie
+from nexctf.api.security import (
+    auth,
+    client_of,
+    cookie_auth,
+    request_overrides,
+    require_fresh_cookie,
+)
 from nexctf.core import appconfig
 from nexctf.core.cache import get_redis
 from nexctf.core.db import db
@@ -32,7 +39,7 @@ from nexctf.exceptions import (
 from nexctf.model import Challenge, OAuthProvider, Solution, Team, User, UserRole
 from nexctf.module.audit import AuditContext, set_audit_context
 from nexctf.module.client import category_expression, record_sighting
-from nexctf.module.session import track_session_ip
+from nexctf.module.session import session_idle, track_session_ip
 from nexctf.plugins.registry import (
     challenge_registry,
     solution_registry,
@@ -92,12 +99,20 @@ async def _current_admin(user: _AuthedAdmin, tracked: CurrentUserDep) -> User:
 AdminAuthDep = Depends(_current_admin)
 
 
-async def _config_overrides(redis: RedisDep) -> dict[str, str]:
+async def _config_overrides(request: Request, redis: RedisDep) -> dict[str, str]:
     """Per-request snapshot of the config overrides."""
-    return await appconfig.fetch_overrides(redis)
+    return await request_overrides(request, redis)
 
 
 ConfigDep = Annotated[dict[str, str], Depends(_config_overrides)]
+
+
+async def _session_idle(overrides: ConfigDep) -> timedelta | None:
+    """The idle timeout browser sessions are held to, None when disabled."""
+    return session_idle(overrides)
+
+
+SessionIdleDep = Annotated[timedelta | None, Depends(_session_idle)]
 
 
 async def _client_category(overrides: ConfigDep) -> ColumnElement[str]:

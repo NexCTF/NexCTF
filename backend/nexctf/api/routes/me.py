@@ -21,6 +21,7 @@ from nexctf.api.dep import (
     FreshSessionDep,
     RedisDep,
     SessionDep,
+    SessionIdleDep,
     SessionOnlyDep,
     can_view_scoreboard,
     challenges_hidden_before_start,
@@ -188,10 +189,11 @@ async def revoke_token(
 async def list_sessions(
     request: Request,
     session: SessionDep,
+    idle: SessionIdleDep,
     user: CurrentUserDep,
 ) -> Response[list[UserSessionRead]]:
     """List the user's live sessions, newest activity first."""
-    rows = await live_sessions(session, user.id)
+    rows = await live_sessions(session, user.id, idle)
     this_hash = current_sid_hash(request)
     return Response(
         data=[

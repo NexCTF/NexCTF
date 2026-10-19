@@ -21,7 +21,7 @@ async def collect_metrics(session: AsyncSession, redis: Redis) -> list[Metric]:
     return [
         *build_metrics(),
         *competition_metrics(overrides),
-        *await domain_metrics(session, redis),
+        *await domain_metrics(session, redis, overrides),
         *await queue_metrics(session),
         *await counter_metrics(redis),
     ]

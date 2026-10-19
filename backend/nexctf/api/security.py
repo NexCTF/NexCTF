@@ -23,6 +23,8 @@ from sqlalchemy.orm import selectinload
 
 from nexctf import crud
 from nexctf.api.scope import bind_token, token_id_of, with_implied_reads
+from nexctf.core import appconfig
+from nexctf.core.cache import get_client
 from nexctf.core.config import settings
 from nexctf.core.db import get_auth_db_context, get_db_context
 from nexctf.model import User, UserRole, UserToken
@@ -30,6 +32,7 @@ from nexctf.module.client import ClientInfo
 from nexctf.module.session import (
     SESSION_TTL,
     rotate_session,
+    session_idle,
     start_session,
     touch_live_session,
 )
@@ -166,9 +169,23 @@ async def _verify_token(
         return user
 
 
+async def request_overrides(request: Request, redis: Redis) -> dict[str, str]:
+    """The config overrides snapshot for *request*, fetched once and then reused."""
+    cached = getattr(request.state, "config_overrides", None)
+    if cached is None:
+        cached = request.state.config_overrides = await appconfig.fetch_overrides(redis)
+    return cached
+
+
 async def _verify_cookie(
-    credential: str, *, session_id: str, role: UserRole | None = None
+    credential: str,
+    *,
+    session_id: str,
+    role: UserRole | None = None,
+    request: Request | None = None,
 ) -> User:
+    if request is None:
+        raise UnauthorizedError()
     try:
         user_id_str, version_str = credential.split(":", 1)
         expected_version = int(version_str)
@@ -176,6 +193,7 @@ async def _verify_cookie(
     except ValueError:
         raise UnauthorizedError()
 
+    idle = session_idle(await request_overrides(request, get_client()))
     async with get_auth_db_context() as db:
         user = await crud.UserCrud.first(session=db, filters=[User.id == user_id])
 
@@ -185,7 +203,7 @@ async def _verify_cookie(
         if user.session_version != expected_version:
             raise UnauthorizedError()
 
-        if not await touch_live_session(db, session_id, user_id):
+        if not await touch_live_session(db, session_id, user_id, idle):
             raise UnauthorizedError()
 
     if role is not None and user.role != role:

@@ -12,10 +12,11 @@ from uuid import UUID
 
 from fastapi import Request
 from fastapi_multiauth import hash_token
-from sqlalchemy import Row, Uuid, case, func, select, update
+from sqlalchemy import ColumnElement, Row, Uuid, case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
+from nexctf.core import appconfig
 from nexctf.enums import SessionWindow
 from nexctf.model import Event, Team, User, UserSession, UserToken
 from nexctf.schema.user import (
@@ -39,6 +40,7 @@ FAILED_LOGIN_EVENT = "user.login_failed"
 DAY_WINDOW = timedelta(hours=24)
 FAILED_USERNAME_LIMIT = 20
 FAILED_USERNAME_MAX = 64
+IDLE_TIMEOUT_KEY = "auth.session_idle_minutes"
 
 
 class AccountOrigin(NamedTuple):
@@ -54,6 +56,20 @@ class _Grouping(NamedTuple):
     addresses: dict[str, list[AdminAddressAccountRead]]
     session_count: int
     account_count: int
+
+
+def session_idle(overrides: dict[str, str]) -> timedelta | None:
+    """The configured idle timeout, None when it is disabled."""
+    minutes = int(appconfig.get_with_overrides(IDLE_TIMEOUT_KEY, overrides))
+    return timedelta(minutes=minutes) if minutes else None
+
+
+def live_filter(now: datetime, idle: timedelta | None) -> list[ColumnElement[bool]]:
+    """Conditions keeping sessions live at *now*: unexpired and not idle."""
+    conditions = [UserSession.expires_at > now]
+    if idle is not None:
+        conditions.append(UserSession.last_seen_at > now - idle)
+    return conditions
 
 
 def team_meta(user: User) -> dict[str, str | None]:
@@ -96,7 +112,9 @@ async def rotate_session(db: AsyncSession, old_sid: str, new_sid: str) -> bool:
     return moved is not None
 
 
-async def touch_live_session(db: AsyncSession, sid: str, user_id: UUID) -> bool:
+async def touch_live_session(
+    db: AsyncSession, sid: str, user_id: UUID, idle: timedelta | None
+) -> bool:
     """Return whether *sid* is live for *user_id*, refreshing its last-seen time."""
     now = datetime.now(UTC)
     row = await crud.UserSessionCrud.first(
@@ -104,29 +122,31 @@ async def touch_live_session(db: AsyncSession, sid: str, user_id: UUID) -> bool:
         filters=[
             UserSession.sid_hash == hash_token(sid),
             UserSession.user_id == user_id,
-            UserSession.expires_at > now,
+            *live_filter(now, idle),
         ],
     )
     if row is None:
         return False
-    if now - row.last_seen_at >= LAST_SEEN_THROTTLE:
+    throttle = LAST_SEEN_THROTTLE if idle is None else min(LAST_SEEN_THROTTLE, idle / 2)
+    if now - row.last_seen_at >= throttle:
         row.last_seen_at = now
     return True
 
 
-async def live_sessions(db: AsyncSession, user_id: UUID) -> Sequence[UserSession]:
-    """A user's unexpired sessions, most recently active first."""
+async def live_sessions(
+    db: AsyncSession, user_id: UUID, idle: timedelta | None
+) -> Sequence[UserSession]:
+    """A user's live sessions, most recently active first."""
     return await crud.UserSessionCrud.get_multi(
         session=db,
-        filters=[
-            UserSession.user_id == user_id,
-            UserSession.expires_at > datetime.now(UTC),
-        ],
+        filters=[UserSession.user_id == user_id, *live_filter(datetime.now(UTC), idle)],
         order_by=UserSession.last_seen_at.desc(),
     )
 
 
-async def account_origin(db: AsyncSession, user_id: UUID) -> AccountOrigin:
+async def account_origin(
+    db: AsyncSession, user_id: UUID, idle: timedelta | None
+) -> AccountOrigin:
     """One account's addresses: its live sessions, else where it last signed in."""
     login = (
         await db.execute(
@@ -137,7 +157,7 @@ async def account_origin(db: AsyncSession, user_id: UUID) -> AccountOrigin:
         )
     ).first()
     pairs = dict.fromkeys(
-        (row.ip, row.last_ip) for row in await live_sessions(db, user_id)
+        (row.ip, row.last_ip) for row in await live_sessions(db, user_id, idle)
     )
     if not pairs and login is not None and login.ip is not None:
         pairs = {(login.ip, login.ip): None}
@@ -148,11 +168,11 @@ async def account_origin(db: AsyncSession, user_id: UUID) -> AccountOrigin:
 
 
 async def sessions_by_address(
-    db: AsyncSession, window: SessionWindow
+    db: AsyncSession, window: SessionWindow, idle: timedelta | None
 ) -> AdminSessionOverviewRead:
     """Accounts grouped by the addresses they are reached from over *window*."""
     if window is SessionWindow.LIVE:
-        grouping = await _live_grouping(db)
+        grouping = await _live_grouping(db, idle)
     else:
         grouping = await _login_grouping(db, window)
 
@@ -172,8 +192,8 @@ async def sessions_by_address(
     )
 
 
-async def _live_grouping(db: AsyncSession) -> _Grouping:
-    """Unexpired sessions, grouped by every address they are reached from."""
+async def _live_grouping(db: AsyncSession, idle: timedelta | None) -> _Grouping:
+    """Live sessions, grouped by every address they are reached from."""
     rows = (
         await db.execute(
             select(
@@ -188,7 +208,7 @@ async def _live_grouping(db: AsyncSession) -> _Grouping:
             )
             .join(User, UserSession.user_id == User.id)
             .outerjoin(Team, User.team_id == Team.id)
-            .where(UserSession.expires_at > datetime.now(UTC))
+            .where(*live_filter(datetime.now(UTC), idle))
         )
     ).all()
 
