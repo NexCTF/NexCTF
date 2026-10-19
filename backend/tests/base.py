@@ -10,15 +10,22 @@ from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
+from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 from fastapi_multiauth import hash_token
-from httpx import AsyncClient
+from fastapi_multiauth.oauth import (
+    OAuthExchangeError,
+    OAuthIDTokenError,
+    OIDCEndpoints,
+)
+from httpx import AsyncClient, Response
 from itsdangerous import TimestampSigner
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nexctf.api.routes.oauth_server import _verify_pkce
 from nexctf.enums import ClientSource
 from nexctf.model import Event, Team, User, UserAgentSighting, UserSession, UserToken
 from nexctf.model.question import Question
@@ -252,3 +259,90 @@ class DeleteGuardMixin:
         c, _ = user_client
         resp = await c.delete(f"{self.PREFIX}/{NULL_UUID}")
         assert resp.status_code == 403
+
+
+_AUTH_ROUTES = "nexctf.api.routes.auth"
+
+IDP_URLS = OIDCEndpoints(
+    authorization_endpoint="https://idp.example.com/auth",
+    token_endpoint="https://idp.example.com/token",
+    userinfo_endpoint="https://idp.example.com/userinfo",
+    jwks_uri="https://idp.example.com/jwks",
+    end_session_endpoint=None,
+    issuer="https://idp.example.com",
+)
+
+
+class FakeIdP:
+    """The provider behind ``/authorize`` and ``/callback``, enforcing PKCE and nonce."""
+
+    def __init__(self, slug: str, urls: OIDCEndpoints = IDP_URLS) -> None:
+        self.slug = slug
+        self.urls = urls
+        self.sent: dict[str, str] = {}
+        self.id_subject: str | None = None
+        self.exchange = AsyncMock(side_effect=self._exchange)
+        self.validate = AsyncMock(side_effect=self._validate)
+
+    @contextmanager
+    def _serving(self, userinfo: dict[str, Any]) -> Generator[None]:
+        with (
+            patch(
+                f"{_AUTH_ROUTES}.oauth_resolve_provider_urls",
+                AsyncMock(return_value=self.urls),
+            ),
+            patch(f"{_AUTH_ROUTES}.oauth_exchange_code", self.exchange),
+            patch(f"{_AUTH_ROUTES}.oauth_validate_id_token", self.validate),
+            patch(
+                f"{_AUTH_ROUTES}.oauth_fetch_userinfo",
+                AsyncMock(return_value=userinfo),
+            ),
+        ):
+            yield
+
+    async def authorize(self, client: AsyncClient) -> Response:
+        """Start the flow, remembering the parameters sent to the provider."""
+        with self._serving({}):
+            resp = await client.get(
+                f"/auth/providers/{self.slug}/authorize", follow_redirects=False
+            )
+        query = parse_qs(urlparse(resp.headers.get("location", "")).query)
+        self.sent = {key: values[0] for key, values in query.items()}
+        return resp
+
+    async def callback(
+        self,
+        client: AsyncClient,
+        userinfo: dict[str, Any],
+        *,
+        id_subject: str | None = None,
+        state: str | None = None,
+    ) -> Response:
+        """Return from the provider with *userinfo*, its ID token for *id_subject*."""
+        self.id_subject = id_subject or userinfo.get("sub")
+        with self._serving(userinfo):
+            return await client.get(
+                f"/auth/providers/{self.slug}/callback",
+                params={
+                    "code": "code",
+                    "state": self.sent["state"] if state is None else state,
+                },
+                follow_redirects=False,
+            )
+
+    async def login(self, client: AsyncClient, subject: str, **claims: Any) -> Response:
+        """Run the flow end to end as the identity *subject*."""
+        await self.authorize(client)
+        return await self.callback(client, {"sub": subject, **claims})
+
+    async def _exchange(self, *, code_verifier: str | None = None, **_: Any) -> dict:
+        if code_verifier is None or not _verify_pkce(
+            code_verifier, self.sent["code_challenge"]
+        ):
+            raise OAuthExchangeError("invalid_grant")
+        return {"access_token": "fake-access-token", "id_token": "fake-id-token"}
+
+    async def _validate(self, id_token: str, *, nonce: str, **_: Any) -> dict:
+        if nonce != self.sent["nonce"]:
+            raise OAuthIDTokenError("ID token nonce does not match")
+        return {"sub": self.id_subject, "nonce": nonce}

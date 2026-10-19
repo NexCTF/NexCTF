@@ -33,6 +33,7 @@ _QUIET_LOGGERS = (
     "aiobotocore",
     "boto3",
     "botocore",
+    "fastapi_multiauth",
     "s3transfer",
 )
 

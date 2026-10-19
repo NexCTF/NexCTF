@@ -367,7 +367,7 @@ class OAuthProviderConfigError(OAuthError):
     api_error = ApiError(
         code=500,
         msg="OAuth provider misconfigured",
-        desc="The provider has no userinfo URL configured.",
+        desc="The provider advertises no userinfo or JWKS URL.",
         err_code="OAUTH-500",
     )
 

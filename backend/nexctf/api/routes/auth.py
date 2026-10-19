@@ -3,7 +3,7 @@
 import logging
 import secrets
 from collections.abc import Awaitable, Callable
-from typing import Annotated
+from typing import Annotated, NamedTuple
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -15,8 +15,11 @@ from fastapi_multiauth.oauth import (
     oauth_decode_state,
     oauth_exchange_code,
     oauth_fetch_userinfo,
+    oauth_generate_nonce,
+    oauth_generate_pkce_pair,
     oauth_generate_state_token,
     oauth_resolve_provider_urls,
+    oauth_validate_id_token,
 )
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from redis.asyncio import Redis
@@ -630,12 +633,13 @@ async def _unique_username(db: SessionDep, desired: str) -> str:
 async def _resolve_user_from_userinfo(
     db: SessionDep,
     provider: OAuthProvider,
+    subject: str,
     userinfo: dict,
     *,
     current_user: User | None = None,
     allow_registration: bool = True,
 ) -> tuple[User, bool]:
-    """Return (user, is_new_user) for the given OAuth userinfo payload.
+    """Return (user, is_new_user) for the verified *subject* and its userinfo.
 
     Looks up an existing OAuthAccount by (provider, subject).  If none is
     found, links to *current_user* when a session is already active, otherwise
@@ -643,10 +647,6 @@ async def _resolve_user_from_userinfo(
     omitted: an unverified provider email could silently take over an existing
     local account.
     """
-    subject = userinfo.get("sub") or userinfo.get("id")
-    if not subject:
-        raise OAuthProviderResponseError()
-
     oauth_account = await crud.OAuthAccountCrud.first(
         session=db,
         filters=[
@@ -712,6 +712,72 @@ _ALLOWED_REDIRECT_HOSTS = tuple(
     for host in (settings.FRONTEND_HOST, settings.BACKEND_HOST)
 )
 
+_ID_TOKEN_LEEWAY = 60
+
+
+class _ProviderEndpoints(NamedTuple):
+    """The OIDC endpoints a provider sign-in needs."""
+
+    authorization: str
+    token: str
+    userinfo: str
+    jwks: str
+    issuer: str
+
+
+async def _provider_endpoints(provider: OAuthProvider) -> _ProviderEndpoints:
+    """Discover *provider*'s endpoints, refusing a provider that lacks one."""
+    found = await oauth_resolve_provider_urls(provider.discovery_url)
+    if not (found.userinfo_endpoint and found.jwks_uri and found.issuer):
+        raise OAuthProviderConfigError()
+    return _ProviderEndpoints(
+        authorization=found.authorization_endpoint,
+        token=found.token_endpoint,
+        userinfo=found.userinfo_endpoint,
+        jwks=found.jwks_uri,
+        issuer=found.issuer,
+    )
+
+
+def _callback_url(slug: str) -> str:
+    """The redirect URI the provider sends the browser back to."""
+    return (
+        f"{settings.BACKEND_HOST}{settings.API_V1_STR}/auth/providers/{slug}/callback"
+    )
+
+
+def _flow_cookie(slug: str) -> str:
+    """Name of the cookie carrying the state token, nonce and PKCE verifier."""
+    return f"oauth_state_{slug}"
+
+
+def _read_flow_cookie(request: Request, slug: str) -> tuple[str, str, str]:
+    """The ``(state_token, nonce, code_verifier)`` stored by ``/authorize``."""
+    parts = request.cookies.get(_flow_cookie(slug), "").split(".")
+    # No flow cookie: this browser never went through /authorize.
+    if len(parts) != 3 or not all(parts):
+        raise InvalidCredentialsError()
+    state_token, nonce, code_verifier = parts
+    return state_token, nonce, code_verifier
+
+
+async def _id_token_subject(
+    provider: OAuthProvider, endpoints: _ProviderEndpoints, token: dict, nonce: str
+) -> str:
+    """The ``sub`` of the ID token in *token*, once validated against *nonce*."""
+    id_token = token.get("id_token")
+    if not isinstance(id_token, str):
+        raise OAuthProviderResponseError()
+    claims = await oauth_validate_id_token(
+        id_token,
+        issuer=endpoints.issuer,
+        jwks_uri=endpoints.jwks,
+        client_id=provider.client_id,
+        nonce=nonce,
+        leeway=_ID_TOKEN_LEEWAY,
+    )
+    return claims["sub"]
+
 
 @auth_router.get("/providers/{slug}/authorize")
 async def oauth_authorize(
@@ -723,24 +789,28 @@ async def oauth_authorize(
     if not provider.is_active:
         raise NotFoundError()
 
-    endpoints = await oauth_resolve_provider_urls(provider.discovery_url)
+    endpoints = await _provider_endpoints(provider)
     destination = (
         redirect_url
         if redirect_url and urlparse(redirect_url).hostname in _ALLOWED_REDIRECT_HOSTS
         else settings.FRONTEND_HOST
     )
     state_token = oauth_generate_state_token()
+    nonce = oauth_generate_nonce()
+    code_verifier, code_challenge = oauth_generate_pkce_pair()
     redirect = oauth_build_authorization_redirect(
-        endpoints.authorization_endpoint,
+        endpoints.authorization,
         client_id=provider.client_id,
         scopes=provider.scopes,
-        redirect_uri=f"{settings.BACKEND_HOST}{settings.API_V1_STR}/auth/providers/{slug}/callback",
+        redirect_uri=_callback_url(slug),
         destination=destination,
         state_token=state_token,
+        code_challenge=code_challenge,
+        nonce=nonce,
     )
     redirect.set_cookie(
-        f"oauth_state_{slug}",
-        state_token,
+        _flow_cookie(slug),
+        f"{state_token}.{nonce}.{code_verifier}",
         max_age=600,
         httponly=True,
         samesite="lax",
@@ -766,11 +836,7 @@ async def oauth_callback(
         raise NotFoundError()
 
     # Consume CSRF state token immediately — single-use regardless of what follows.
-    expected_state_token = request.cookies.get(f"oauth_state_{slug}")
-    if not expected_state_token or not state:
-        # No state cookie means the user never went through /authorize on this
-        # browser — reject to prevent CSRF login confusion attacks.
-        raise InvalidCredentialsError()
+    expected_state_token, nonce, code_verifier = _read_flow_cookie(request, slug)
     destination = oauth_decode_state(
         state,
         expected_state_token=expected_state_token,
@@ -782,7 +848,7 @@ async def oauth_callback(
 
     redirect = RedirectResponse(url=destination, status_code=302)
     redirect.delete_cookie(
-        f"oauth_state_{slug}",
+        _flow_cookie(slug),
         httponly=True,
         samesite="lax",
         secure=settings.ENVIRONMENT != "development",
@@ -792,26 +858,29 @@ async def oauth_callback(
     if not code:
         return redirect
 
-    endpoints = await oauth_resolve_provider_urls(provider.discovery_url)
-    if not endpoints.userinfo_endpoint:
-        raise OAuthProviderConfigError()
-
+    endpoints = await _provider_endpoints(provider)
     token = await oauth_exchange_code(
-        token_url=endpoints.token_endpoint,
+        token_url=endpoints.token,
         code=code,
         client_id=provider.client_id,
         client_secret=provider.client_secret,
-        redirect_uri=f"{settings.BACKEND_HOST}{settings.API_V1_STR}/auth/providers/{slug}/callback",
+        redirect_uri=_callback_url(slug),
+        code_verifier=code_verifier,
     )
+    subject = await _id_token_subject(provider, endpoints, token, nonce)
     userinfo = await oauth_fetch_userinfo(
-        userinfo_url=endpoints.userinfo_endpoint,
+        userinfo_url=endpoints.userinfo,
         access_token=token["access_token"],
     )
+    # OIDC Core §5.3.2: the userinfo sub must equal the ID token's.
+    if userinfo.get("sub") != subject:
+        raise OAuthProviderResponseError()
 
     try:
         user, is_new_user = await _resolve_user_from_userinfo(
             db,
             provider,
+            subject,
             userinfo,
             current_user=current_user,
             allow_registration=bool(

@@ -6,7 +6,8 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi_multiauth.exceptions import StaleCredentialError
+from fastapi_multiauth.exceptions import OAuthError as MultiAuthOAuthError
+from fastapi_multiauth.exceptions import OAuthStateError, StaleCredentialError
 from fastapi_multiauth.exceptions import UnauthorizedError as MultiAuthUnauthorizedError
 from fastapi_toolsets.exceptions import UnauthorizedError, init_exceptions_handlers
 from fastapi_toolsets.logger import RequestLoggingMiddleware
@@ -23,7 +24,12 @@ from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.config import settings
 from nexctf.core.db import auth_db, db, get_db_context
 from nexctf.core.logging import is_health_check, setup_logging
-from nexctf.exceptions import OAuth2ProtocolError, ReauthRequiredError
+from nexctf.exceptions import (
+    InvalidCredentialsError,
+    OAuth2ProtocolError,
+    OAuthProviderResponseError,
+    ReauthRequiredError,
+)
 from nexctf.module.info.version import CURRENT_VERSION, current_revision
 from nexctf.plugins import init_plugins
 from nexctf.tasks.dashboard import install_dashboard, live_dashboard
@@ -116,6 +122,17 @@ async def stale_credential_handler(
     """Render a live but too-old session as AUTH-REAUTH-REQUIRED with its window."""
     api_error = ReauthRequiredError(data={"max_age": int(exc.max_age or 0)}).api_error
     return _api_error_response(api_error, exc.headers)
+
+
+@app.exception_handler(MultiAuthOAuthError)
+async def multiauth_oauth_error_handler(
+    request: Request, exc: MultiAuthOAuthError
+) -> JSONResponse:
+    """Render a forged OAuth state as AUTH-401, any other flow failure as OAUTH-502."""
+    if isinstance(exc, OAuthStateError):
+        return _api_error_response(InvalidCredentialsError.api_error, None)
+    logger.warning("oauth provider flow failed: %s", exc)
+    return _api_error_response(OAuthProviderResponseError.api_error, None)
 
 
 @app.exception_handler(OAuth2ProtocolError)
