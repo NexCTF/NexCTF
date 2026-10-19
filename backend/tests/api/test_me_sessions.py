@@ -1,6 +1,5 @@
 """Tests for per-device session listing and revocation."""
 
-from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
@@ -12,20 +11,9 @@ from nexctf.api.security import create_api_token
 from nexctf.core.config import settings
 from nexctf.model import UserSession, UserToken
 
-from ..base import NULL_UUID
+from ..base import NULL_UUID, second_device
 
 COOKIE = "NexCTF"
-
-
-@asynccontextmanager
-async def _second_device(client_factory, username: str, password: str):
-    """Log the same user in from a second client, as another browser would."""
-    async with client_factory() as c:
-        resp = await c.post(
-            "/auth/token", data={"username": username, "password": password}
-        )
-        assert resp.status_code == 204
-        yield c
 
 
 def _sessions(resp) -> list[dict]:
@@ -44,7 +32,7 @@ class TestListSessions:
 
     async def test_lists_every_device(self, user_client, client_factory):
         c, _ = user_client
-        async with _second_device(client_factory, "test_user", "userpass"):
+        async with second_device(client_factory, "test_user", "userpass"):
             rows = _sessions(await c.get("/me/sessions"))
             assert len(rows) == 2
             assert [r["current"] for r in rows].count(True) == 1
@@ -108,7 +96,7 @@ class TestRevokeSession:
         self, user_client, client_factory
     ):
         c, _ = user_client
-        async with _second_device(client_factory, "test_user", "userpass") as other:
+        async with second_device(client_factory, "test_user", "userpass") as other:
             target = next(
                 r for r in _sessions(await c.get("/me/sessions")) if not r["current"]
             )
@@ -139,7 +127,7 @@ class TestRevokeAllSessions:
     ):
         """The stolen-cookie escape hatch: end every session without guessing."""
         c, _ = user_client
-        async with _second_device(client_factory, "test_user", "userpass") as other:
+        async with second_device(client_factory, "test_user", "userpass") as other:
             captured = c.cookies[COOKIE]
             assert (await c.delete("/me/sessions")).status_code == 204
 
@@ -169,7 +157,7 @@ class TestLogoutRevokesServerSide:
 
     async def test_logout_kills_only_this_device(self, user_client, client_factory):
         c, _ = user_client
-        async with _second_device(client_factory, "test_user", "userpass") as other:
+        async with second_device(client_factory, "test_user", "userpass") as other:
             captured = c.cookies[COOKIE]
             assert (await c.post("/auth/logout")).status_code == 204
 
@@ -184,7 +172,7 @@ class TestLogoutRevokesServerSide:
 class TestPasswordChangeRevokesOthers:
     async def test_other_devices_are_signed_out(self, user_client, client_factory):
         c, _ = user_client
-        async with _second_device(client_factory, "test_user", "userpass") as other:
+        async with second_device(client_factory, "test_user", "userpass") as other:
             resp = await c.post(
                 "/me/password",
                 json={"current_password": "userpass", "new_password": "newpass123"},

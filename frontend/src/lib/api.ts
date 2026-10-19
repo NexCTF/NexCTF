@@ -684,6 +684,11 @@ export async function getAdminUser(userId: string): Promise<AdminUserDetail> {
   return request<AdminUserDetail>(`/admin/user/${userId}`);
 }
 
+/** A saved user, and whether saving signed them out everywhere. */
+export interface AdminUserUpdate extends User {
+  sessions_revoked: boolean;
+}
+
 export async function updateAdminUser(
   userId: string,
   data: {
@@ -695,8 +700,8 @@ export async function updateAdminUser(
     links?: Link[];
     custom_fields?: CustomFieldValues;
   },
-): Promise<User> {
-  return request<User>(`/admin/user/${userId}`, {
+): Promise<AdminUserUpdate> {
+  return request<AdminUserUpdate>(`/admin/user/${userId}`, {
     method: "PUT",
     body: JSON.stringify({ id: userId, ...data }),
   });

@@ -1,5 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { beforeEach, expect, it, vi } from "vitest";
 import {
   getAdminCustomFields,
@@ -108,7 +109,7 @@ it("saves custom field values with the user in one request", async () => {
     }),
   );
   vi.mocked(getAdminCustomFields).mockResolvedValue(paginated([discord, city]));
-  vi.mocked(updateAdminUser).mockResolvedValue(user({ id: "u1" }));
+  vi.mocked(updateAdminUser).mockResolvedValue({ ...user({ id: "u1" }), sessions_revoked: false });
   render();
 
   await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
@@ -121,4 +122,32 @@ it("saves custom field values with the user in one request", async () => {
     "u1",
     expect.objectContaining({ custom_fields: { d1: "player#1", d2: "Paris" } }),
   );
+});
+
+async function saveProfile(sessionsRevoked: boolean, role?: string) {
+  vi.mocked(getAdminCustomFields).mockResolvedValue(paginated([]));
+  vi.mocked(updateAdminUser).mockResolvedValue({
+    ...user({ id: "u1" }),
+    sessions_revoked: sessionsRevoked,
+  });
+  render();
+  await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
+  const dialog = await screen.findByRole("dialog");
+  if (role) await userEvent.selectOptions(within(dialog).getByDisplayValue("user"), role);
+  await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+}
+
+it("tells the admin a promoted user was signed out", async () => {
+  await saveProfile(true, "admin");
+
+  expect(updateAdminUser).toHaveBeenCalledWith("u1", expect.objectContaining({ role: "admin" }));
+  expect(toast.success).toHaveBeenCalledWith("User saved", {
+    description: "player was signed out everywhere and must sign in again.",
+  });
+});
+
+it("says nothing about sessions when the role is unchanged", async () => {
+  await saveProfile(false);
+
+  expect(toast.success).toHaveBeenCalledWith("User saved", { description: undefined });
 });

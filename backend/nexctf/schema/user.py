@@ -69,6 +69,10 @@ class PublicUserRead(PydanticBase):
     links: list[Link] = []
 
 
+class AdminUserUpdateRead(PublicUserRead):
+    sessions_revoked: bool = False
+
+
 class AdminUserIpRead(PydanticBase):
     ip: str | None
     last_ip: str | None

@@ -6,8 +6,8 @@ are sufficient to trigger a 403 without needing a valid body.
 """
 
 import time
-from collections.abc import Generator
-from contextlib import contextmanager
+from collections.abc import AsyncGenerator, Generator
+from contextlib import asynccontextmanager, contextmanager
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import patch
@@ -35,6 +35,19 @@ def signed_ago(seconds: int) -> Generator[None]:
         TimestampSigner, "get_timestamp", lambda _: int(time.time()) - seconds
     ):
         yield
+
+
+@asynccontextmanager
+async def second_device(
+    client_factory, username: str, password: str
+) -> AsyncGenerator[AsyncClient]:
+    """Log the same user in from a second client, as another browser would."""
+    async with client_factory() as c:
+        resp = await c.post(
+            "/auth/token", data={"username": username, "password": password}
+        )
+        assert resp.status_code == 204
+        yield c
 
 
 async def add_session(
