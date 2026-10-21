@@ -27,7 +27,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.api.routes.oauth_server import _verify_pkce
 from nexctf.enums import ClientSource
-from nexctf.model import Event, Team, User, UserAgentSighting, UserSession, UserToken
+from nexctf.model import (
+    Event,
+    Team,
+    User,
+    UserAgentSighting,
+    UserRole,
+    UserSession,
+    UserToken,
+)
 from nexctf.model.question import Question
 from nexctf.module.session import LOGIN_EVENT
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
@@ -155,10 +163,14 @@ async def put_in_team(db_session: AsyncSession, user: User) -> Team:
 
 
 async def make_user(
-    db_session: AsyncSession, username: str, team: Team | None = None
+    db_session: AsyncSession,
+    username: str,
+    team: Team | None = None,
+    *,
+    role: UserRole = UserRole.user,
 ) -> User:
-    """Create a user, optionally on *team*."""
-    user = User(username=username, team_id=team.id if team else None)
+    """Create a user, optionally on *team* or with another *role*."""
+    user = User(username=username, team_id=team.id if team else None, role=role)
     db_session.add(user)
     await db_session.flush()
     return user

@@ -1,13 +1,13 @@
-"""Tests for the custom ``manager`` CLI logic (create-admin)."""
+"""Tests for ``manager bootstrap`` (default admin from settings)."""
 
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf import cli
 from nexctf.api.scope import grantable_scopes
 from nexctf.api.security import _hash_token, verify_password
-from nexctf.cli import create_default_admin
+from nexctf.cli import bootstrap
+from nexctf.cli.bootstrap import create_default_admin
 from nexctf.core.config import settings
 from nexctf.model import User, UserRole, UserToken
 
@@ -16,7 +16,7 @@ from nexctf.model import User, UserRole, UserToken
 def _no_installed_plugins(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep plugins installed in the environment out of the test database."""
     monkeypatch.setattr(
-        cli, "full_admin_scopes", lambda: sorted(grantable_scopes(is_admin=True))
+        bootstrap, "full_admin_scopes", lambda: sorted(grantable_scopes(is_admin=True))
     )
 
 

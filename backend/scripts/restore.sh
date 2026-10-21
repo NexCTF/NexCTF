@@ -40,7 +40,7 @@ supervisorctl stop backend worker
 trap finish EXIT
 
 log "restoring $KEY"
-manager restore "$KEY" --yes
+manager backup restore "$KEY" --yes
 
 log "running core migrations"
 alembic upgrade head

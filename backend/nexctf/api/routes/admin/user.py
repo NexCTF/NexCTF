@@ -36,6 +36,7 @@ from nexctf.module.session import (
     revoke_session_by_id,
     revoke_user_sessions,
 )
+from nexctf.module.user import reset_totp
 from nexctf.schema.custom_field import AdminCustomFieldValueRead
 from nexctf.schema.event import AdminEventRead
 from nexctf.schema.user import (
@@ -49,7 +50,6 @@ from nexctf.schema.user import (
     UserCreate,
     UserEmailVerifiedUpdate,
     UserSessionRead,
-    UserTotpUpdate,
 )
 from nexctf.util.ip import get_client_ip
 
@@ -301,7 +301,6 @@ async def update_user(
 
 @user_router.post("/{uuid}/totp/reset", status_code=204)
 async def admin_reset_totp(
-    request: Request,
     session: SessionDep,
     redis: RedisDep,
     uuid: UUID,
@@ -311,19 +310,7 @@ async def admin_reset_totp(
     target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
     if not target:
         raise NotFoundError()
-    await crud.UserCrud.update(
-        session=session,
-        filters=[User.id == uuid],
-        obj=UserTotpUpdate(id=uuid, totp_secret=None),
-    )
-    await emit(
-        session,
-        redis,
-        event_type="admin.user_totp_reset",
-        actor_id=admin.id,
-        ip=get_client_ip(request),
-        meta={"target_user_id": str(uuid), "target_username": target.username},
-    )
+    await reset_totp(session, redis, target)
 
 
 @user_router.post("/{uuid}/password-reset-token")

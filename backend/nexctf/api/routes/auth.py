@@ -47,6 +47,7 @@ from nexctf.api.security import (
     issue_password_reset_token,
     issue_session_cookie,
     issue_single_use_token,
+    password_reset_link,
     reissue_session_cookie,
     verify_password,
     verify_totp_once,
@@ -85,7 +86,7 @@ from nexctf.module.events import emit
 from nexctf.module.session import (
     FAILED_LOGIN_EVENT,
     LOGIN_EVENT,
-    revoke_all_access,
+    replace_password,
     revoke_session,
     team_meta,
 )
@@ -102,7 +103,6 @@ from nexctf.schema.user import (
     ReauthRequest,
     ResendVerificationRequest,
     UserEmailVerifiedUpdate,
-    UserPasswordUpdate,
 )
 from nexctf.util.ip import get_client_ip
 
@@ -425,16 +425,7 @@ async def reset_password(
     if session_version != user.session_version:
         raise InvalidResetTokenError()
     bind_user_context(user.id, user.username)
-    await crud.UserCrud.update(
-        session=session,
-        filters=[User.id == user.id],
-        obj=UserPasswordUpdate(
-            id=user.id,
-            hashed_password=hash_password(body.new_password),
-            session_version=user.session_version + 1,
-        ),
-    )
-    await revoke_all_access(session, user)
+    await replace_password(session, user, hash_password(body.new_password))
     background_tasks.add_task(close_user_streams, redis, user.id)
     logger.info("password reset completed for %s", user.username)
     await emit(
@@ -569,7 +560,7 @@ async def forgot_password(
     if not user or not user.email:
         return
     token = await issue_password_reset_token(redis, user)
-    link = f"{settings.FRONTEND_HOST}/reset-password?token={token}"
+    link = password_reset_link(token)
     background_tasks.add_task(
         _deliver_branded_email, redis, user.email, link, build_password_reset_email
     )

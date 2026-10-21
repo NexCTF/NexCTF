@@ -61,6 +61,7 @@ from nexctf.module.events import emit
 from nexctf.module.scoreboard.cache import invalidate as invalidate_scoreboard
 from nexctf.module.session import (
     live_sessions,
+    replace_password,
     revoke_all_access,
     revoke_session_by_id,
 )
@@ -88,7 +89,6 @@ from nexctf.schema.user import (
     TotpEnableRequest,
     TotpSetupResponse,
     UserLinksUpdate,
-    UserPasswordUpdate,
 )
 from nexctf.util.ip import get_client_ip
 
@@ -341,19 +341,7 @@ async def change_password(
         body.current_password, user.hashed_password
     ):
         raise InvalidCredentialsError()
-    session_version = user.session_version + 1
-    await crud.UserCrud.update(
-        session=session,
-        filters=[User.id == user.id],
-        obj=UserPasswordUpdate(
-            id=user.id,
-            hashed_password=hash_password(body.new_password),
-            session_version=session_version,
-        ),
-    )
-    # Reflect the bump on the instance so the re-issued cookie carries it.
-    user.session_version = session_version
-    await revoke_all_access(session, user)
+    await replace_password(session, user, hash_password(body.new_password))
     background_tasks.add_task(close_user_streams, redis, user.id)
     await issue_session_cookie(session, response, user, request)
     await emit(

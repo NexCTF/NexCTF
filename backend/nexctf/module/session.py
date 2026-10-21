@@ -42,6 +42,7 @@ from nexctf.schema.user import (
     AdminSessionOverviewRead,
     AdminSharedAddressRead,
     AdminUserIpRead,
+    UserPasswordUpdate,
 )
 from nexctf.util.ip import get_client_ip
 
@@ -482,3 +483,20 @@ async def revoke_all_access(db: AsyncSession, user: User) -> None:
     """Revoke every session and API token a user holds."""
     await revoke_user_sessions(db, user)
     await crud.UserTokenCrud.delete(db, filters=[UserToken.user_id == user.id])
+
+
+async def replace_password(db: AsyncSession, user: User, hashed_password: str) -> None:
+    """Store a new password hash, voiding reset tokens, sessions and API tokens."""
+    session_version = user.session_version + 1
+    await crud.UserCrud.update(
+        session=db,
+        filters=[User.id == user.id],
+        obj=UserPasswordUpdate(
+            id=user.id,
+            hashed_password=hashed_password,
+            session_version=session_version,
+        ),
+    )
+    # Reflect the bump on the instance so a re-issued cookie carries it.
+    user.session_version = session_version
+    await revoke_all_access(db, user)

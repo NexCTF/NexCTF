@@ -150,14 +150,14 @@ async def restore_backup(
     """Stop the app, restore the dump, migrate and start again, in the background.
 
     Only the bundled image can orchestrate this; elsewhere the operator runs
-    ``manager restore <key>`` with the app stopped.
+    ``manager backup restore <key>`` with the app stopped.
     """
     _key_or_400(key)
     if shutil.which("supervisorctl") is None or not _RESTORE_SCRIPT.exists():
         raise BackupFailedError(
             detail=(
                 "Automatic restore needs the bundled NexCTF image. Stop the app "
-                f"and run: manager restore {key}"
+                f"and run: manager backup restore {key}"
             )
         )
     try:
