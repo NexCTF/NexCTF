@@ -73,4 +73,4 @@ class AdminTeamQuestionStats(TeamQuestionStats):
 
 
 class AdminTeamChallengeStats(TeamChallengeStats):
-    questions: list[AdminTeamQuestionStats] = []
+    questions: list[AdminTeamQuestionStats] = []  # ty: ignore[invalid-mutable-override]

@@ -218,7 +218,7 @@ async def test_a_failed_run_is_logged_once_with_its_bound_fields(
             raise RuntimeError("boom")
 
     failed = next(r for r in context_caplog.records if r.levelno == logging.ERROR)
-    assert failed.exc_info is not None
+    assert failed.exc_info
     assert failed.exc_info[1] is raised.value
     assert vars(failed)["job_id"] == "j1"
     requeued = logging.makeLogRecord({"exc_info": (RuntimeError, raised.value, None)})
