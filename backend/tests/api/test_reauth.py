@@ -1,12 +1,10 @@
 """Tests for the re-authentication window on sensitive actions."""
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, patch
-from urllib.parse import parse_qs, urlparse
+from unittest.mock import AsyncMock
 
 import pyotp
 import pytest
-from fastapi_multiauth.oauth import OIDCEndpoints
 from httpx import AsyncClient
 from sqlalchemy import select
 
@@ -14,7 +12,7 @@ from nexctf.api.security import REAUTH_WINDOW, create_api_token
 from nexctf.model import Event, OAuthAccount, OAuthProvider, UserRole
 from nexctf.module.session import FAILED_LOGIN_EVENT
 
-from ..base import NULL_UUID, session_row
+from ..base import NULL_UUID, FakeIdP, session_row
 
 COOKIE = "NexCTF"
 REAUTH_CODE = "AUTH-REAUTH-REQUIRED"
@@ -319,47 +317,6 @@ class TestReauthWithTotp:
         assert resp.status_code == 204
 
 
-_FAKE_URLS = OIDCEndpoints(
-    authorization_endpoint="https://idp.example.com/auth",
-    token_endpoint="https://idp.example.com/token",
-    userinfo_endpoint="https://idp.example.com/userinfo",
-    jwks_uri=None,
-    end_session_endpoint=None,
-    issuer="https://idp.example.com",
-)
-
-
-async def _oauth_round_trip(c: AsyncClient, subject: str) -> None:
-    """Sign in through the test provider, as the browser would."""
-    with (
-        patch(
-            "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-            new_callable=AsyncMock,
-            return_value=_FAKE_URLS,
-        ),
-        patch(
-            "nexctf.api.routes.auth.oauth_exchange_code",
-            new_callable=AsyncMock,
-            return_value={"access_token": "fake"},
-        ),
-        patch(
-            "nexctf.api.routes.auth.oauth_fetch_userinfo",
-            new_callable=AsyncMock,
-            return_value={"sub": subject},
-        ),
-    ):
-        authorize = await c.get(
-            "/auth/providers/test-idp/authorize", follow_redirects=False
-        )
-        state = parse_qs(urlparse(authorize.headers["location"]).query)["state"][0]
-        resp = await c.get(
-            "/auth/providers/test-idp/callback",
-            params={"code": "code", "state": state},
-            follow_redirects=False,
-        )
-    assert resp.status_code == 302
-
-
 class TestReauthThroughOAuth:
     @pytest.fixture
     async def stale_oauth_user(self, stale_user, db_session):
@@ -393,7 +350,7 @@ class TestReauthThroughOAuth:
         before = await session_row(db_session, user)
         row_id, expires_at = before.id, before.expires_at
 
-        await _oauth_round_trip(c, "sub-1")
+        assert (await FakeIdP("test-idp").login(c, "sub-1")).status_code == 302
 
         after = await session_row(db_session, user)
         assert (after.id, after.expires_at) == (row_id, expires_at)

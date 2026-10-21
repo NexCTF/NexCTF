@@ -3,12 +3,14 @@
 import hashlib
 from datetime import UTC
 from unittest.mock import AsyncMock, patch
-from urllib.parse import parse_qs, urlparse
 
 import pyotp
 import pytest
 from fastapi import Request
-from fastapi_multiauth.oauth import OIDCEndpoints
+from fastapi_multiauth.oauth import (
+    OAuthExchangeError,
+    oauth_encode_state,
+)
 from httpx import AsyncClient
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import select
@@ -22,7 +24,7 @@ from nexctf.model import Event, OAuthAccount, OAuthProvider, User, UserToken
 from nexctf.schema import UserCreate
 from nexctf.schema.user import AdminUserUpdate
 
-from ..base import NULL_UUID, make_team, make_user
+from ..base import IDP_URLS, NULL_UUID, FakeIdP, make_team, make_user
 
 
 class TestRegister:
@@ -758,30 +760,15 @@ class TestOAuthFlow:
         await db_session.flush()
         return provider
 
-    _FAKE_URLS = OIDCEndpoints(
-        authorization_endpoint="https://idp.example.com/auth",
-        token_endpoint="https://idp.example.com/token",
-        userinfo_endpoint="https://idp.example.com/userinfo",
-        jwks_uri=None,
-        end_session_endpoint=None,
-        issuer="https://idp.example.com",
-    )
-
-    async def test_authorize_redirects_to_provider(self, http_client, oauth_provider):
-        with patch(
-            "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-            new_callable=AsyncMock,
-            return_value=self._FAKE_URLS,
-        ):
-            resp = await http_client.get(
-                "/auth/providers/test-idp/authorize",
-                follow_redirects=False,
-            )
+    async def test_authorize_redirects_to_provider(
+        self, http_client, oauth_provider, idp
+    ):
+        resp = await idp.authorize(http_client)
 
         assert resp.status_code in (302, 303, 307)
-        location = resp.headers["location"]
-        assert location.startswith("https://idp.example.com/auth")
-        assert "state=" in location
+        assert resp.headers["location"].startswith("https://idp.example.com/auth")
+        assert idp.sent["code_challenge_method"] == "S256"
+        assert {"state", "nonce", "code_challenge"} <= idp.sent.keys()
         assert "oauth_state_test-idp" in resp.headers.get("set-cookie", "")
 
     async def test_authorize_inactive_provider(self, http_client, inactive_provider):
@@ -799,45 +786,12 @@ class TestOAuthFlow:
         assert resp.status_code == 404
 
     async def test_callback_cookie_actually_authenticates(
-        self, http_client, db_session, oauth_provider, override_db_context
+        self, http_client, oauth_provider, override_db_context, idp
     ):
         """The callback must create a usable session, not just set a cookie."""
-        with patch(
-            "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-            new_callable=AsyncMock,
-            return_value=self._FAKE_URLS,
-        ):
-            auth_resp = await http_client.get(
-                "/auth/providers/test-idp/authorize", follow_redirects=False
-            )
-        state = parse_qs(urlparse(auth_resp.headers["location"]).query).get(
-            "state", [None]
-        )[0]
+        resp = await idp.login(http_client, "session-probe-001")
 
-        with (
-            patch(
-                "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-                new_callable=AsyncMock,
-                return_value=self._FAKE_URLS,
-            ),
-            patch(
-                "nexctf.api.routes.auth.oauth_exchange_code",
-                new_callable=AsyncMock,
-                return_value={"access_token": "fake-access-token"},
-            ),
-            patch(
-                "nexctf.api.routes.auth.oauth_fetch_userinfo",
-                new_callable=AsyncMock,
-                return_value={"sub": "session-probe-001", "email": "sp@example.com"},
-            ),
-        ):
-            callback_resp = await http_client.get(
-                "/auth/providers/test-idp/callback",
-                params={"code": "authcode123", "state": state},
-                follow_redirects=False,
-            )
-
-        assert callback_resp.status_code == 302
+        assert resp.status_code == 302
         assert (await http_client.get("/info/me")).status_code == 200
 
         rows = (await http_client.get("/me/sessions")).json()["data"]
@@ -845,7 +799,7 @@ class TestOAuthFlow:
         assert rows[0]["current"] is True
 
     async def test_callback_suffixes_a_taken_username(
-        self, http_client, db_session, oauth_provider, override_db_context
+        self, http_client, db_session, oauth_provider, override_db_context, idp
     ):
         """A provider username colliding with a local account must not 500."""
         db_session.add(
@@ -853,47 +807,12 @@ class TestOAuthFlow:
         )
         await db_session.flush()
 
-        with patch(
-            "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-            new_callable=AsyncMock,
-            return_value=self._FAKE_URLS,
-        ):
-            auth_resp = await http_client.get(
-                "/auth/providers/test-idp/authorize",
-                follow_redirects=False,
-            )
-        state = parse_qs(urlparse(auth_resp.headers["location"]).query).get(
-            "state", [None]
-        )[0]
+        resp = await idp.login(
+            http_client, "collides-001", preferred_username="taken_name"
+        )
 
-        with (
-            patch(
-                "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-                new_callable=AsyncMock,
-                return_value=self._FAKE_URLS,
-            ),
-            patch(
-                "nexctf.api.routes.auth.oauth_exchange_code",
-                new_callable=AsyncMock,
-                return_value={"access_token": "fake-access-token"},
-            ),
-            patch(
-                "nexctf.api.routes.auth.oauth_fetch_userinfo",
-                new_callable=AsyncMock,
-                return_value={
-                    "sub": "collides-001",
-                    "preferred_username": "taken_name",
-                },
-            ),
-        ):
-            callback_resp = await http_client.get(
-                "/auth/providers/test-idp/callback",
-                params={"code": "authcode123", "state": state},
-                follow_redirects=False,
-            )
-
-        assert callback_resp.status_code == 302
-        assert "NexCTF" in callback_resp.cookies
+        assert resp.status_code == 302
+        assert "NexCTF" in resp.cookies
         created = await crud.UserCrud.first(
             session=db_session,
             filters=[User.username.startswith("taken_name-")],
@@ -901,90 +820,23 @@ class TestOAuthFlow:
         assert created is not None
 
     async def test_callback_logs_in_existing_oauth_account(
-        self, http_client, db_session, oauth_provider, override_db_context
+        self, http_client, db_session, oauth_provider, override_db_context, idp
     ):
-        # First login creates the account
-        with patch(
-            "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-            new_callable=AsyncMock,
-            return_value=self._FAKE_URLS,
-        ):
-            auth_resp = await http_client.get(
-                "/auth/providers/test-idp/authorize",
-                follow_redirects=False,
-            )
-        state = parse_qs(urlparse(auth_resp.headers["location"]).query).get(
-            "state", [None]
-        )[0]
+        assert (await idp.login(http_client, "returning-user-001")).status_code == 302
 
-        with (
-            patch(
-                "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-                new_callable=AsyncMock,
-                return_value=self._FAKE_URLS,
-            ),
-            patch(
-                "nexctf.api.routes.auth.oauth_exchange_code",
-                new_callable=AsyncMock,
-                return_value={"access_token": "fake-access-token"},
-            ),
-            patch(
-                "nexctf.api.routes.auth.oauth_fetch_userinfo",
-                new_callable=AsyncMock,
-                return_value={"sub": "returning-user-001"},
-            ),
-        ):
-            await http_client.get(
-                "/auth/providers/test-idp/callback",
-                params={"code": "code1", "state": state},
-                follow_redirects=False,
-            )
+        resp = await idp.login(http_client, "returning-user-001")
 
-        # Second login with same sub uses the existing account — need a fresh state cookie
-        with patch(
-            "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-            new_callable=AsyncMock,
-            return_value=self._FAKE_URLS,
-        ):
-            auth_resp2 = await http_client.get(
-                "/auth/providers/test-idp/authorize",
-                follow_redirects=False,
-            )
-        state2 = parse_qs(urlparse(auth_resp2.headers["location"]).query).get(
-            "state", [None]
-        )[0]
-
-        with (
-            patch(
-                "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-                new_callable=AsyncMock,
-                return_value=self._FAKE_URLS,
-            ),
-            patch(
-                "nexctf.api.routes.auth.oauth_exchange_code",
-                new_callable=AsyncMock,
-                return_value={"access_token": "fake-access-token"},
-            ),
-            patch(
-                "nexctf.api.routes.auth.oauth_fetch_userinfo",
-                new_callable=AsyncMock,
-                return_value={"sub": "returning-user-001"},
-            ),
-        ):
-            callback_resp = await http_client.get(
-                "/auth/providers/test-idp/callback",
-                params={"code": "code2", "state": state2},
-                follow_redirects=False,
-            )
-
-        assert callback_resp.status_code == 302
-        assert "NexCTF" in callback_resp.cookies
+        assert resp.status_code == 302
+        assert "NexCTF" in resp.cookies
+        accounts = await db_session.scalars(
+            select(OAuthAccount).where(OAuthAccount.subject == "returning-user-001")
+        )
+        assert len(accounts.all()) == 1
 
     async def test_callback_no_csrf_cookie_is_rejected(
         self, http_client, oauth_provider
     ):
         # Call callback without first going through /authorize (no CSRF cookie).
-        # Previously this silently authenticated the user; now it must reject.
         resp = await http_client.get(
             "/auth/providers/test-idp/callback",
             params={"code": "code", "state": "tampered_state"},
@@ -992,65 +844,89 @@ class TestOAuthFlow:
         )
         assert resp.status_code == 401
 
-    async def _authorize(self, http_client) -> str:
-        """Start the provider flow and return the state it issued."""
-        with patch(
-            "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-            new_callable=AsyncMock,
-            return_value=self._FAKE_URLS,
-        ):
-            resp = await http_client.get(
-                "/auth/providers/test-idp/authorize", follow_redirects=False
-            )
-        return parse_qs(urlparse(resp.headers["location"]).query)["state"][0]
-
+    @pytest.mark.parametrize(
+        "state",
+        [
+            "tampered_state",
+            oauth_encode_state("/", "another-browsers-token"),
+        ],
+    )
     async def test_callback_mismatched_state_is_rejected(
-        self, http_client, oauth_provider
+        self, http_client, oauth_provider, idp, state
     ):
-        await self._authorize(http_client)
-        exchange = AsyncMock(return_value={"access_token": "fake-access-token"})
-        with (
-            patch(
-                "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-                new_callable=AsyncMock,
-                return_value=self._FAKE_URLS,
-            ),
-            patch("nexctf.api.routes.auth.oauth_exchange_code", exchange),
-        ):
-            resp = await http_client.get(
-                "/auth/providers/test-idp/callback",
-                params={"code": "attacker-code", "state": "tampered_state"},
-                follow_redirects=False,
-            )
+        await idp.authorize(http_client)
+
+        resp = await idp.callback(http_client, {"sub": "victim"}, state=state)
+
         assert resp.status_code == 401
-        exchange.assert_not_awaited()
+        idp.exchange.assert_not_awaited()
         assert "NexCTF" not in resp.cookies
 
-    async def _provider_login(self, http_client, subject: str, **claims):
-        """Run the provider flow end to end as the identity *subject*."""
-        state = await self._authorize(http_client)
-        with (
-            patch(
-                "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-                new_callable=AsyncMock,
-                return_value=self._FAKE_URLS,
-            ),
-            patch(
-                "nexctf.api.routes.auth.oauth_exchange_code",
-                new_callable=AsyncMock,
-                return_value={"access_token": "fake-access-token"},
-            ),
-            patch(
-                "nexctf.api.routes.auth.oauth_fetch_userinfo",
-                new_callable=AsyncMock,
-                return_value={"sub": subject, **claims},
-            ),
-        ):
-            return await http_client.get(
-                "/auth/providers/test-idp/callback",
-                params={"code": "code", "state": state},
-                follow_redirects=False,
-            )
+    async def test_callback_refuses_an_id_token_from_another_login(
+        self, http_client, oauth_provider, override_db_context, idp
+    ):
+        await idp.authorize(http_client)
+        idp.sent["nonce"] = "nonce-of-another-login"
+
+        resp = await idp.callback(http_client, {"sub": "replayed"})
+
+        assert resp.status_code == 502
+        assert resp.json()["error_code"] == "OAUTH-502"
+        assert "NexCTF" not in resp.cookies
+
+    async def test_callback_validates_the_id_token_for_this_client(
+        self, http_client, oauth_provider, override_db_context, idp
+    ):
+        assert (await idp.login(http_client, "aud-check")).status_code == 302
+        kwargs = idp.validate.await_args.kwargs
+        assert kwargs["client_id"] == "client-id"
+        assert kwargs["issuer"] == IDP_URLS.issuer
+        assert kwargs["jwks_uri"] == IDP_URLS.jwks_uri
+
+    @pytest.mark.parametrize(
+        "userinfo", [{"sub": "someone-else"}, {"email": "no-sub@example.com"}]
+    )
+    async def test_callback_refuses_userinfo_for_another_subject(
+        self, http_client, oauth_provider, override_db_context, idp, userinfo
+    ):
+        await idp.authorize(http_client)
+
+        resp = await idp.callback(http_client, userinfo, id_subject="id-token-sub")
+
+        assert resp.status_code == 502
+        assert "NexCTF" not in resp.cookies
+
+    async def test_callback_without_an_id_token_is_refused(
+        self, http_client, oauth_provider, override_db_context, idp
+    ):
+        await idp.authorize(http_client)
+        idp.exchange.side_effect = lambda **_: {"access_token": "fake-access-token"}
+
+        resp = await idp.callback(http_client, {"sub": "plain-oauth"})
+
+        assert resp.status_code == 502
+        assert "NexCTF" not in resp.cookies
+
+    async def test_callback_failed_exchange_is_a_provider_error(
+        self, http_client, oauth_provider, override_db_context, idp
+    ):
+        await idp.authorize(http_client)
+        idp.exchange.side_effect = OAuthExchangeError("invalid_grant")
+
+        resp = await idp.callback(http_client, {"sub": "unlucky"})
+
+        assert resp.status_code == 502
+        assert resp.json()["error_code"] == "OAUTH-502"
+
+    async def test_authorize_refuses_a_provider_without_jwks(
+        self, http_client, oauth_provider, override_db_context
+    ):
+        idp = FakeIdP("test-idp", IDP_URLS._replace(jwks_uri=None))
+
+        resp = await idp.authorize(http_client)
+
+        assert resp.status_code == 500
+        assert resp.json()["error_code"] == "OAUTH-500"
 
     @pytest.mark.parametrize(
         ("claims", "stored"),
@@ -1066,11 +942,12 @@ class TestOAuthFlow:
         db_session,
         oauth_provider,
         override_db_context,
+        idp,
         claims,
         stored,
     ):
         subject = f"sub-{claims['email']}"
-        assert (await self._provider_login(http_client, subject, **claims)).is_redirect
+        assert (await idp.login(http_client, subject, **claims)).is_redirect
         account = await crud.OAuthAccountCrud.first(
             session=db_session,
             filters=[OAuthAccount.subject == subject],
@@ -1085,6 +962,7 @@ class TestOAuthFlow:
         db_session,
         oauth_provider,
         override_db_context,
+        idp,
         config_overrides: dict[str, str],
     ):
         known = User(username="known")
@@ -1096,24 +974,25 @@ class TestOAuthFlow:
         await db_session.flush()
         config_overrides["ctf.allow_registration"] = "false"
 
-        resp = await self._provider_login(http_client, "stranger")
+        resp = await idp.login(http_client, "stranger")
         assert resp.json()["error_code"] == "AUTH-403-REG-DISABLED"
-        assert (await self._provider_login(http_client, "k")).status_code == 302
+        assert (await idp.login(http_client, "k")).status_code == 302
 
     async def test_callback_racing_first_login_is_a_conflict(
-        self, http_client, oauth_provider, override_db_context
+        self, http_client, oauth_provider, override_db_context, idp
     ):
         """Two first logins for one identity collide on the unique subject."""
         clash = IntegrityError("INSERT", {}, Exception("duplicate subject"))
         with patch.object(
             crud.OAuthAccountCrud, "create", AsyncMock(side_effect=clash)
         ):
-            resp = await self._provider_login(http_client, "racer")
+            resp = await idp.login(http_client, "racer")
         assert resp.status_code == 409
 
     async def test_callback_no_state_param_is_rejected(
-        self, http_client, oauth_provider
+        self, http_client, oauth_provider, idp
     ):
+        await idp.authorize(http_client)
         resp = await http_client.get(
             "/auth/providers/test-idp/callback",
             params={"code": "code"},
@@ -1122,23 +1001,14 @@ class TestOAuthFlow:
         assert resp.status_code == 401
 
     async def test_callback_provider_denial_returns_to_the_app(
-        self, http_client, oauth_provider
+        self, http_client, oauth_provider, idp
     ):
         """A denial carries ?error= and no code — RFC 6749 §4.1.2.1."""
-        with patch(
-            "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-            new_callable=AsyncMock,
-            return_value=self._FAKE_URLS,
-        ):
-            auth_resp = await http_client.get(
-                "/auth/providers/test-idp/authorize",
-                follow_redirects=False,
-            )
-        state = parse_qs(urlparse(auth_resp.headers["location"]).query)["state"][0]
+        await idp.authorize(http_client)
 
         resp = await http_client.get(
             "/auth/providers/test-idp/callback",
-            params={"error": "access_denied", "state": state},
+            params={"error": "access_denied", "state": idp.sent["state"]},
             follow_redirects=False,
         )
 
@@ -1155,45 +1025,6 @@ class TestOAuthFlow:
             follow_redirects=False,
         )
         assert resp.status_code == 404
-
-    async def test_callback_missing_sub_raises_error(self, http_client, oauth_provider):
-        with patch(
-            "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-            new_callable=AsyncMock,
-            return_value=self._FAKE_URLS,
-        ):
-            auth_resp = await http_client.get(
-                "/auth/providers/test-idp/authorize",
-                follow_redirects=False,
-            )
-        state = parse_qs(urlparse(auth_resp.headers["location"]).query).get(
-            "state", [None]
-        )[0]
-
-        with (
-            patch(
-                "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-                new_callable=AsyncMock,
-                return_value=self._FAKE_URLS,
-            ),
-            patch(
-                "nexctf.api.routes.auth.oauth_exchange_code",
-                new_callable=AsyncMock,
-                return_value={"access_token": "fake-access-token"},
-            ),
-            patch(
-                "nexctf.api.routes.auth.oauth_fetch_userinfo",
-                new_callable=AsyncMock,
-                return_value={"email": "no-sub@example.com"},
-            ),
-        ):
-            resp = await http_client.get(
-                "/auth/providers/test-idp/callback",
-                params={"code": "code", "state": state},
-                follow_redirects=False,
-            )
-
-        assert resp.status_code != 302
 
 
 class TestSessionVersionInvalidation:
@@ -1344,36 +1175,8 @@ class TestOAuthLinking:
         await db_session.flush()
         return provider
 
-    _FAKE_URLS = OIDCEndpoints(
-        authorization_endpoint="https://idp.example.com/auth",
-        token_endpoint="https://idp.example.com/token",
-        userinfo_endpoint="https://idp.example.com/userinfo",
-        jwks_uri=None,
-        end_session_endpoint=None,
-        issuer="https://idp.example.com",
-    )
-
-    async def _do_authorize(self, client, slug="link-idp"):
-        """Go through /authorize and return the state value."""
-        from urllib.parse import parse_qs, urlparse
-
-        with patch(
-            "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-            new_callable=AsyncMock,
-            return_value=self._FAKE_URLS,
-        ):
-            auth_resp = await client.get(
-                f"/auth/providers/{slug}/authorize",
-                follow_redirects=False,
-            )
-        assert auth_resp.status_code in (302, 303, 307)
-        state = parse_qs(urlparse(auth_resp.headers["location"]).query).get(
-            "state", [None]
-        )[0]
-        return state
-
     async def test_email_in_userinfo_does_not_link_existing_account(
-        self, client_factory, db_session, override_db_context, oauth_provider
+        self, client_factory, db_session, override_db_context, oauth_provider, idp
     ) -> None:
         """An OAuth provider returning an email that matches an existing local account
         must NOT silently take over that account — a new account is created instead."""
@@ -1386,40 +1189,13 @@ class TestOAuthLinking:
         await db_session.flush()
 
         async with client_factory() as c:
-            state = await self._do_authorize(c)
-
-            with (
-                patch(
-                    "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-                    new_callable=AsyncMock,
-                    return_value=self._FAKE_URLS,
-                ),
-                patch(
-                    "nexctf.api.routes.auth.oauth_exchange_code",
-                    new_callable=AsyncMock,
-                    return_value={"access_token": "fake-access-token"},
-                ),
-                patch(
-                    "nexctf.api.routes.auth.oauth_fetch_userinfo",
-                    new_callable=AsyncMock,
-                    return_value={
-                        "sub": "oauth-attacker-sub",
-                        "email": "shared@example.com",
-                    },
-                ),
-            ):
-                callback_resp = await c.get(
-                    "/auth/providers/link-idp/callback",
-                    params={"code": "code", "state": state},
-                    follow_redirects=False,
-                )
-
+            callback_resp = await idp.login(
+                c, "oauth-attacker-sub", email="shared@example.com"
+            )
             assert callback_resp.status_code == 302
 
         # The OAuth account must be linked to a *new* user, not the existing one.
         # The new account is created without the conflicting email.
-        from nexctf.model import OAuthAccount
-
         oauth_acct = await crud.OAuthAccountCrud.first(
             session=db_session,
             filters=[OAuthAccount.subject == "oauth-attacker-sub"],
@@ -1434,7 +1210,7 @@ class TestOAuthLinking:
         assert new_user.email is None  # conflicting email was not assigned
 
     async def test_oauth_links_to_logged_in_session(
-        self, client_factory, db_session, override_db_context, oauth_provider
+        self, client_factory, db_session, override_db_context, oauth_provider, idp
     ) -> None:
         """When a user is already logged in and completes an OAuth callback for a
         new (sub, provider) pair, the OAuthAccount is linked to their existing user."""
@@ -1449,34 +1225,8 @@ class TestOAuthLinking:
             )
             assert login.status_code == 204
 
-            state = await self._do_authorize(c)
-
-            with (
-                patch(
-                    "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-                    new_callable=AsyncMock,
-                    return_value=self._FAKE_URLS,
-                ),
-                patch(
-                    "nexctf.api.routes.auth.oauth_exchange_code",
-                    new_callable=AsyncMock,
-                    return_value={"access_token": "fake-access-token"},
-                ),
-                patch(
-                    "nexctf.api.routes.auth.oauth_fetch_userinfo",
-                    new_callable=AsyncMock,
-                    return_value={"sub": "new-oauth-sub-for-existing-user"},
-                ),
-            ):
-                callback_resp = await c.get(
-                    "/auth/providers/link-idp/callback",
-                    params={"code": "code", "state": state},
-                    follow_redirects=False,
-                )
-
+            callback_resp = await idp.login(c, "new-oauth-sub-for-existing-user")
             assert callback_resp.status_code == 302
-
-        from nexctf.model import OAuthAccount
 
         oauth_acct = await crud.OAuthAccountCrud.first(
             session=db_session,
@@ -1486,19 +1236,17 @@ class TestOAuthLinking:
         assert oauth_acct.user_id == user.id
 
     async def test_oauth_callback_rejects_link_when_subject_belongs_to_different_user(
-        self, client_factory, db_session, override_db_context, oauth_provider
+        self, client_factory, db_session, override_db_context, oauth_provider, idp
     ) -> None:
         """If the OAuth subject is already linked to user B and user A is logged in,
         the callback must reject with 409 rather than silently switching to user B's
         session (which would be an implicit account takeover)."""
-        from nexctf.model import OAuthAccount as OAuthAccountModel
-
         # user_b owns the OAuth account
         user_b = User(username="owner_b", hashed_password=hash_password("pass"))
         db_session.add(user_b)
         await db_session.flush()
         db_session.add(
-            OAuthAccountModel(
+            OAuthAccount(
                 user_id=user_b.id,
                 provider_id=oauth_provider.id,
                 subject="shared-sub-conflict",
@@ -1516,30 +1264,7 @@ class TestOAuthLinking:
                 data={"username": "logged_in_a", "password": "pass"},
             )
 
-            state = await self._do_authorize(c)
-
-            with (
-                patch(
-                    "nexctf.api.routes.auth.oauth_resolve_provider_urls",
-                    new_callable=AsyncMock,
-                    return_value=self._FAKE_URLS,
-                ),
-                patch(
-                    "nexctf.api.routes.auth.oauth_exchange_code",
-                    new_callable=AsyncMock,
-                    return_value={"access_token": "fake-access-token"},
-                ),
-                patch(
-                    "nexctf.api.routes.auth.oauth_fetch_userinfo",
-                    new_callable=AsyncMock,
-                    return_value={"sub": "shared-sub-conflict"},
-                ),
-            ):
-                callback_resp = await c.get(
-                    "/auth/providers/link-idp/callback",
-                    params={"code": "code", "state": state},
-                    follow_redirects=False,
-                )
+            callback_resp = await idp.login(c, "shared-sub-conflict")
 
             assert callback_resp.status_code == 409
             assert callback_resp.json()["error_code"] == "OAUTH-409-ALREADY-LINKED"

@@ -41,7 +41,7 @@ from nexctf.plugins.registry import (
 from nexctf.plugins.routes import route_registry
 from nexctf.tasks.queue import DB_SETTINGS, build_queries, connect
 
-from .base import signed_ago
+from .base import FakeIdP, signed_ago
 
 register_fixtures(test_fixture_registry, globals())
 # The test app skips the lifespan that loads plugins.
@@ -175,6 +175,12 @@ def client_factory(app_overrides):
             yield c
 
     return _create
+
+
+@pytest.fixture
+def idp(oauth_provider) -> FakeIdP:
+    """A fake identity provider behind the test's ``oauth_provider``."""
+    return FakeIdP(oauth_provider.slug)
 
 
 @pytest.fixture
