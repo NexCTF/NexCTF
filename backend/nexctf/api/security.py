@@ -104,6 +104,11 @@ async def issue_password_reset_token(redis: Redis, user: User) -> str:
     )
 
 
+def password_reset_link(token: str) -> str:
+    """The frontend page that consumes a password reset *token*."""
+    return f"{settings.FRONTEND_HOST}/reset-password?token={token}"
+
+
 async def consume_single_use_token(redis: Redis, prefix: str, token: str) -> str | None:
     """Atomically consume a single-use token, returning its subject or None.
 

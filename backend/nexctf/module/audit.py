@@ -3,13 +3,11 @@
 The mixin emits an :class:`~nexctf.model.event.Event` for every create, update
 and delete performed through it, capturing a redacted before/after diff. Actor
 and IP are read from a context variable populated per request by the admin
-router (see ``nexctf.api.dep.set_audit_context``).
+router (see ``nexctf.api.dep.bind_audit_context``) or once per CLI command.
 """
 
 from __future__ import annotations
 
-from contextvars import ContextVar
-from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
@@ -20,7 +18,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import class_mapper
 
-from nexctf.module.events import emit
+from nexctf.module.events import current_audit_context, emit
 
 # Columns whose key contains any of these substrings are never recorded in a
 # diff. Substring matching catches plugin-defined variants (e.g. ``flag_hash``,
@@ -40,27 +38,6 @@ _SKIP_FIELDS = {"id", "created_at", "updated_at"}
 # Attribute names tried, in order, to derive a human-readable target label.
 _LABEL_FIELDS = ("title", "name", "label", "username", "slug")
 _MAX_VALUE_LEN = 200
-
-
-@dataclass(frozen=True)
-class AuditContext:
-    """The actor and origin of the request currently being served."""
-
-    actor_id: UUID | None
-    ip: str | None
-
-
-_audit_ctx: ContextVar[AuditContext | None] = ContextVar("audit_ctx", default=None)
-
-
-def set_audit_context(ctx: AuditContext) -> None:
-    """Bind the audit context for the current request."""
-    _audit_ctx.set(ctx)
-
-
-def current_audit_context() -> AuditContext | None:
-    """Return the audit context bound to the current request, if any."""
-    return _audit_ctx.get()
 
 
 REDACTED = "***"

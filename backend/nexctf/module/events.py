@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from contextvars import ContextVar
+from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
@@ -11,6 +13,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.core.eventbus import publish_event
 from nexctf.model.event import Event
+
+
+@dataclass(frozen=True)
+class AuditContext:
+    """The actor, origin and entry point of the action being served."""
+
+    actor_id: UUID | None
+    ip: str | None
+    source: str | None = None
+
+
+_audit_ctx: ContextVar[AuditContext | None] = ContextVar("audit_ctx", default=None)
+
+
+def set_audit_context(ctx: AuditContext) -> None:
+    """Bind the audit context for the current request or CLI command."""
+    _audit_ctx.set(ctx)
+
+
+def current_audit_context() -> AuditContext | None:
+    """Return the audit context bound to the current request, if any."""
+    return _audit_ctx.get()
+
 
 # Maps a full ``event_type`` to the lens an admin reviews it through. Anything
 # not listed here (notably the auto-audited CRUD events) is treated as ``admin``.
@@ -81,7 +106,11 @@ async def emit(
 
     When ``redis`` is omitted the row is still persisted but no live broadcast is
     sent; this lets the CRUD layer emit audit events without a Redis handle.
+    A ``source`` bound in the audit context is added to *meta*.
     """
+    ctx = _audit_ctx.get()
+    if ctx is not None and ctx.source is not None:
+        meta = {**(meta or {}), "source": ctx.source}
     event = Event(
         event_type=event_type,
         actor_id=actor_id,

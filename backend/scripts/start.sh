@@ -33,7 +33,7 @@ log "loading fixtures (contexts: $FIXTURE_CONTEXTS)"
 manager fixtures load $FIXTURE_CONTEXTS --strategy skip_existing
 
 log "creating default admin account (if missing)"
-manager create-admin
+manager bootstrap
 
 # Dev runs its own server (fastapi dev) after this; skip prod orchestration.
 [ "${ENVIRONMENT:-}" = "development" ] && exit 0

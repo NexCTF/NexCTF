@@ -28,9 +28,14 @@ from nexctf.util.ip import get_client_ip
 logger = logging.getLogger(__name__)
 
 
+def rate_key(action: str, address: str) -> str:
+    """Redis key limiting *action* for one client *address*."""
+    return f"rl:{action}:{address}"
+
+
 def client_rate_key(action: str, request: Request) -> str:
     """Redis key limiting *action* per client address."""
-    return f"rl:{action}:{get_client_ip(request) or 'unknown'}"
+    return rate_key(action, get_client_ip(request) or "unknown")
 
 
 async def check_rate_limit(

@@ -11,15 +11,9 @@ from nexctf.api.dep import (
     require_fresh_unless_token,
 )
 from nexctf.core import appconfig
-from nexctf.core.eventbus import publish_event
-from nexctf.exceptions import ConfigValidationError
-from nexctf.module.audit import REDACTED, audit_actor, redact
-from nexctf.module.events import emit
-from nexctf.module.info import invalidate as invalidate_info
-from nexctf.module.scoreboard import invalidate as invalidate_scoreboard
-from nexctf.module.stats import invalidate_team
+from nexctf.module.audit import REDACTED
+from nexctf.module.config import save_config
 from nexctf.schema.config import AdminConfigBulkUpdate, AdminConfigRead
-from nexctf.util.datetime import EVENT_TIME_KEYS, event_time_errors
 
 config_router = APIRouter(prefix="/config", tags=["Config"])
 
@@ -65,53 +59,5 @@ async def bulk_update_config(
     defs = appconfig.all_defs()
     if any(key in defs and defs[key].reauth for key in obj.items):
         require_fresh_unless_token(request, granted)
-    errors: list[str] = []
-    staged: dict[str, str] = {}
-
-    for key, value in obj.items.items():
-        if key not in appconfig.all_defs():
-            errors.append(f"Unknown key: {key!r}")
-            continue
-        if (
-            value == REDACTED
-            and appconfig.get_def(key).type == appconfig.ConfigType.SECRET
-        ):
-            continue
-        try:
-            await appconfig.stage(session, key, value)
-            staged[key] = value
-        except ValueError as e:
-            errors.append(f"{key}: {e}")
-
-    overrides = {**old_overrides, **staged}
-    if not errors and staged.keys() & EVENT_TIME_KEYS:
-        errors = event_time_errors(overrides)
-    if errors:
-        raise ConfigValidationError(errors)
-
-    await appconfig.commit_and_store(session, redis, staged)
-    await invalidate_info(redis)
-    if "ctf.freeze_time" in staged:
-        await invalidate_scoreboard(redis)
-        await invalidate_team(redis)
-    await publish_event(redis, ["config:update"], "1")
-
-    if staged:
-        actor_id, ip = audit_actor()
-        changes = {
-            key: [
-                redact(key, appconfig.get_with_overrides(key, old_overrides)),
-                redact(key, appconfig.get_with_overrides(key, overrides)),
-            ]
-            for key in sorted(staged)
-        }
-        await emit(
-            session,
-            redis,
-            event_type="config.updated",
-            actor_id=actor_id,
-            ip=ip,
-            meta={"changes": changes},
-        )
-
+    overrides = await save_config(session, redis, obj.items, old_overrides)
     return Response(data=[_build_item(k, overrides) for k in appconfig.all_defs()])

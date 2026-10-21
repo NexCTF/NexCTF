@@ -12,9 +12,7 @@ from nexctf.model.config import ConfigEntry
 
 
 def _patch_invalidate():
-    return patch(
-        "nexctf.api.routes.admin.config.invalidate_scoreboard", new_callable=AsyncMock
-    )
+    return patch("nexctf.module.config.invalidate_scoreboard", new_callable=AsyncMock)
 
 
 class TestFreezeTimeInvalidation:
@@ -140,8 +138,8 @@ class TestPublicInfoInvalidation:
             calls.append("publish")
 
         with (
-            patch("nexctf.api.routes.admin.config.invalidate_info", _invalidate),
-            patch("nexctf.api.routes.admin.config.publish_event", _publish),
+            patch("nexctf.module.config.invalidate_info", _invalidate),
+            patch("nexctf.module.config.publish_event", _publish),
         ):
             resp = await c.put(
                 "/admin/config", json={"items": {"ctf.name": "Renamed CTF"}}
