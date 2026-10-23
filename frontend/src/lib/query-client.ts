@@ -27,6 +27,14 @@ function recheckIdentityOn401(client: QueryClient, error: unknown): void {
   }
 }
 
+/** Until the first admin exists the API answers only the setup page, so go there. */
+function openSetupWhenRequired(error: unknown): void {
+  const required = error instanceof ApiError && error.errCode === "SETUP-403-REQUIRED";
+  if (required && window.location.pathname !== "/setup") {
+    window.location.href = "/setup";
+  }
+}
+
 /** Retry network and server failures; a client error answers the same way again. */
 function retryTransientFailures(failureCount: number, error: unknown): boolean {
   if (error instanceof ApiError && error.status < 500 && ![408, 429].includes(error.status)) {
@@ -39,10 +47,16 @@ export function createQueryClient(): QueryClient {
   const client: QueryClient = new QueryClient({
     defaultOptions: { queries: { staleTime: 30_000, retry: retryTransientFailures } },
     queryCache: new QueryCache({
-      onError: (error) => forgetIdentityOn401(client, error),
+      onError: (error) => {
+        openSetupWhenRequired(error);
+        forgetIdentityOn401(client, error);
+      },
     }),
     mutationCache: new MutationCache({
-      onError: (error) => recheckIdentityOn401(client, error),
+      onError: (error) => {
+        openSetupWhenRequired(error);
+        recheckIdentityOn401(client, error);
+      },
     }),
   });
   return client;

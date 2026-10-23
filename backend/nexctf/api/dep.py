@@ -34,6 +34,7 @@ from nexctf.exceptions import (
     EventEndedError,
     EventNotStartedError,
     NoTeamError,
+    SetupRequiredError,
     TeamDisqualifiedError,
     UnscopableEndpointError,
 )
@@ -42,6 +43,7 @@ from nexctf.module.client import category_expression, record_sighting
 from nexctf.module.custom_field import require_complete_profile
 from nexctf.module.events import AuditContext, set_audit_context
 from nexctf.module.session import session_idle, track_session_ip
+from nexctf.module.setup import setup_done
 from nexctf.plugins.registry import (
     challenge_registry,
     solution_registry,
@@ -192,6 +194,19 @@ def invalidate_on_write(
                     await invalidate(redis)
 
     return _dep
+
+
+async def require_setup_done(session: SessionDep) -> None:
+    """Refuse the request until the first admin exists."""
+    if not await setup_done(session):
+        raise SetupRequiredError()
+
+
+async def bind_setup_audit_context(request: Request) -> None:
+    """Bind the client IP for audit logging on the anonymous setup endpoints."""
+    set_audit_context(
+        AuditContext(actor_id=None, ip=get_client_ip(request), source="setup")
+    )
 
 
 async def bind_audit_context(request: Request, user: CurrentUserDep) -> None:

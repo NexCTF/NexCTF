@@ -1,6 +1,7 @@
 """Pytest configuration for NexCTF backend tests."""
 
 import os
+import uuid
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
 from functools import partial
@@ -31,6 +32,7 @@ from nexctf.core.db import db
 from nexctf.fixtures import test_fixture_registry
 from nexctf.main import app
 from nexctf.model import Base, User, UserRole
+from nexctf.module import setup
 from nexctf.plugins import load_builtin_plugins
 from nexctf.plugins.frontend import frontend_registry
 from nexctf.plugins.registry import (
@@ -132,6 +134,21 @@ def ticket_store(mock_redis) -> None:
 
     mock_redis.set = AsyncMock(side_effect=set_)
     mock_redis.getdel = AsyncMock(side_effect=getdel)
+
+
+@pytest.fixture(autouse=True)
+def setup_finished(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Serve the API as on an instance whose first admin already exists."""
+    monkeypatch.setattr(setup, "_admin_seen", True)
+
+
+@pytest.fixture
+async def setup_key(redis, monkeypatch: pytest.MonkeyPatch):
+    """Point the setup token at a key of its own, deleted after the test."""
+    key = f"test:setup:{uuid.uuid4()}"
+    monkeypatch.setattr(setup, "SETUP_TOKEN_KEY", key)
+    yield key
+    await redis.delete(key)
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
