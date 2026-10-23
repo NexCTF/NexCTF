@@ -11,6 +11,7 @@ All dev commands are wrapped by `Taskfile.yml` (run `task` from the repo root). 
 - Apply all auto-fixes (backend + frontend): `task dev:fix`
 - Tail infra logs: `task dev:logs`
 - Run the end-to-end tests: `task dev:e2e`
+- Regenerate the README and documentation screenshots: `task dev:screenshots` (one section: `task dev:screenshots -- docs/scheduler`)
 
 Mail is captured by mailpit, not delivered: the dev `config` fixture points `email.*` at it, and sent mail is readable at http://localhost:8025.
 
