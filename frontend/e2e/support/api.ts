@@ -7,7 +7,7 @@ const API_URL = process.env.E2E_API_URL ?? "http://localhost:8000";
 /** Full-admin token seeded by the development `token` fixture. */
 const ADMIN_TOKEN = process.env.E2E_ADMIN_TOKEN ?? "nexctf_admin_token";
 /** Seeded admin credentials from the development `user` fixture. */
-const ADMIN_LOGIN = {
+export const ADMIN_LOGIN = {
   username: process.env.E2E_ADMIN_USERNAME ?? "admin",
   password: process.env.E2E_ADMIN_PASSWORD ?? "admin",
 };

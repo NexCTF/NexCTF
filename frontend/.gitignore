@@ -28,6 +28,7 @@ dist-ssr
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+/docshots/
 
 # TanStack Router dev cache
 /.tanstack/
