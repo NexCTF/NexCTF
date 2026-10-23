@@ -186,6 +186,8 @@ async def run_now(session: AsyncSession, job: SchedulerJob) -> SchedulerTask:
     """Queue a run of ``job`` right away, leaving its schedule as is."""
     now = datetime.now(UTC)
     task = await _queue_run(session, job, now, now)
+    if task.status != TaskStatus.SKIPPED:
+        job.last_run = now
     await _prune_task_history(session, job)
     return task
 

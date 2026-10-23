@@ -319,6 +319,33 @@ async def test_run_now_queues_a_run_that_invalidates_the_cache(
     assert job.scheduled_at > datetime.now(UTC)
 
 
+async def test_run_now_sets_last_run(
+    db_session: AsyncSession, owner: User, counting_job_type: tuple[str, list[UUID]]
+) -> None:
+    job = _job(owner, counting_job_type[0], is_active=False)
+    db_session.add(job)
+    await db_session.flush()
+
+    task = await run_now(db_session, job)
+
+    assert job.last_run == task.started_at
+
+
+async def test_a_skipped_run_now_leaves_last_run_unchanged(
+    db_session: AsyncSession, owner: User, counting_job_type: tuple[str, list[UUID]]
+) -> None:
+    job = _job(owner, counting_job_type[0])
+    db_session.add(job)
+    await db_session.flush()
+    await run_now(db_session, job)
+    last_run = job.last_run
+
+    task = await run_now(db_session, job)
+
+    assert task.status == TaskStatus.SKIPPED
+    assert job.last_run == last_run
+
+
 async def test_a_failed_run_is_rolled_back_recorded_and_reraised(
     db_session: AsyncSession,
     mock_redis: Any,
