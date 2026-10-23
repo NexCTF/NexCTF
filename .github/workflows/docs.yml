@@ -1,0 +1,22 @@
+name: Documentation
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+jobs:
+  dispatch:
+    name: Update the documentation
+    # The documentation follows stable releases only.
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    steps:
+      # Regenerates the API reference and the screenshots, then opens a pull request there.
+      - run: gh workflow run nexctf-release.yml -R NexCTF/Documentation -f version="$TAG"
+        env:
+          # Fine-grained token on NexCTF/Documentation only, "Actions: read and write".
+          # It expires: renew it and update this secret.
+          GH_TOKEN: ${{ secrets.DOCUMENTATION_DISPATCH_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
