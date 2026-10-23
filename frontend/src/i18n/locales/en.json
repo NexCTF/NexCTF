@@ -1267,6 +1267,47 @@
       "verify_hint": "Enter the 6-digit code from your authenticator app to confirm setup."
     }
   },
+  "setup": {
+    "account": {
+      "confirm_password": "Confirm password",
+      "email": "Email (optional)",
+      "error_unexpected": "The account could not be created",
+      "mismatch": "Passwords do not match",
+      "password": "Password",
+      "submit": "Create the account",
+      "subtitle": "This instance has no administrator yet. The account you create here manages everything else.",
+      "title": "Create the admin account",
+      "token": "Setup token",
+      "token_hint": "Printed in the server logs at start. Run the manager bootstrap command on the server for a new one.",
+      "token_invalid": "This setup token is not valid anymore. Run the manager bootstrap command on the server for a new link.",
+      "username": "Username"
+    },
+    "event": {
+      "error": "The settings could not be saved",
+      "skip": "Skip",
+      "submit": "Save and continue",
+      "subtitle": "The basics players see first. Everything here can be changed later in the settings.",
+      "title": "Your event"
+    },
+    "next": {
+      "admins_desc": "Create accounts for the rest of the organizing team.",
+      "admins_title": "Add admins",
+      "appearance_desc": "Favicon, dark logo, theme and custom CSS.",
+      "appearance_title": "Customize the look",
+      "challenges_desc": "Add the first challenge, its flags and hints.",
+      "challenges_title": "Create a challenge",
+      "dashboard": "Go to the admin dashboard",
+      "email_desc": "Send verification and password reset emails.",
+      "email_title": "Set up email",
+      "pages_desc": "Edit the welcome page and add rules or sponsor pages.",
+      "pages_title": "Write the home page",
+      "registration_desc": "Allow sign-ups and set the team rules.",
+      "registration_title": "Open registration",
+      "subtitle": "A few places to go from here.",
+      "title": "You are all set"
+    },
+    "progress": "Step {{current}} of {{total}}"
+  },
   "table": {
     "all_columns": "All columns",
     "clear_filter": "Clear filter",

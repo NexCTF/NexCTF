@@ -864,6 +864,25 @@ export async function resetPassword(token: string, newPassword: string): Promise
   });
 }
 
+export interface SetupStatus {
+  admin_required: boolean;
+}
+
+export interface FirstAdminCreate {
+  token: string;
+  username: string;
+  password: string;
+  email?: string;
+}
+
+export async function getSetupStatus(): Promise<SetupStatus> {
+  return request<SetupStatus>("/setup");
+}
+
+export async function createFirstAdmin(body: FirstAdminCreate): Promise<void> {
+  await rawRequest("/setup/admin", { method: "POST", body: JSON.stringify(body) });
+}
+
 export async function forgotPassword(email: string): Promise<void> {
   await rawRequest("/auth/forgot-password", {
     method: "POST",

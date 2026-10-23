@@ -10,6 +10,7 @@ from nexctf.cli import bootstrap
 from nexctf.cli.bootstrap import create_default_admin
 from nexctf.core.config import settings
 from nexctf.model import User, UserRole, UserToken
+from tests.base import make_user
 
 
 @pytest.fixture(autouse=True)
@@ -104,3 +105,34 @@ async def test_rejects_token_without_prefix(
         await create_default_admin(db_session)
 
     assert await _get_admin(db_session) is None
+
+
+async def test_no_password_creates_nothing(
+    db_session: AsyncSession, admin_settings, monkeypatch
+) -> None:
+    """Without a password the admin is left to the first-run setup."""
+    monkeypatch.setattr(settings, "DEFAULT_ADMIN_PASSWORD", None)
+    monkeypatch.setattr(settings, "DEFAULT_ADMIN_TOKEN", None)
+
+    assert await create_default_admin(db_session) is False
+    assert await _get_admin(db_session) is None
+
+
+async def test_rejects_token_without_password(
+    db_session: AsyncSession, admin_settings, monkeypatch
+) -> None:
+    """An API token alone cannot create the admin."""
+    monkeypatch.setattr(settings, "DEFAULT_ADMIN_PASSWORD", None)
+
+    with pytest.raises(ValueError, match="DEFAULT_ADMIN_PASSWORD"):
+        await create_default_admin(db_session)
+
+
+async def test_token_without_password_is_fine_once_the_admin_exists(
+    db_session: AsyncSession, admin_settings, monkeypatch
+) -> None:
+    """An upgraded instance keeping only DEFAULT_ADMIN_TOKEN still boots."""
+    await make_user(db_session, "seed_admin", role=UserRole.admin)
+    monkeypatch.setattr(settings, "DEFAULT_ADMIN_PASSWORD", None)
+
+    assert await create_default_admin(db_session) is False

@@ -92,6 +92,37 @@ class EmailNotVerifiedError(AuthError):
     )
 
 
+class SetupError(ApiException, abstract=True):
+    """Base for first-run setup errors."""
+
+
+class SetupRequiredError(SetupError):
+    api_error = ApiError(
+        code=403,
+        msg="Setup required",
+        desc="This instance has no administrator yet. Finish the setup first.",
+        err_code="SETUP-403-REQUIRED",
+    )
+
+
+class InvalidSetupTokenError(SetupError):
+    api_error = ApiError(
+        code=403,
+        msg="Invalid setup token",
+        desc="The setup token is wrong or no longer valid. Run `manager bootstrap` for a new one.",
+        err_code="SETUP-403-TOKEN",
+    )
+
+
+class SetupCompletedError(SetupError):
+    api_error = ApiError(
+        code=409,
+        msg="Setup completed",
+        desc="This instance already has an administrator.",
+        err_code="SETUP-409-DONE",
+    )
+
+
 class TotpError(ApiException, abstract=True):
     """Base for TOTP / two-factor authentication errors."""
 

@@ -21,7 +21,13 @@ afterEach(() => {
 
 function renderDialog(me: User) {
   vi.mocked(getMyOAuthAccounts).mockResolvedValue([]);
-  const auth: AuthContext = { user: me, isLoading: false, login: vi.fn(), logout: vi.fn() };
+  const auth: AuthContext = {
+    user: me,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    refresh: vi.fn(),
+  };
   renderWithQuery(
     <AuthCtx.Provider value={auth}>
       <ReauthDialog />

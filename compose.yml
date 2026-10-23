@@ -47,8 +47,13 @@ x-app-env: &app-env
   BACKEND_HOST: ${BACKEND_HOST:-}
   S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
 
+  # First admin account. Left unset, the logs print a one-time setup link
+  # (`manager bootstrap` prints a new one) to create it from the browser.
+  DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME:-}
+  DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-}
+  DEFAULT_ADMIN_TOKEN: ${DEFAULT_ADMIN_TOKEN:-}
+
   # Set to "true" to seed example challenges, teams and submissions on start.
-  # The demo accounts have no password; the admin comes from DEFAULT_ADMIN_*.
   DEMO_DATA: ${DEMO_DATA:-}
 
   # Prometheus metrics at https://${DOMAIN}/metrics, on by default but only
