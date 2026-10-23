@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, expect, it, vi } from "vitest";
 import { ApiError, type ConfigItem, getConfig, updateConfig } from "@/lib/api";
+import { configItem } from "@/test/fixtures";
 import { renderRoute } from "@/test/render";
 import { Route } from "./settings";
 
@@ -15,22 +16,7 @@ vi.mock("@/lib/api", async (importOriginal) => ({
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 function item(key: string, category: string, label: string): ConfigItem {
-  return {
-    key,
-    type: "string",
-    value: "",
-    default: "",
-    label,
-    description: "",
-    choices: [],
-    min: null,
-    max: null,
-    category,
-    category_label: category,
-    category_icon: null,
-    category_section: "settings",
-    is_plugin_category: false,
-  };
+  return configItem({ key, category, category_label: category, label });
 }
 
 beforeEach(() => {

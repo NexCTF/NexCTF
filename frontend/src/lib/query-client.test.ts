@@ -106,3 +106,14 @@ it("keeps the identity when an action asks for a fresh sign-in", async () => {
   expect(client.getQueryData(["auth", "me"])).toEqual({ id: "u1", username: "player" });
   expect(getMe).not.toHaveBeenCalled();
 });
+
+it.each([
+  ["a query", runQuery],
+  ["a mutation", runMutation],
+])("opens the setup page when %s says the instance has no admin", async (_, run) => {
+  vi.stubGlobal("location", { ...window.location, pathname: "/", href: "" });
+
+  await run(createQueryClient(), new ApiError(403, "Setup required", null, "SETUP-403-REQUIRED"));
+
+  expect(window.location.href).toBe("/setup");
+});

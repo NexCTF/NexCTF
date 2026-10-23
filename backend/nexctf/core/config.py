@@ -53,7 +53,7 @@ class Settings(BaseSettings):
         return self
 
     DEFAULT_ADMIN_USERNAME: str = "admin"
-    DEFAULT_ADMIN_PASSWORD: str = "admin"
+    DEFAULT_ADMIN_PASSWORD: str | None = None
     DEFAULT_ADMIN_TOKEN: str | None = None
 
     @model_validator(mode="after")

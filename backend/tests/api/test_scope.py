@@ -41,7 +41,7 @@ from ..base import NULL_UUID
 
 _AUTH_DEPS = {_current_user, _optional_auth, _current_admin}
 # Route families deliberately outside every scope group.
-UNGROUPED_PREFIXES = ("/auth/", "/oauth2/")
+UNGROUPED_PREFIXES = ("/auth/", "/oauth2/", "/setup")
 
 
 def _every_scope(*, admin: bool) -> list[str]:

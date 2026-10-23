@@ -603,10 +603,11 @@ def user() -> list[User]:
 
 @fixtures.register(depends_on=["team"], name="user", contexts=["demo"])
 def demo_user() -> list[User]:
-    """The development accounts, stripped of credentials, for demo deployments."""
+    """The development accounts as regular users without credentials, for demos."""
     users = user()
     for u in users:
         u.hashed_password = None
+        u.role = UserRole.user
         if u.username == settings.DEFAULT_ADMIN_USERNAME:
             u.username = f"demo_{u.username}"
     return users

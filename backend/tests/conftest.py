@@ -1,6 +1,7 @@
 """Pytest configuration for NexCTF backend tests."""
 
 import os
+import uuid
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
 from functools import partial
@@ -30,6 +31,7 @@ from nexctf.core.db import db
 from nexctf.fixtures import test_fixture_registry
 from nexctf.main import app
 from nexctf.model import Base, User, UserRole
+from nexctf.module import setup
 from nexctf.plugins import load_builtin_plugins
 from nexctf.plugins.frontend import frontend_registry
 from nexctf.plugins.registry import (
@@ -97,6 +99,43 @@ def mock_redis(config_overrides: dict[str, str]):
 
     redis_mock.sunion = AsyncMock(return_value=set())
     return redis_mock
+
+
+@pytest.fixture
+async def redis():
+    """Fresh Redis client per test, bound to the test's own event loop.
+
+    Using the module-level singleton (get_redis_client) breaks with
+    pytest-asyncio's function-scoped event loops: after the first test's loop
+    is closed, the pool's underlying sockets are stale and the next test raises
+    'RuntimeError: Event loop is closed'.  A per-test client avoids this.
+    """
+    import redis.exceptions
+    from redis.asyncio import Redis
+
+    client = Redis.from_url(str(settings.REDIS_URL), decode_responses=True)
+    try:
+        await client.ping()
+    except redis.exceptions.ConnectionError, OSError:
+        await client.aclose()
+        pytest.skip(f"Redis not reachable at {settings.REDIS_URL}")
+    yield client
+    await client.aclose()
+
+
+@pytest.fixture(autouse=True)
+def setup_finished(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Serve the API as on an instance whose first admin already exists."""
+    monkeypatch.setattr(setup, "_admin_seen", True)
+
+
+@pytest.fixture
+async def setup_key(redis, monkeypatch: pytest.MonkeyPatch):
+    """Point the setup token at a key of its own, deleted after the test."""
+    key = f"test:setup:{uuid.uuid4()}"
+    monkeypatch.setattr(setup, "SETUP_TOKEN_KEY", key)
+    yield key
+    await redis.delete(key)
 
 
 @pytest.fixture(scope="session")

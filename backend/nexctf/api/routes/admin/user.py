@@ -21,7 +21,6 @@ from nexctf.api.dep import (
 )
 from nexctf.api.security import (
     current_sid_hash,
-    hash_password,
     issue_password_reset_token,
 )
 from nexctf.core.eventbus import close_user_streams
@@ -36,7 +35,7 @@ from nexctf.module.session import (
     revoke_session_by_id,
     revoke_user_sessions,
 )
-from nexctf.module.user import reset_totp
+from nexctf.module.user import create_verified_user, reset_totp
 from nexctf.schema.custom_field import AdminCustomFieldValueRead
 from nexctf.schema.event import AdminEventRead
 from nexctf.schema.user import (
@@ -47,7 +46,6 @@ from nexctf.schema.user import (
     AdminUserUpdateRead,
     AdminUserUpdateRequest,
     PublicUserRead,
-    UserCreate,
     UserEmailVerifiedUpdate,
     UserSessionRead,
 )
@@ -74,7 +72,6 @@ async def create_user(
     session: SessionDep,
     redis: RedisDep,
     obj: AdminUserCreate,
-    admin: CurrentUserDep,
     granted: TokenScopesDep,
 ) -> Response[PublicUserRead]:
     """Create a user directly, bypassing registration gating and email verification.
@@ -83,37 +80,11 @@ async def create_user(
     """
     if obj.role is UserRole.admin:
         require_fresh_session(request, granted)
-    try:
-        result = await crud.UserCrud.create(
-            session=session,
-            obj=UserCreate(
-                username=obj.username,
-                email=obj.email,
-                hashed_password=hash_password(obj.password),
-                email_verified=True,
-                role=obj.role,
-                team_id=obj.team_id,
-            ),
-            schema=PublicUserRead,
-        )
-    except IntegrityError:
-        raise ConflictError(detail="Username or email already taken")
-    if result.data is not None:
-        await replace_custom_field_values(
-            session, obj.custom_fields, user_id=result.data.id, self_service=False
-        )
-        await emit(
-            session,
-            redis,
-            event_type="admin.user_created",
-            actor_id=admin.id,
-            ip=get_client_ip(request),
-            meta={
-                "target_user_id": str(result.data.id),
-                "target_username": result.data.username,
-            },
-        )
-    return result
+    user = await create_verified_user(session, redis, obj)
+    await replace_custom_field_values(
+        session, obj.custom_fields, user_id=user.id, self_service=False
+    )
+    return Response(data=PublicUserRead.model_validate(user))
 
 
 @user_router.get("/{uuid}")

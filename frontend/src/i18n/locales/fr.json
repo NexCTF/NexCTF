@@ -1270,6 +1270,47 @@
       "verify_hint": "Entrez le code à 6 chiffres de votre application pour confirmer la configuration."
     }
   },
+  "setup": {
+    "account": {
+      "confirm_password": "Confirmer le mot de passe",
+      "email": "Email (facultatif)",
+      "error_unexpected": "Le compte n'a pas pu être créé",
+      "mismatch": "Les mots de passe ne correspondent pas",
+      "password": "Mot de passe",
+      "submit": "Créer le compte",
+      "subtitle": "Cette instance n'a pas encore d'administrateur. Le compte créé ici permet de gérer tout le reste.",
+      "title": "Créer le compte administrateur",
+      "token": "Token de configuration",
+      "token_hint": "Affiché dans les logs du serveur au démarrage. Lancez la commande manager bootstrap sur le serveur pour en obtenir un nouveau.",
+      "token_invalid": "Ce token de configuration n'est plus valide. Lancez la commande manager bootstrap sur le serveur pour obtenir un nouveau lien.",
+      "username": "Nom d'utilisateur"
+    },
+    "event": {
+      "error": "Les paramètres n'ont pas pu être enregistrés",
+      "skip": "Passer",
+      "submit": "Enregistrer et continuer",
+      "subtitle": "Les informations que les joueurs voient en premier. Tout peut être modifié plus tard dans les paramètres.",
+      "title": "Votre événement"
+    },
+    "next": {
+      "admins_desc": "Créez les comptes du reste de l'équipe d'organisation.",
+      "admins_title": "Ajouter des administrateurs",
+      "appearance_desc": "Favicon, logo sombre, thème et CSS personnalisé.",
+      "appearance_title": "Personnaliser l'apparence",
+      "challenges_desc": "Ajoutez le premier challenge, ses flags et ses indices.",
+      "challenges_title": "Créer un challenge",
+      "dashboard": "Aller au tableau de bord admin",
+      "email_desc": "Envoyez les emails de vérification et de réinitialisation du mot de passe.",
+      "email_title": "Configurer les emails",
+      "pages_desc": "Modifiez la page d'accueil et ajoutez le règlement ou les pages sponsors.",
+      "pages_title": "Rédiger la page d'accueil",
+      "registration_desc": "Autorisez les inscriptions et définissez les règles des équipes.",
+      "registration_title": "Ouvrir les inscriptions",
+      "subtitle": "Quelques pistes pour la suite.",
+      "title": "Tout est prêt"
+    },
+    "progress": "Étape {{current}} sur {{total}}"
+  },
   "table": {
     "all_columns": "Toutes les colonnes",
     "clear_filter": "Effacer le filtre",

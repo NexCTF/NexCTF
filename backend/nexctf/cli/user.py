@@ -7,10 +7,10 @@ from typing import Annotated
 import typer
 from rich.table import Table
 from rich.text import Text
+lazy from fastapi_toolsets.exceptions import ConflictError
 lazy from pydantic import ValidationError
 lazy from redis.asyncio import Redis
 lazy from sqlalchemy import delete, or_, select
-lazy from sqlalchemy.exc import IntegrityError
 lazy from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.cli.common import (
@@ -40,11 +40,10 @@ lazy from nexctf.module.session import (
     revoke_all_access,
     revoke_user_sessions,
 )
-lazy from nexctf.module.user import reset_totp
+lazy from nexctf.module.user import create_verified_user, reset_totp
 lazy from nexctf.schema.user import (
     AdminUserCreate,
     AdminUserUpdate,
-    UserCreate,
     UserEmailVerifiedUpdate,
 )
 lazy from nexctf.util.sql import count_of
@@ -92,20 +91,9 @@ async def create_user(
     except ValidationError as exc:
         raise CliError(f"Invalid user: {exc.errors()[0]['msg']}") from exc
     try:
-        user = await crud.UserCrud.create(
-            session=session,
-            obj=UserCreate(
-                username=obj.username,
-                email=obj.email,
-                hashed_password=hash_password(obj.password),
-                email_verified=True,
-                role=obj.role,
-            ),
-        )
-    except IntegrityError as exc:
-        raise CliError("Username or email already taken") from exc
-    await audit(session, redis, "admin.user_created", user)
-    return user
+        return await create_verified_user(session, redis, obj)
+    except ConflictError as exc:
+        raise CliError(str(exc)) from exc
 
 
 async def set_role(

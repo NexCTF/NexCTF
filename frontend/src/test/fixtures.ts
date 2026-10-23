@@ -3,6 +3,7 @@ import type {
   ApiToken,
   ClientSighting,
   ClientSummary,
+  ConfigItem,
   CursorPaginatedResponse,
   CustomFieldDefinition,
   FailedLoginAddress,
@@ -57,6 +58,27 @@ export function publicInfo(overrides: Partial<PublicInfo> = {}): PublicInfo {
 /** Same as `publicInfo`, with only the competition block patched. */
 export function publicInfoWith(competition: Partial<PublicInfo["competition"]>): PublicInfo {
   return publicInfo({ competition: { ...publicInfo().competition, ...competition } });
+}
+
+/** One `/admin/config` setting, a plain string in the general category. */
+export function configItem(overrides: Partial<ConfigItem> = {}): ConfigItem {
+  return {
+    key: "a.one",
+    type: "string",
+    value: "",
+    default: "",
+    label: "Field",
+    description: "",
+    choices: [],
+    min: null,
+    max: null,
+    category: "general",
+    category_label: "general",
+    category_icon: null,
+    category_section: "settings",
+    is_plugin_category: false,
+    ...overrides,
+  };
 }
 
 export function user(overrides: Partial<User> = {}): User {

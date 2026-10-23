@@ -13,6 +13,8 @@ export interface AuthContext {
     captchaToken?: string,
   ) => Promise<void>;
   logout: () => Promise<void>;
+  /** Reload the user after a sign-in that did not go through `login`. */
+  refresh: () => Promise<void>;
 }
 
 /** Queries kept when the signed-in account changes. */
@@ -41,12 +43,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     staleTime: 5 * 60 * 1000,
   });
 
+  const refresh = useCallback(async () => {
+    await setIdentity(qc, await getMe());
+  }, [qc]);
+
   const login = useCallback(
     async (username: string, password: string, totpCode?: string, captchaToken?: string) => {
       await apiLogin(username, password, totpCode, captchaToken);
-      await setIdentity(qc, await getMe());
+      await refresh();
     },
-    [qc],
+    [refresh],
   );
 
   const logout = useCallback(async () => {
@@ -54,7 +60,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await setIdentity(qc, null);
   }, [qc]);
 
-  return <AuthCtx.Provider value={{ user, isLoading, login, logout }}>{children}</AuthCtx.Provider>;
+  return (
+    <AuthCtx.Provider value={{ user, isLoading, login, logout, refresh }}>
+      {children}
+    </AuthCtx.Provider>
+  );
 }
 
 export function useAuth(): AuthContext {

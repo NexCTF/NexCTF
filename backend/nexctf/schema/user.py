@@ -39,19 +39,19 @@ class AdminUserUpdateRequest(AdminUserUpdate):
     custom_fields: CustomFieldValuesInput | None = None
 
 
-class AdminUserCreate(PydanticBase):
+class AccountCreate(PydanticBase):
     username: Username
     password: NewPassword
     email: EmailStr | None = None
+
+
+class AdminUserCreate(AccountCreate):
     role: UserRole = UserRole.user
     team_id: UUID | None = None
     custom_fields: CustomFieldValuesInput = {}
 
 
-class PublicRegisterRequest(PydanticBase):
-    username: Username
-    password: NewPassword
-    email: EmailStr | None = None
+class PublicRegisterRequest(AccountCreate):
     captcha_token: str | None = None
 
 
