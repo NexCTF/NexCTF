@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 type TFn = ReturnType<typeof useTranslation>["t"];
 
 const RELATION_CLS =
-  "inline-flex max-w-48 items-center gap-1 -mx-1.5 rounded px-1.5 py-0.5 text-sm font-medium text-link underline-offset-2 hover:underline hover:bg-muted transition-colors";
+  "inline-flex min-w-0 max-w-48 items-center gap-1 -mx-1.5 rounded px-1.5 py-0.5 text-sm font-medium text-link underline-offset-2 hover:underline hover:bg-muted transition-colors";
 
 type RelationProps = { id: string | null | undefined; name?: string | null };
 

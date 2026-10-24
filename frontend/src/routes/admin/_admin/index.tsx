@@ -500,7 +500,7 @@ function Dashboard() {
       ) : null}
 
       {scoreboard?.entries.length ? (
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="flex flex-col gap-3">
             <h2 className="text-base font-semibold">{t("admin.dashboard.top_teams_section")}</h2>
             <TopTeams scoreboard={scoreboard} />
