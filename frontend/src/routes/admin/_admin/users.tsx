@@ -164,7 +164,7 @@ function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
           <div className="space-y-1.5">
             <Label>{t("admin.users.field_role", { defaultValue: "Role" })}</Label>
             <Select value={form.role} onValueChange={(v) => change({ role: v ?? "user" })}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
+import { ExternalLink } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { DetailPageShell } from "@/components/detail-page";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MarkdownEditor, type MarkdownEditorHandle } from "@/components/ui/markdown-editor";
@@ -18,6 +19,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { apiErrorMessage, getAdminPage, updateAdminPage } from "@/lib/api";
 import { MAGIC_VAR_DOCS } from "@/lib/magic-vars";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin/pages_/$pageId")({
   component: PageEditorPage,
@@ -74,7 +76,6 @@ const NAV_LABELS: Record<string, string> = {
 function PageEditorPage() {
   const { t } = useTranslation();
   const { pageId } = Route.useParams();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data: page, isLoading } = useQuery({
@@ -116,119 +117,117 @@ function PageEditorPage() {
       ),
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-32">
-        <p className="text-muted-foreground">{t("common.loading", { defaultValue: "Loading…" })}</p>
-      </div>
-    );
-  }
+  const backLabel = t("admin.pages.detail_back", { defaultValue: "Back to pages" });
 
-  if (!page) return null;
+  if (isLoading || !page) {
+    return <DetailPageShell backTo="/admin/pages" backLabel={backLabel} isLoading={isLoading} />;
+  }
 
   const navValue = effectiveNav === null ? NAV_NONE : (effectiveNav ?? NAV_NONE);
 
   return (
-    <div className="p-8 max-w-4xl space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate({ to: "/admin/pages" })}>
-          <ArrowLeft className="size-4" />
-        </Button>
-        <h1 className="text-2xl font-bold truncate">{effectiveTitle || page.title}</h1>
-      </div>
-
-      {/* Meta fields */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="page-title">
-            {t("admin.pages.field_title", { defaultValue: "Title" })}
-          </Label>
-          <Input
-            id="page-title"
-            value={effectiveTitle}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="page-slug">{t("admin.pages.field_slug", { defaultValue: "Slug" })}</Label>
-          <div className="relative">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none select-none">
-              /p/
-            </span>
-            <Input
-              id="page-slug"
-              value={effectiveSlug}
-              onChange={(e) => setSlug(e.target.value)}
-              pattern="[a-z0-9-]+"
-              className="pl-10"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {t("admin.pages.home_hint", {
-              defaultValue: "Use slug 'home' to customize the index page.",
-            })}
-          </p>
-        </div>
-      </div>
-
-      {/* Settings row */}
-      <div className="flex items-center gap-8">
-        <div className="flex items-center gap-2">
-          <Switch
-            id="is-published"
-            checked={effectivePublished}
-            onCheckedChange={(v) => setIsPublished(v)}
-          />
-          <Label htmlFor="is-published">
-            {t("admin.pages.field_published", { defaultValue: "Published" })}
-          </Label>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Label>{t("admin.pages.field_nav", { defaultValue: "Show in navigation" })}</Label>
-          <Select
-            value={navValue}
-            onValueChange={(v) => setNavPlacement(v === NAV_NONE ? null : v)}
-          >
-            <SelectTrigger className="w-36">
-              <SelectValue>{NAV_LABELS[navValue]}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NAV_NONE}>
-                {t("admin.pages.nav_none", { defaultValue: "None" })}
-              </SelectItem>
-              <SelectItem value="footer">
-                {t("admin.pages.nav_footer", { defaultValue: "Footer" })}
-              </SelectItem>
-              <SelectItem value="nav">
-                {t("admin.pages.nav_top", { defaultValue: "Top nav" })}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Content editor */}
-      <PageContentEditor value={effectiveContent} onChange={setContent} />
-
-      {/* Save */}
-      <div className="flex items-center gap-3 pt-2">
-        <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
-          {mutation.isPending ? t("common.saving") : t("common.save", { defaultValue: "Save" })}
-        </Button>
-        {effectivePublished && (
+    <DetailPageShell
+      backTo="/admin/pages"
+      backLabel={backLabel}
+      title={effectiveTitle || page.title}
+      actions={
+        effectivePublished && (
           <a
             href={`/p/${encodeURIComponent(effectiveSlug)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
           >
-            {t("admin.pages.view_live", { defaultValue: "View live →" })}
+            <ExternalLink className="size-4" />
+            {t("admin.pages.view_live", { defaultValue: "View live" })}
           </a>
-        )}
+        )
+      }
+    >
+      <div className="rounded-lg border p-6 space-y-4">
+        {/* Meta fields */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="page-title">
+              {t("admin.pages.field_title", { defaultValue: "Title" })}
+            </Label>
+            <Input
+              id="page-title"
+              value={effectiveTitle}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="page-slug">
+              {t("admin.pages.field_slug", { defaultValue: "Slug" })}
+            </Label>
+            <div className="relative">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none select-none">
+                /p/
+              </span>
+              <Input
+                id="page-slug"
+                value={effectiveSlug}
+                onChange={(e) => setSlug(e.target.value)}
+                pattern="[a-z0-9-]+"
+                className="pl-10"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t("admin.pages.home_hint", {
+                defaultValue: "Use slug 'home' to customize the index page.",
+              })}
+            </p>
+          </div>
+        </div>
+
+        {/* Settings row */}
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="is-published"
+              checked={effectivePublished}
+              onCheckedChange={(v) => setIsPublished(v)}
+            />
+            <Label htmlFor="is-published">
+              {t("admin.pages.field_published", { defaultValue: "Published" })}
+            </Label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Label>{t("admin.pages.field_nav", { defaultValue: "Show in navigation" })}</Label>
+            <Select
+              value={navValue}
+              onValueChange={(v) => setNavPlacement(v === NAV_NONE ? null : v)}
+            >
+              <SelectTrigger className="w-36">
+                <SelectValue>{NAV_LABELS[navValue]}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NAV_NONE}>
+                  {t("admin.pages.nav_none", { defaultValue: "None" })}
+                </SelectItem>
+                <SelectItem value="footer">
+                  {t("admin.pages.nav_footer", { defaultValue: "Footer" })}
+                </SelectItem>
+                <SelectItem value="nav">
+                  {t("admin.pages.nav_top", { defaultValue: "Top nav" })}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Content editor */}
+        <PageContentEditor value={effectiveContent} onChange={setContent} />
+
+        <div className="flex justify-end pt-2">
+          <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+            {mutation.isPending ? t("common.saving") : t("common.save", { defaultValue: "Save" })}
+          </Button>
+        </div>
       </div>
-    </div>
+    </DetailPageShell>
   );
 }
