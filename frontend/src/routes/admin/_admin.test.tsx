@@ -52,7 +52,7 @@ it("waits for the identity before deciding", () => {
 it("renders the panel for a signed-in admin", async () => {
   renderAdmin();
 
-  expect(await screen.findByText("Admin")).toBeTruthy();
+  expect(within(await screen.findByRole("complementary")).getByText("Admin")).toBeTruthy();
 });
 
 it("groups the read-only views under Audit", async () => {

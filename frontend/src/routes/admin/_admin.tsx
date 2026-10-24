@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { AdminLinksNav } from "@/components/admin-links-nav";
 import { BetaBadge } from "@/components/beta-badge";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { NavSheet } from "@/components/nav-sheet";
 import { NotificationToastListener } from "@/components/notification-toast-listener";
 import { PluginNavLinks, usePluginPages } from "@/components/plugin-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -41,6 +42,7 @@ import { type AdminStats, getAdminStats } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
 import { bootstrapPlugins } from "@/lib/plugins";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin")({
   beforeLoad: () => {
@@ -152,10 +154,7 @@ const BASE_CLS = "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transit
 
 function AdminLayout() {
   const { t } = useTranslation();
-  const { user, isLoading: authLoading, logout } = useAuth();
-  const navigate = useNavigate();
-  const { name, logoUrl } = useBranding();
-  const pluginPages = usePluginPages("admin");
+  const { user, isLoading: authLoading } = useAuth();
 
   const { data: stats } = useQuery<AdminStats>({
     queryKey: ["admin", "stats", "global"],
@@ -183,126 +182,165 @@ function AdminLayout() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="flex w-56 shrink-0 flex-col border-r bg-muted/40 sticky top-0 h-screen overflow-hidden">
-        {/* Brand */}
-        <div className="flex h-14 items-center border-b px-4 gap-2">
-          {logoUrl ? (
-            <img src={logoUrl} alt={name} className="h-6 max-w-28 object-contain shrink-0" />
-          ) : (
-            <span className="font-bold tracking-tight truncate">{name}</span>
-          )}
-          <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary uppercase tracking-wider shrink-0">
-            {t("admin.nav.badge", { defaultValue: "Admin" })}
-          </span>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
-          {NAV_SECTIONS.map(({ id, items }) => {
-            const pages = pluginPages.filter((p) => p.section === id);
-            if (items.length === 0 && pages.length === 0) return null;
-            return (
-              <div key={id}>
-                <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                  {t(`admin.nav.section.${id}`)}
-                </p>
-                <div className="space-y-0.5">
-                  {items.map(({ to, label, icon: Icon, exact, beta }) => (
-                    <Link
-                      key={to}
-                      to={to}
-                      activeOptions={{ exact }}
-                      activeProps={{ className: `${BASE_CLS} ${ACTIVE_CLS}` }}
-                      inactiveProps={{ className: `${BASE_CLS} ${INACTIVE_CLS}` }}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      {t(label)}
-                      {beta && <BetaBadge />}
-                    </Link>
-                  ))}
-                  <PluginNavLinks
-                    pages={pages}
-                    activeClassName={`${BASE_CLS} ${ACTIVE_CLS}`}
-                    inactiveClassName={`${BASE_CLS} ${INACTIVE_CLS}`}
-                  />
-                </div>
-              </div>
-            );
-          })}
-
-          <AdminLinksNav itemClassName={`${BASE_CLS} ${INACTIVE_CLS}`} />
-        </nav>
-
-        {/* Bottom */}
-        <div className="border-t px-3 py-3 space-y-1">
-          <Link to="/" className={`${BASE_CLS} ${INACTIVE_CLS}`}>
-            <ArrowLeft className="h-4 w-4" />
-            {t("admin.nav.back_to_site")}
-          </Link>
-
-          <a
-            href="https://nexctf.dev/documentation"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${BASE_CLS} ${INACTIVE_CLS}`}
-          >
-            <BookMarked className="h-4 w-4" />
-            {t("admin.nav.documentation", { defaultValue: "Documentation" })}
-          </a>
-
-          <a
-            href="/api/admin/docs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${BASE_CLS} ${INACTIVE_CLS}`}
-          >
-            <BookOpen className="h-4 w-4" />
-            {t("admin.nav.api_docs", { defaultValue: "API docs" })}
-          </a>
-
-          <button
-            type="button"
-            onClick={async () => {
-              await logout();
-              navigate({ to: "/login" });
-            }}
-            className={`w-full ${BASE_CLS} ${INACTIVE_CLS}`}
-          >
-            <LogOut className="h-4 w-4" />
-            {t("common.sign_out")}
-          </button>
-
-          <div className="flex items-center gap-1 pt-1">
-            <LanguageSwitcher />
-            <ThemeToggle />
-          </div>
-
-          {version && (
-            <div className="flex items-center justify-center gap-1.5 pt-1 text-[11px] text-muted-foreground/60">
-              <span>v{version.current}</span>
-              {version.update_available && version.release_url && (
-                <a
-                  href={version.release_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-link hover:underline"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                  {t("admin.version.update_available")}
-                </a>
-              )}
-            </div>
-          )}
-        </div>
+      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col overflow-hidden border-r bg-muted/40 lg:flex">
+        <AdminSidebar version={version} />
       </aside>
 
-      {/* Page content */}
       <div className="flex min-w-0 flex-1 flex-col">
+        <MobileTopBar version={version} />
         <Outlet />
       </div>
 
       <NotificationToastListener />
     </div>
+  );
+}
+
+/** Brand row shared by the sidebar and the mobile top bar. */
+function AdminBrand({ className }: { className?: string }) {
+  const { t } = useTranslation();
+  const { name, logoUrl } = useBranding();
+  return (
+    <div className={cn("flex h-14 items-center gap-2 border-b px-4", className)}>
+      {logoUrl ? (
+        <img src={logoUrl} alt={name} className="h-6 max-w-28 object-contain shrink-0" />
+      ) : (
+        <span className="font-bold tracking-tight truncate">{name}</span>
+      )}
+      <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary uppercase tracking-wider shrink-0">
+        {t("admin.nav.badge", { defaultValue: "Admin" })}
+      </span>
+    </div>
+  );
+}
+
+/** Sticky bar with the drawer trigger, shown below the `lg` breakpoint. */
+function MobileTopBar({ version }: { version?: AdminStats["version"] }) {
+  return (
+    <div className="sticky top-0 z-40 flex items-center border-b bg-background/95 pl-2 backdrop-blur lg:hidden">
+      <NavSheet side="left" className="w-64 overflow-hidden bg-muted" titleClassName="sr-only">
+        <AdminSidebar version={version} brandClassName="pr-10" />
+      </NavSheet>
+      <AdminBrand className="flex-1 border-b-0 pl-2" />
+    </div>
+  );
+}
+
+/** Brand, navigation sections and account footer of the admin panel. */
+function AdminSidebar({
+  version,
+  brandClassName,
+}: {
+  version?: AdminStats["version"];
+  brandClassName?: string;
+}) {
+  const { t } = useTranslation();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  const pluginPages = usePluginPages("admin");
+
+  return (
+    <>
+      <AdminBrand className={brandClassName} />
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
+        {NAV_SECTIONS.map(({ id, items }) => {
+          const pages = pluginPages.filter((p) => p.section === id);
+          if (items.length === 0 && pages.length === 0) return null;
+          return (
+            <div key={id}>
+              <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                {t(`admin.nav.section.${id}`)}
+              </p>
+              <div className="space-y-0.5">
+                {items.map(({ to, label, icon: Icon, exact, beta }) => (
+                  <Link
+                    key={to}
+                    to={to}
+                    activeOptions={{ exact }}
+                    activeProps={{ className: `${BASE_CLS} ${ACTIVE_CLS}` }}
+                    inactiveProps={{ className: `${BASE_CLS} ${INACTIVE_CLS}` }}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {t(label)}
+                    {beta && <BetaBadge />}
+                  </Link>
+                ))}
+                <PluginNavLinks
+                  pages={pages}
+                  activeClassName={`${BASE_CLS} ${ACTIVE_CLS}`}
+                  inactiveClassName={`${BASE_CLS} ${INACTIVE_CLS}`}
+                />
+              </div>
+            </div>
+          );
+        })}
+
+        <AdminLinksNav itemClassName={`${BASE_CLS} ${INACTIVE_CLS}`} />
+      </nav>
+
+      {/* Bottom */}
+      <div className="border-t px-3 py-3 space-y-1">
+        <Link to="/" className={`${BASE_CLS} ${INACTIVE_CLS}`}>
+          <ArrowLeft className="h-4 w-4" />
+          {t("admin.nav.back_to_site")}
+        </Link>
+
+        <a
+          href="https://nexctf.dev/documentation"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${BASE_CLS} ${INACTIVE_CLS}`}
+        >
+          <BookMarked className="h-4 w-4" />
+          {t("admin.nav.documentation", { defaultValue: "Documentation" })}
+        </a>
+
+        <a
+          href="/api/admin/docs"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${BASE_CLS} ${INACTIVE_CLS}`}
+        >
+          <BookOpen className="h-4 w-4" />
+          {t("admin.nav.api_docs", { defaultValue: "API docs" })}
+        </a>
+
+        <button
+          type="button"
+          onClick={async () => {
+            await logout();
+            navigate({ to: "/login" });
+          }}
+          className={`w-full ${BASE_CLS} ${INACTIVE_CLS}`}
+        >
+          <LogOut className="h-4 w-4" />
+          {t("common.sign_out")}
+        </button>
+
+        <div className="flex items-center gap-1 pt-1">
+          <LanguageSwitcher />
+          <ThemeToggle />
+        </div>
+
+        {version && (
+          <div className="flex items-center justify-center gap-1.5 pt-1 text-[11px] text-muted-foreground/60">
+            <span>v{version.current}</span>
+            {version.update_available && version.release_url && (
+              <a
+                href={version.release_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-link hover:underline"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                {t("admin.version.update_available")}
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   );
 }

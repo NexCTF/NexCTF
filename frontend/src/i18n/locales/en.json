@@ -1040,8 +1040,10 @@
     "admin": "Admin",
     "challenges": "Challenges",
     "login": "Sign in",
+    "menu": "Menu",
     "notifications": "Notifications",
     "scoreboard": "Scoreboard",
+    "settings": "Settings",
     "teams": "Teams"
   },
   "notifications": {
