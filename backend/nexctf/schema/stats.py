@@ -73,4 +73,5 @@ class AdminTeamQuestionStats(TeamQuestionStats):
 
 
 class AdminTeamChallengeStats(TeamChallengeStats):
+    is_active: bool = True
     questions: list[AdminTeamQuestionStats] = []  # ty: ignore[invalid-mutable-override]

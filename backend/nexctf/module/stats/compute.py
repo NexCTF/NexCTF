@@ -147,6 +147,7 @@ async def compute_admin_team_challenge_stats(
             AdminTeamChallengeStats(
                 challenge_id=challenge.id,
                 challenge_title=challenge.title,
+                is_active=challenge.is_active,
                 question_count=q_count,
                 solved_question_count=solved_q_count,
                 is_solved=is_solved,
