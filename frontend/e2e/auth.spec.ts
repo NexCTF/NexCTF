@@ -87,7 +87,7 @@ test("a disabled account is told so once the password is right", async ({
   await expect(page.getByText("The username or password is incorrect.")).toBeVisible();
 
   await signInThroughForm(page, account.username, account.password);
-  await expect(page.getByText("Account Disabled")).toBeVisible();
+  await expect(page.getByText("Account disabled")).toBeVisible();
   await expect(page.getByText("Your account has been disabled.")).toBeVisible();
 });
 

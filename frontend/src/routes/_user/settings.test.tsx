@@ -183,7 +183,7 @@ it("shows a freshly created token once, for copying", async () => {
   );
   renderSettings();
 
-  await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
+  await userEvent.click(await screen.findByRole("button", { name: "New token" }));
   await userEvent.type(await screen.findByLabelText("Name"), "CI");
   await userEvent.click(
     await screen.findByRole("radio", { name: "Challenges and attachments: Read" }),
@@ -197,7 +197,7 @@ it("shows a freshly created token once, for copying", async () => {
 it("offers a three-level choice per catalogue group", async () => {
   renderSettings();
 
-  await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
+  await userEvent.click(await screen.findByRole("button", { name: "New token" }));
   const radios = await screen.findAllByRole<HTMLInputElement>("radio");
   expect(radios.map((r) => r.getAttribute("aria-label"))).toEqual([
     "Challenges and attachments: No access",
@@ -215,7 +215,7 @@ it("read & write on one group grants both scopes", async () => {
   );
   renderSettings();
 
-  await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
+  await userEvent.click(await screen.findByRole("button", { name: "New token" }));
   await userEvent.click(
     await screen.findByRole("radio", { name: "Challenges and attachments: Read & write" }),
   );
@@ -235,7 +235,7 @@ it("labels each plugin's own scope group with the plugin key", async () => {
   ]);
   renderSettings();
 
-  await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
+  await userEvent.click(await screen.findByRole("button", { name: "New token" }));
 
   await screen.findByRole("radio", { name: "Plugin: nexctf_sandbox: Read" });
   screen.getByRole("radio", { name: "Plugin admin: nexctf_sandbox: Read" });
@@ -245,7 +245,7 @@ it("selects and clears permissions in bulk", async () => {
   vi.mocked(createMyToken).mockResolvedValue(apiToken({ scopes: [], token: "nex_secret_value" }));
   renderSettings();
 
-  await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
+  await userEvent.click(await screen.findByRole("button", { name: "New token" }));
   await userEvent.click(await screen.findByRole("button", { name: "All read" }));
 
   const read = screen.getByRole<HTMLInputElement>("radio", {
@@ -264,7 +264,7 @@ it("selects and clears permissions in bulk", async () => {
 it("all no access resets every group and disables save", async () => {
   renderSettings();
 
-  await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
+  await userEvent.click(await screen.findByRole("button", { name: "New token" }));
   await userEvent.click(await screen.findByRole("button", { name: "All read & write" }));
   expect(screen.getByRole("button", { name: "Save" })).toHaveProperty("disabled", false);
 
@@ -278,7 +278,7 @@ it("labels the admin groups for an admin catalogue", async () => {
   vi.mocked(getGrantableScopes).mockResolvedValue(["read:admin.team", "write:admin.team"]);
   renderSettings();
 
-  await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
+  await userEvent.click(await screen.findByRole("button", { name: "New token" }));
   expect(await screen.findByText("Teams")).toBeDefined();
   expect(screen.getByRole("radio", { name: "Teams: Read & write" })).toBeDefined();
 });
@@ -286,7 +286,7 @@ it("labels the admin groups for an admin catalogue", async () => {
 it("cannot create a token with no permission selected", async () => {
   renderSettings();
 
-  await userEvent.click(await screen.findByRole("button", { name: "New Token" }));
+  await userEvent.click(await screen.findByRole("button", { name: "New token" }));
   await userEvent.type(await screen.findByLabelText("Name"), "CI");
   expect(screen.getByRole("button", { name: "Save" })).toHaveProperty("disabled", true);
 });
@@ -294,8 +294,8 @@ it("cannot create a token with no permission selected", async () => {
 it("hides the OAuth section when the CTF has no providers", async () => {
   renderSettings();
 
-  expect(await screen.findByRole("heading", { name: "API Tokens" })).toBeDefined();
-  expect(screen.queryByRole("heading", { name: "Connected Accounts" })).toBeNull();
+  expect(await screen.findByRole("heading", { name: "API tokens" })).toBeDefined();
+  expect(screen.queryByRole("heading", { name: "Connected accounts" })).toBeNull();
 });
 
 it("offers to connect an unlinked provider and to unlink a linked one", async () => {
@@ -313,7 +313,7 @@ it("offers to connect an unlinked provider and to unlink a linked one", async ()
   vi.mocked(deleteMyOAuthAccount).mockResolvedValue(undefined);
   renderSettings();
 
-  expect(await screen.findByRole("heading", { name: "Connected Accounts" })).toBeDefined();
+  expect(await screen.findByRole("heading", { name: "Connected accounts" })).toBeDefined();
   expect(screen.getByRole("link", { name: "Connect" })).toBeDefined();
 
   await clickAndConfirm(screen.getByRole("button", { name: "Unlink" }), "Unlink");
@@ -461,6 +461,6 @@ it("hides the profile form when customization is off", async () => {
   vi.mocked(getMyProfile).mockResolvedValue(myProfile);
   renderSettings();
 
-  await screen.findByText("API Tokens");
+  await screen.findByText("API tokens");
   expect(screen.queryByText("Profile")).toBeNull();
 });

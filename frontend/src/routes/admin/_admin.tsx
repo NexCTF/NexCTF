@@ -258,7 +258,7 @@ function AdminLayout() {
             className={`${BASE_CLS} ${INACTIVE_CLS}`}
           >
             <BookOpen className="h-4 w-4" />
-            {t("admin.nav.api_docs", { defaultValue: "API Docs" })}
+            {t("admin.nav.api_docs", { defaultValue: "API docs" })}
           </a>
 
           <button

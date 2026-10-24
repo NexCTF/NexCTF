@@ -138,7 +138,7 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
         render={
           <Button>
             <Plus className="size-4" />
-            {t("admin.challenges.new", { defaultValue: "New Challenge" })}
+            {t("admin.challenges.new", { defaultValue: "New challenge" })}
           </Button>
         }
       />

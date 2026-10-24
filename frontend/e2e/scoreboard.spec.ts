@@ -24,7 +24,7 @@ test("the scoreboard narrows to one bracket, chart included", async ({ page }) =
   // Seeded teams: team1 and team3 are students, team2 professionals.
   await page.goto("/scoreboard");
   const cell = (name: string) => page.getByRole("cell", { name, exact: true });
-  const chart = page.getByRole("heading", { name: "Score Evolution" }).locator("xpath=..");
+  const chart = page.getByRole("heading", { name: "Score evolution" }).locator("xpath=..");
   const legend = (name: string) => chart.getByText(name, { exact: true });
   await expect(cell("team2")).toBeVisible();
 

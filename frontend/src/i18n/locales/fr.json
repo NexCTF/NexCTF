@@ -81,7 +81,7 @@
     "challenge": {
       "active_hint": "Visible par les joueurs",
       "active_label": "Actif",
-      "back_breadcrumb": "Challenges",
+      "back_breadcrumb": "Retour aux challenges",
       "delete_btn": "Supprimer",
       "delete_confirm": "Supprimer le challenge \"{{title}}\" ? Toutes les questions, solutions et indices seront également supprimés.",
       "delete_error": "Échec de la suppression du challenge",

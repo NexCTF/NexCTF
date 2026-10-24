@@ -10,7 +10,7 @@ test("a player signed in long ago confirms their password to mint a token", asyn
   const name = uniqueName("token");
   await page.goto("/settings");
 
-  await page.getByRole("button", { name: "New Token" }).click();
+  await page.getByRole("button", { name: "New token" }).click();
   const tokenDialog = page.getByRole("dialog").filter({ hasText: "New API token" });
   await tokenDialog.getByLabel("Name").fill(name);
   await tokenDialog.getByRole("button", { name: "All read", exact: true }).click();

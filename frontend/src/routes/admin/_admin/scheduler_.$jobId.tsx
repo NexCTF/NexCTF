@@ -227,7 +227,7 @@ function SchedulerJobDetailPage() {
       <DetailPageShell
         backTo="/admin/scheduler"
         backLabel={t("admin.scheduler.detail_back", {
-          defaultValue: "Back to Scheduler",
+          defaultValue: "Back to scheduler",
         })}
       >
         <p className="text-muted-foreground">
@@ -241,7 +241,7 @@ function SchedulerJobDetailPage() {
     <DetailPageShell
       backTo="/admin/scheduler"
       backLabel={t("admin.scheduler.detail_back", {
-        defaultValue: "Back to Scheduler",
+        defaultValue: "Back to scheduler",
       })}
       title={job?.name}
       isLoading={isLoading}
@@ -291,7 +291,7 @@ function SchedulerJobDetailPage() {
           {/* Job info */}
           <DetailSection
             title={t("admin.scheduler.info_title", {
-              defaultValue: "Job Info",
+              defaultValue: "Job info",
             })}
           >
             <div className="space-y-4">
