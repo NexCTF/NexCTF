@@ -115,7 +115,7 @@ function ChallengePage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-screen-md px-4 py-20 text-center text-muted-foreground">
+      <div className="mx-auto max-w-3xl px-4 py-20 text-center text-muted-foreground">
         {t("challenge.loading")}
       </div>
     );
@@ -123,7 +123,7 @@ function ChallengePage() {
 
   if (!challenge) {
     return (
-      <div className="mx-auto max-w-screen-md space-y-4 px-4 py-20 text-center">
+      <div className="mx-auto max-w-3xl space-y-4 px-4 py-20 text-center">
         <p className="text-muted-foreground">
           {apiErrorMessage(
             error,
@@ -158,7 +158,7 @@ function ChallengeView({ challenge }: { challenge: PublicChallengeDetail }) {
   const eventEnded = useEventEnded();
 
   return (
-    <div className="mx-auto max-w-screen-md px-4 py-8 space-y-8">
+    <div className="mx-auto max-w-3xl px-4 py-10 space-y-8">
       {eventEnded && (
         <Banner tone="amber" icon={AlertTriangle}>
           {t("challenge.event_ended_banner")}

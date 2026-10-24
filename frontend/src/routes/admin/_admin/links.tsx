@@ -78,7 +78,7 @@ function LinkFormFields({
           value={form.visibility}
           onValueChange={(v) => onChange({ visibility: v as LinkVisibility })}
         >
-          <SelectTrigger>
+          <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

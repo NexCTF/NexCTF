@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Play, Trash2 } from "lucide-react";
+import { Pencil, Play, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -276,8 +276,13 @@ function SchedulerJobDetailPage() {
               confirmLabel={t("common.delete", { defaultValue: "Delete" })}
               onConfirm={() => deleteMutation.mutate()}
               trigger={
-                <Button size="sm" variant="destructive" disabled={deleteMutation.isPending}>
-                  <Trash2 className="size-3.5" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="size-4" />
                   {t("common.delete", { defaultValue: "Delete" })}
                 </Button>
               }
@@ -293,6 +298,14 @@ function SchedulerJobDetailPage() {
             title={t("admin.scheduler.info_title", {
               defaultValue: "Job info",
             })}
+            actions={
+              editForm === null && (
+                <Button size="sm" variant="outline" onClick={startEdit}>
+                  <Pencil className="size-3.5 mr-1.5" />
+                  {t("common.edit", { defaultValue: "Edit" })}
+                </Button>
+              )
+            }
           >
             <div className="space-y-4">
               <div className="rounded-lg border divide-y">
@@ -425,11 +438,6 @@ function SchedulerJobDetailPage() {
                       </pre>
                     }
                   />
-                  <div className="px-4 py-3">
-                    <Button size="sm" variant="outline" onClick={startEdit}>
-                      {t("common.edit", { defaultValue: "Edit" })}
-                    </Button>
-                  </div>
                 </div>
               )}
             </div>

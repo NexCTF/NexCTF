@@ -346,7 +346,7 @@ export function SchemaFields({
                 <p className="text-xs text-muted-foreground">{prop.description}</p>
               )}
               <Select value={strVal} onValueChange={(v) => onChange(key, v)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder={`Select ${label.toLowerCase()}…`}>
                     {selectedLabel ?? `Select ${label.toLowerCase()}…`}
                   </SelectValue>
@@ -425,7 +425,7 @@ export function SchemaFields({
                 <p className="text-xs text-muted-foreground">{prop.description}</p>
               )}
               <Select value={strVal} onValueChange={(v) => onChange(key, v)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

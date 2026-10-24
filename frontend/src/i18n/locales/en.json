@@ -426,6 +426,7 @@
       "delete_confirm": "Delete page \"{{title}}\"?",
       "delete_error": "Delete failed",
       "deleted": "Page deleted",
+      "detail_back": "Back to pages",
       "draft": "Draft",
       "field_content": "Content",
       "field_nav": "Show in navigation",
@@ -441,7 +442,7 @@
       "saved": "Page saved",
       "slug_hint": "URL-friendly identifier. Accessible at /p/{slug}. Use 'home' to customize the index page.",
       "title_placeholder": "About us",
-      "view_live": "View live →"
+      "view_live": "View live"
     },
     "plugins": {
       "active": "Active",

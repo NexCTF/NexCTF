@@ -428,6 +428,7 @@
       "delete_confirm": "Supprimer la page «\u00a0{{title}}\u00a0»\u202f?",
       "delete_error": "Échec de la suppression",
       "deleted": "Page supprimée",
+      "detail_back": "Retour aux pages",
       "draft": "Brouillon",
       "field_content": "Contenu",
       "field_nav": "Afficher dans la navigation",
@@ -443,7 +444,7 @@
       "saved": "Page enregistrée",
       "slug_hint": "Identifiant URL. Accessible à /p/{slug}. Utilisez 'home' pour personnaliser la page d'accueil.",
       "title_placeholder": "À propos",
-      "view_live": "Voir en ligne →"
+      "view_live": "Voir en ligne"
     },
     "plugins": {
       "active": "Actif",

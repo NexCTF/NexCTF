@@ -310,7 +310,7 @@ export function QuestionFormFields({
             value={String(form.input_type ?? "input")}
             onValueChange={(v) => onUpdate({ input_type: v })}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue>
                 {t(`admin.challenge.question.input_type_${String(form.input_type ?? "input")}`)}
               </SelectValue>

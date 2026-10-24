@@ -49,8 +49,8 @@ function PublicPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12">
-      <h1 className="text-3xl font-bold mb-8">{page.title}</h1>
+    <div className="mx-auto max-w-3xl px-4 py-10 space-y-8">
+      <h1 className="text-2xl font-bold">{page.title}</h1>
       <div className="prose-container">
         <Markdown>{applyMagicVars(page.content, magicVars)}</Markdown>
       </div>
