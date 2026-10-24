@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nexctf.model import Submission, Team, User
 from nexctf.model.question import Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
-from tests.base import make_solvable, make_team, make_user, put_in_team
+from tests.base import PAST, make_solvable, make_team, make_user, put_in_team
 
 
 class TestTeamSize:
@@ -250,6 +250,22 @@ class TestTeamChanges:
 
         resp = await client.post("/me/team", json={"name": "NewTeam"})
         assert resp.status_code == 403
+        assert user.team_id is None
+
+    async def test_join_closed_after_the_end(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        config_overrides: dict[str, str],
+    ) -> None:
+        """Joining a team once the CTF is over is refused even with changes on."""
+        client, user = user_client
+        db_session.add(Team(name="LateTeam", invite_code="LATE1234"))
+        await db_session.flush()
+        config_overrides["ctf.end_time"] = PAST
+
+        resp = await client.post("/me/team/join", json={"code": "LATE1234"})
+        assert resp.json()["error_code"] == "TEAM-403-CHANGES-DISABLED"
         assert user.team_id is None
 
     async def test_create_generates_invite_code(
