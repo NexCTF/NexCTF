@@ -204,7 +204,7 @@ function PluginsPage() {
   const external = plugins.filter((p) => !p.is_builtin);
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 sm:p-8 space-y-8">
       <PageHeader
         icon={Puzzle}
         title={t("admin.nav.plugins", { defaultValue: "Plugins" })}

@@ -47,7 +47,7 @@ export function DetailPageShell({
 }: DetailPageShellProps) {
   if (isLoading) {
     return (
-      <div className="p-8 space-y-6">
+      <div className="p-4 sm:p-8 space-y-6">
         <div className="h-4 w-24 bg-muted animate-pulse rounded" />
         <div className="h-8 w-64 bg-muted animate-pulse rounded" />
         <div className="h-48 bg-muted animate-pulse rounded" />
@@ -56,10 +56,10 @@ export function DetailPageShell({
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6">
       {/* Header: back link + title + actions */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 space-y-1">
           <Link
             to={backTo}
             className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -68,13 +68,13 @@ export function DetailPageShell({
             {backLabel}
           </Link>
           {title && (
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold">{title}</h1>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 className="text-2xl font-bold break-words">{title}</h1>
               {badge}
             </div>
           )}
         </div>
-        {actions && <div className="shrink-0">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
 
       {children}
@@ -99,9 +99,9 @@ type DetailSectionProps = {
 /** One label/value line inside a detail card. */
 export function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex items-center gap-4 px-4 py-3 text-sm">
-      <span className="w-36 shrink-0 text-muted-foreground">{label}</span>
-      <span className="flex-1">{value}</span>
+    <div className="flex flex-col gap-1 px-4 py-3 text-sm sm:flex-row sm:items-center sm:gap-4">
+      <span className="shrink-0 text-muted-foreground sm:w-36">{label}</span>
+      <span className="min-w-0 flex-1 break-words">{value}</span>
     </div>
   );
 }
@@ -109,9 +109,9 @@ export function InfoRow({ label, value }: { label: string; value: ReactNode }) {
 export function DetailSection({ title, actions, children }: DetailSectionProps) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-base font-semibold">{title}</h2>
-        {actions}
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
       {children}
     </div>

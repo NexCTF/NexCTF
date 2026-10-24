@@ -291,9 +291,9 @@ function TeamView({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{team.name}</h1>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold break-words">{team.name}</h1>
           <p className="text-muted-foreground text-sm mt-1">
             {t("team.member_count", { n: team.member_count, max: teamSize })}
           </p>

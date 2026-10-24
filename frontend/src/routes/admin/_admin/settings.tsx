@@ -152,13 +152,13 @@ function SettingsPage() {
   return (
     <div className="flex flex-col flex-1">
       {/* Header */}
-      <div className="border-b px-8 pt-6 pb-0 space-y-4">
+      <div className="border-b px-4 pt-6 pb-0 space-y-4 sm:px-8">
         <PageHeader icon={LucideIcons.Settings} title={t("config.title")} />
 
         {/* Tab bar */}
-        <div className="flex flex-wrap items-end gap-0 -mb-px">
+        <div className="-mb-px flex items-end overflow-x-auto sm:flex-wrap sm:overflow-x-visible">
           {Array.from(sections.entries()).map(([sectionSlug, catSlugs], sectionIdx) => (
-            <div key={sectionSlug} className="flex flex-wrap items-end">
+            <div key={sectionSlug} className="flex shrink-0 items-end sm:shrink sm:flex-wrap">
               {/* Separator between sections */}
               {sectionIdx > 0 && <div className="mx-2 mb-2 h-4 w-px bg-border self-center" />}
               {catSlugs.map((slug) => {
@@ -172,7 +172,7 @@ function SettingsPage() {
                     key={slug}
                     onClick={() => navigate({ search: { category: slug }, replace: true })}
                     className={cn(
-                      "relative flex items-center gap-1.5 px-3 py-2 text-sm transition-colors border-b-2",
+                      "relative flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-sm transition-colors border-b-2",
                       isActive
                         ? "border-primary text-foreground font-medium"
                         : "border-transparent text-muted-foreground hover:text-foreground",
@@ -190,7 +190,7 @@ function SettingsPage() {
       </div>
 
       {/* Form */}
-      <div className="flex-1 px-8 py-8 max-w-2xl space-y-6">
+      <div className="flex-1 p-4 max-w-2xl space-y-6 sm:p-8">
         {currentMeta && (
           <Card>
             <CardContent className="pt-6 space-y-6">

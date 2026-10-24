@@ -252,7 +252,7 @@ function ScoreAdjustmentsPage() {
   const COLUMNS = useScoreAdjustmentColumns({ onEdit: setEditing, onDelete: remove });
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6">
       <PageHeader
         icon={SlidersHorizontal}
         title={t("admin.scoreboard.adjustments_title", { defaultValue: "Score adjustments" })}

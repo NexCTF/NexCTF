@@ -44,9 +44,9 @@ function ScoreboardSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">{t("admin.scoreboard.rankings_title")}</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {data && <BracketSelect brackets={data.brackets} value={bracket} onChange={setBracket} />}
           <Button
             variant="outline"
@@ -196,7 +196,7 @@ function AdminScoreboardPage() {
   const { t } = useTranslation();
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6">
       <PageHeader icon={Trophy} title={t("admin.nav.scoreboard", { defaultValue: "Scoreboard" })} />
 
       <ScoreboardBanners />

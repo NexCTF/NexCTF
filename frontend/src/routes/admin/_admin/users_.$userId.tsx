@@ -515,13 +515,13 @@ function UserDetailPage() {
           <DetailSection
             title={t("admin.users.info_title")}
             actions={
-              <div className="flex items-center gap-2">
+              <>
                 {user.totp_enabled && (
                   <ResetTotpButton userId={userId} onSuccess={invalidateUser} />
                 )}
                 <PasswordResetTokenDialog userId={userId} />
                 <EditUserDialog userId={userId} user={user} onSaved={invalidateUser} />
-              </div>
+              </>
             }
           >
             <div className="rounded-lg border divide-y">

@@ -1116,11 +1116,11 @@ function QuestionCard({
   return (
     <div className="rounded-lg border">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
         <span className="text-xs text-muted-foreground w-6 text-center font-mono">
           #{question.index + 1}
         </span>
-        <span className="flex-1 font-medium text-sm truncate">{question.label}</span>
+        <span className="min-w-24 flex-1 font-medium text-sm truncate">{question.label}</span>
         {question.trap_flags.length > 0 && (
           <StatusBadge
             tone="amber"
@@ -1144,7 +1144,7 @@ function QuestionCard({
           {" · "}
           {question.file_count} file{question.file_count !== 1 ? "s" : ""}
         </span>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="ml-auto flex items-center gap-1 shrink-0">
           <Button
             variant="ghost"
             size="icon"
