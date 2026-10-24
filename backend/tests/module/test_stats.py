@@ -109,6 +109,7 @@ async def test_admin_stats_carry_hint_unlocks_public_does_not(db_session):
     assert pq.hint_unlock_count == 2
     assert not hasattr(pq, "hints")
     assert not hasattr(pq, "solved_at")
+    assert not hasattr(pc, "is_active")
 
 
 async def test_challenge_stats_carry_category_and_points(db_session):
@@ -128,3 +129,21 @@ async def test_challenge_stats_carry_category_and_points(db_session):
     assert c.category == "pwn"
     assert c.points == 150
     assert sorted(q.points for q in c.questions) == [50, 100]
+
+
+async def test_admin_stats_flag_inactive_challenges(db_session):
+    active = StandardChallenge(title="Stats Active Test", is_active=True)
+    inactive = StandardChallenge(title="Stats Inactive Test", is_active=False)
+    team = Team(name=f"stats_{uuid4().hex[:8]}")
+    db_session.add_all([active, inactive, team])
+    await db_session.flush()
+
+    admin_stats = await compute_admin_team_challenge_stats(db_session, team.id)
+    by_id = {s.challenge_id: s for s in admin_stats}
+    assert by_id[active.id].is_active is True
+    assert by_id[inactive.id].is_active is False
+
+    public_ids = {
+        s.challenge_id for s in await compute_team_challenge_stats(db_session, team.id)
+    }
+    assert inactive.id not in public_ids

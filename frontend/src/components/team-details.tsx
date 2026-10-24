@@ -87,7 +87,8 @@ function StatBox({ value, label }: { value: ReactNode; label: string }) {
 }
 
 /** Percentage of questions the team has solved, across every challenge. */
-export function progressPercent(stats: TeamChallengeStats[]) {
+export function progressPercent(allStats: TeamChallengeStats[]) {
+  const stats = allStats.filter((s) => s.is_active !== false);
   const total = stats.reduce((sum, s) => sum + s.question_count, 0);
   const solved = stats.reduce((sum, s) => sum + s.solved_question_count, 0);
   return total > 0 ? Math.round((solved / total) * 100) : 0;
@@ -229,6 +230,11 @@ function ChallengeStatsRow({ stats, detailed }: { stats: TeamChallengeStats; det
               <ChallengeLink id={stats.challenge_id} name={stats.challenge_title} />
             ) : (
               stats.challenge_title
+            )}
+            {stats.is_active === false && (
+              <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
+                {t("table.status_inactive", { defaultValue: "Inactive" })}
+              </span>
             )}
           </span>
         </td>

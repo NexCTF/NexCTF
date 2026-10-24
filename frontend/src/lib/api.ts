@@ -443,6 +443,8 @@ export interface TeamChallengeStats {
   first_solve_at: string | null;
   last_solve_at: string | null;
   questions: TeamQuestionStats[];
+  /** Admin stats only: inactive challenges are listed but left out of the progress. */
+  is_active?: boolean;
 }
 
 export interface TeamHintUnlock {
