@@ -1,6 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { DetailSection } from "@/components/detail-page";
+import { DetailSection, InfoRow } from "@/components/detail-page";
 import { EmptyCell } from "@/components/table-cells";
 import type { CustomFieldValue } from "@/lib/api";
 
@@ -31,12 +31,7 @@ export function CustomFieldValuesList({ values }: { values: CustomFieldValue[] }
     <DetailSection title={t("admin.custom_fields.values_title")}>
       <div className="rounded-lg border divide-y text-sm">
         {values.map((cfv) => (
-          <div key={cfv.id} className="flex items-center gap-2 px-4 py-3">
-            <span className="text-muted-foreground w-40 shrink-0">{cfv.definition.label}</span>
-            <span className="flex-1">
-              <CfvValue cfv={cfv} />
-            </span>
-          </div>
+          <InfoRow key={cfv.id} label={cfv.definition.label} value={<CfvValue cfv={cfv} />} />
         ))}
       </div>
     </DetailSection>

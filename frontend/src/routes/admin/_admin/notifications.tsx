@@ -254,7 +254,7 @@ function NotificationsPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6">
       <PageHeader
         icon={Bell}
         title={t("admin.nav.notifications", { defaultValue: "Notifications" })}

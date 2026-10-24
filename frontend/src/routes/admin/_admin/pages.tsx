@@ -258,7 +258,7 @@ function PagesPage() {
   ];
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6">
       <PageHeader
         icon={ScrollText}
         title={t("admin.nav.pages", { defaultValue: "Pages" })}

@@ -248,7 +248,7 @@ function SchedulerJobDetailPage() {
       badge={job && <JobStatusBadge job={job} />}
       actions={
         job && (
-          <div className="flex items-center gap-2">
+          <>
             <Button
               size="sm"
               variant="outline"
@@ -287,7 +287,7 @@ function SchedulerJobDetailPage() {
                 </Button>
               }
             />
-          </div>
+          </>
         )
       }
     >

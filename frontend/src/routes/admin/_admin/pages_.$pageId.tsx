@@ -183,7 +183,7 @@ function PageEditorPage() {
         </div>
 
         {/* Settings row */}
-        <div className="flex items-center gap-8">
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
           <div className="flex items-center gap-2">
             <Switch
               id="is-published"

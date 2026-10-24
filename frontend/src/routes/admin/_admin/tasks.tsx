@@ -43,12 +43,12 @@ function TasksPage() {
   const title = t("admin.nav.tasks", { defaultValue: "Task queue" });
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-8">
+    <div className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <PageHeader
         icon={ListTodo}
         title={title}
         actions={
-          <div className="flex gap-2">
+          <>
             <Button variant="outline" size="sm" onClick={reload}>
               <RefreshCw />
               {t("admin.tasks.refresh", { defaultValue: "Refresh" })}
@@ -62,7 +62,7 @@ function TasksPage() {
               <ExternalLink />
               {t("admin.tasks.open_in_new_tab", { defaultValue: "Open in new tab" })}
             </a>
-          </div>
+          </>
         }
       />
       <iframe

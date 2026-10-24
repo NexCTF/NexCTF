@@ -567,7 +567,7 @@ function SecurityPage() {
   const navigate = Route.useNavigate();
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6">
       <PageHeader
         icon={ShieldAlert}
         title={t("admin.nav.security", { defaultValue: "Security" })}
