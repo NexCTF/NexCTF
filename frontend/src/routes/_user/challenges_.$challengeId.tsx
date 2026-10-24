@@ -40,7 +40,7 @@ import {
   unlockHint,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { useEventEnded } from "@/lib/use-event-phase";
+import { useEventPhase } from "@/lib/use-event-phase";
 import { formatBytes } from "@/lib/utils";
 
 function UnlockHintButton({
@@ -155,13 +155,17 @@ function ChallengeView({ challenge }: { challenge: PublicChallengeDetail }) {
   });
   const feedbackEnabled = publicInfo?.competition.enable_challenge_feedback ?? false;
 
-  const eventEnded = useEventEnded();
+  const { upcoming, open } = useEventPhase();
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 space-y-8">
-      {eventEnded && (
+      {!open && (
         <Banner tone="amber" icon={AlertTriangle}>
-          {t("challenge.event_ended_banner")}
+          {upcoming
+            ? t("challenge.event_not_started_banner", {
+                defaultValue: "The CTF has not started yet. Submissions open at the start.",
+              })
+            : t("challenge.event_ended_banner")}
         </Banner>
       )}
       <div className="space-y-4">
@@ -501,6 +505,7 @@ function HintsSection({
   onUnlocked: (hint: PublicHint) => void;
 }) {
   const { t } = useTranslation();
+  const { open } = useEventPhase();
   const unlockMutation = useMutation({
     mutationFn: (hintId: string) => unlockHint(challengeId, questionId, hintId),
     onSuccess: onUnlocked,
@@ -523,7 +528,7 @@ function HintsSection({
               {!h.is_unlocked && (
                 <UnlockHintButton
                   hint={h}
-                  disabled={unlockMutation.isPending}
+                  disabled={!open || unlockMutation.isPending}
                   onUnlock={() => unlockMutation.mutate(h.id)}
                 />
               )}
@@ -557,6 +562,7 @@ function SubmitSection({
   onSolved: () => void;
 }) {
   const { t } = useTranslation();
+  const { open } = useEventPhase();
   const [answer, setAnswer] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -579,15 +585,14 @@ function SubmitSection({
     onError: (err) => toast.error(apiErrorMessage(err, t("challenge.submit_error"))),
   });
 
+  const isMultiSelect = inputType === "mcq" && multiSelect;
+  const hasAnswer = isMultiSelect ? selected.length > 0 : answer.trim() !== "";
+  const canSubmit = open && hasAnswer && !submitMutation.isPending;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputType === "mcq" && multiSelect) {
-      if (selected.length === 0) return;
-      submitMutation.mutate(JSON.stringify(selected.slice().sort()));
-    } else {
-      if (!answer.trim()) return;
-      submitMutation.mutate(answer);
-    }
+    if (!canSubmit) return;
+    submitMutation.mutate(isMultiSelect ? JSON.stringify(selected.slice().sort()) : answer);
   };
 
   return (
@@ -606,7 +611,7 @@ function SubmitSection({
               autoComplete="off"
               spellCheck={false}
             />
-            <Button type="submit" disabled={!answer.trim() || submitMutation.isPending}>
+            <Button type="submit" disabled={!canSubmit}>
               {submitMutation.isPending ? t("challenge.submitting") : t("challenge.submit")}
             </Button>
           </div>
@@ -620,11 +625,7 @@ function SubmitSection({
               rows={5}
               spellCheck={false}
             />
-            <Button
-              type="submit"
-              disabled={!answer.trim() || submitMutation.isPending}
-              className="w-full"
-            >
+            <Button type="submit" disabled={!canSubmit} className="w-full">
               {submitMutation.isPending ? t("challenge.submitting") : t("challenge.submit")}
             </Button>
           </>
@@ -654,11 +655,7 @@ function SubmitSection({
               rows={8}
               spellCheck={false}
             />
-            <Button
-              type="submit"
-              disabled={!answer.trim() || submitMutation.isPending}
-              className="w-full"
-            >
+            <Button type="submit" disabled={!canSubmit} className="w-full">
               {submitMutation.isPending ? t("challenge.submitting") : t("challenge.submit")}
             </Button>
           </>
@@ -698,11 +695,7 @@ function SubmitSection({
                 );
               })}
             </div>
-            <Button
-              type="submit"
-              disabled={submitMutation.isPending || (multiSelect ? selected.length === 0 : !answer)}
-              className="w-full"
-            >
+            <Button type="submit" disabled={!canSubmit} className="w-full">
               {submitMutation.isPending ? t("challenge.submitting") : t("challenge.submit")}
             </Button>
           </>

@@ -36,8 +36,8 @@ export function publicInfo(overrides: Partial<PublicInfo> = {}): PublicInfo {
     competition: {
       description: "",
       start_time: "2026-01-01T00:00:00Z",
-      end_time: "2026-01-02T00:00:00Z",
-      freeze_time: "2026-01-02T00:00:00Z",
+      end_time: "2099-01-02T00:00:00Z",
+      freeze_time: "2099-01-01T00:00:00Z",
       allow_registration: true,
       allow_team_creation: true,
       require_email: false,

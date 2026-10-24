@@ -1,4 +1,4 @@
-"""The first time each player opens a challenge."""
+"""The first time each user opens a challenge."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from uuid import UUID
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.model import User, UserRole
+from nexctf.model import User
 from nexctf.module.client import ClientInfo
 from nexctf.module.events import emit
 from nexctf.module.session import team_meta
@@ -24,9 +24,7 @@ async def record_first_view(
     ip: str | None,
     client: ClientInfo,
 ) -> None:
-    """Emit ``challenge.viewed`` the first time a player opens a challenge."""
-    if user.role is UserRole.admin:
-        return
+    """Emit ``challenge.viewed`` the first time a user opens a challenge."""
     if not await redis.set(
         f"{VIEWED_KEY_PREFIX}{user.id}:{challenge_id}", "1", nx=True
     ):

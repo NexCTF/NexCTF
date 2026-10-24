@@ -470,7 +470,7 @@ async def _load_own_team(
         team_id,
         overrides=overrides,
         include_rank=can_view_scoreboard(user, overrides),
-        include_challenges=not challenges_hidden_before_start(user, overrides),
+        include_challenges=not challenges_hidden_before_start(overrides),
         live=True,
     )
     if team is None:

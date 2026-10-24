@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from uuid import UUID
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import func, select, text
@@ -25,24 +23,12 @@ class TestListChallengesBeforeStart:
         user_client: tuple[AsyncClient, User],
         config_overrides: dict[str, str],
     ) -> None:
-        """Regular users cannot list challenges before the CTF starts."""
+        """Users cannot list challenges before the CTF starts."""
         config_overrides["ctf.start_time"] = FUTURE
         config_overrides["ctf.hide_challenges_before_start"] = "true"
         c, _ = user_client
         resp = await c.get("/challenges")
         assert resp.status_code == 403
-
-    async def test_admin_bypasses_start_check(
-        self,
-        admin_client: tuple[AsyncClient, User],
-        config_overrides: dict[str, str],
-    ) -> None:
-        """Admins can list challenges before the CTF starts."""
-        config_overrides["ctf.start_time"] = FUTURE
-        config_overrides["ctf.hide_challenges_before_start"] = "true"
-        c, _ = admin_client
-        resp = await c.get("/challenges")
-        assert resp.status_code == 200
 
     async def test_user_allowed_when_hide_disabled(
         self,
@@ -76,39 +62,19 @@ class TestSubmitAfterEnd:
     async def test_user_blocked_when_ctf_ended(
         self,
         user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
         config_overrides: dict[str, str],
     ) -> None:
-        """Regular users cannot submit answers after the CTF ends."""
+        """Users cannot submit answers after the CTF ends."""
         config_overrides["ctf.end_time"] = PAST
-        c, _ = user_client
+        c, user = user_client
+        await put_in_team(db_session, user)
         resp = await c.post(
             f"/challenges/{NULL_UUID}/{NULL_UUID}/submit",
             json={"answer": "flag"},
         )
         assert resp.status_code == 403
-
-    async def test_admin_bypasses_end_check(
-        self,
-        admin_client: tuple[AsyncClient, User],
-        db_session,
-        config_overrides: dict[str, str],
-    ) -> None:
-        """Admins can submit past the end time (timing guard is skipped, hits team check instead)."""
-        config_overrides["ctf.end_time"] = PAST
-        # Give the admin a team so it passes the team check and reaches the challenge lookup
-        team = Team(id=UUID("00000000-0000-4000-9000-000000000001"), name="admin-team")
-        db_session.add(team)
-        c, admin_user = admin_client
-        admin_user.team_id = team.id
-        db_session.add(admin_user)
-        await db_session.flush()
-
-        resp = await c.post(
-            f"/challenges/{NULL_UUID}/{NULL_UUID}/submit",
-            json={"answer": "flag"},
-        )
-        # 404 means the timing guard was bypassed and we reached the DB lookup
-        assert resp.status_code == 404
+        assert resp.json()["error_code"] == "CTF-403-ENDED"
 
 
 class TestSubmitBody:
@@ -130,17 +96,20 @@ class TestSubmitBeforeStart:
     async def test_user_blocked_when_ctf_not_started(
         self,
         user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
         config_overrides: dict[str, str],
     ) -> None:
-        """Regular users cannot submit answers before the CTF starts."""
+        """Users cannot submit answers before the CTF starts."""
         config_overrides["ctf.start_time"] = FUTURE
         config_overrides["ctf.hide_challenges_before_start"] = "true"
-        c, _ = user_client
+        c, user = user_client
+        await put_in_team(db_session, user)
         resp = await c.post(
             f"/challenges/{NULL_UUID}/{NULL_UUID}/submit",
             json={"answer": "flag"},
         )
         assert resp.status_code == 403
+        assert resp.json()["error_code"] == "CTF-403-NOT-STARTED"
 
     @pytest.mark.parametrize("path", ["submit", "hints/" + NULL_UUID + "/unlock"])
     async def test_blocked_while_challenges_are_previewable(
@@ -226,7 +195,7 @@ class TestHintUnlockAfterEnd:
         db_session: AsyncSession,
         config_overrides: dict[str, str],
     ) -> None:
-        """Regular users cannot unlock hints after the CTF ends."""
+        """Users cannot unlock hints after the CTF ends."""
         config_overrides["ctf.end_time"] = PAST
         c, user = user_client
         # Without a team the request would 403 on the team guard instead.
@@ -240,7 +209,7 @@ class TestHintUnlockAfterEnd:
             f"/challenges/{NULL_UUID}/{NULL_UUID}/hints/{NULL_UUID}/unlock"
         )
         assert resp.status_code == 403
-        assert resp.json()["error_code"] != "SUB-403-TEAM"
+        assert resp.json()["error_code"] == "CTF-403-ENDED"
 
     async def test_teamless_user_blocked(
         self,

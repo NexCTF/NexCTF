@@ -127,8 +127,6 @@ _WRITE_METHODS = frozenset(m for m, verb in VERB_OF_METHOD.items() if verb == "w
 
 def check_visibility(user: User | None, overrides: dict[str, str], key: str) -> None:
     """Raise unless *user* may see the surface gated by the *key* config."""
-    if user is not None and user.role is UserRole.admin:
-        return
     visibility = str(appconfig.get_with_overrides(key, overrides, sanitize=False))
     if visibility == "public":
         return
@@ -220,52 +218,28 @@ async def _require_scoreboard_visible(
 ScoreboardVisibleDep = Depends(_require_scoreboard_visible)
 
 
-def _is_staff(user: User | None) -> bool:
-    return user is not None and user.role is UserRole.admin
+def challenges_hidden_before_start(overrides: dict[str, str]) -> bool:
+    """Whether challenges are hidden because the CTF has not started."""
+    return bool(
+        appconfig.get_with_overrides("ctf.hide_challenges_before_start", overrides)
+    ) and is_config_dt_future("ctf.start_time", overrides)
 
 
-def challenges_hidden_before_start(
-    user: User | None, overrides: dict[str, str]
-) -> bool:
-    """Whether challenges are hidden from *user* because the CTF has not started."""
-    return (
-        not _is_staff(user)
-        and bool(
-            appconfig.get_with_overrides("ctf.hide_challenges_before_start", overrides)
-        )
-        and is_config_dt_future("ctf.start_time", overrides)
-    )
-
-
-async def _event_started(
-    overrides: ConfigDep, user: OptionalCurrentUserDep = None
-) -> None:
-    """Raise EventNotStartedError before the CTF starts. Admins bypass."""
-    if challenges_hidden_before_start(user, overrides):
+async def _event_started(overrides: ConfigDep) -> None:
+    """Raise EventNotStartedError before the CTF starts."""
+    if challenges_hidden_before_start(overrides):
         raise EventNotStartedError()
 
 
-async def _event_ended(
-    overrides: ConfigDep, user: OptionalCurrentUserDep = None
-) -> None:
-    """Raise EventEndedError after the CTF ends. Admins bypass."""
-    if _is_staff(user):
-        return
+async def _event_active(overrides: ConfigDep) -> None:
+    """Raise if the CTF has not started or has already ended."""
+    if is_config_dt_future("ctf.start_time", overrides):
+        raise EventNotStartedError()
     if is_config_dt_past("ctf.end_time", overrides):
         raise EventEndedError()
 
 
-async def _event_active(
-    overrides: ConfigDep, user: OptionalCurrentUserDep = None
-) -> None:
-    """Raise if the CTF has not started or has already ended. Admins bypass."""
-    if not _is_staff(user) and is_config_dt_future("ctf.start_time", overrides):
-        raise EventNotStartedError()
-    await _event_ended(overrides, user)
-
-
 EventStartedDep = Annotated[None, Depends(_event_started)]
-EventEndedDep = Annotated[None, Depends(_event_ended)]
 EventActiveDep = Annotated[None, Depends(_event_active)]
 
 
