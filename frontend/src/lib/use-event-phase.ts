@@ -50,7 +50,7 @@ export function useEventPhase(): EventPhase {
   const { data: info } = useQuery({
     queryKey: ["info", "public"],
     queryFn: getPublicInfo,
-    staleTime: 60_000,
+    staleTime: 5 * 60 * 1000,
   });
   const start = toDate(info?.competition.start_time);
   const freeze = toDate(info?.competition.freeze_time);

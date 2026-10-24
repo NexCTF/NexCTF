@@ -72,6 +72,17 @@ it("warns once the event has ended", async () => {
   ).toBeDefined();
 });
 
+it("warns while challenges are previewable before the start", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(
+    publicInfoWith({ start_time: "2099-01-01T00:00:00Z", freeze_time: "", end_time: "" }),
+  );
+  renderChallenges();
+
+  expect(
+    await screen.findByText("The CTF has not started yet. Submissions open at the start."),
+  ).toBeDefined();
+});
+
 it("sends an anonymous visitor to the login page without fetching challenges", async () => {
   const { router } = renderChallenges({ user: null });
 
