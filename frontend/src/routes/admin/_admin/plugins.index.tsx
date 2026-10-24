@@ -23,7 +23,7 @@ export const Route = createFileRoute("/admin/_admin/plugins/")({
 function VersionBadge({ version }: { version: string | null }) {
   if (!version) return null;
   return (
-    <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground">
+    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground">
       v{version}
     </span>
   );
@@ -33,24 +33,24 @@ function StatusBadge({ plugin }: { plugin: Plugin }) {
   const { t } = useTranslation();
   if (plugin.is_disabled) {
     return (
-      <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+      <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
         {t("admin.plugins.disabled", { defaultValue: "Disabled" })}
       </span>
     );
   }
   if (plugin.is_builtin) {
     return (
-      <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
+      <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
         {t("admin.plugins.builtin", { defaultValue: "Built-in" })}
       </span>
     );
   }
   return plugin.is_active ? (
-    <span className="inline-flex items-center rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
+    <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
       {t("admin.plugins.active", { defaultValue: "Active" })}
     </span>
   ) : (
-    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+    <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
       {t("admin.plugins.inactive", { defaultValue: "Inactive" })}
     </span>
   );
@@ -59,7 +59,7 @@ function StatusBadge({ plugin }: { plugin: Plugin }) {
 function OfficialBadge() {
   const { t } = useTranslation();
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+    <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
       <ShieldCheck className="size-3" />
       {t("admin.plugins.official", { defaultValue: "Official" })}
     </span>
@@ -117,9 +117,9 @@ function PluginCard({ plugin }: { plugin: Plugin }) {
       <CardContent className="flex flex-col gap-3 pt-5">
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <Box className="size-4 shrink-0 text-muted-foreground" />
-            <span className="font-semibold truncate">{plugin.display_name}</span>
+            <span className="min-w-0 break-words font-semibold">{plugin.display_name}</span>
             <VersionBadge version={plugin.version} />
             {plugin.is_official && <OfficialBadge />}
           </div>

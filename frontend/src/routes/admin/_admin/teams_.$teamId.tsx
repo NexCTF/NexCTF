@@ -338,7 +338,7 @@ function TeamDetailPage() {
               {team.users.length === 0 ? (
                 <p className="text-muted-foreground text-sm">{t("admin.teams.members_empty")}</p>
               ) : (
-                <div className="rounded-lg border overflow-hidden">
+                <div className="rounded-lg border overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="border-b bg-muted/40">
                       <tr>
