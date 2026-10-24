@@ -172,7 +172,7 @@ function ChallengeDetailDialog({
         </div>
 
         {challenge.questions.length > 0 && (
-          <div className="rounded-lg border overflow-hidden">
+          <div className="rounded-lg border overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/40">
                 <tr>
@@ -313,7 +313,7 @@ function CategoryBreakdown({ data }: { data: ChallengeStats[] }) {
   const maxPoints = Math.max(...rows.map((r) => r.points), 1);
 
   return (
-    <div className="rounded-lg border overflow-hidden">
+    <div className="rounded-lg border overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="border-b bg-muted/40">
           <tr>

@@ -153,20 +153,12 @@ function SettingsPage() {
     <div className="flex flex-col flex-1">
       {/* Header */}
       <div className="border-b px-8 pt-6 pb-0 space-y-4">
-        <PageHeader
-          icon={LucideIcons.Settings}
-          title={t("config.title")}
-          actions={
-            <Button onClick={handleSave} disabled={!isDirty || mutation.isPending}>
-              {mutation.isPending ? t("common.saving") : t("common.save")}
-            </Button>
-          }
-        />
+        <PageHeader icon={LucideIcons.Settings} title={t("config.title")} />
 
         {/* Tab bar */}
-        <div className="flex items-end gap-0 -mb-px">
+        <div className="flex flex-wrap items-end gap-0 -mb-px">
           {Array.from(sections.entries()).map(([sectionSlug, catSlugs], sectionIdx) => (
-            <div key={sectionSlug} className="flex items-end">
+            <div key={sectionSlug} className="flex flex-wrap items-end">
               {/* Separator between sections */}
               {sectionIdx > 0 && <div className="mx-2 mb-2 h-4 w-px bg-border self-center" />}
               {catSlugs.map((slug) => {
@@ -180,7 +172,7 @@ function SettingsPage() {
                     key={slug}
                     onClick={() => navigate({ search: { category: slug }, replace: true })}
                     className={cn(
-                      "relative flex items-center gap-1.5 px-4 py-2 text-sm transition-colors border-b-2",
+                      "relative flex items-center gap-1.5 px-3 py-2 text-sm transition-colors border-b-2",
                       isActive
                         ? "border-primary text-foreground font-medium"
                         : "border-transparent text-muted-foreground hover:text-foreground",
@@ -214,6 +206,11 @@ function SettingsPage() {
             </CardContent>
           </Card>
         )}
+        <div className="sticky bottom-0 flex justify-end bg-background/95 py-4 backdrop-blur">
+          <Button onClick={handleSave} disabled={!isDirty || mutation.isPending}>
+            {mutation.isPending ? t("common.saving") : t("common.save")}
+          </Button>
+        </div>
       </div>
     </div>
   );
