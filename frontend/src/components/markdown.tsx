@@ -1,5 +1,5 @@
 import "katex/dist/katex.min.css";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import rehypeKatex from "rehype-katex";
@@ -55,13 +55,21 @@ function MarkdownLink({ href, children }: { href?: string; children?: ReactNode 
   );
 }
 
+function MarkdownTable({ node: _, ...props }: ComponentProps<"table"> & { node?: unknown }) {
+  return (
+    <div className="overflow-x-auto">
+      <table {...props} />
+    </div>
+  );
+}
+
 export function Markdown({ children, className }: MarkdownProps) {
   const canary = children.match(CANARY);
 
   return (
     <div
       className={cn(
-        "prose prose-sm dark:prose-invert max-w-none",
+        "prose prose-sm dark:prose-invert max-w-none break-words",
         "prose-p:my-1 prose-headings:mt-3 prose-headings:mb-1",
         // inline code — no backtick decorations, subtle bg
         "prose-code:before:content-none prose-code:after:content-none",
@@ -77,7 +85,7 @@ export function Markdown({ children, className }: MarkdownProps) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeSlug, rehypeHighlight, rehypeKatex]}
-        components={{ a: MarkdownLink }}
+        components={{ a: MarkdownLink, table: MarkdownTable }}
       >
         {children.replace(CANARY, "")}
       </ReactMarkdown>
