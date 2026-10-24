@@ -88,6 +88,14 @@ it("hides both forms when team changes are frozen", async () => {
   expect(screen.queryByLabelText("Team name")).toBeNull();
 });
 
+it("hides both forms once the event has ended", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(publicInfoWith({ end_time: "2020-01-01T00:00:00Z" }));
+  renderTeam();
+
+  expect(await screen.findByText("Team changes are currently disabled.")).toBeDefined();
+  expect(screen.queryByLabelText("Team name")).toBeNull();
+});
+
 it("shows the team with its invite code and member count", async () => {
   vi.mocked(getMyTeam).mockResolvedValue(team({ member_count: 2 }));
   renderTeam();

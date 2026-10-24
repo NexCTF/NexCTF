@@ -30,6 +30,7 @@ import {
   updateMyTeamProfile,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useEventPhase } from "@/lib/use-event-phase";
 import { copyToClipboard, TEAM_NAME_MAX_LENGTH } from "@/lib/utils";
 
 export const Route = createFileRoute("/_user/team")({
@@ -376,6 +377,7 @@ function TeamPage() {
     queryFn: getMyTeam,
     enabled: !!user,
   });
+  const { ended } = useEventPhase();
 
   if (authLoading) return null;
   if (!user) return <Navigate to="/login" />;
@@ -389,7 +391,7 @@ function TeamPage() {
   }
 
   const allowCreation = publicInfo?.competition.allow_team_creation ?? true;
-  const allowChanges = publicInfo?.competition.allow_team_changes ?? true;
+  const allowChanges = (publicInfo?.competition.allow_team_changes ?? true) && !ended;
   const teamSize = publicInfo?.competition.team_size ?? 4;
 
   function onMembershipChange() {

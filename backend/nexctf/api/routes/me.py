@@ -90,6 +90,7 @@ from nexctf.schema.user import (
     UserLinksUpdate,
     UserPasswordUpdate,
 )
+from nexctf.util.datetime import is_config_dt_past
 from nexctf.util.ip import get_client_ip
 
 me_router = APIRouter(prefix="/me", tags=["me"])
@@ -492,6 +493,14 @@ async def get_my_team(
     )
 
 
+def _require_team_changes(overrides: dict[str, str]) -> None:
+    """Raise unless teams may change: the toggle is on and the CTF has not ended."""
+    if not appconfig.get_with_overrides(
+        "ctf.allow_team_changes", overrides
+    ) or is_config_dt_past("ctf.end_time", overrides):
+        raise TeamChangesDisabledError()
+
+
 async def _lock_membership(session: AsyncSession, user: User) -> UUID | None:
     """Lock the caller's row until commit and return their current team id."""
     return await session.scalar(
@@ -508,8 +517,7 @@ async def create_team(
     body: TeamCreate,
     user: CurrentUserDep,
 ) -> Response[MyTeamRead]:
-    if not appconfig.get_with_overrides("ctf.allow_team_changes", overrides):
-        raise TeamChangesDisabledError()
+    _require_team_changes(overrides)
     if not appconfig.get_with_overrides("ctf.allow_team_creation", overrides):
         raise TeamCreationDisabledError()
     if await _lock_membership(session, user) is not None:
@@ -543,8 +551,7 @@ async def join_team(
     body: TeamJoinRequest,
     user: CurrentUserDep,
 ) -> Response[MyTeamRead]:
-    if not appconfig.get_with_overrides("ctf.allow_team_changes", overrides):
-        raise TeamChangesDisabledError()
+    _require_team_changes(overrides)
     if await _lock_membership(session, user) is not None:
         raise AlreadyInTeamError()
 
@@ -582,8 +589,7 @@ async def leave_team(
     overrides: ConfigDep,
     user: CurrentUserDep,
 ):
-    if not appconfig.get_with_overrides("ctf.allow_team_changes", overrides):
-        raise TeamChangesDisabledError()
+    _require_team_changes(overrides)
     team_id = await _lock_membership(session, user)
     if team_id is None:
         raise NotInTeamError()
@@ -616,8 +622,7 @@ async def rotate_invite_code(
     overrides: ConfigDep,
     user: CurrentUserDep,
 ) -> Response[str]:
-    if not appconfig.get_with_overrides("ctf.allow_team_changes", overrides):
-        raise TeamChangesDisabledError()
+    _require_team_changes(overrides)
     team = await _my_team(session, user)
     team.invite_code = gen_invite_code()
     return Response(data=team.invite_code)
