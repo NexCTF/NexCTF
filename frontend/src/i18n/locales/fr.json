@@ -1042,8 +1042,10 @@
     "admin": "Admin",
     "challenges": "Challenges",
     "login": "Connexion",
+    "menu": "Menu",
     "notifications": "Notifications",
     "scoreboard": "Classement",
+    "settings": "Paramètres",
     "teams": "Équipes"
   },
   "notifications": {
