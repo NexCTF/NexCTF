@@ -76,6 +76,18 @@ class TestSubmitAfterEnd:
         assert resp.status_code == 403
         assert resp.json()["error_code"] == "CTF-403-ENDED"
 
+    async def test_ended_answers_before_any_account_check(
+        self, user_client: tuple[AsyncClient, User], config_overrides: dict[str, str]
+    ) -> None:
+        """The event window is checked before the caller's team."""
+        config_overrides["ctf.end_time"] = PAST
+        c, _ = user_client
+        resp = await c.post(
+            f"/challenges/{NULL_UUID}/{NULL_UUID}/submit",
+            json={"answer": "flag"},
+        )
+        assert resp.json()["error_code"] == "CTF-403-ENDED"
+
 
 class TestSubmitBody:
     async def test_oversized_answer_is_refused(
