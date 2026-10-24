@@ -1,4 +1,4 @@
-"""Tests for the challenge.viewed event emitted on a player's first open."""
+"""Tests for the challenge.viewed event emitted on a user's first open."""
 
 from __future__ import annotations
 
@@ -84,16 +84,3 @@ class TestChallengeViewed:
 
         [event] = await _views(db_session)
         assert event.meta["team_id"] is None
-
-    async def test_admins_are_not_recorded(
-        self,
-        admin_client: tuple[AsyncClient, User],
-        db_session: AsyncSession,
-    ) -> None:
-        c, _ = admin_client
-        challenge = await _challenge(db_session)
-
-        resp = await c.get(f"/challenges/{challenge.id}")
-
-        assert resp.status_code == 200
-        assert await _views(db_session) == []

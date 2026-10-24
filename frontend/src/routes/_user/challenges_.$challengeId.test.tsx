@@ -353,3 +353,50 @@ it("refreshes the team's progress after a correct solve", async () => {
   await waitFor(() => expect(client.getQueryState(["my-team"])?.isInvalidated).toBe(true));
   expect(client.getQueryState(["team-score", "t1"])?.isInvalidated).toBe(true);
 });
+
+it("locks answers and hint unlocks once the event has ended", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(publicInfoWith({ end_time: "2020-01-01T00:00:00Z" }));
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({ questions: [question({ hints: [hint()] })] }),
+  );
+  renderChallenge();
+
+  await screen.findByText("The CTF has ended. Submissions are no longer accepted.");
+  await userEvent.type(screen.getByPlaceholderText("Enter your answer…"), "flag_x");
+  expect(screen.getByRole("button", { name: "Submit" })).toHaveProperty("disabled", true);
+  expect(screen.getByRole("button", { name: "Unlock" })).toHaveProperty("disabled", true);
+});
+
+it("locks answers while challenges are previewable before the start", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(
+    publicInfoWith({ start_time: "2099-01-01T00:00:00Z", freeze_time: "", end_time: "" }),
+  );
+  renderChallenge();
+
+  await screen.findByText("The CTF has not started yet. Submissions open at the start.");
+  await userEvent.type(screen.getByPlaceholderText("Enter your answer…"), "flag_x");
+  expect(screen.getByRole("button", { name: "Submit" })).toHaveProperty("disabled", true);
+});
+
+it("locks answers when the end passes while the page is open", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    vi.mocked(getPublicInfo).mockResolvedValue(
+      publicInfoWith({ freeze_time: "", end_time: new Date(Date.now() + 60_000).toISOString() }),
+    );
+    renderChallenge();
+
+    const typist = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await typist.type(await screen.findByPlaceholderText("Enter your answer…"), "flag_x");
+    const submit = screen.getByRole("button", { name: "Submit" });
+    expect(submit).toHaveProperty("disabled", false);
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(submit).toHaveProperty("disabled", true);
+    expect(
+      screen.getByText("The CTF has ended. Submissions are no longer accepted."),
+    ).toBeDefined();
+  } finally {
+    vi.useRealTimers();
+  }
+});

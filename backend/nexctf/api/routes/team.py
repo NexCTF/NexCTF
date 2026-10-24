@@ -40,7 +40,7 @@ async def get_team_profile(
         team_id,
         overrides=overrides,
         include_members=bool(show_members),
-        include_challenges=not challenges_hidden_before_start(user, overrides),
+        include_challenges=not challenges_hidden_before_start(overrides),
     )
     if team is None:
         raise NotFoundError()

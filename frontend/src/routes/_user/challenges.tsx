@@ -6,7 +6,7 @@ import { Banner } from "@/components/banner";
 import { TagBadge } from "@/components/tag-badge";
 import { apiErrorMessage, getChallenges, type PublicChallenge } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { useEventEnded } from "@/lib/use-event-phase";
+import { useEventPhase } from "@/lib/use-event-phase";
 
 export const Route = createFileRoute("/_user/challenges")({
   component: ChallengesPage,
@@ -26,7 +26,7 @@ function ChallengesPage() {
     enabled: !!user,
   });
 
-  const eventEnded = useEventEnded();
+  const { ended } = useEventPhase();
 
   if (authLoading) return null;
   if (!user) return <Navigate to="/login" />;
@@ -42,7 +42,7 @@ function ChallengesPage() {
 
   return (
     <div className="mx-auto max-w-screen-lg px-4 py-10 space-y-10">
-      {eventEnded && (
+      {ended && (
         <Banner tone="amber" icon={AlertTriangle}>
           {t("challenge.event_ended_banner")}
         </Banner>

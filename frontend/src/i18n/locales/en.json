@@ -686,6 +686,7 @@
     "answer_placeholder": "Enter your answer…",
     "back": "Back to challenges",
     "event_ended_banner": "The CTF has ended. Submissions are no longer accepted.",
+    "event_not_started_banner": "The CTF has not started yet. Submissions open at the start.",
     "feedback_error": "Could not save your feedback",
     "feedback_placeholder": "Anything you liked or would improve? (optional)",
     "feedback_rate": "Rate {{value}} out of 5",
