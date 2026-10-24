@@ -28,7 +28,7 @@ async function addSolution(page: Page, id: string, label: string): Promise<void>
 /** Pick `type` in the open type picker, its card named by the type then its description. */
 async function pickType(page: Page, type: string, kind: "challenge" | "solution"): Promise<void> {
   await dialog(page)
-    .getByRole("button", { name: new RegExp(`^${type} `) })
+    .getByRole("button", { name: new RegExp(`^${type}(\\s|$)`) })
     .click();
   await expect(dialog(page).getByText(`New ${type} ${kind}`)).toBeVisible();
 }

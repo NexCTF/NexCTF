@@ -67,7 +67,7 @@ export function Markdown({ children, className }: MarkdownProps) {
         "prose-code:before:content-none prose-code:after:content-none",
         "prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:font-mono",
         // fenced code blocks
-        "prose-pre:bg-muted prose-pre:rounded-lg prose-pre:p-3 prose-pre:overflow-x-auto",
+        "prose-pre:bg-muted prose-pre:text-foreground prose-pre:rounded-lg prose-pre:p-3 prose-pre:overflow-x-auto",
         "prose-blockquote:border-l-2 prose-blockquote:border-muted-foreground/30 prose-blockquote:pl-4 prose-blockquote:text-muted-foreground",
         "prose-a:text-link prose-a:underline-offset-2",
         "prose-ul:my-1 prose-ol:my-1 prose-li:my-0",

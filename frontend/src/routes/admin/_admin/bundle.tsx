@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Banner } from "@/components/banner";
 import { BetaBadge } from "@/components/beta-badge";
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -391,15 +391,17 @@ function ExportPanel() {
         }
       />
 
-      <Button
-        render={<a href={adminBundleExportUrl({ includeFiles, includeSecrets })} download />}
+      <a
+        href={adminBundleExportUrl({ includeFiles, includeSecrets })}
+        download
+        className={buttonVariants()}
         title={t("admin.bundle.export_now_hint", {
           defaultValue: "Build an archive of the authored content and download it",
         })}
       >
         <Download className="size-4" />
         {t("admin.bundle.export_now", { defaultValue: "Export" })}
-      </Button>
+      </a>
     </Panel>
   );
 }

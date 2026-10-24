@@ -186,8 +186,7 @@
       "new": "New Challenge",
       "new_typed_title": "New {{type}} challenge",
       "no_types": "No challenge types registered",
-      "select_type": "Select challenge type",
-      "type_hint": "Challenge type"
+      "select_type": "Select challenge type"
     },
     "clients": {
       "category_ai": "AI",
