@@ -40,7 +40,7 @@ test("a signed-out player signs in and comes back to the consent page", async ({
   await signInThroughForm(page, account.username, account.password, false);
 
   await expect(page).toHaveURL(/\/oauth\/consent\?/);
-  await expect(page.getByText("Authorization Request")).toBeVisible();
+  await expect(page.getByText("Authorization request")).toBeVisible();
   await expect(page.getByText(`Signed in as ${account.username}`)).toBeVisible();
 });
 

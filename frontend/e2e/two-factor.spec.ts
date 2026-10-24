@@ -4,7 +4,7 @@ import { expect, signInThroughForm, test } from "./support/fixtures";
 import { enableTotp, totpCode, typeOtp } from "./support/totp";
 
 function totpSection(page: Page) {
-  return page.getByRole("heading", { name: "Two-Factor Authentication" }).locator("xpath=../../..");
+  return page.getByRole("heading", { name: "Two-factor authentication" }).locator("xpath=../../..");
 }
 
 test("a player turns on 2FA from the settings", async ({ page, signedIn: _ }) => {

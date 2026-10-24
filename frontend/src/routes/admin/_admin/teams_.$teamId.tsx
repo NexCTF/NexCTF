@@ -416,7 +416,7 @@ function TeamDetailPage() {
 
             <DetailSection
               title={t("admin.scoreboard.adjustments_title", {
-                defaultValue: "Score Adjustments",
+                defaultValue: "Score adjustments",
               })}
             >
               <DataTable

@@ -50,7 +50,7 @@ it("lists the members and the score breakdown", async () => {
 it("links back to the scoreboard", async () => {
   renderProfile();
 
-  const back = await screen.findByRole("link", { name: "Back to Scoreboard" });
+  const back = await screen.findByRole("link", { name: "Back to scoreboard" });
   expect(back.getAttribute("href")).toBe("/scoreboard");
 });
 

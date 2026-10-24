@@ -10,7 +10,7 @@ test("a player without a team creates one", async ({ page, signedIn: _ }) => {
   await page.getByRole("button", { name: "Create team" }).click();
 
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
-  await expect(page.getByText("Invite Code")).toBeVisible();
+  await expect(page.getByText("Invite code")).toBeVisible();
   await expect(page.getByText("1 / 4")).toBeVisible();
 });
 

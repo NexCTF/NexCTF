@@ -11,7 +11,7 @@ test("a player creates a read-only API token, uses it, then revokes it", async (
   await page.goto("/settings");
   await expect(page.getByText("No tokens yet.")).toBeVisible();
 
-  await page.getByRole("button", { name: "New Token" }).click();
+  await page.getByRole("button", { name: "New token" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Name").fill(name);
   await expect(dialog.getByRole("button", { name: "Save" })).toBeDisabled();
@@ -44,7 +44,7 @@ test("a player creates a read-only API token, uses it, then revokes it", async (
 
 test("a token with write access can submit flags", async ({ page, team: _ }) => {
   await page.goto("/settings");
-  await page.getByRole("button", { name: "New Token" }).click();
+  await page.getByRole("button", { name: "New token" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Name").fill(uniqueName("token"));
   // The radios are visually hidden; their labels are what the player clicks.

@@ -81,7 +81,7 @@
     "challenge": {
       "active_hint": "Visible to players",
       "active_label": "Active",
-      "back_breadcrumb": "Challenges",
+      "back_breadcrumb": "Back to challenges",
       "delete_btn": "Delete",
       "delete_confirm": "Delete challenge \"{{title}}\"? This will also delete all questions, solutions, and hints.",
       "delete_error": "Failed to delete challenge",
@@ -95,7 +95,7 @@
       "file": {
         "attach_title": "Attach files to question",
         "empty": "No files attached",
-        "manage": "Manage Files",
+        "manage": "Manage files",
         "no_files": "No files uploaded yet. Go to the Files section to upload some.",
         "no_match": "No files match your search",
         "save_files_one": "Save ({{count}} file)",
@@ -106,7 +106,7 @@
         "updated": "Files updated"
       },
       "hint": {
-        "add": "Add Hint",
+        "add": "Add hint",
         "add_error": "Failed to add hint",
         "added": "Hint added",
         "delete_confirm": "Delete this hint?",
@@ -123,11 +123,11 @@
         "saved": "Hint saved",
         "section_title": "Hints ({{n}})"
       },
-      "info_title": "Challenge Info",
+      "info_title": "Challenge info",
       "no_category": "No category",
       "not_found": "Challenge not found.",
       "question": {
-        "add": "Add Question",
+        "add": "Add question",
         "add_error": "Failed to add question",
         "added": "Question added",
         "delete_confirm": "Delete this question and all its solutions/hints?",
@@ -162,7 +162,7 @@
       "sequential_hint": "Questions in order",
       "sequential_label": "Sequential",
       "solution": {
-        "add": "Add Solution",
+        "add": "Add solution",
         "add_error": "Failed to add solution",
         "added": "Solution added",
         "click_edit": "Click edit to view/modify",
@@ -183,7 +183,7 @@
       "col_sequential": "Sequential",
       "create_error": "Failed to create challenge",
       "created": "Challenge created",
-      "new": "New Challenge",
+      "new": "New challenge",
       "new_typed_title": "New {{type}} challenge",
       "no_types": "No challenge types registered",
       "select_type": "Select challenge type"
@@ -231,13 +231,13 @@
       "name_hint": "Machine-readable key, e.g. school",
       "save_error": "Failed to save field",
       "saved": "Field saved",
-      "title": "Custom Fields",
-      "values_title": "Custom Fields"
+      "title": "Custom fields",
+      "values_title": "Custom fields"
     },
     "dashboard": {
       "categories_section": "Categories",
-      "challenges_section": "Challenge Stats",
-      "col_first_blood": "First Blood",
+      "challenges_section": "Challenge stats",
+      "col_first_blood": "First blood",
       "col_hints": "Hints",
       "col_submissions": "Submissions",
       "col_teams_solved": "Teams solved",
@@ -245,7 +245,7 @@
       "distribution_empty": "No scores yet.",
       "distribution_section": "Score distribution",
       "stat_challenges": "Challenges",
-      "stat_hint_unlocks": "Hint Unlocks",
+      "stat_hint_unlocks": "Hint unlocks",
       "stat_submissions": "Submissions",
       "stat_teams": "Teams",
       "stat_users": "Users",
@@ -312,13 +312,13 @@
       "visibility_public": "Public"
     },
     "nav": {
-      "api_docs": "API Docs",
+      "api_docs": "API docs",
       "back_to_site": "Back to site",
       "backups": "Backups",
       "badge": "Admin",
       "bundle": "Sync",
       "challenges": "Challenges",
-      "custom_fields": "Custom Fields",
+      "custom_fields": "Custom fields",
       "dashboard": "Dashboard",
       "documentation": "Documentation",
       "events": "Events",
@@ -326,12 +326,12 @@
       "files": "Files",
       "links": "Links",
       "notifications": "Notifications",
-      "oauth_clients": "OAuth Clients",
-      "oauth_providers": "OAuth Providers",
+      "oauth_clients": "OAuth clients",
+      "oauth_providers": "OAuth providers",
       "pages": "Pages",
       "plugins": "Plugins",
       "scheduler": "Scheduler",
-      "score_adjustments": "Score Adjustments",
+      "score_adjustments": "Score adjustments",
       "scoreboard": "Scoreboard",
       "section": {
         "audit": "Audit",
@@ -368,31 +368,31 @@
       "type_targeted": "Targeted"
     },
     "oauth_client": {
-      "client_secret": "Client Secret",
+      "client_secret": "Client secret",
       "col_client_id": "Client ID",
-      "col_scopes": "Allowed Scopes",
-      "create": "New Client",
+      "col_scopes": "Allowed scopes",
+      "create": "New client",
       "create_error": "Failed to create client",
       "created_title": "Client created",
       "delete_confirm": "Delete OAuth client \"{{name}}\"? Active tokens will stop working.",
       "delete_error": "Failed to delete client",
       "deleted": "Client deleted",
-      "edit_title": "Edit OAuth Client",
-      "endpoints": "OAuth Endpoints",
+      "edit_title": "Edit OAuth client",
+      "endpoints": "OAuth endpoints",
       "field_active": "Active",
-      "field_allowed_roles": "Allowed Roles",
-      "field_allowed_scopes": "Allowed Scopes",
+      "field_allowed_roles": "Allowed roles",
+      "field_allowed_scopes": "Allowed scopes",
       "field_description": "Description",
       "field_name": "Name",
       "field_redirect_uris": "Redirect URIs",
-      "new_title": "New OAuth Client",
+      "new_title": "New OAuth client",
       "redirect_uris_hint": "One URI per line. Must match exactly what the client sends.",
       "roles_hint": "Space-separated. Leave empty to allow every role. Available: admin user",
       "save_error": "Failed to save client",
       "saved": "Client saved",
       "scopes_hint": "Space-separated. Available: openid profile email roles",
       "secret_hint": "Save these credentials now — the client secret won't be shown again.",
-      "title": "OAuth Clients"
+      "title": "OAuth clients"
     },
     "oauth_provider": {
       "col_discovery_url": "Discovery URL",
@@ -404,12 +404,12 @@
       "edit_title": "Edit OAuth provider",
       "field_active": "Active",
       "field_client_id": "Client ID",
-      "field_client_secret": "Client Secret",
+      "field_client_secret": "Client secret",
       "field_icon_url": "Icon URL",
       "field_name": "Name",
       "field_scopes": "Scopes",
       "field_slug": "Slug",
-      "new": "New Provider",
+      "new": "New provider",
       "new_title": "New OAuth provider",
       "save_error": "Failed to save provider",
       "saved": "Provider saved",
@@ -472,7 +472,7 @@
       "delete_confirm": "Delete job \"{{name}}\"?",
       "delete_error": "Failed to delete job",
       "deleted": "Job deleted",
-      "detail_back": "Back to Scheduler",
+      "detail_back": "Back to scheduler",
       "disable_btn": "Disable",
       "disabled": "Job disabled",
       "enable_btn": "Enable",
@@ -487,7 +487,7 @@
       "field_params": "Parameters",
       "field_scheduled_at": "Scheduled at",
       "field_type": "Job type",
-      "info_title": "Job Info",
+      "info_title": "Job info",
       "name_placeholder": "e.g. Open challenges at midnight",
       "not_found": "Job not found.",
       "run": "Run now",
@@ -502,7 +502,7 @@
       "view_in_task_queue": "View in task queue"
     },
     "scoreboard": {
-      "add_adjustment": "Add Adjustment",
+      "add_adjustment": "Add adjustment",
       "adjustment_create_error": "Failed to create adjustment",
       "adjustment_created": "Adjustment created",
       "adjustment_delete_confirm": "Delete this score adjustment?",
@@ -510,7 +510,7 @@
       "adjustment_deleted": "Adjustment deleted",
       "adjustment_save_error": "Failed to save adjustment",
       "adjustment_saved": "Adjustment saved",
-      "adjustments_title": "Score Adjustments",
+      "adjustments_title": "Score adjustments",
       "amount_hint": "Positive = bonus, negative = penalty",
       "amount_placeholder": "e.g. 100 or -50",
       "cache_invalidate_error": "Failed to invalidate cache",
@@ -519,7 +519,7 @@
       "col_amount": "Amount",
       "col_last_solve": "Last solve",
       "col_reason": "Reason",
-      "edit_adjustment": "Edit Adjustment",
+      "edit_adjustment": "Edit adjustment",
       "field_amount": "Amount",
       "field_reason": "Reason",
       "field_team": "Team",
@@ -593,8 +593,8 @@
       "create": "New team",
       "create_error": "Failed to create team",
       "created": "Team created",
-      "detail_back": "Back to Teams",
-      "edit_info_title": "Edit Team",
+      "detail_back": "Back to teams",
+      "edit_info_title": "Edit team",
       "field_bracket": "Bracket",
       "field_country": "Country",
       "field_created": "Created",
@@ -605,7 +605,7 @@
       "field_updated": "Updated",
       "info_save_error": "Failed to save team info",
       "info_saved": "Team info saved",
-      "info_title": "Team Info",
+      "info_title": "Team info",
       "link_label_placeholder": "Label",
       "members_empty": "No members in this team.",
       "members_title": "Members ({{n}})",
@@ -621,18 +621,18 @@
       "create": "New user",
       "create_error": "Failed to create user",
       "created": "User created",
-      "detail_back": "Back to Users",
+      "detail_back": "Back to users",
       "disable_btn": "Disable account",
       "disable_confirm": "Disable this account? The user will be immediately signed out.",
       "disabled": "Account disabled",
-      "edit_title": "Edit User",
+      "edit_title": "Edit user",
       "enable_btn": "Enable account",
       "enabled": "Account enabled",
-      "events_title": "Recent Activity",
+      "events_title": "Recent activity",
       "field_email": "Email",
       "field_id": "ID",
       "field_ips": "Known addresses",
-      "field_last_login_at": "Last Login",
+      "field_last_login_at": "Last login",
       "field_links": "Links",
       "field_password": "Password",
       "field_role": "Role",
@@ -640,7 +640,7 @@
       "field_team": "Team",
       "field_totp": "Two-factor auth",
       "field_username": "Username",
-      "info_title": "User Info",
+      "info_title": "User info",
       "no_team": "No team",
       "not_found": "User not found.",
       "password_hint": "Copy it before creating: it is not shown again.",
@@ -648,7 +648,7 @@
       "pwd_reset_btn": "Password reset token",
       "pwd_reset_copied": "Token copied to clipboard",
       "pwd_reset_dialog_desc": "Share this single-use token with the user. It expires in 1 hour.",
-      "pwd_reset_dialog_title": "Password Reset Token",
+      "pwd_reset_dialog_title": "Password reset token",
       "pwd_reset_error": "Failed to generate reset token",
       "regenerate_password": "Regenerate password",
       "save_error": "Failed to save user",
@@ -752,7 +752,7 @@
     "appearance": {
       "accent_color": {
         "description": "Accent color used for buttons, badges and focus rings. Shades are derived automatically to stay readable in both themes",
-        "label": "Accent Color"
+        "label": "Accent color"
       },
       "custom_css": {
         "description": "Extra CSS injected into every page. Served to all visitors, so treat it as public",
@@ -760,7 +760,7 @@
       },
       "default_theme": {
         "description": "Theme applied to visitors who have not picked one themselves",
-        "label": "Default Theme"
+        "label": "Default theme"
       },
       "favicon_url": {
         "description": "Favicon shown in the browser tab. Upload a file or paste a URL",
@@ -768,7 +768,7 @@
       },
       "login_background_url": {
         "description": "Background image shown behind the login card. Upload a file or paste a URL",
-        "label": "Login Background URL"
+        "label": "Login background URL"
       },
       "logo_url": {
         "description": "Logo displayed in the navbar and home page. Upload a file or paste a URL",
@@ -788,13 +788,13 @@
     "canary": {
       "enabled": {
         "description": "Plant a hidden marker in challenge text; submitting it is logged as a suspected AI-assisted answer",
-        "label": "Enable AI Canary"
+        "label": "Enable AI canary"
       }
     },
     "captcha": {
       "enabled": {
         "description": "Require captcha verification on login and registration",
-        "label": "Enable Captcha"
+        "label": "Enable captcha"
       }
     },
     "category": {
@@ -819,108 +819,108 @@
     "ctf": {
       "allow_registration": {
         "description": "Allow new users to register",
-        "label": "Allow Registration"
+        "label": "Allow registration"
       },
       "allow_team_changes": {
         "description": "Let players join or leave a team",
-        "label": "Allow Team Changes"
+        "label": "Allow team changes"
       },
       "allow_team_creation": {
         "description": "Allow players to create teams and generate invite codes",
-        "label": "Allow Team Creation"
+        "label": "Allow team creation"
       },
       "allow_team_customization": {
         "description": "Let team members edit the team name, country, links and custom fields",
-        "label": "Allow Team Customization"
+        "label": "Allow team customization"
       },
       "allow_user_customization": {
         "description": "Let players edit their own links and custom fields",
-        "label": "Allow Profile Customization"
+        "label": "Allow profile customization"
       },
       "description": {
         "description": "Short description displayed on the home page",
-        "label": "CTF Description"
+        "label": "CTF description"
       },
       "enable_challenge_feedback": {
         "description": "Let teams rate and comment on a challenge once they have solved every question",
-        "label": "Enable Challenge Feedback"
+        "label": "Enable challenge feedback"
       },
       "end_time": {
         "description": "Competition end time (ISO 8601)",
-        "label": "End Time"
+        "label": "End time"
       },
       "freeze_time": {
         "description": "Public scoreboard stops updating after this time (admin scoreboard is unaffected)",
-        "label": "Freeze Time"
+        "label": "Freeze time"
       },
       "hide_challenges_before_start": {
         "description": "Hide the challenge list until the CTF start time",
-        "label": "Hide Challenges Before Start"
+        "label": "Hide challenges before start"
       },
       "name": {
         "description": "Name displayed on the platform",
-        "label": "CTF Name"
+        "label": "CTF name"
       },
       "release_writeups_after_end": {
         "description": "Reveal challenge writeups to everyone once the competition ends, even for unsolved challenges",
-        "label": "Release Writeups After End"
+        "label": "Release writeups after end"
       },
       "start_time": {
         "description": "Competition start time (ISO 8601)",
-        "label": "Start Time"
+        "label": "Start time"
       },
       "team_size": {
         "description": "Maximum number of members per team",
-        "label": "Max Team Size"
+        "label": "Max team size"
       },
       "timezone": {
         "description": "Zone cron expressions are read in. Does not affect the start, end and freeze times above, which are absolute moments.",
-        "label": "Scheduler Timezone"
+        "label": "Scheduler timezone"
       }
     },
     "email": {
       "enabled": {
         "description": "Allow the platform to send emails via SMTP",
-        "label": "Enable Email"
+        "label": "Enable email"
       },
       "from_address": {
         "description": "Email address messages are sent from",
-        "label": "From Address"
+        "label": "From address"
       },
       "from_name": {
         "description": "Display name shown as the sender (optional)",
-        "label": "From Name"
+        "label": "From name"
       },
       "security": {
         "description": "Encryption used for the SMTP connection",
-        "label": "Connection Security"
+        "label": "Connection security"
       },
       "smtp_host": {
         "description": "Hostname of your SMTP server (e.g. smtp.example.com)",
-        "label": "SMTP Host"
+        "label": "SMTP host"
       },
       "smtp_password": {
         "description": "Password for SMTP authentication (leave empty for none)",
-        "label": "SMTP Password"
+        "label": "SMTP password"
       },
       "smtp_port": {
         "description": "Port of your SMTP server (typically 587 for STARTTLS, 465 for TLS)",
-        "label": "SMTP Port"
+        "label": "SMTP port"
       },
       "smtp_username": {
         "description": "Username for SMTP authentication (leave empty for none)",
-        "label": "SMTP Username"
+        "label": "SMTP username"
       }
     },
     "rate_limit": {
       "login": {
         "enabled": {
           "description": "Enable rate limiting on login attempts",
-          "label": "Login Rate Limit"
+          "label": "Login rate limit"
         },
         "max_requests": {
           "description": "Maximum login attempts per IP per time window",
-          "label": "Max Login Attempts"
+          "label": "Max login attempts"
         },
         "window_seconds": {
           "description": "Sliding window duration for login rate limiting",
@@ -930,11 +930,11 @@
       "submit": {
         "enabled": {
           "description": "Enable rate limiting on flag submissions",
-          "label": "Submit Rate Limit"
+          "label": "Submit rate limit"
         },
         "max_requests": {
           "description": "Maximum submissions per team per time window",
-          "label": "Max Submissions"
+          "label": "Max submissions"
         },
         "window_seconds": {
           "description": "Sliding window duration for the rate limit",
@@ -946,15 +946,15 @@
     "scoring": {
       "decay_minimum": {
         "description": "Minimum points a challenge can decay to",
-        "label": "Minimum Points"
+        "label": "Minimum points"
       },
       "decay_solves": {
         "description": "Number of solves before reaching minimum points",
-        "label": "Decay Solves"
+        "label": "Decay solves"
       },
       "mode": {
         "description": "Static (fixed points) or dynamic (decreasing with solves)",
-        "label": "Scoring Mode"
+        "label": "Scoring mode"
       }
     },
     "section": {
@@ -965,7 +965,7 @@
     "visibility": {
       "challenges": {
         "description": "Who can view challenges",
-        "label": "Challenges Visibility"
+        "label": "Challenges visibility"
       },
       "choices": {
         "authenticated": "Authenticated users",
@@ -974,11 +974,11 @@
       },
       "scoreboard": {
         "description": "Who can view the scoreboard",
-        "label": "Scoreboard Visibility"
+        "label": "Scoreboard visibility"
       },
       "show_team_members": {
         "description": "Display the member list on public team profiles",
-        "label": "Show Team Members"
+        "label": "Show team members"
       }
     }
   },
@@ -1006,7 +1006,7 @@
   },
   "login": {
     "disabled_message": "Your account has been disabled. Please contact an administrator.",
-    "disabled_title": "Account Disabled",
+    "disabled_title": "Account disabled",
     "error_unexpected": "An unexpected error occurred",
     "forgot_password": "Forgot password?",
     "no_account": "Don't have an account?",
@@ -1062,7 +1062,7 @@
       "profile": "Read your username",
       "roles": "Read your platform role"
     },
-    "title": "Authorization Request"
+    "title": "Authorization request"
   },
   "pages": {
     "magic": {
@@ -1126,7 +1126,7 @@
     "bracket_global": "Global",
     "bracket_label": "Bracket",
     "chart_no_data": "No score events yet.",
-    "chart_title": "Score Evolution",
+    "chart_title": "Score evolution",
     "col_adjustments": "Adjustments",
     "col_hints": "Hints",
     "col_rank": "Rank",
@@ -1148,7 +1148,7 @@
     "oauth": {
       "connect": "Connect",
       "section_hint": "Manage which OAuth providers are linked to your account.",
-      "section_title": "Connected Accounts",
+      "section_title": "Connected accounts",
       "unlink": "Unlink",
       "unlink_confirm": "Unlink {{name}}?",
       "unlink_error": "Failed to unlink account",
@@ -1194,7 +1194,7 @@
       "created_at": "Created {{date}}",
       "created_title": "Token created",
       "details": "Token details",
-      "docs": "API Docs",
+      "docs": "API docs",
       "done": "Done",
       "empty": "No tokens yet. Create one to get started.",
       "expires_at": "Expires {{date}}",
@@ -1206,7 +1206,7 @@
       "level_write": "Read & write",
       "name_placeholder": "e.g. CI pipeline",
       "never_used": "Never used",
-      "new": "New Token",
+      "new": "New token",
       "new_title": "New API token",
       "revoke": "Revoke token",
       "revoke_confirm": "Revoke token \"{{name}}\"?",
@@ -1234,7 +1234,7 @@
       "scope_admin_plugin": "Plugin admin: {{name}}",
       "scope_plugin": "Plugin: {{name}}",
       "section_hint": "Tokens allow API access without your password.",
-      "section_title": "API Tokens",
+      "section_title": "API tokens",
       "select_all_read": "All read",
       "select_all_write": "All read & write",
       "select_none": "All no access",
@@ -1256,7 +1256,7 @@
       "next_btn": "Next",
       "scan_hint": "Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.).",
       "section_hint": "Add an extra layer of security with an authenticator app.",
-      "section_title": "Two-Factor Authentication",
+      "section_title": "Two-factor authentication",
       "setup_error": "Failed to initialize 2FA setup",
       "setup_title": "Set up two-factor authentication",
       "status_disabled": "2FA is disabled",
@@ -1332,7 +1332,7 @@
     "invite_hint": "Share this code with teammates to let them join.",
     "invite_rotate_btn": "Regenerate",
     "invite_rotate_error": "Failed to regenerate code",
-    "invite_section": "Invite Code",
+    "invite_section": "Invite code",
     "join_btn": "Join",
     "join_error": "Failed to join team",
     "join_section": "Join a team",
@@ -1346,7 +1346,7 @@
     "name_placeholder": "e.g. Team Rocket",
     "no_team_hint": "You need a team to submit answers. Create one or join with an invite code.",
     "partial": "{{solved}}/{{total}}",
-    "profile_back": "Back to Scoreboard",
+    "profile_back": "Back to scoreboard",
     "profile_hint": "Shown on your team's public page.",
     "profile_load_error": "Failed to load team",
     "profile_save_error": "Failed to save team profile",
@@ -1356,7 +1356,7 @@
     "progress_col_points": "Points",
     "progress_col_progress": "Progress",
     "progress_empty": "No challenges attempted yet.",
-    "progress_title": "Challenge Progress",
+    "progress_title": "Challenge progress",
     "rank_label": "Rank",
     "score_breakdown_title": "Score breakdown",
     "solve_points_label": "Question points",

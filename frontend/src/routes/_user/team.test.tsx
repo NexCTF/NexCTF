@@ -191,7 +191,7 @@ it("hides the team profile form when customization is off", async () => {
   vi.mocked(getMyTeamProfile).mockResolvedValue(teamProfile);
   renderTeam();
 
-  await screen.findByText("Invite Code");
+  await screen.findByText("Invite code");
   expect(screen.queryByText("Team profile")).toBeNull();
 });
 

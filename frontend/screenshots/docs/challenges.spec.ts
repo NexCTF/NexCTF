@@ -21,7 +21,7 @@ async function openQuestion(page: Page, id: string, label: string): Promise<Loca
 /** Open the add-solution dialog of question `label`, on the type picker. */
 async function addSolution(page: Page, id: string, label: string): Promise<void> {
   const card = await openQuestion(page, id, label);
-  await card.getByRole("button", { name: "Add Solution" }).click();
+  await card.getByRole("button", { name: "Add solution" }).click();
   await expect(dialog(page)).toBeVisible();
 }
 
@@ -46,7 +46,7 @@ shot(
 shot(
   "challenges/challenge_type",
   ADMIN,
-  (page) => openDialog(page, "/admin/challenges", "New Challenge"),
+  (page) => openDialog(page, "/admin/challenges", "New challenge"),
   dialog,
 );
 
@@ -54,7 +54,7 @@ shot(
   "challenges/new_challenge",
   ADMIN,
   async (page) => {
-    await openDialog(page, "/admin/challenges", "New Challenge");
+    await openDialog(page, "/admin/challenges", "New challenge");
     await pickType(page, "standard", "challenge");
   },
   dialog,
@@ -63,7 +63,7 @@ shot(
 shot(
   "challenges/new_question",
   ADMIN,
-  (page) => openDialog(page, `/admin/challenges/${SQL_INJECTION_ID}`, "Add Question"),
+  (page) => openDialog(page, `/admin/challenges/${SQL_INJECTION_ID}`, "Add question"),
   dialog,
 );
 
@@ -109,7 +109,7 @@ shot(
   ADMIN,
   async (page) => {
     const card = await openQuestion(page, SQL_INJECTION_ID, "Bypass the login");
-    await card.getByRole("button", { name: "Add Hint" }).click();
+    await card.getByRole("button", { name: "Add hint" }).click();
     await expect(dialog(page).getByText("Add hint")).toBeVisible();
   },
   dialog,
@@ -120,7 +120,7 @@ shot(
   ADMIN,
   async (page) => {
     const card = await openQuestion(page, SQL_INJECTION_ID, "Bypass the login");
-    await card.getByRole("button", { name: "Manage Files" }).click();
+    await card.getByRole("button", { name: "Manage files" }).click();
     await expect(dialog(page).getByText("README.md").first()).toBeVisible();
   },
   dialog,

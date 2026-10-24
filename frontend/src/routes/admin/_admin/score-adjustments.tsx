@@ -255,7 +255,7 @@ function ScoreAdjustmentsPage() {
     <div className="p-8 space-y-6">
       <PageHeader
         icon={SlidersHorizontal}
-        title={t("admin.scoreboard.adjustments_title", { defaultValue: "Score Adjustments" })}
+        title={t("admin.scoreboard.adjustments_title", { defaultValue: "Score adjustments" })}
         actions={
           <Button onClick={() => setAddOpen(true)}>
             <Plus />

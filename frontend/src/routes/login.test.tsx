@@ -124,7 +124,7 @@ it("shows the disabled-account card", async () => {
   renderWithLoginError("AUTH-403-DISABLED");
   await fillAndSubmit();
 
-  expect(await screen.findByText("Account Disabled")).toBeDefined();
+  expect(await screen.findByText("Account disabled")).toBeDefined();
   expect(screen.getByRole("button", { name: "Sign out" })).toBeDefined();
 });
 

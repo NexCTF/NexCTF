@@ -1,7 +1,7 @@
 import { Autocomplete } from "@base-ui/react/autocomplete";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
-import { normaliseLabel } from "@/lib/utils";
+import { cn, normaliseLabel } from "@/lib/utils";
 
 interface LabelInputProps extends Omit<React.ComponentProps<typeof Input>, "value" | "onChange"> {
   value: string;
@@ -39,7 +39,7 @@ export function LabelInput({
         render={
           <Input
             {...props}
-            className={props.className ? `${props.className} capitalize` : "capitalize"}
+            className={cn("capitalize placeholder:normal-case", props.className)}
             onBlur={(e) => {
               onValueChange(draft);
               onBlur?.(e);

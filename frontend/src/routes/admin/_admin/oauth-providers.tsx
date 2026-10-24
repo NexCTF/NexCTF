@@ -100,7 +100,7 @@ function ProviderFormFields({
         </div>
         <div className="space-y-1.5">
           <Label>
-            {t("admin.oauth_provider.field_client_secret", { defaultValue: "Client Secret" })}{" "}
+            {t("admin.oauth_provider.field_client_secret", { defaultValue: "Client secret" })}{" "}
             {secretPlaceholder
               ? t("admin.oauth_provider.secret_keep_hint", {
                   defaultValue: "(leave blank to keep)",
@@ -188,7 +188,7 @@ function CreateProviderDialog({ onCreated }: { onCreated: () => void }) {
         render={
           <Button>
             <Plus className="size-4" />
-            {t("admin.oauth_provider.new", { defaultValue: "New Provider" })}
+            {t("admin.oauth_provider.new", { defaultValue: "New provider" })}
           </Button>
         }
       />
@@ -408,7 +408,7 @@ function OAuthProvidersPage() {
     <div className="p-8 space-y-6">
       <PageHeader
         icon={KeyRound}
-        title={t("admin.nav.oauth_providers", { defaultValue: "OAuth Providers" })}
+        title={t("admin.nav.oauth_providers", { defaultValue: "OAuth providers" })}
         actions={<CreateProviderDialog onCreated={invalidate} />}
       />
 
