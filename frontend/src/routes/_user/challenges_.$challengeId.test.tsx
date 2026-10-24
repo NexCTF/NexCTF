@@ -35,6 +35,9 @@ vi.mock("@/lib/api", async (importOriginal) => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
+const pluginSlot = vi.hoisted(() => vi.fn((_props: { context: Record<string, unknown> }) => null));
+vi.mock("@/components/plugin-slot", () => ({ PluginSlot: pluginSlot }));
+
 beforeEach(() => {
   vi.mocked(getPublicInfo).mockResolvedValue(publicInfo());
   vi.mocked(getChallenge).mockResolvedValue(challengeDetail());
@@ -399,4 +402,12 @@ it("locks answers when the end passes while the page is open", async () => {
   } finally {
     vi.useRealTimers();
   }
+});
+
+it("tells plugin panels whether the event is open", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(publicInfoWith({ end_time: "2020-01-01T00:00:00Z" }));
+  renderChallenge();
+
+  await screen.findByText("The CTF has ended. Submissions are no longer accepted.");
+  expect(pluginSlot.mock.lastCall?.[0].context).toMatchObject({ eventOpen: false });
 });

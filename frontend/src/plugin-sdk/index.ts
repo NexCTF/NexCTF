@@ -84,6 +84,8 @@ export interface PublicChallenge {
 
 export interface ChallengePanelProps {
   challenge: PublicChallenge;
+  /** Whether the event accepts answers right now; the API refuses gated actions otherwise. */
+  eventOpen: boolean;
 }
 
 export interface PluginPageProps {

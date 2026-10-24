@@ -146,7 +146,8 @@ function ChallengeView({ challenge }: { challenge: PublicChallengeDetail }) {
     challenge.question_count > 0
       ? Math.round((challenge.solved_count / challenge.question_count) * 100)
       : 0;
-  const pluginContext = useMemo(() => ({ challenge }), [challenge]);
+  const { upcoming, open } = useEventPhase();
+  const pluginContext = useMemo(() => ({ challenge, eventOpen: open }), [challenge, open]);
 
   const { data: publicInfo } = useQuery({
     queryKey: ["info", "public"],
@@ -154,8 +155,6 @@ function ChallengeView({ challenge }: { challenge: PublicChallengeDetail }) {
     staleTime: 5 * 60 * 1000,
   });
   const feedbackEnabled = publicInfo?.competition.enable_challenge_feedback ?? false;
-
-  const { upcoming, open } = useEventPhase();
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 space-y-8">
