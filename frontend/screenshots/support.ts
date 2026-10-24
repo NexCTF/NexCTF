@@ -16,8 +16,12 @@ export const SECURITY_QUIZ_ID = "a1000000-0000-4000-8000-000000000007";
 export const TEAM1_ID = "435127a0-f2fb-4d2b-87bd-91ab77328e71";
 export const USER1_ID = "1cd3b6dd-cd32-4984-aa25-fc2de4dd5544";
 
-/** Crops for `shot()`: the content of an admin page without its sidebar, an open dialog. */
-export const adminContent = (page: Page): Locator => page.locator("aside + div > :first-child");
+/**
+ * Crops for `shot()`: the content of an admin page without its sidebar or the
+ * top bar it shows instead on small screens, an open dialog.
+ */
+export const adminContent = (page: Page): Locator =>
+  page.locator("aside + div > *").filter({ visible: true }).first();
 export const dialog = (page: Page): Locator => page.getByRole("dialog");
 /** And the whole page, for one longer than the viewport. */
 export const wholePage = (page: Page): Locator => page.locator("body");
