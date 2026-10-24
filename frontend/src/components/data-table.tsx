@@ -303,7 +303,7 @@ export function DataTable<T>({
   const data = response?.data ?? [];
   const pagination = response?.pagination;
   const totalCount = pagination?.total_count ?? 0;
-  const pages = pagination?.pages ?? 1;
+  const pages = Math.max(pagination?.pages ?? 1, 1);
   const from = totalCount === 0 ? 0 : (state.page - 1) * state.perPage + 1;
   const to = Math.min(state.page * state.perPage, totalCount);
   const showSkeleton = isLoading && !response;

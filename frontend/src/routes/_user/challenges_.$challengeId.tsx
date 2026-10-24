@@ -364,6 +364,7 @@ function QuestionCard({
           <Lock className="size-5 text-muted-foreground shrink-0" />
           <span className="flex-1 font-medium text-muted-foreground blur-sm">{q.label}</span>
           <PointsBadges points={q.points} malus={q.malus} />
+          <span className="size-4 shrink-0" />
         </div>
       </div>
     );

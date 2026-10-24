@@ -32,6 +32,7 @@ import {
   getChallengeTypes,
 } from "@/lib/api";
 import { useFacetValues, useTagSuggestions } from "@/lib/use-facet-values";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin/challenges")({
   component: ChallengesPage,
@@ -154,9 +155,9 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
         </DialogHeader>
 
         {step === 1 ? (
-          <div className="grid grid-cols-2 gap-3 mt-2">
+          <div className={cn("grid gap-3 mt-2", types.length > 1 && "sm:grid-cols-2")}>
             {types.length === 0 && (
-              <p className="col-span-2 text-center text-sm text-muted-foreground py-8">
+              <p className="col-span-full text-center text-sm text-muted-foreground py-8">
                 {t("admin.challenges.no_types", {
                   defaultValue: "No challenge types registered",
                 })}
@@ -173,9 +174,6 @@ function CreateChallengeDialog({ onCreated }: { onCreated: (id: string) => void 
                   <Puzzle className="size-4 text-muted-foreground" />
                   <span className="font-medium capitalize">{ct.type_name}</span>
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  {t("admin.challenges.type_hint", { defaultValue: "Challenge type" })}
-                </span>
               </button>
             ))}
           </div>

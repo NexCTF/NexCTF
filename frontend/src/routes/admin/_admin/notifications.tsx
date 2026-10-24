@@ -172,7 +172,7 @@ function CreateNotificationDialog({ onCreated }: { onCreated: () => void }) {
                 onChange={(ids) => setForm((f) => ({ ...f, team_ids: ids }))}
               />
               {form.team_ids.length === 0 && (
-                <p className="text-xs text-destructive">
+                <p className="text-xs text-muted-foreground">
                   {t("admin.notifications.teams_required", {
                     defaultValue: "Select at least one team",
                   })}
