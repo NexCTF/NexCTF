@@ -328,7 +328,7 @@ export function DataTable<T>({
       {/* ── Toolbar ── */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Search input + optional column scope selector */}
-        <div className="flex flex-1 min-w-48 max-w-sm">
+        <div className="flex w-full sm:w-auto sm:flex-1 sm:min-w-48 sm:max-w-sm">
           {searchColumns.length > 1 && (
             <Select
               value={state.searchColumn || FILTER_ALL}
@@ -552,7 +552,7 @@ export function DataTable<T>({
       </div>
 
       {/* ── Pagination footer ── */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
+      <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <span>
           {t("table.showing", {
             from,
@@ -561,7 +561,7 @@ export function DataTable<T>({
             defaultValue: "Showing {{from}}–{{to}} of {{total}}",
           })}
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span>
             {t("table.page_of", {
               page: state.page,

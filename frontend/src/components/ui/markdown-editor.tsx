@@ -255,7 +255,7 @@ export function MarkdownEditor({
   return (
     <div className="rounded-lg border overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center gap-1 px-2 py-1 border-b bg-muted/40">
+      <div className="flex flex-wrap items-center gap-1 px-2 py-1 border-b bg-muted/40">
         <button
           type="button"
           onClick={() => setPreviewing(false)}
