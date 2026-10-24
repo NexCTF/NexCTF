@@ -20,19 +20,25 @@ beforeEach(() => {
   vi.mocked(logout).mockResolvedValue(undefined);
 });
 
+/** Hand each auth context its consumer renders to `onRender`. */
+function Probe({ onRender }: { onRender: (auth: AuthContext) => void }) {
+  onRender(useAuth());
+  return null;
+}
+
 /** Mount the provider; `current()` is what its consumers rendered last. */
 async function mountAuth(initial: User | null, client = new QueryClient()) {
   if (initial) vi.mocked(getMe).mockResolvedValue(initial);
   else vi.mocked(getMe).mockRejectedValue(new Error("401"));
   let current!: AuthContext;
-  function Probe() {
-    current = useAuth();
-    return null;
-  }
   render(
     <QueryClientProvider client={client}>
       <AuthProvider>
-        <Probe />
+        <Probe
+          onRender={(auth) => {
+            current = auth;
+          }}
+        />
       </AuthProvider>
     </QueryClientProvider>,
   );

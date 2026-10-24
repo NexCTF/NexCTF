@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.13/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -20,6 +20,12 @@
       "preset": "recommended"
     }
   },
+  "overrides": [
+    {
+      "includes": ["e2e/**"],
+      "linter": { "rules": { "performance": { "useDomNodeTextContent": "off" } } }
+    }
+  ],
   "javascript": {
     "formatter": {
       "quoteStyle": "double",

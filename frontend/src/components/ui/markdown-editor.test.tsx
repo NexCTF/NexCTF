@@ -21,6 +21,11 @@ const stored = {
   is_public: true,
 };
 
+function Harness() {
+  const [value, setValue] = useState("");
+  return <MarkdownEditor value={value} onChange={setValue} />;
+}
+
 it("writes image, media and plain-file markdown for a stored file", () => {
   expect(fileMarkdown({ ...stored, mime_type: "image/png" } as never)).toBe(
     "![Clip](/api/v1/file/f1/view)",
@@ -35,10 +40,6 @@ it("renames, uploads and inserts a file without leaving the editor", async () =>
   vi.mocked(getAdminFiles).mockResolvedValue({ data: [] } as never);
   vi.mocked(uploadAdminFile).mockResolvedValue(stored as never);
 
-  function Harness() {
-    const [value, setValue] = useState("");
-    return <MarkdownEditor value={value} onChange={setValue} />;
-  }
   render(
     <QueryClientProvider client={new QueryClient()}>
       <Harness />

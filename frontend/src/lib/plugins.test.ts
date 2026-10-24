@@ -8,6 +8,13 @@ const entry = pluginManifestEntry({
   slots: ["challenge_panel"],
 });
 
+const Panel = () => null;
+const AdminPanel = () => null;
+const Index = () => null;
+const Workers = () => null;
+const Home = () => null;
+const Overview = () => null;
+
 async function freshPlugins() {
   vi.resetModules();
   return import("./plugins");
@@ -69,8 +76,6 @@ it("names the plugin whose bundle fails to load or verify", async () => {
 
 it("merges the slots a plugin's public and admin bundles register", async () => {
   const { getPluginsForSlot } = await freshPlugins();
-  const Panel = () => null;
-  const AdminPanel = () => null;
 
   await registerFrom("demo", { key: "demo", slots: { challenge_panel: Panel } });
   await registerFrom("demo", { key: "demo", slots: { admin_panel: AdminPanel } });
@@ -118,7 +123,6 @@ it("loads a bundle's stylesheet with its own integrity hash", async () => {
 it("ignores a registration under a key other than the bundle's own", async () => {
   const error = vi.spyOn(console, "error").mockImplementation(() => {});
   const { getPluginsForSlot } = await freshPlugins();
-  const Panel = () => null;
 
   await registerFrom("demo", { key: "other", slots: { challenge_panel: Panel } });
   await registerFrom(null, { key: "demo", slots: { challenge_panel: Panel } });
@@ -130,7 +134,6 @@ it("ignores a registration under a key other than the bundle's own", async () =>
 
 it("narrows a slot to the plugin's challenge types only when given one", async () => {
   const { getPluginsForSlot } = await freshPlugins();
-  const Panel = () => null;
 
   await registerFrom("demo", {
     key: "demo",
@@ -145,8 +148,6 @@ it("narrows a slot to the plugin's challenge types only when given one", async (
 
 it("resolves the root to the index page, a subpath to its longest matching page", async () => {
   const { findPluginPage } = await freshPlugins();
-  const Index = () => null;
-  const Workers = () => null;
 
   await registerFrom("demo", { key: "demo", pages: { "": Index, workers: Workers } });
 
@@ -162,8 +163,6 @@ it("resolves the root to the index page, a subpath to its longest matching page"
 
 it("keeps the pages of a plugin's user and admin bundles apart", async () => {
   const { findPluginPage } = await freshPlugins();
-  const Home = () => null;
-  const Overview = () => null;
 
   await registerFrom("demo", { key: "demo", pages: { "": Home } });
   await registerFrom("demo", { key: "demo", pages: { "": Overview } }, "admin");
@@ -175,7 +174,6 @@ it("keeps the pages of a plugin's user and admin bundles apart", async () => {
 it("lets a loaded bundle register under its key, for the side it was loaded for", async () => {
   mockManifest([entry]);
   const { bootstrapPlugins, findPluginPage } = await freshPlugins();
-  const Overview = () => null;
 
   const done = bootstrapPlugins("admin");
   await settleScript("load");
