@@ -26,7 +26,7 @@ function ChallengesPage() {
     enabled: !!user,
   });
 
-  const { ended } = useEventPhase();
+  const { upcoming, open } = useEventPhase();
 
   if (authLoading) return null;
   if (!user) return <Navigate to="/login" />;
@@ -42,9 +42,13 @@ function ChallengesPage() {
 
   return (
     <div className="mx-auto max-w-screen-lg px-4 py-10 space-y-10">
-      {ended && (
+      {!open && !error && (
         <Banner tone="amber" icon={AlertTriangle}>
-          {t("challenge.event_ended_banner")}
+          {upcoming
+            ? t("challenge.event_not_started_banner", {
+                defaultValue: "The CTF has not started yet. Submissions open at the start.",
+              })
+            : t("challenge.event_ended_banner")}
         </Banner>
       )}
       <h1 className="text-2xl font-bold">

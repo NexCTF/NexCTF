@@ -688,7 +688,7 @@
     "answer_placeholder": "Entrez votre réponse…",
     "back": "Retour aux challenges",
     "event_ended_banner": "Le CTF est terminé. Les soumissions ne sont plus acceptées.",
-    "event_not_started_banner": "",
+    "event_not_started_banner": "Le CTF n'a pas encore commencé. Les soumissions ouvriront dès le début.",
     "feedback_error": "Impossible d'enregistrer votre retour",
     "feedback_placeholder": "Ce qui vous a plu ou ce qui pourrait être amélioré ? (facultatif)",
     "feedback_rate": "Noter {{value}} sur 5",
