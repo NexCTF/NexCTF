@@ -269,8 +269,8 @@ async def list_challenges(
     session: SessionDep,
     redis: RedisDep,
     overrides: ConfigDep,
-    user: OptionalCurrentUserDep = None,
     _: EventStartedDep = None,
+    user: OptionalCurrentUserDep = None,
 ) -> Response[list[PublicChallengeRead]]:
     _check_challenge_visibility(user, overrides)
     structure = await get_list_structure(session, redis)
@@ -300,8 +300,8 @@ async def get_challenge(
     redis: RedisDep,
     challenge_id: UUID,
     overrides: ConfigDep,
-    user: OptionalCurrentUserDep = None,
     _: EventStartedDep = None,
+    user: OptionalCurrentUserDep = None,
 ) -> Response[PublicChallengeDetail]:
     _check_challenge_visibility(user, overrides)
     structure = await get_detail_structure(session, redis, challenge_id)
@@ -390,8 +390,8 @@ async def submit_answer(
     question_id: UUID,
     obj: SubmitBody,
     overrides: ConfigDep,
-    user: RequireTeamDep,
     _: EventActiveDep,
+    user: RequireTeamDep,
 ) -> Response[SubmitResult]:
     _check_challenge_visibility(user, overrides)
     await check_config_rate_limit(
@@ -598,8 +598,8 @@ async def unlock_hint(
     question_id: UUID,
     hint_id: UUID,
     overrides: ConfigDep,
-    user: RequireTeamDep,
     _: EventActiveDep,
+    user: RequireTeamDep,
 ) -> Response[PublicHintRead]:
     _check_challenge_visibility(user, overrides)
     challenge = await _get_active_challenge(session, challenge_id)
@@ -665,8 +665,8 @@ async def submit_feedback(
     challenge_id: UUID,
     obj: FeedbackBody,
     overrides: ConfigDep,
+    _: EventStartedDep,
     user: RequireTeamDep,
-    _: EventStartedDep = None,
 ) -> Response[PublicFeedbackRead]:
     """Rate a challenge the caller's team has fully solved; re-posting edits it."""
     _check_challenge_visibility(user, overrides)
