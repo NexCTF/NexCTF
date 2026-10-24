@@ -7,7 +7,7 @@ from fastapi_toolsets.schemas import PaginatedResponse, Response
 from sqlalchemy.exc import IntegrityError
 
 from nexctf import crud
-from nexctf.api.dep import SessionDep
+from nexctf.api.dep import ConfigDep, SessionDep
 from nexctf.model import (
     ChallengeFeedback,
     CustomFieldValue,
@@ -33,6 +33,7 @@ from nexctf.schema.team import (
     AdminTeamUpdate,
     AdminTeamUpdateRequest,
 )
+from nexctf.util.datetime import parse_config_dt
 
 team_router = APIRouter(prefix="/team", tags=["Team"])
 
@@ -144,10 +145,12 @@ async def get_team_score_adjustments(
 async def get_team_score_detail(
     session: SessionDep,
     uuid: UUID,
+    overrides: ConfigDep,
 ) -> Response[PublicTeamScoreDetail]:
-    """Score breakdown ignoring ``ctf.freeze_time`` — admins see live numbers."""
+    """Score breakdown ignoring ``ctf.freeze_time``: admins see live numbers."""
+    end_time = parse_config_dt("ctf.end_time", overrides)
     try:
-        return Response(data=await compute_team_score(session, uuid))
+        return Response(data=await compute_team_score(session, uuid, end_time=end_time))
     except ValueError:
         raise NotFoundError()
 

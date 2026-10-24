@@ -91,7 +91,7 @@ async def bulk_update_config(
 
     await appconfig.commit_and_store(session, redis, staged)
     await invalidate_info(redis)
-    if "ctf.freeze_time" in staged:
+    if staged.keys() & {"ctf.freeze_time", "ctf.end_time"}:
         await invalidate_scoreboard(redis)
         await invalidate_team(redis)
     await publish_event(redis, ["config:update"], "1")

@@ -41,6 +41,11 @@ type SubmissionRow = Row[UUID, UUID, int, datetime]
 type AdjustmentRow = Row[UUID, int, datetime]
 
 
+def _earliest(*times: datetime | None) -> datetime | None:
+    """The earliest of *times* that is set, or None."""
+    return min((t for t in times if t is not None), default=None)
+
+
 async def _fetch_all_submissions(
     session: AsyncSession, before: datetime | None = None
 ) -> Sequence[SubmissionRow]:
@@ -224,19 +229,27 @@ def _build_ranked_entries(
 
 
 async def compute_team_score(
-    session: AsyncSession, team_id: UUID, freeze_time: datetime | None = None
+    session: AsyncSession,
+    team_id: UUID,
+    freeze_time: datetime | None = None,
+    end_time: datetime | None = None,
 ) -> PublicTeamScoreDetail:
-    """Compute the full score breakdown for a single team."""
+    """Compute the full score breakdown for a single team.
+
+    Solves and hint costs count until the earlier of *freeze_time* and
+    *end_time*; adjustments until *freeze_time* only.
+    """
     team = await session.get(Team, team_id)
     if team is None:
         raise NotFoundError()
 
-    solves, solve_points = await _fetch_solves(session, team_id, before=freeze_time)
+    solve_cutoff = _earliest(freeze_time, end_time)
+    solves, solve_points = await _fetch_solves(session, team_id, before=solve_cutoff)
     adjustments, adjustment_points = await _fetch_adjustments(
         session, team_id, before=freeze_time
     )
     hint_unlocks = await _fetch_all_hint_unlocks(
-        session, before=freeze_time, team_id=team_id
+        session, before=solve_cutoff, team_id=team_id
     )
     first_solve_at: dict[tuple[UUID, UUID], datetime] = {}
     for s in solves:
@@ -259,12 +272,14 @@ async def compute_team_score(
 
 
 async def compute_admin_scoreboard(
-    session: AsyncSession, bracket: str | None = None
+    session: AsyncSession,
+    bracket: str | None = None,
+    end_time: datetime | None = None,
 ) -> AdminScoreboard:
     """Compute the full ranked scoreboard with detailed breakdown for all teams."""
-    submissions = await _fetch_all_submissions(session)
+    submissions = await _fetch_all_submissions(session, before=end_time)
     adjustments = await _fetch_all_adjustments(session)
-    hint_unlocks = await _fetch_all_hint_unlocks(session)
+    hint_unlocks = await _fetch_all_hint_unlocks(session, before=end_time)
     all_teams = await _fetch_all_teams(session)
     fields, field_values = await _fetch_scoreboard_fields(session)
     teams, brackets = _filter_teams_by_bracket(all_teams, bracket)
@@ -285,15 +300,18 @@ async def compute_scoreboard(
     session: AsyncSession,
     freeze_time: datetime | None = None,
     bracket: str | None = None,
+    end_time: datetime | None = None,
 ) -> PublicScoreboard:
     """Compute the public ranked scoreboard, optionally frozen at *freeze_time*.
 
-    If *bracket* is given, only teams in that bracket are ranked (re-ranked
-    from 1, not just filtered from the global ranking).
+    Solves and hint costs also stop at *end_time*. If *bracket* is given, only
+    teams in that bracket are ranked (re-ranked from 1, not just filtered from
+    the global ranking).
     """
-    submissions = await _fetch_all_submissions(session, before=freeze_time)
+    solve_cutoff = _earliest(freeze_time, end_time)
+    submissions = await _fetch_all_submissions(session, before=solve_cutoff)
     adjustments = await _fetch_all_adjustments(session, before=freeze_time)
-    hint_unlocks = await _fetch_all_hint_unlocks(session, before=freeze_time)
+    hint_unlocks = await _fetch_all_hint_unlocks(session, before=solve_cutoff)
     all_teams = await _fetch_all_teams(session)
     fields, field_values = await _fetch_scoreboard_fields(session)
     teams, brackets = _filter_teams_by_bracket(all_teams, bracket)
@@ -322,13 +340,15 @@ async def compute_scoreboard_history(
     limit: int = 10,
     freeze_time: datetime | None = None,
     bracket: str | None = None,
+    end_time: datetime | None = None,
 ) -> ScoreboardHistory:
     """Compute score-over-time series for the top-N teams."""
     now = datetime.now(tz=UTC)
 
-    all_submissions = await _fetch_all_submissions(session, before=freeze_time)
+    solve_cutoff = _earliest(freeze_time, end_time)
+    all_submissions = await _fetch_all_submissions(session, before=solve_cutoff)
     all_adjustments = await _fetch_all_adjustments(session, before=freeze_time)
-    all_hint_unlocks = await _fetch_all_hint_unlocks(session, before=freeze_time)
+    all_hint_unlocks = await _fetch_all_hint_unlocks(session, before=solve_cutoff)
     teams_by_id = {t.id: t for t in await _fetch_all_teams(session)}
 
     # Derive team totals and last-solve times from already-fetched data

@@ -45,12 +45,15 @@ async def get_scoreboard(
     ttl: timedelta = DEFAULT_TTL,
 ) -> PublicScoreboard:
     freeze_time = parse_config_dt("ctf.freeze_time", overrides)
+    end_time = parse_config_dt("ctf.end_time", overrides)
     key = f"{_SCOREBOARD_KEY}:{bracket}" if bracket else _SCOREBOARD_KEY
     return await get_or_compute(
         redis,
         key,
         _scoreboard_adapter,
-        lambda: compute_scoreboard(session, freeze_time=freeze_time, bracket=bracket),
+        lambda: compute_scoreboard(
+            session, freeze_time=freeze_time, bracket=bracket, end_time=end_time
+        ),
         ttl,
         registry=_BOARD_REGISTRY,
     )
@@ -59,15 +62,18 @@ async def get_scoreboard(
 async def get_admin_scoreboard(
     session: AsyncSession,
     redis: Redis,
+    *,
+    overrides: dict[str, str],
     bracket: str | None = None,
     ttl: timedelta = DEFAULT_TTL,
 ) -> AdminScoreboard:
+    end_time = parse_config_dt("ctf.end_time", overrides)
     key = f"{_ADMIN_SCOREBOARD_KEY}:{bracket}" if bracket else _ADMIN_SCOREBOARD_KEY
     return await get_or_compute(
         redis,
         key,
         _admin_scoreboard_adapter,
-        lambda: compute_admin_scoreboard(session, bracket=bracket),
+        lambda: compute_admin_scoreboard(session, bracket=bracket, end_time=end_time),
         ttl,
         registry=_BOARD_REGISTRY,
     )
@@ -82,11 +88,14 @@ async def get_team_score(
     ttl: timedelta = DEFAULT_TTL,
 ) -> PublicTeamScoreDetail:
     freeze_time = parse_config_dt("ctf.freeze_time", overrides)
+    end_time = parse_config_dt("ctf.end_time", overrides)
     return await get_or_compute(
         redis,
         f"{_TEAM_KEY_PREFIX}{team_id}",
         _team_adapter,
-        lambda: compute_team_score(session, team_id, freeze_time=freeze_time),
+        lambda: compute_team_score(
+            session, team_id, freeze_time=freeze_time, end_time=end_time
+        ),
         ttl,
         registry=_TEAM_REGISTRY,
     )
@@ -102,12 +111,17 @@ async def get_scoreboard_history(
     ttl: timedelta = DEFAULT_TTL,
 ) -> ScoreboardHistory:
     freeze_time = parse_config_dt("ctf.freeze_time", overrides)
+    end_time = parse_config_dt("ctf.end_time", overrides)
     return await get_or_compute(
         redis,
         f"{_HISTORY_KEY}:{limit}:{bracket or '_all'}",
         _history_adapter,
         lambda: compute_scoreboard_history(
-            session, limit=limit, freeze_time=freeze_time, bracket=bracket
+            session,
+            limit=limit,
+            freeze_time=freeze_time,
+            bracket=bracket,
+            end_time=end_time,
         ),
         ttl,
         registry=_BOARD_REGISTRY,

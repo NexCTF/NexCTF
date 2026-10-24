@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter
 from fastapi_toolsets.schemas import Response
 
-from nexctf.api.dep import BracketDep, RedisDep, SessionDep
+from nexctf.api.dep import BracketDep, ConfigDep, RedisDep, SessionDep
 from nexctf.module.scoreboard.cache import get_admin_scoreboard, invalidate
 from nexctf.schema import AdminScoreboard
 
@@ -14,9 +14,12 @@ scoreboard_router = APIRouter(prefix="/scoreboard", tags=["Admin Scoreboard"])
 async def get_admin_scoreboard_endpoint(
     session: SessionDep,
     redis: RedisDep,
+    overrides: ConfigDep,
     bracket: BracketDep = None,
 ) -> Response[AdminScoreboard]:
-    result = await get_admin_scoreboard(session, redis, bracket=bracket)
+    result = await get_admin_scoreboard(
+        session, redis, overrides=overrides, bracket=bracket
+    )
     return Response(data=result)
 
 

@@ -527,3 +527,47 @@ async def test_compute_admin_scoreboard_ignores_the_freeze(db_session):
     entry = next(e for e in admin.entries if e.team_name == "AdminFreeze")
     assert entry.total == 150
     assert entry.solve_count == 2
+
+
+@pytest.mark.parametrize("admin", [False, True], ids=["public", "admin"])
+async def test_scoreboard_drops_solves_after_the_end(db_session, admin):
+    """Solves recorded after the end, e.g. once the end is moved earlier, stop counting."""
+    ch = await _challenge(db_session)
+    q1 = await _question(db_session, ch.id, points=100)
+    q2 = await _question(db_session, ch.id, points=50)
+    t = await _team(db_session, "EndTeam")
+    await _submission(
+        db_session, t.id, q1.id, points_earned=100, created_at=_BEFORE_FREEZE
+    )
+    await _submission(
+        db_session, t.id, q2.id, points_earned=50, created_at=_AFTER_FREEZE
+    )
+
+    if admin:
+        board = await compute_admin_scoreboard(db_session, end_time=_FREEZE)
+    else:
+        board = await compute_scoreboard(db_session, end_time=_FREEZE)
+    assert next(e for e in board.entries if e.team_name == "EndTeam").total == 100
+
+
+async def test_team_score_keeps_adjustments_after_the_end(db_session):
+    """Penalties applied after the event still count; late solves do not."""
+    ch = await _challenge(db_session)
+    q1 = await _question(db_session, ch.id, points=100)
+    q2 = await _question(db_session, ch.id, points=50)
+    t = await _team(db_session, "LatePenalty")
+    admin = User(username="end_admin", hashed_password="x", role=UserRole.admin)
+    db_session.add(admin)
+    await db_session.flush()
+    await _submission(
+        db_session, t.id, q1.id, points_earned=100, created_at=_BEFORE_FREEZE
+    )
+    await _submission(
+        db_session, t.id, q2.id, points_earned=50, created_at=_AFTER_FREEZE
+    )
+    await _adjustment(db_session, t.id, admin.id, -30, reason="cheating")
+
+    result = await compute_team_score(db_session, t.id, end_time=_FREEZE)
+    assert result.solve_points == 100
+    assert result.adjustment_points == -30
+    assert result.total == 70
