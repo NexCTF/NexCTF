@@ -21,7 +21,7 @@ from nexctf import crud
 from nexctf.api.security import _verify_token, hash_password, verify_password
 from nexctf.core.config import settings
 from nexctf.exceptions import CaptchaInvalidError, CaptchaRequiredError
-from nexctf.model import Event, OAuthAccount, OAuthProvider, User, UserToken
+from nexctf.model import Event, OAuthAccount, OAuthProvider, User, UserRole, UserToken
 from nexctf.schema import UserCreate
 from nexctf.schema.user import AdminUserUpdate
 
@@ -602,6 +602,13 @@ class TestTotp:
         assert "provisioning_uri" in data
         # secret no longer round-trips to the client
         assert "secret" not in data
+
+    async def test_setup_totp_with_a_colon_in_the_username(self, signed_in_client):
+        async with signed_in_client("team:alice", "userpass", UserRole.user) as (c, _):
+            resp = await c.post("/me/totp/setup")
+        assert resp.status_code == 200
+        totp = pyotp.parse_uri(resp.json()["data"]["provisioning_uri"])
+        assert (totp.issuer, totp.name) == ("NexCTF", "team_alice")
 
     async def test_setup_totp_already_enabled(self, user_client, db_session):
         c, user = user_client
