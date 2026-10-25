@@ -23,14 +23,14 @@ export function totpCode(secret: string, now = Date.now()): string {
   return (value % 1_000_000).toString().padStart(6, "0");
 }
 
-/** Turn 2FA on for whoever `api` is signed in as; returns the secret. */
+/** Turn 2FA on for whoever `api` is signed in as, with the previous step's code; returns the secret. */
 export async function enableTotp(api: APIRequestContext): Promise<string> {
   const setup = await api.post("/api/v1/me/totp/setup", { headers: SAME_ORIGIN });
   expect(setup.ok(), await setup.text()).toBe(true);
   const uri: string = (await setup.json()).data.provisioning_uri;
   const secret = new URL(uri).searchParams.get("secret") as string;
   const enable = await api.post("/api/v1/me/totp/enable", {
-    data: { code: totpCode(secret) },
+    data: { code: totpCode(secret, Date.now() - 30_000) },
     headers: SAME_ORIGIN,
   });
   expect(enable.status(), await enable.text()).toBe(204);
