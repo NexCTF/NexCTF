@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { signIn } from "./support/api";
+import { SAME_ORIGIN, signIn } from "./support/api";
 import { expect, signInThroughForm, test } from "./support/fixtures";
 import { enableTotp, totpCode, typeOtp } from "./support/totp";
 
@@ -41,7 +41,7 @@ test("a wrong setup code is refused without signing the player out", async ({
 test("a player with 2FA signs in with a code", async ({ page, account }) => {
   await signIn(page.request, account);
   const secret = await enableTotp(page.request);
-  await page.request.post("/api/v1/auth/logout");
+  await page.request.post("/api/v1/auth/logout", { headers: SAME_ORIGIN });
 
   await signInThroughForm(page, account.username, account.password);
   await expect(page.getByText("Enter the 6-digit code from your authenticator app.")).toBeVisible();

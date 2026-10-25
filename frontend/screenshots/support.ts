@@ -1,6 +1,6 @@
 import path from "node:path";
 import { test as base, expect, type Locator, type Page } from "@playwright/test";
-import { type Account, ADMIN_LOGIN, signIn } from "../e2e/support/api";
+import { type Account, ADMIN_LOGIN, SAME_ORIGIN, signIn } from "../e2e/support/api";
 
 type Credentials = Pick<Account, "username" | "password">;
 
@@ -91,7 +91,7 @@ export function shot(
         caret: "hide",
       });
     } finally {
-      await page.request.post("/api/v1/auth/logout");
+      await page.request.post("/api/v1/auth/logout", { headers: SAME_ORIGIN });
     }
   });
 }

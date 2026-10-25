@@ -19,6 +19,7 @@ from sqlalchemy.orm import selectinload
 
 from nexctf import crud
 from nexctf.api.security import _verify_token, hash_password, verify_password
+from nexctf.core.config import settings
 from nexctf.exceptions import CaptchaInvalidError, CaptchaRequiredError
 from nexctf.model import Event, OAuthAccount, OAuthProvider, User, UserToken
 from nexctf.schema import UserCreate
@@ -438,6 +439,56 @@ class TestLogout:
         resp = await c.post("/auth/logout")
         assert resp.status_code == 204
         assert "NexCTF" not in c.cookies
+
+
+class TestCrossOrigin:
+    @pytest.mark.parametrize("site", ["cross-site", None])
+    async def test_cookie_write_from_elsewhere_is_refused(self, user_client, site):
+        c, _ = user_client
+        if site is None:
+            del c.headers["sec-fetch-site"]
+        else:
+            c.headers["sec-fetch-site"] = site
+        resp = await c.post("/notification/read")
+        assert resp.status_code == 403
+        assert resp.json()["error_code"] == "AUTH-403-CROSS-ORIGIN"
+
+    async def test_cross_site_logout_keeps_the_session(self, user_client):
+        c, _ = user_client
+        resp = await c.post("/auth/logout", headers={"sec-fetch-site": "cross-site"})
+        assert resp.json()["error_code"] == "AUTH-403-CROSS-ORIGIN"
+        assert (await c.get("/me/tokens")).status_code == 200
+
+    async def test_cross_site_cookie_read_passes(self, user_client):
+        c, _ = user_client
+        resp = await c.get("/notification", headers={"sec-fetch-site": "cross-site"})
+        assert resp.status_code == 200
+
+    async def test_cors_origin_is_trusted(self, user_client):
+        c, _ = user_client
+        resp = await c.post(
+            "/notification/read",
+            headers={
+                "sec-fetch-site": "cross-site",
+                "origin": settings.all_cors_origins[0],
+            },
+        )
+        assert resp.status_code == 204
+
+    async def test_bearer_write_skips_the_check(self, user_client):
+        c, _ = user_client
+        create_resp = await c.post(
+            "/me/tokens", json={"name": "csrf", "scopes": ["write:notification"]}
+        )
+        assert create_resp.status_code == 201
+        raw_token = create_resp.json()["data"]["token"]
+
+        c.cookies.clear()
+        del c.headers["sec-fetch-site"]
+        resp = await c.post(
+            "/notification/read", headers={"Authorization": f"Bearer {raw_token}"}
+        )
+        assert resp.status_code == 204
 
 
 class TestBearerAuth:

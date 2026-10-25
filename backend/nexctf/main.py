@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi_multiauth.exceptions import ForbiddenError as MultiAuthForbiddenError
 from fastapi_multiauth.exceptions import OAuthError as MultiAuthOAuthError
 from fastapi_multiauth.exceptions import OAuthStateError, StaleCredentialError
 from fastapi_multiauth.exceptions import UnauthorizedError as MultiAuthUnauthorizedError
@@ -25,6 +26,7 @@ from nexctf.core.config import settings
 from nexctf.core.db import auth_db, db, get_db_context
 from nexctf.core.logging import is_health_check, setup_logging
 from nexctf.exceptions import (
+    CrossOriginRequestError,
     InvalidCredentialsError,
     OAuth2ProtocolError,
     OAuthProviderResponseError,
@@ -113,6 +115,14 @@ async def multiauth_unauthorized_handler(
     RFC 7235 ``WWW-Authenticate`` challenge the source attached.
     """
     return _api_error_response(UnauthorizedError.api_error, exc.headers)
+
+
+@app.exception_handler(MultiAuthForbiddenError)
+async def multiauth_forbidden_handler(
+    request: Request, exc: MultiAuthForbiddenError
+) -> JSONResponse:
+    """Render the session cookie's cross-origin refusal as AUTH-403-CROSS-ORIGIN."""
+    return _api_error_response(CrossOriginRequestError.api_error, exc.headers)
 
 
 @app.exception_handler(StaleCredentialError)
