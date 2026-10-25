@@ -28,6 +28,21 @@ from nexctf.schema.user import AdminUserUpdate
 from ..base import IDP_URLS, NULL_UUID, FakeIdP, make_team, make_user
 
 
+@pytest.fixture
+def nx_redis(mock_redis):
+    """``mock_redis`` whose ``set(..., nx=True)`` refuses a key already set."""
+    taken: set[str] = set()
+
+    async def _set(key, _value, *, nx=False, **_kwargs):
+        if nx and key in taken:
+            return None
+        taken.add(key)
+        return True
+
+    mock_redis.set = AsyncMock(side_effect=_set)
+    return mock_redis
+
+
 class TestRegister:
     async def test_names_and_emails_ignore_letter_case(self, http_client):
         first = {"username": "Casey", "password": "strongpass", "email": "c@x.io"}
@@ -398,7 +413,7 @@ class TestLogin:
         assert "NexCTF" in resp.cookies
 
     async def test_login_refuses_a_replayed_totp_code(
-        self, http_client, db_session, mock_redis
+        self, http_client, db_session, nx_redis
     ):
         secret = pyotp.random_base32()
         db_session.add(
@@ -409,15 +424,6 @@ class TestLogin:
             )
         )
         await db_session.flush()
-        taken: set[str] = set()
-
-        async def _set(key, _value, *, nx=False, **_kwargs):
-            if nx and key in taken:
-                return None
-            taken.add(key)
-            return True
-
-        mock_redis.set = AsyncMock(side_effect=_set)
         form = {
             "username": "totp_replay",
             "password": "pass",
@@ -628,6 +634,18 @@ class TestTotp:
 
         resp = await c.post("/me/totp/enable", json={"code": code})
         assert resp.status_code == 204
+
+    async def test_enrolment_code_cannot_sign_in(self, user_client, nx_redis):
+        c, _ = user_client
+        secret = pyotp.random_base32()
+        nx_redis.get = AsyncMock(return_value=secret.encode())
+        code = pyotp.TOTP(secret).now()
+        assert (await c.post("/me/totp/enable", json={"code": code})).status_code == 204
+
+        c.cookies.clear()
+        form = {"username": "test_user", "password": "userpass", "totp_code": code}
+        resp = await c.post("/auth/token", data=form)
+        assert resp.json()["error_code"] == "AUTH-401-OTP"
 
     async def test_enable_totp_invalid_code(self, user_client, mock_redis):
         c, _ = user_client

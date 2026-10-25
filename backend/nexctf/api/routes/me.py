@@ -4,11 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import Response as RawResponse
-from fastapi_multiauth import (
-    totp_generate_secret,
-    totp_provisioning_uri,
-    totp_verify,
-)
+from fastapi_multiauth import totp_generate_secret, totp_provisioning_uri
 from fastapi_toolsets.db import transaction
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, PaginationType, Response
@@ -405,7 +401,7 @@ async def totp_enable(
     if not secret:
         raise InvalidOtpError()
     secret_str = secret if isinstance(secret, str) else secret.decode()
-    if totp_verify(secret_str, body.code) is None:
+    if not await verify_totp_once(redis, user.id, secret_str, body.code):
         raise InvalidOtpError()
     await redis.delete(_TOTP_SETUP_PREFIX + str(user.id))
     await crud.UserCrud.update(
