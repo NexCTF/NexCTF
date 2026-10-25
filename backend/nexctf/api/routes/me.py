@@ -2,9 +2,13 @@
 
 from uuid import UUID
 
-import pyotp
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import Response as RawResponse
+from fastapi_multiauth import (
+    totp_generate_secret,
+    totp_provisioning_uri,
+    totp_verify,
+)
 from fastapi_toolsets.db import transaction
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, PaginationType, Response
@@ -378,9 +382,9 @@ async def totp_setup(
     """Generate a new TOTP secret and store it server-side (does not activate it yet)."""
     if user.totp_secret:
         raise TotpAlreadyEnabledError()
-    secret = pyotp.random_base32()
-    provisioning_uri = pyotp.TOTP(secret).provisioning_uri(
-        name=user.username, issuer_name="NexCTF"
+    secret = totp_generate_secret()
+    provisioning_uri = totp_provisioning_uri(
+        secret, user.username.replace(":", "_"), "NexCTF"
     )
     await redis.set(_TOTP_SETUP_PREFIX + str(user.id), secret, ex=_TOTP_SETUP_TTL)
     return Response(data=TotpSetupResponse(provisioning_uri=provisioning_uri))
@@ -401,7 +405,7 @@ async def totp_enable(
     if not secret:
         raise InvalidOtpError()
     secret_str = secret if isinstance(secret, str) else secret.decode()
-    if not pyotp.TOTP(secret_str).verify(body.code, valid_window=1):
+    if totp_verify(secret_str, body.code) is None:
         raise InvalidOtpError()
     await redis.delete(_TOTP_SETUP_PREFIX + str(user.id))
     await crud.UserCrud.update(
