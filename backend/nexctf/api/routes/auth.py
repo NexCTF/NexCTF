@@ -10,6 +10,7 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.responses import Response as RawResponse
+from fastapi_multiauth.exceptions import UnauthorizedError as MultiAuthUnauthorizedError
 from fastapi_multiauth.oauth import (
     oauth_build_authorization_redirect,
     oauth_decode_state,
@@ -21,7 +22,7 @@ from fastapi_multiauth.oauth import (
     oauth_resolve_provider_urls,
     oauth_validate_id_token,
 )
-from fastapi_toolsets.exceptions import ConflictError, NotFoundError
+from fastapi_toolsets.exceptions import ConflictError, NotFoundError, UnauthorizedError
 from redis.asyncio import Redis
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -591,7 +592,7 @@ async def _optional_cookie_user(request: Request) -> User | None:
         return None
     try:
         return await cookie_auth.authenticate(credential, request=request)
-    except Exception:  # noqa: BLE001
+    except MultiAuthUnauthorizedError, UnauthorizedError:
         return None
 
 

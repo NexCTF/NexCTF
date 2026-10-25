@@ -1,6 +1,7 @@
 import os
 import secrets
 from typing import Annotated, Any, Literal
+from urllib.parse import urlsplit
 
 from fastapi_toolsets.logger import LoggingConfig, LogLevel
 from pydantic import (
@@ -13,6 +14,12 @@ from pydantic import (
 )
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def url_origin(url: str) -> str:
+    """The ``scheme://host[:port]`` origin of *url*."""
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}"
 
 
 def parse_cors(v: Any) -> list[str] | str:
@@ -94,8 +101,8 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def all_cors_origins(self) -> list[str]:
-        return [str(origin).rstrip("/") for origin in self.BACKEND_CORS_ORIGINS] + [
-            self.FRONTEND_HOST
+        return [url_origin(str(url)) for url in self.BACKEND_CORS_ORIGINS] + [
+            url_origin(self.FRONTEND_HOST)
         ]
 
     POSTGRES_SERVER: str

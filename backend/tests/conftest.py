@@ -172,6 +172,7 @@ def client_factory(app_overrides):
         async with create_async_client(
             app=app, base_url="http://127.0.0.1/api/v1"
         ) as c:
+            c.headers["sec-fetch-site"] = "same-origin"
             yield c
 
     return _create

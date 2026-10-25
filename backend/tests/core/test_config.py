@@ -57,6 +57,17 @@ def test_domain_derives_public_urls(env) -> None:
     assert settings.all_cors_origins == ["https://ctf.example.com"]
 
 
+def test_cors_origins_drop_paths(env) -> None:
+    settings = env(
+        FRONTEND_HOST="https://play.example.com/ctf/",
+        BACKEND_CORS_ORIGINS="https://a.example.com/app",
+    )
+    assert settings.all_cors_origins == [
+        "https://a.example.com",
+        "https://play.example.com",
+    ]
+
+
 def test_empty_values_still_derive(env) -> None:
     settings = env(DOMAIN="ctf.example.com", FRONTEND_HOST="", S3_PUBLIC_URL="")
     assert settings.FRONTEND_HOST == "https://ctf.example.com"

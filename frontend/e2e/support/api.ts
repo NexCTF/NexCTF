@@ -12,6 +12,9 @@ export const ADMIN_LOGIN = {
   password: process.env.E2E_ADMIN_PASSWORD ?? "admin",
 };
 
+/** The header the browser sets on the frontend's own calls, for session writes made from a test. */
+export const SAME_ORIGIN = { "Sec-Fetch-Site": "same-origin" };
+
 export interface Account {
   id: string;
   username: string;
@@ -40,7 +43,10 @@ export function adminApi(): Promise<APIRequestContext> {
 
 /** Request context signed in as the seeded admin with a session, for setup a token may not do. */
 export async function adminSessionApi(): Promise<APIRequestContext> {
-  const api = await request.newContext({ baseURL: `${API_URL}/api/v1/` });
+  const api = await request.newContext({
+    baseURL: `${API_URL}/api/v1/`,
+    extraHTTPHeaders: SAME_ORIGIN,
+  });
   await signIn(api, ADMIN_LOGIN);
   return api;
 }
@@ -84,14 +90,17 @@ export interface TeamSummary {
 
 /** Create a team owned by whoever `api` is signed in as. */
 export async function createTeam(api: APIRequestContext): Promise<TeamSummary> {
-  const res = await api.post("/api/v1/me/team", { data: { name: uniqueName("team") } });
+  const res = await api.post("/api/v1/me/team", {
+    data: { name: uniqueName("team") },
+    headers: SAME_ORIGIN,
+  });
   expect(res.status(), await res.text()).toBe(201);
   return (await res.json()).data;
 }
 
 /** Join the team behind `code` as whoever `api` is signed in as. */
 export async function joinTeam(api: APIRequestContext, code: string): Promise<void> {
-  const res = await api.post("/api/v1/me/team/join", { data: { code } });
+  const res = await api.post("/api/v1/me/team/join", { data: { code }, headers: SAME_ORIGIN });
   expect(res.ok(), await res.text()).toBe(true);
 }
 
@@ -104,6 +113,7 @@ export function submitPath(question: SeededQuestion): string {
 export async function submitFlag(api: APIRequestContext, question: SeededQuestion): Promise<void> {
   const res = await api.post(`/api/v1/${submitPath(question)}`, {
     data: { answer: question.flag },
+    headers: SAME_ORIGIN,
   });
   expect(res.ok(), await res.text()).toBe(true);
   expect((await res.json()).data.is_correct).toBe(true);

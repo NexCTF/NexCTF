@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { type APIRequestContext, expect, type Locator } from "@playwright/test";
+import { SAME_ORIGIN } from "./api";
 
 const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
@@ -24,11 +25,14 @@ export function totpCode(secret: string, now = Date.now()): string {
 
 /** Turn 2FA on for whoever `api` is signed in as; returns the secret. */
 export async function enableTotp(api: APIRequestContext): Promise<string> {
-  const setup = await api.post("/api/v1/me/totp/setup");
+  const setup = await api.post("/api/v1/me/totp/setup", { headers: SAME_ORIGIN });
   expect(setup.ok(), await setup.text()).toBe(true);
   const uri: string = (await setup.json()).data.provisioning_uri;
   const secret = new URL(uri).searchParams.get("secret") as string;
-  const enable = await api.post("/api/v1/me/totp/enable", { data: { code: totpCode(secret) } });
+  const enable = await api.post("/api/v1/me/totp/enable", {
+    data: { code: totpCode(secret) },
+    headers: SAME_ORIGIN,
+  });
   expect(enable.status(), await enable.text()).toBe(204);
   return secret;
 }

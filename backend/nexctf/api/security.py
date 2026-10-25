@@ -228,6 +228,8 @@ cookie_auth = APIKeyCookieAuth(
     secure=settings.ENVIRONMENT != "development",
     ttl=SESSION_TTL,
     session_id=True,
+    csrf=True,
+    trusted_origins=settings.all_cors_origins,
 )
 auth = MultiAuth(bearer_auth, cookie_auth)
 
