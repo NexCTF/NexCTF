@@ -76,8 +76,16 @@ PWD_RESET_KEY_PREFIX = "pwd_reset:"
 PWD_RESET_TTL = 3600  # 1 hour
 EMAIL_VERIFY_KEY_PREFIX = "email_verify:"
 EMAIL_VERIFY_TTL = 86400  # 24 hours
-TOTP_USED_KEY_PREFIX = "totp:used:"
-TOTP_USED_TTL = 90  # three 30-second steps
+TOTP_LAST_STEP_KEY_PREFIX = "totp:last_step:"
+TOTP_LAST_STEP_TTL = 120  # four 30-second steps
+_CLAIM_TOTP_STEP = """
+local last = redis.call('GET', KEYS[1])
+if last and tonumber(last) >= tonumber(ARGV[1]) then
+    return 0
+end
+redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])
+return 1
+"""
 
 
 def _hash_token(token: str) -> str:
@@ -125,12 +133,14 @@ async def consume_password_reset_token(
 
 
 async def verify_totp_once(redis: Redis, user_id: UUID, secret: str, code: str) -> bool:
-    """Check a TOTP code within one step of drift, refusing one already used."""
+    """Check a TOTP code, refusing one no newer than the last code accepted."""
     step = totp_verify(secret, code)
     if step is None:
         return False
-    key = f"{TOTP_USED_KEY_PREFIX}{user_id}:{step}"
-    return bool(await redis.set(key, "1", nx=True, ex=TOTP_USED_TTL))
+    key = f"{TOTP_LAST_STEP_KEY_PREFIX}{user_id}:{_hash_token(secret)}"
+    return bool(
+        await cast(Any, redis.eval(_CLAIM_TOTP_STEP, 1, key, step, TOTP_LAST_STEP_TTL))
+    )
 
 
 async def _verify_token(

@@ -79,6 +79,22 @@ def config_overrides() -> dict[str, str]:
 
 
 @pytest.fixture
+async def redis():
+    """Real Redis client bound to the test's own event loop."""
+    import redis.exceptions
+    from redis.asyncio import Redis
+
+    client = Redis.from_url(str(settings.REDIS_URL), decode_responses=True)
+    try:
+        await client.ping()
+    except redis.exceptions.ConnectionError, OSError:
+        await client.aclose()
+        pytest.skip(f"Redis not reachable at {settings.REDIS_URL}")
+    yield client
+    await client.aclose()
+
+
+@pytest.fixture
 def mock_redis(config_overrides: dict[str, str]):
     """Mock Redis client with async publish support."""
     redis_mock = AsyncMock()
