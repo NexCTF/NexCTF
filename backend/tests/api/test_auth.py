@@ -29,17 +29,17 @@ from ..base import IDP_URLS, NULL_UUID, FakeIdP, make_team, make_user
 
 
 @pytest.fixture
-def nx_redis(mock_redis):
-    """``mock_redis`` whose ``set(..., nx=True)`` refuses a key already set."""
-    taken: set[str] = set()
+def step_redis(mock_redis):
+    """``mock_redis`` whose TOTP step claim refuses a step no newer than the last."""
+    last_steps: dict[str, int] = {}
 
-    async def _set(key, _value, *, nx=False, **_kwargs):
-        if nx and key in taken:
-            return None
-        taken.add(key)
-        return True
+    async def _eval(_script, _numkeys, key, step, _ttl):
+        if last_steps.get(key, -1) >= step:
+            return 0
+        last_steps[key] = step
+        return 1
 
-    mock_redis.set = AsyncMock(side_effect=_set)
+    mock_redis.eval = AsyncMock(side_effect=_eval)
     return mock_redis
 
 
@@ -413,7 +413,7 @@ class TestLogin:
         assert "NexCTF" in resp.cookies
 
     async def test_login_refuses_a_replayed_totp_code(
-        self, http_client, db_session, nx_redis
+        self, http_client, db_session, step_redis
     ):
         secret = pyotp.random_base32()
         db_session.add(
@@ -635,10 +635,10 @@ class TestTotp:
         resp = await c.post("/me/totp/enable", json={"code": code})
         assert resp.status_code == 204
 
-    async def test_enrolment_code_cannot_sign_in(self, user_client, nx_redis):
+    async def test_enrolment_code_cannot_sign_in(self, user_client, step_redis):
         c, _ = user_client
         secret = pyotp.random_base32()
-        nx_redis.get = AsyncMock(return_value=secret.encode())
+        step_redis.get = AsyncMock(return_value=secret.encode())
         code = pyotp.TOTP(secret).now()
         assert (await c.post("/me/totp/enable", json={"code": code})).status_code == 204
 
