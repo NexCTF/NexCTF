@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from pydantic import TypeAdapter
@@ -28,6 +28,7 @@ _TEAM_KEY_PREFIX = "scoreboard:team:"
 _HISTORY_KEY = "scoreboard:history"
 
 _BOARD_REGISTRY = "scoreboard:keys:board"
+_ADMIN_REGISTRY = "scoreboard:keys:admin"
 _TEAM_REGISTRY = "scoreboard:keys:team"
 
 _scoreboard_adapter: TypeAdapter[PublicScoreboard] = TypeAdapter(PublicScoreboard)
@@ -75,7 +76,7 @@ async def get_admin_scoreboard(
         _admin_scoreboard_adapter,
         lambda: compute_admin_scoreboard(session, bracket=bracket, end_time=end_time),
         ttl,
-        registry=_BOARD_REGISTRY,
+        registry=_ADMIN_REGISTRY,
     )
 
 
@@ -135,8 +136,26 @@ async def invalidate(redis: Redis, team_id: UUID | None = None) -> None:
     - team_id=<id>  → invalidate the scoreboard and that team's cache only.
     """
     if team_id is None:
-        await drop_registered(redis, _BOARD_REGISTRY, _TEAM_REGISTRY)
+        await drop_registered(redis, _BOARD_REGISTRY, _ADMIN_REGISTRY, _TEAM_REGISTRY)
         return
 
-    await drop_registered(redis, _BOARD_REGISTRY)
+    await drop_registered(redis, _BOARD_REGISTRY, _ADMIN_REGISTRY)
     await redis.delete(f"{_TEAM_KEY_PREFIX}{team_id}")
+
+
+async def invalidate_play(
+    redis: Redis,
+    team_id: UUID | None,
+    *,
+    played_at: datetime,
+    overrides: dict[str, str],
+) -> None:
+    """Drop the caches a solve or hint unlock made at *played_at* can change.
+
+    A play after the freeze only moves the live admin board.
+    """
+    freeze_time = parse_config_dt("ctf.freeze_time", overrides)
+    if freeze_time is not None and played_at > freeze_time:
+        await drop_registered(redis, _ADMIN_REGISTRY)
+        return
+    await invalidate(redis, team_id)

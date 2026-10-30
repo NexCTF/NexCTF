@@ -54,7 +54,7 @@ from nexctf.module.challenge import (
 )
 from nexctf.module.challenge.compute import QuestionStructure, solution_load_option
 from nexctf.module.events import emit as emit_event
-from nexctf.module.scoreboard import invalidate as invalidate_scoreboard
+from nexctf.module.scoreboard import invalidate_play
 from nexctf.module.stats import invalidate as invalidate_stats
 from nexctf.module.stats import invalidate_team
 from nexctf.module.submission import lock_question
@@ -580,7 +580,9 @@ async def submit_answer(
     await session.commit()
 
     if is_correct:
-        await invalidate_scoreboard(redis, user.team_id)
+        await invalidate_play(
+            redis, user.team_id, played_at=accepted_at, overrides=overrides
+        )
     # Any submission (right or wrong) changes the team's per-challenge stats.
     await invalidate_team(redis, user.team_id)
 
@@ -652,7 +654,9 @@ async def unlock_hint(
         await asyncio.gather(
             invalidate_stats(redis),
             invalidate_team(redis, user.team_id),
-            invalidate_scoreboard(redis, user.team_id),
+            invalidate_play(
+                redis, user.team_id, played_at=accepted_at, overrides=overrides
+            ),
         )
 
     return Response(
