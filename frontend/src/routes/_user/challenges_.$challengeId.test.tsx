@@ -80,6 +80,20 @@ it("submits a typed answer and reports a correct solve", async () => {
   expect(toast.success).toHaveBeenCalledWith("Correct! 🎉");
 });
 
+it("submits a pasted answer without its surrounding whitespace", async () => {
+  vi.mocked(submitAnswer).mockResolvedValue({
+    is_correct: true,
+    already_solved: false,
+    points_earned: 100,
+  });
+  renderChallenge();
+
+  await userEvent.type(await screen.findByPlaceholderText("Enter your answer…"), "  flag_x ");
+  await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+  await waitFor(() => expect(submitAnswer).toHaveBeenCalledWith("c1", "q1", "flag_x"));
+});
+
 it("reports a wrong answer without clearing the field", async () => {
   vi.mocked(submitAnswer).mockResolvedValue({
     is_correct: false,

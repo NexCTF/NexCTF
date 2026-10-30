@@ -591,7 +591,7 @@ function SubmitSection({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-    submitMutation.mutate(isMultiSelect ? JSON.stringify(selected.slice().sort()) : answer);
+    submitMutation.mutate(isMultiSelect ? JSON.stringify(selected.slice().sort()) : answer.trim());
   };
 
   return (

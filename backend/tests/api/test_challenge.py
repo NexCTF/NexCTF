@@ -103,6 +103,33 @@ class TestSubmitBody:
         )
         assert resp.status_code == 422
 
+    async def test_surrounding_whitespace_is_ignored(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        c, user = user_client
+        challenge, question = await make_solvable(db_session, user, "flag{x}")
+        resp = await c.post(
+            f"/challenges/{challenge.id}/{question.id}/submit",
+            json={"answer": "  flag{x}\n"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["data"]["is_correct"] is True
+
+    async def test_blank_answer_is_refused(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        c, user = user_client
+        challenge, question = await make_solvable(db_session, user, "flag{x}")
+        resp = await c.post(
+            f"/challenges/{challenge.id}/{question.id}/submit",
+            json={"answer": " \t\n"},
+        )
+        assert resp.status_code == 422
+
 
 class TestSubmitBeforeStart:
     async def test_user_blocked_when_ctf_not_started(
