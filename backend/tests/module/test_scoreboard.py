@@ -571,3 +571,52 @@ async def test_team_score_keeps_adjustments_after_the_end(db_session):
     assert result.solve_points == 100
     assert result.adjustment_points == -30
     assert result.total == 70
+
+
+async def _solved_twice(session, name: str, first_at: datetime, again_at: datetime):
+    """A team whose question was solved, then matched again by a later answer."""
+    ch = await _challenge(session)
+    q = await _question(session, ch.id)
+    t = await _team(session, name)
+    await _submission(session, t.id, q.id, points_earned=100, created_at=first_at)
+    await _submission(session, t.id, q.id, points_earned=0, created_at=again_at)
+    return t, q
+
+
+async def test_a_second_correct_answer_is_not_a_second_solve(db_session):
+    first_at = _NOW - timedelta(hours=3)
+    team, _ = await _solved_twice(db_session, "Twice", first_at, _NOW)
+
+    board = await compute_admin_scoreboard(db_session)
+    detail = await compute_team_score(db_session, team.id)
+
+    assert board.entries[0].solve_count == 1
+    assert board.entries[0].last_solve_at == first_at
+    assert len(detail.solves) == 1
+    assert detail.solves[0].solved_at == first_at
+
+
+async def test_a_second_correct_answer_does_not_lose_the_tie(db_session):
+    early, q = await _solved_twice(
+        db_session, "Early", _NOW - timedelta(hours=3), _NOW - timedelta(minutes=5)
+    )
+    late = await _team(db_session, "Late")
+    await _submission(
+        db_session,
+        late.id,
+        q.id,
+        points_earned=100,
+        created_at=_NOW - timedelta(hours=2),
+    )
+
+    board = await compute_scoreboard(db_session)
+
+    assert [e.team_id for e in board.entries] == [early.id, late.id]
+
+
+async def test_history_charts_one_event_per_solve(db_session):
+    await _solved_twice(db_session, "Twice", _NOW - timedelta(hours=3), _NOW)
+
+    history = await compute_scoreboard_history(db_session)
+
+    assert [e.cumulative for e in history.series[0].events] == [100]
