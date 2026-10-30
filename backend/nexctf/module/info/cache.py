@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
 from nexctf.core import appconfig
-from nexctf.core.cache import get_or_compute
+from nexctf.core.cache import drop_keys, get_or_compute
 from nexctf.model import Link, OAuthProvider
 from nexctf.model.link import Visibility
 from nexctf.schema import PublicOAuthProviderRead
@@ -100,4 +100,4 @@ async def get_public_info(
 
 async def invalidate(redis: Redis) -> None:
     """Drop the cached public info so the next request recomputes it."""
-    await redis.delete(_KEY)
+    await drop_keys(redis, _KEY)

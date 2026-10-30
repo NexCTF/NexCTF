@@ -9,7 +9,7 @@ from pydantic import TypeAdapter
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.core.cache import drop_registered, get_or_compute
+from nexctf.core.cache import drop_keys, drop_registered, get_or_compute
 from nexctf.module.challenge.compute import (
     ChallengeDetailStructure,
     ChallengeListItem,
@@ -65,6 +65,6 @@ async def get_detail_structure(
 
 async def invalidate(redis: Redis) -> None:
     """Drop every cached challenge structure and the team stats built on them."""
-    await redis.delete(_LIST_KEY)
+    await drop_keys(redis, _LIST_KEY)
     await drop_registered(redis, _DETAIL_REGISTRY)
     await invalidate_team_stats(redis)

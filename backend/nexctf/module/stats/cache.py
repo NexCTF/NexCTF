@@ -7,7 +7,7 @@ from pydantic import TypeAdapter
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.core.cache import drop_registered, get_or_compute
+from nexctf.core.cache import drop_keys, drop_registered, get_or_compute
 from nexctf.module.stats.compute import (
     compute_all_challenge_stats,
     compute_team_challenge_stats,
@@ -70,7 +70,7 @@ async def get_team_challenge_stats(
 
 async def invalidate(redis: Redis) -> None:
     """Drop the cached challenge stats so the next request recomputes them."""
-    await redis.delete(_KEY)
+    await drop_keys(redis, _KEY)
 
 
 async def invalidate_team(redis: Redis, team_id: UUID | None = None) -> None:
@@ -83,4 +83,4 @@ async def invalidate_team(redis: Redis, team_id: UUID | None = None) -> None:
         await drop_registered(redis, _TEAM_REGISTRY)
         return
 
-    await redis.delete(_team_key(team_id), _team_key(team_id, frozen=True))
+    await drop_keys(redis, _team_key(team_id), _team_key(team_id, frozen=True))

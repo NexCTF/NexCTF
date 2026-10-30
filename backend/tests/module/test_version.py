@@ -1,6 +1,5 @@
 """Unit tests for nexctf.module.info.version semver comparison."""
 
-from datetime import timedelta
 from typing import Any
 
 import pytest
@@ -25,22 +24,6 @@ def test_update_available(current: str, latest: str, expected: bool) -> None:
     assert _is_newer(latest, current) is expected
 
 
-class _FakePipeline:
-    """Applies the queued writes on execute, like a redis pipeline."""
-
-    def __init__(self, store: dict[str, bytes]) -> None:
-        self.store = store
-
-    def set(self, key: str, value: bytes, ex: timedelta) -> None:
-        self.store[key] = value
-
-    def sadd(self, _registry: str, _key: str) -> None:
-        pass
-
-    async def execute(self) -> list[None]:
-        return []
-
-
 class _FakeRedis:
     """Minimal dict-backed stand-in for the calls get_or_compute makes."""
 
@@ -50,20 +33,22 @@ class _FakeRedis:
     async def get(self, key: str) -> bytes | None:
         return self.store.get(key)
 
+    async def mget(self, keys: list[str]) -> list[bytes | None]:
+        return [self.store.get(k) for k in keys]
+
     async def set(self, key: str, value: str, *, nx: bool = False, **_: object) -> bool:
         if nx and key in self.store:
             return False
         self.store[key] = value.encode()
         return True
 
-    async def eval(self, _script: str, _numkeys: int, key: str, token: str) -> int:
-        if self.store.get(key) != token.encode():
-            return 0
-        del self.store[key]
+    async def eval(self, _script: str, _numkeys: int, key: str, *args: Any) -> int:
+        """Run the store script: write the value, the first argument after the keys."""
+        if _numkeys > 1:
+            self.store[key] = args[_numkeys - 1]
+        else:
+            self.store.pop(key, None)
         return 1
-
-    def pipeline(self) -> _FakePipeline:
-        return _FakePipeline(self.store)
 
 
 async def test_stale_cached_version_is_ignored_after_upgrade(
