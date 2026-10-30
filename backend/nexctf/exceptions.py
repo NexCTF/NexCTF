@@ -477,6 +477,15 @@ class EventEndedError(ApiException):
     )
 
 
+class AnswerCheckTimeoutError(ApiException):
+    api_error = ApiError(
+        code=503,
+        msg="Answer check timed out",
+        desc="Checking your answer took too long, so it was not counted. Try again.",
+        err_code="SUB-503-TIMEOUT",
+    )
+
+
 class SequentialChallengeError(ApiException):
     api_error = ApiError(
         code=403,
