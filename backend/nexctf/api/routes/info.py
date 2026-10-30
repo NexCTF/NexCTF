@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter
 from fastapi_toolsets.schemas import Response
 from sqlalchemy import func, select
@@ -16,7 +18,7 @@ from nexctf.model import (
 )
 from nexctf.module.info import get_public_info, get_version_info
 from nexctf.schema import PublicUserRead
-from nexctf.schema.info import AdminStats, PublicInfo
+from nexctf.schema.info import AdminStats, PublicInfoRead
 from nexctf.util.sql import count_of
 
 info_router = APIRouter(prefix="/info", tags=["info"])
@@ -26,8 +28,9 @@ info_router = APIRouter(prefix="/info", tags=["info"])
 async def public_info(
     session: SessionDep,
     redis: RedisDep,
-) -> Response[PublicInfo]:
-    return Response(data=await get_public_info(session, redis))
+) -> Response[PublicInfoRead]:
+    info = await get_public_info(session, redis)
+    return Response(data=PublicInfoRead(**dict(info), server_time=datetime.now(UTC)))
 
 
 @info_router.get("/me")

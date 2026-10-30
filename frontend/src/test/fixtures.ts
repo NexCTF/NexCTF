@@ -50,6 +50,7 @@ export function publicInfo(overrides: Partial<PublicInfo> = {}): PublicInfo {
     oauth_providers: [],
     captcha: { enabled: false },
     links: [],
+    server_time: "2026-01-01T00:00:00Z",
     ...overrides,
   };
 }

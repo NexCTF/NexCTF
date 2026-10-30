@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi_toolsets.schemas import PydanticBase
 
 from nexctf.schema.link import PublicLinkRead
@@ -42,6 +44,12 @@ class PublicInfo(PydanticBase):
     oauth_providers: list[PublicOAuthProviderRead]
     captcha: CaptchaInfo
     links: list[PublicLinkRead]
+
+
+class PublicInfoRead(PublicInfo):
+    """The public info, stamped with the server's clock when it was served."""
+
+    server_time: datetime
 
 
 class VersionInfo(PydanticBase):
