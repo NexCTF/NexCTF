@@ -8,8 +8,10 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nexctf.exceptions import SolutionTimeoutError
 from nexctf.model import Submission, Team, User
 from nexctf.model.question import Question
+from nexctf.module.submission import recalculate_question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 from nexctf.plugins.builtin.solution.match.model import MatchSolution
 
@@ -150,4 +152,34 @@ class TestSubmissionDelete:
         resp = await admin.delete(f"/admin/submission/{solve_id}")
 
         assert resp.status_code == 200
+        assert await _earned(db_session, team) == 0
+
+
+class TestRecalculationTimeout:
+    async def test_a_timeout_keeps_the_recorded_solve(
+        self, db_session: AsyncSession, mock_redis, monkeypatch
+    ) -> None:
+        question = await _question(db_session, points=100, malus=None)
+        team = await _play(db_session, question, [FLAG])
+
+        async def _slow(self: MatchSolution, *_a: object, **_kw: object) -> bool:
+            raise SolutionTimeoutError(self.id, self.value)
+
+        monkeypatch.setattr(MatchSolution, "verify", _slow)
+        await recalculate_question(db_session, mock_redis, question.id)
+
+        assert await _earned(db_session, team) == 100
+
+    async def test_a_timeout_keeps_a_wrong_answer_wrong(
+        self, db_session: AsyncSession, mock_redis, monkeypatch
+    ) -> None:
+        question = await _question(db_session, points=100, malus=None)
+        team = await _play(db_session, question, ["nope"])
+
+        async def _slow(self: MatchSolution, *_a: object, **_kw: object) -> bool:
+            raise SolutionTimeoutError(self.id, self.value)
+
+        monkeypatch.setattr(MatchSolution, "verify", _slow)
+        await recalculate_question(db_session, mock_redis, question.id)
+
         assert await _earned(db_session, team) == 0
