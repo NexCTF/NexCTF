@@ -1,6 +1,6 @@
 import json
 from collections.abc import AsyncGenerator, Awaitable, Callable
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -45,7 +45,7 @@ from nexctf.plugins.registry import (
     challenge_registry,
     solution_registry,
 )
-from nexctf.util.datetime import is_config_dt_future, is_config_dt_past
+from nexctf.util.datetime import is_config_dt_future, parse_config_dt
 from nexctf.util.ip import get_client_ip
 from nexctf.util.pydantic import Label
 
@@ -232,16 +232,20 @@ async def _event_started(overrides: ConfigDep) -> None:
         raise EventNotStartedError()
 
 
-async def _event_active(overrides: ConfigDep) -> None:
-    """Raise if the CTF has not started or has already ended."""
-    if is_config_dt_future("ctf.start_time", overrides):
+async def _event_active(overrides: ConfigDep) -> datetime:
+    """Raise if the CTF has not started or has already ended, else return now."""
+    now = datetime.now(UTC)
+    start = parse_config_dt("ctf.start_time", overrides)
+    if start is not None and now < start:
         raise EventNotStartedError()
-    if is_config_dt_past("ctf.end_time", overrides):
+    end = parse_config_dt("ctf.end_time", overrides)
+    if end is not None and now > end:
         raise EventEndedError()
+    return now
 
 
 EventStartedDep = Annotated[None, Depends(_event_started)]
-EventActiveDep = Annotated[None, Depends(_event_active)]
+EventActiveDep = Annotated[datetime, Depends(_event_active)]
 
 
 def require_session(granted: frozenset[str] | None) -> None:
