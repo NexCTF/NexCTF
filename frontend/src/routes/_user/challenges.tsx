@@ -6,7 +6,7 @@ import { Banner } from "@/components/banner";
 import { TagBadge } from "@/components/tag-badge";
 import { apiErrorMessage, getChallenges, type PublicChallenge } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { useEventPhase } from "@/lib/use-event-phase";
+import { useEventPhase, useRefetchChallengesOnStart } from "@/lib/use-event-phase";
 
 export const Route = createFileRoute("/_user/challenges")({
   component: ChallengesPage,
@@ -27,6 +27,7 @@ function ChallengesPage() {
   });
 
   const { upcoming, open } = useEventPhase();
+  useRefetchChallengesOnStart();
 
   if (authLoading) return null;
   if (!user) return <Navigate to="/login" />;

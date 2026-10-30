@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getPublicInfo } from "@/lib/api";
 import { syncServerClock } from "@/lib/server-clock";
-import { useEventPhase } from "@/lib/use-event-phase";
+import { useEventPhase, useRefetchChallengesOnStart } from "@/lib/use-event-phase";
 import { publicInfoWith } from "@/test/fixtures";
 
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -57,4 +57,43 @@ it("re-reads the clock once the first info response syncs it", async () => {
   await waitFor(() => expect(result.current.start).not.toBeNull());
   await waitFor(() => expect(result.current.upcoming).toBe(true));
   expect(result.current.open).toBe(false);
+});
+
+it("refetches the challenges when the start passes", async () => {
+  const soon = new Date(Date.now() + 300).toISOString();
+  vi.mocked(getPublicInfo).mockResolvedValue(publicInfoWith({ start_time: soon }));
+  const client = new QueryClient();
+  const invalidate = vi.spyOn(client, "invalidateQueries");
+  renderHook(() => useRefetchChallengesOnStart(), {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
+
+  await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ["challenges"] }), {
+    timeout: 2_000,
+  });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ["challenge"] });
+});
+
+it("does not refetch on mount once the event is running", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(
+    publicInfoWith({ start_time: new Date(Date.now() - 60_000).toISOString() }),
+  );
+  const client = new QueryClient();
+  const invalidate = vi.spyOn(client, "invalidateQueries");
+  const { result } = renderHook(
+    () => {
+      useRefetchChallengesOnStart();
+      return useEventPhase();
+    },
+    {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    },
+  );
+
+  await waitFor(() => expect(result.current.running).toBe(true));
+  expect(invalidate).not.toHaveBeenCalled();
 });

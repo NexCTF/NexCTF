@@ -40,7 +40,7 @@ import {
   unlockHint,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { useEventPhase } from "@/lib/use-event-phase";
+import { useEventPhase, useRefetchChallengesOnStart } from "@/lib/use-event-phase";
 import { formatBytes } from "@/lib/utils";
 
 function UnlockHintButton({
@@ -109,6 +109,7 @@ function ChallengePage() {
     refetchOnWindowFocus: false,
     staleTime: 30_000,
   });
+  useRefetchChallengesOnStart();
 
   if (authLoading) return null;
   if (!user) return <Navigate to="/login" />;
