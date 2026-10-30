@@ -595,6 +595,9 @@
       "create_error": "Failed to create team",
       "created": "Team created",
       "detail_back": "Back to teams",
+      "disqualified": "Team disqualified",
+      "disqualify": "Disqualify",
+      "disqualify_confirm": "Disqualify {{name}}? The team leaves the scoreboard and can no longer submit answers or unlock hints.",
       "edit_info_title": "Edit team",
       "field_bracket": "Bracket",
       "field_country": "Country",
@@ -611,6 +614,11 @@
       "members_empty": "No members in this team.",
       "members_title": "Members ({{n}})",
       "progress_title": "Progress",
+      "reinstate": "Reinstate",
+      "reinstate_confirm": "Reinstate {{name}}? The team is ranked again and can play.",
+      "reinstated": "Team reinstated",
+      "status_disqualified": "Disqualified",
+      "status_ranked": "Ranked",
       "submission_delete_error": "Failed to delete submission",
       "submission_deleted": "Submission deleted",
       "submissions_title": "Submissions"
@@ -989,6 +997,9 @@
     "echo_utc": "= {{time}} UTC"
   },
   "errors": {
+    "api": {
+      "team_disqualified": "Your team has been disqualified and can no longer play."
+    },
     "not_found": "Page not found",
     "not_found_desc": "This page doesn't exist or is not published."
   },
@@ -1331,6 +1342,7 @@
     "create_section": "Create a team",
     "creating": "Creating…",
     "creation_disabled": "Team creation is currently disabled.",
+    "disqualified_banner": "This team has been disqualified and is not ranked.",
     "hints_used_one": "{{count}} hint used",
     "hints_used_other": "{{count}} hints used",
     "invite_hint": "Share this code with teammates to let them join.",

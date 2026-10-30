@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   ChallengeProgressTable,
+  DisqualifiedBanner,
   MembersList,
   ScoreBreakdown,
   TeamBadges,
@@ -50,6 +51,7 @@ function TeamProfilePage() {
 
       {team && (
         <>
+          <DisqualifiedBanner team={team} />
           <div>
             <h1 className="text-2xl font-bold">{team.name}</h1>
             <TeamBadges team={team} />

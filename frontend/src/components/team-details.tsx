@@ -1,6 +1,7 @@
-import { Check, ChevronRight, Lightbulb, Users, X } from "lucide-react";
+import { Ban, Check, ChevronRight, Lightbulb, Users, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Banner } from "@/components/banner";
 import { ChallengeLink, DateCell, EmptyCell, SignedPoints } from "@/components/table-cells";
 import type {
   Link,
@@ -72,6 +73,19 @@ export function TeamBadges({ team }: { team: PublicTeam }) {
       <CustomFieldBadges fields={team.custom_fields} />
       <LinkBadges links={team.links} />
     </div>
+  );
+}
+
+/** Notice shown on a disqualified team's pages. */
+export function DisqualifiedBanner({ team }: { team: PublicTeam }) {
+  const { t } = useTranslation();
+  if (!team.is_disqualified) return null;
+  return (
+    <Banner tone="amber" icon={Ban}>
+      {t("team.disqualified_banner", {
+        defaultValue: "This team has been disqualified and is not ranked.",
+      })}
+    </Banner>
   );
 }
 

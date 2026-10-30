@@ -4,10 +4,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from nexctf import crud
-from nexctf.api.dep import ConfigDep, SessionDep
+from nexctf.api.dep import ConfigDep, RedisDep, SessionDep
 from nexctf.model import (
     ChallengeFeedback,
     CustomFieldValue,
@@ -15,7 +16,9 @@ from nexctf.model import (
     Submission,
     Team,
 )
+from nexctf.module.audit import audit_actor
 from nexctf.module.custom_field import replace_custom_field_values
+from nexctf.module.events import emit
 from nexctf.module.scoreboard.compute import compute_team_score
 from nexctf.module.stats import compute_admin_team_challenge_stats
 from nexctf.schema.custom_field import AdminCustomFieldValueRead
@@ -88,6 +91,7 @@ async def get_team_detail(
             country=team.country,
             bracket=team.bracket,
             links=team.links or [],
+            is_disqualified=team.is_disqualified,
             invite_code=team.invite_code,
             created_at=team.created_at,
             updated_at=team.updated_at,
@@ -179,9 +183,13 @@ async def get_team(
 @team_router.put("/{uuid}")
 async def update_team(
     session: SessionDep,
+    redis: RedisDep,
     uuid: UUID,
     obj: AdminTeamUpdateRequest,
 ) -> Response[AdminTeamRead]:
+    was_disqualified = await session.scalar(
+        select(Team.is_disqualified).where(Team.id == uuid)
+    )
     try:
         result = await crud.TeamCrud.update(
             session=session,
@@ -197,7 +205,30 @@ async def update_team(
         await replace_custom_field_values(
             session, obj.custom_fields, team_id=uuid, self_service=False
         )
+    if result.data is not None and result.data.is_disqualified != was_disqualified:
+        await _emit_disqualification(session, redis, result.data)
     return result
+
+
+async def _emit_disqualification(
+    session: SessionDep, redis: RedisDep, team: AdminTeamRead
+) -> None:
+    """Record that *team* was disqualified or reinstated."""
+    actor_id, ip = audit_actor()
+    await emit(
+        session,
+        redis,
+        event_type=(
+            "admin.team_disqualified"
+            if team.is_disqualified
+            else "admin.team_reinstated"
+        ),
+        actor_id=actor_id,
+        target_type="teams",
+        target_id=team.id,
+        target_label=team.name,
+        ip=ip,
+    )
 
 
 @team_router.delete("/{uuid}")

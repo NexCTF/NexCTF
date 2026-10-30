@@ -1,3 +1,4 @@
+import i18n from "i18next";
 import { afterEach, expect, it, vi } from "vitest";
 import { ApiError, apiErrorMessage, createChallenge } from "@/lib/api";
 
@@ -55,4 +56,18 @@ it("keeps the description for other errors", async () => {
 
   expect(apiErrorMessage(err, "fallback")).toBe("Challenge title already taken");
   expect((err as ApiError).fieldErrors).toBeNull();
+});
+
+it("words a known error code in the user's language", async () => {
+  await i18n.changeLanguage("fr");
+  try {
+    const err = new ApiError(403, "Team disqualified", "English text", "SUB-403-DISQUALIFIED");
+
+    expect(apiErrorMessage(err, "fallback")).toBe(
+      i18n.t("errors.api.team_disqualified", { lng: "fr" }),
+    );
+    expect(apiErrorMessage(err, "fallback")).not.toBe("English text");
+  } finally {
+    await i18n.changeLanguage("en");
+  }
 });

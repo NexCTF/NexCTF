@@ -34,7 +34,7 @@ class TeamCrud(AsyncCrud[Team]):
     model = Team
     cursor_column = Team.created_at
     searchable_fields = [Team.name]
-    facet_fields = [Team.bracket]
+    facet_fields = [Team.bracket, Team.is_disqualified]
     order_fields = [
         Team.name,
         Team.country,
