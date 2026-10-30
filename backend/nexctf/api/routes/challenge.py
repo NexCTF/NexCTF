@@ -57,6 +57,7 @@ from nexctf.module.events import emit as emit_event
 from nexctf.module.scoreboard import invalidate as invalidate_scoreboard
 from nexctf.module.stats import invalidate as invalidate_stats
 from nexctf.module.stats import invalidate_team
+from nexctf.module.submission import lock_question
 from nexctf.schema.challenge import (
     PublicChallengeDetail,
     PublicChallengeRead,
@@ -399,6 +400,7 @@ async def submit_answer(
         redis, overrides, name="submit", key=f"rl:submit:{user.team_id}"
     )
 
+    await lock_question(session, question_id, shared=True)
     challenge = await _get_active_challenge(session, challenge_id)
 
     question = next((q for q in challenge.questions if q.id == question_id), None)
