@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ExternalLink, Pencil } from "lucide-react";
+import { Ban, ExternalLink, Pencil, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CustomFieldValuesList } from "@/components/custom-field-values-list";
 import { CustomFieldsSection, useCustomFieldDefs } from "@/components/custom-fields-section";
 import { CLICKABLE_ROW_CLS, DataTable, RowChevron, useTableState } from "@/components/data-table";
@@ -14,7 +15,13 @@ import { LinksFormSection } from "@/components/links-form-section";
 import { useScoreAdjustmentColumns } from "@/components/score-adjustment-table";
 import { StatCard } from "@/components/stat-card";
 import { SubmissionAnswerDialog, useSubmissionColumns } from "@/components/submission-table";
-import { DateCell, EmptyCell, StatusCell, UserLink } from "@/components/table-cells";
+import {
+  DateCell,
+  EmptyCell,
+  StatusCell,
+  TeamStatusCell,
+  UserLink,
+} from "@/components/table-cells";
 import { ChallengeProgressTable, progressPercent, ScoreBreakdown } from "@/components/team-details";
 import { Button } from "@/components/ui/button";
 import {
@@ -156,6 +163,75 @@ function EditTeamDialog({
   );
 }
 
+function DisqualifyButton({
+  team,
+  onSaved,
+}: {
+  team: Awaited<ReturnType<typeof getAdminTeamDetail>>;
+  onSaved: () => void;
+}) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const disqualify = !team.is_disqualified;
+
+  const mutation = useMutation({
+    mutationFn: () => updateAdminTeam(team.id, { is_disqualified: disqualify }),
+    onSuccess: () => {
+      toast.success(
+        disqualify
+          ? t("admin.teams.disqualified", { defaultValue: "Team disqualified" })
+          : t("admin.teams.reinstated", { defaultValue: "Team reinstated" }),
+      );
+      void queryClient.invalidateQueries({ queryKey: ["admin", "scoreboard"] });
+      onSaved();
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, t("admin.teams.info_save_error"))),
+  });
+
+  const label = disqualify
+    ? t("admin.teams.disqualify", { defaultValue: "Disqualify" })
+    : t("admin.teams.reinstate", { defaultValue: "Reinstate" });
+
+  return (
+    <ConfirmDialog
+      description={
+        disqualify
+          ? t("admin.teams.disqualify_confirm", {
+              name: team.name,
+              defaultValue:
+                "Disqualify {{name}}? The team leaves the scoreboard and can no longer submit answers or unlock hints.",
+            })
+          : t("admin.teams.reinstate_confirm", {
+              name: team.name,
+              defaultValue: "Reinstate {{name}}? The team is ranked again and can play.",
+            })
+      }
+      confirmLabel={label}
+      destructive={disqualify}
+      onConfirm={() => mutation.mutate()}
+      trigger={
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={mutation.isPending}
+          className={
+            disqualify
+              ? "text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+              : undefined
+          }
+        >
+          {disqualify ? (
+            <Ban className="size-3.5 mr-1.5" />
+          ) : (
+            <RotateCcw className="size-3.5 mr-1.5" />
+          )}
+          {label}
+        </Button>
+      }
+    />
+  );
+}
+
 function TeamDetailPage() {
   const { t } = useTranslation();
   const { teamId } = Route.useParams();
@@ -260,7 +336,12 @@ function TeamDetailPage() {
           <>
             <DetailSection
               title={t("admin.teams.info_title")}
-              actions={<EditTeamDialog teamId={teamId} team={team} onSaved={invalidateTeam} />}
+              actions={
+                <div className="flex gap-2">
+                  <DisqualifyButton team={team} onSaved={invalidateTeam} />
+                  <EditTeamDialog teamId={teamId} team={team} onSaved={invalidateTeam} />
+                </div>
+              }
             >
               <div className="rounded-lg border divide-y text-sm">
                 <InfoRow
@@ -290,6 +371,10 @@ function TeamDetailPage() {
                       <EmptyCell />
                     )
                   }
+                />
+                <InfoRow
+                  label={t("table.col_status", { defaultValue: "Status" })}
+                  value={<TeamStatusCell disqualified={team.is_disqualified} />}
                 />
                 <InfoRow
                   label={t("admin.teams.field_invite_code", { defaultValue: "Invite code" })}

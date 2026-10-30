@@ -21,6 +21,7 @@ from nexctf.api.dep import (
     EventActiveDep,
     EventStartedDep,
     OptionalCurrentUserDep,
+    PlayingTeamDep,
     RedisDep,
     RequireTeamDep,
     SessionDep,
@@ -391,7 +392,7 @@ async def submit_answer(
     obj: SubmitBody,
     overrides: ConfigDep,
     _: EventActiveDep,
-    user: RequireTeamDep,
+    user: PlayingTeamDep,
 ) -> Response[SubmitResult]:
     _check_challenge_visibility(user, overrides)
     await check_config_rate_limit(
@@ -599,7 +600,7 @@ async def unlock_hint(
     hint_id: UUID,
     overrides: ConfigDep,
     _: EventActiveDep,
-    user: RequireTeamDep,
+    user: PlayingTeamDep,
 ) -> Response[PublicHintRead]:
     _check_challenge_visibility(user, overrides)
     challenge = await _get_active_challenge(session, challenge_id)

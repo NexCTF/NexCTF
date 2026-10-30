@@ -77,9 +77,15 @@ async def _fetch_all_adjustments(
     return (await session.execute(stmt)).all()
 
 
-async def _fetch_all_teams(session: AsyncSession) -> list[Team]:
-    """Fetch every team without the crud's default eager loads."""
-    return list(await crud.TeamCrud.get_multi(session=session, load_options=[]))
+async def _fetch_ranked_teams(session: AsyncSession) -> list[Team]:
+    """Fetch every team that is not disqualified, without the default eager loads."""
+    return list(
+        await crud.TeamCrud.get_multi(
+            session=session,
+            filters=[Team.is_disqualified.is_(False)],
+            load_options=[],
+        )
+    )
 
 
 async def _fetch_all_hint_unlocks(
@@ -280,7 +286,7 @@ async def compute_admin_scoreboard(
     submissions = await _fetch_all_submissions(session, before=end_time)
     adjustments = await _fetch_all_adjustments(session)
     hint_unlocks = await _fetch_all_hint_unlocks(session, before=end_time)
-    all_teams = await _fetch_all_teams(session)
+    all_teams = await _fetch_ranked_teams(session)
     fields, field_values = await _fetch_scoreboard_fields(session)
     teams, brackets = _filter_teams_by_bracket(all_teams, bracket)
 
@@ -312,7 +318,7 @@ async def compute_scoreboard(
     submissions = await _fetch_all_submissions(session, before=solve_cutoff)
     adjustments = await _fetch_all_adjustments(session, before=freeze_time)
     hint_unlocks = await _fetch_all_hint_unlocks(session, before=solve_cutoff)
-    all_teams = await _fetch_all_teams(session)
+    all_teams = await _fetch_ranked_teams(session)
     fields, field_values = await _fetch_scoreboard_fields(session)
     teams, brackets = _filter_teams_by_bracket(all_teams, bracket)
 
@@ -349,7 +355,7 @@ async def compute_scoreboard_history(
     all_submissions = await _fetch_all_submissions(session, before=solve_cutoff)
     all_adjustments = await _fetch_all_adjustments(session, before=freeze_time)
     all_hint_unlocks = await _fetch_all_hint_unlocks(session, before=solve_cutoff)
-    teams_by_id = {t.id: t for t in await _fetch_all_teams(session)}
+    teams_by_id = {t.id: t for t in await _fetch_ranked_teams(session)}
 
     # Derive team totals and last-solve times from already-fetched data
     team_totals: dict[UUID, int] = {}
@@ -366,12 +372,12 @@ async def compute_scoreboard_history(
     for hu_team_id, cost, _ in charged_unlocks:
         team_totals[hu_team_id] = team_totals.get(hu_team_id, 0) - cost
 
-    if bracket is not None:
-        team_totals = {
-            tid: total
-            for tid, total in team_totals.items()
-            if teams_by_id[tid].bracket == bracket
-        }
+    team_totals = {
+        tid: total
+        for tid, total in team_totals.items()
+        if tid in teams_by_id
+        and (bracket is None or teams_by_id[tid].bracket == bracket)
+    }
 
     if not team_totals:
         return ScoreboardHistory(series=[], computed_at=now)
@@ -402,8 +408,6 @@ async def compute_scoreboard_history(
 
     series: list[TeamScoreSeries] = []
     for rank, team_id in enumerate(sorted_ids[:limit], start=1):
-        if team_id not in teams_by_id:
-            continue
         team = teams_by_id[team_id]
         raw = sorted(events_by_team[team_id], key=lambda x: x[0])
         cumulative = 0

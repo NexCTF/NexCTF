@@ -194,6 +194,15 @@ class NoTeamError(TeamError):
     )
 
 
+class TeamDisqualifiedError(TeamError):
+    api_error = ApiError(
+        code=403,
+        msg="Team disqualified",
+        desc="Your team has been disqualified and can no longer play.",
+        err_code="SUB-403-DISQUALIFIED",
+    )
+
+
 class TeamCreationDisabledError(TeamError):
     api_error = ApiError(
         code=403,

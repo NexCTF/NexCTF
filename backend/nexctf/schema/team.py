@@ -57,6 +57,7 @@ class AdminTeamUpdate(PydanticBase):
     country: CountryCode | None = None
     bracket: Label = None
     links: LinkListInput | None = None
+    is_disqualified: bool | None = None
 
 
 class AdminTeamUpdateRequest(AdminTeamUpdate):
@@ -70,6 +71,7 @@ class AdminTeamRead(PydanticBase):
     country: str | None = None
     bracket: str | None = None
     links: list[Link] = []
+    is_disqualified: bool = False
 
 
 class AdminTeamMember(PydanticBase):
@@ -101,6 +103,7 @@ class PublicTeamRead(PydanticBase):
     country: str | None
     bracket: str | None
     links: list[Link] = []
+    is_disqualified: bool = False
     members: list[PublicTeamMember] | None
     member_count: int
     challenge_stats: list[TeamChallengeStats]

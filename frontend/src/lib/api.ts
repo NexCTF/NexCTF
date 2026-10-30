@@ -1,3 +1,4 @@
+import i18n from "i18next";
 import { promptReauth, REAUTH_REQUIRED } from "@/lib/reauth";
 
 const BASE = "/api/v1";
@@ -160,11 +161,20 @@ export function isReauthRequired(err: unknown): boolean {
   return err instanceof ApiError && err.errCode === REAUTH_REQUIRED;
 }
 
+/** Translated wording of the API errors players hit, by error code. */
+const TRANSLATED_ERRORS: Record<string, () => string> = {
+  "SUB-403-DISQUALIFIED": () =>
+    i18n.t("errors.api.team_disqualified", {
+      defaultValue: "Your team has been disqualified and can no longer play.",
+    }),
+};
+
 /** Extract a human-readable message from an error, falling back to a provided string. */
 export function apiErrorMessage(err: unknown, fallback: string): string {
   if (!(err instanceof ApiError)) return fallback;
   if (err.fieldErrors?.length) return err.fieldErrors.map(formatFieldError).join("; ");
-  return err.description ?? err.message;
+  const translated = err.errCode ? TRANSLATED_ERRORS[err.errCode] : undefined;
+  return translated?.() ?? err.description ?? err.message;
 }
 
 // ---------------------------------------------------------------------------
@@ -486,6 +496,7 @@ export interface PublicTeam {
   country: string | null;
   bracket: string | null;
   links: Link[];
+  is_disqualified: boolean;
   members: PublicTeamMember[] | null;
   member_count: number;
   challenge_stats: TeamChallengeStats[];
@@ -930,6 +941,7 @@ export interface Team {
   country: string | null;
   bracket: string | null;
   links: Link[];
+  is_disqualified: boolean;
 }
 
 export interface AdminTeamMember {
@@ -968,6 +980,7 @@ export async function updateAdminTeam(
     bracket?: string | null;
     links?: Link[];
     custom_fields?: CustomFieldValues;
+    is_disqualified?: boolean;
   },
 ): Promise<Team> {
   return request<Team>(`/admin/team/${teamId}`, {

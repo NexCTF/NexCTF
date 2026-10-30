@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ProfileFormSections, useProfileForm } from "@/components/profile-form";
 import {
   ChallengeProgressTable,
+  DisqualifiedBanner,
   MembersList,
   ScoreBreakdown,
   TeamBadges,
@@ -291,6 +292,7 @@ function TeamView({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 space-y-8">
+      <DisqualifiedBanner team={team} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold break-words">{team.name}</h1>

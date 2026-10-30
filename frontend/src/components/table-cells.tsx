@@ -140,6 +140,21 @@ export function StatusCell({ active, label }: { active: boolean; label?: string 
   );
 }
 
+/** Whether a team is ranked or disqualified. */
+export function TeamStatusCell({ disqualified }: { disqualified: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <StatusCell
+      active={!disqualified}
+      label={
+        disqualified
+          ? t("admin.teams.status_disqualified", { defaultValue: "Disqualified" })
+          : t("admin.teams.status_ranked", { defaultValue: "Ranked" })
+      }
+    />
+  );
+}
+
 /** Plain yes/no attribute. */
 export function BoolCell({ value }: { value: boolean }) {
   return (

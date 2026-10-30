@@ -34,6 +34,7 @@ from nexctf.exceptions import (
     EventEndedError,
     EventNotStartedError,
     NoTeamError,
+    TeamDisqualifiedError,
     UnscopableEndpointError,
 )
 from nexctf.model import Challenge, OAuthProvider, Solution, Team, User, UserRole
@@ -297,6 +298,18 @@ async def _require_team(user: CurrentUserDep) -> User:
 
 
 RequireTeamDep = Annotated[User, Depends(_require_team)]
+
+
+async def _require_playing_team(session: SessionDep, user: RequireTeamDep) -> User:
+    """Raise TeamDisqualifiedError if the user's team has been disqualified."""
+    if await session.scalar(
+        select(Team.is_disqualified).where(Team.id == user.team_id)
+    ):
+        raise TeamDisqualifiedError()
+    return user
+
+
+PlayingTeamDep = Annotated[User, Depends(_require_playing_team)]
 
 ProviderDep = PathDependency(
     model=OAuthProvider,

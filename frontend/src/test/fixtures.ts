@@ -187,6 +187,7 @@ export function team(overrides: Partial<MyTeam> = {}): MyTeam {
     country: null,
     bracket: null,
     links: [],
+    is_disqualified: false,
     members: [{ id: "u1", username: "player", links: [], custom_fields: [] }],
     member_count: 1,
     challenge_stats: [],

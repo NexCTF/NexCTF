@@ -43,6 +43,7 @@ class Team(Base):
     invite_code: Mapped[str] = mapped_column(
         String(16), unique=True, index=True, default=gen_invite_code
     )
+    is_disqualified: Mapped[bool] = mapped_column(default=False, server_default="false")
 
     users: Mapped[list[User]] = relationship(back_populates="team")
     submissions: Mapped[list[Submission]] = relationship(back_populates="team")

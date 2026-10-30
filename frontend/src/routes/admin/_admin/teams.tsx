@@ -8,7 +8,7 @@ import { CustomFieldsSection, useCustomFieldDefs } from "@/components/custom-fie
 import { type Column, DataTable, useTableState } from "@/components/data-table";
 import { LabelInput } from "@/components/label-input";
 import { PageHeader } from "@/components/page-header";
-import { EmptyCell, idColumn } from "@/components/table-cells";
+import { EmptyCell, idColumn, TeamStatusCell } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -55,6 +55,11 @@ function useTeamColumns(): Column<Team>[] {
       header: t("admin.teams.field_bracket"),
       cell: (team) =>
         team.bracket ? <span className="capitalize">{team.bracket}</span> : <EmptyCell />,
+    },
+    {
+      key: "is_disqualified",
+      header: t("table.col_status", { defaultValue: "Status" }),
+      cell: (team) => <TeamStatusCell disqualified={team.is_disqualified} />,
     },
   ];
 }

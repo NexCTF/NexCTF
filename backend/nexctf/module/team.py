@@ -158,6 +158,7 @@ async def load_team_read(
         country=team.country,
         bracket=team.bracket,
         links=team.links or [],
+        is_disqualified=team.is_disqualified,
         members=members,
         member_count=len(users),
         challenge_stats=stats,

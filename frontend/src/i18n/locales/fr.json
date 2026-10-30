@@ -597,6 +597,9 @@
       "create_error": "Échec de la création de l'équipe",
       "created": "Équipe créée",
       "detail_back": "Retour aux équipes",
+      "disqualified": "Équipe disqualifiée",
+      "disqualify": "Disqualifier",
+      "disqualify_confirm": "Disqualifier «\u00a0{{name}}\u00a0»\u202f? L'équipe quitte le classement et ne peut plus soumettre de réponses ni débloquer d'indices.",
       "edit_info_title": "Modifier l'équipe",
       "field_bracket": "Catégorie",
       "field_country": "Pays",
@@ -613,6 +616,11 @@
       "members_empty": "Aucun membre dans cette équipe.",
       "members_title": "Membres ({{n}})",
       "progress_title": "Progression",
+      "reinstate": "Réintégrer",
+      "reinstate_confirm": "Réintégrer «\u00a0{{name}}\u00a0»\u202f? L'équipe est de nouveau classée et peut jouer.",
+      "reinstated": "Équipe réintégrée",
+      "status_disqualified": "Disqualifiée",
+      "status_ranked": "Classée",
       "submission_delete_error": "Échec de la suppression de la soumission",
       "submission_deleted": "Soumission supprimée",
       "submissions_title": "Soumissions"
@@ -992,6 +1000,9 @@
     "echo_utc": "= {{time}} UTC"
   },
   "errors": {
+    "api": {
+      "team_disqualified": "Votre équipe a été disqualifiée et ne peut plus jouer."
+    },
     "not_found": "Page introuvable",
     "not_found_desc": "Cette page n'existe pas ou n'est pas publiée."
   },
@@ -1336,6 +1347,7 @@
     "create_section": "Créer une équipe",
     "creating": "Création…",
     "creation_disabled": "La création d'équipe est actuellement désactivée.",
+    "disqualified_banner": "Cette équipe a été disqualifiée et n'est pas classée.",
     "hints_used_one": "{{count}} indice utilisé",
     "hints_used_many": "{{count}} indices utilisés",
     "hints_used_other": "{{count}} indices utilisés",

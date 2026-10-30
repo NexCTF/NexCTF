@@ -60,3 +60,19 @@ it("reports a failed load", async () => {
 
   expect(await screen.findByText("Failed to load team")).toBeDefined();
 });
+
+it("flags a disqualified team", async () => {
+  vi.mocked(getTeamProfile).mockResolvedValue(team({ is_disqualified: true, rank: null }));
+  renderProfile();
+
+  expect(
+    await screen.findByText("This team has been disqualified and is not ranked."),
+  ).toBeDefined();
+});
+
+it("shows no disqualification notice for a ranked team", async () => {
+  renderProfile();
+
+  await screen.findByRole("heading", { name: "Alpha" });
+  expect(screen.queryByText("This team has been disqualified and is not ranked.")).toBeNull();
+});
