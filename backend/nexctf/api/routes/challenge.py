@@ -392,7 +392,7 @@ async def submit_answer(
     question_id: UUID,
     obj: SubmitBody,
     overrides: ConfigDep,
-    _: EventActiveDep,
+    accepted_at: EventActiveDep,
     user: PlayingTeamDep,
 ) -> Response[SubmitResult]:
     _check_challenge_visibility(user, overrides)
@@ -467,6 +467,7 @@ async def submit_answer(
             wrong_count_before=wrong_count_before,
             team_id=user.team_id,
             question_id=question_id,
+            created_at=accepted_at,
         )
     )
     await session.flush()
@@ -601,7 +602,7 @@ async def unlock_hint(
     question_id: UUID,
     hint_id: UUID,
     overrides: ConfigDep,
-    _: EventActiveDep,
+    accepted_at: EventActiveDep,
     user: PlayingTeamDep,
 ) -> Response[PublicHintRead]:
     _check_challenge_visibility(user, overrides)
@@ -621,7 +622,12 @@ async def unlock_hint(
     # uq_hint_unlock, so let the database settle who pays.
     inserted = await session.execute(
         insert(HintUnlock)
-        .values(team_id=user.team_id, hint_id=hint_id, cost_paid=hint.cost)
+        .values(
+            team_id=user.team_id,
+            hint_id=hint_id,
+            cost_paid=hint.cost,
+            created_at=accepted_at,
+        )
         .on_conflict_do_nothing(constraint="uq_hint_unlock")
         .returning(HintUnlock.id)
     )
