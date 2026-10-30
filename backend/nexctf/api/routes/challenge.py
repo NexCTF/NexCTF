@@ -31,6 +31,7 @@ from nexctf.api.security import client_of
 from nexctf.core import appconfig
 from nexctf.core.rate_limit import check_config_rate_limit
 from nexctf.exceptions import (
+    AnswerCheckTimeoutError,
     ChallengeNotCompletedError,
     FeedbackDisabledError,
     SequentialChallengeError,
@@ -266,6 +267,38 @@ async def _my_adjustments(
     ]
 
 
+async def _emit_timeouts(
+    session: SessionDep,
+    redis: RedisDep,
+    request: Request,
+    user: User,
+    challenge: Challenge,
+    question: Question,
+    answer: str,
+    timed_out: list[SolutionTimeoutError],
+) -> None:
+    """Record each solution that timed out while checking *answer*."""
+    for exc in timed_out:
+        await emit_event(
+            session,
+            redis,
+            event_type="solution.timeout",
+            actor_id=user.id,
+            target_type="challenges",
+            target_id=challenge.id,
+            target_label=challenge.title,
+            ip=get_client_ip(request),
+            meta={
+                "challenge_title": challenge.title,
+                "question_label": question.label,
+                **client_of(request).event_meta(),
+                "team_id": str(user.team_id),
+                "solution_id": str(exc.solution_id),
+                "submission": answer[:200],
+            },
+        )
+
+
 @challenge_router.get("")
 async def list_challenges(
     session: SessionDep,
@@ -450,6 +483,13 @@ async def submit_answer(
             except SolutionTimeoutError as exc:
                 timed_out.append(exc)
 
+    if timed_out and not is_correct:
+        await _emit_timeouts(
+            session, redis, request, user, challenge, question, answer, timed_out
+        )
+        await session.commit()
+        raise AnswerCheckTimeoutError()
+
     points_earned = 0
     if is_correct:
         points_earned = question.points
@@ -503,23 +543,9 @@ async def submit_answer(
         "question_label": question.label,
         **client_meta,
     }
-    for exc in timed_out:
-        await emit_event(
-            session,
-            redis,
-            event_type="solution.timeout",
-            actor_id=user.id,
-            target_type="challenges",
-            target_id=challenge.id,
-            target_label=challenge.title,
-            ip=client_ip,
-            meta={
-                **event_meta_base,
-                "team_id": str(user.team_id),
-                "solution_id": str(exc.solution_id),
-                "submission": answer[:200],
-            },
-        )
+    await _emit_timeouts(
+        session, redis, request, user, challenge, question, answer, timed_out
+    )
     if is_correct:
         await emit_event(
             session,

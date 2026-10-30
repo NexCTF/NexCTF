@@ -998,6 +998,7 @@
   },
   "errors": {
     "api": {
+      "answer_check_timeout": "Checking your answer took too long, so it was not counted. Try again.",
       "team_disqualified": "Your team has been disqualified and can no longer play."
     },
     "not_found": "Page not found",

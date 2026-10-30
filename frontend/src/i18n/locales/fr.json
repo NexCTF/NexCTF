@@ -1001,6 +1001,7 @@
   },
   "errors": {
     "api": {
+      "answer_check_timeout": "La vérification de votre réponse a pris trop de temps, elle n'a donc pas été comptée. Réessayez.",
       "team_disqualified": "Votre équipe a été disqualifiée et ne peut plus jouer."
     },
     "not_found": "Page introuvable",

@@ -168,6 +168,10 @@ const TRANSLATED_ERRORS: Record<string, () => string> = {
     i18n.t("errors.api.team_disqualified", {
       defaultValue: "Your team has been disqualified and can no longer play.",
     }),
+  "SUB-503-TIMEOUT": () =>
+    i18n.t("errors.api.answer_check_timeout", {
+      defaultValue: "Checking your answer took too long, so it was not counted. Try again.",
+    }),
 };
 
 /** Extract a human-readable message from an error, falling back to a provided string. */
