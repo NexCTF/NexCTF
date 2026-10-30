@@ -4,12 +4,12 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from fastapi import HTTPException
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from nexctf.core.config import settings
 from nexctf.core.metrics import incr_counter, read_counters
 from nexctf.core.rate_limit import check_rate_limit
+from nexctf.exceptions import RateLimitedError
 from nexctf.module.metrics.competition import _phase
 
 
@@ -60,7 +60,7 @@ async def test_rejected_rate_limit_counts_its_name() -> None:
     redis = AsyncMock()
     redis.pipeline = MagicMock(return_value=pipeline)
 
-    with pytest.raises(HTTPException):
+    with pytest.raises(RateLimitedError):
         await check_rate_limit(
             redis, "rl:x:y", name="submit", window_seconds=60, max_requests=1
         )

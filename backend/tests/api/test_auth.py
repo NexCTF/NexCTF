@@ -1156,6 +1156,9 @@ class TestLoginRateLimit:
             data={"username": "anyone", "password": "anypass"},
         )
         assert resp.status_code == 429
+        body = resp.json()
+        assert body["error_code"] == "RATE-429"
+        assert "submitting" not in body["description"]
 
     async def test_password_reset_returns_429_when_rate_limited(
         self, http_client, mock_redis

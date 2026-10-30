@@ -1,9 +1,9 @@
 """Integration tests for nexctf.core.rate_limit (real Redis, sliding window)."""
 
 import pytest
-from fastapi import HTTPException
 
 from nexctf.core.rate_limit import check_rate_limit
+from nexctf.exceptions import RateLimitedError
 
 
 async def test_allows_requests_under_limit(redis):
@@ -17,10 +17,8 @@ async def test_blocks_when_limit_exceeded(redis):
     for _ in range(5):
         await check_rate_limit(redis, key, window_seconds=10, max_requests=5)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(RateLimitedError):
         await check_rate_limit(redis, key, window_seconds=10, max_requests=5)
-
-    assert exc_info.value.status_code == 429
 
 
 async def test_independent_keys_do_not_share_counts(redis):

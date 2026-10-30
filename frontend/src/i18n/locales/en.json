@@ -999,6 +999,7 @@
   "errors": {
     "api": {
       "answer_check_timeout": "Checking your answer took too long, so it was not counted. Try again.",
+      "rate_limited": "Too many attempts in a short time. Wait a moment and try again.",
       "team_disqualified": "Your team has been disqualified and can no longer play."
     },
     "not_found": "Page not found",

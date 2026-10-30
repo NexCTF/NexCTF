@@ -164,6 +164,10 @@ export function isReauthRequired(err: unknown): boolean {
 
 /** Translated wording of the API errors players hit, by error code. */
 const TRANSLATED_ERRORS: Record<string, () => string> = {
+  "RATE-429": () =>
+    i18n.t("errors.api.rate_limited", {
+      defaultValue: "Too many attempts in a short time. Wait a moment and try again.",
+    }),
   "SUB-403-DISQUALIFIED": () =>
     i18n.t("errors.api.team_disqualified", {
       defaultValue: "Your team has been disqualified and can no longer play.",

@@ -477,6 +477,15 @@ class EventEndedError(ApiException):
     )
 
 
+class RateLimitedError(ApiException):
+    api_error = ApiError(
+        code=429,
+        msg="Too many requests",
+        desc="Too many attempts in a short time. Wait a moment and try again.",
+        err_code="RATE-429",
+    )
+
+
 class AnswerCheckTimeoutError(ApiException):
     api_error = ApiError(
         code=503,

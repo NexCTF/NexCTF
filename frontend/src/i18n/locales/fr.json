@@ -1002,6 +1002,7 @@
   "errors": {
     "api": {
       "answer_check_timeout": "La vérification de votre réponse a pris trop de temps, elle n'a donc pas été comptée. Réessayez.",
+      "rate_limited": "Trop de tentatives en peu de temps. Patientez un instant puis réessayez.",
       "team_disqualified": "Votre équipe a été disqualifiée et ne peut plus jouer."
     },
     "not_found": "Page introuvable",
