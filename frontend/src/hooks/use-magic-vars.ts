@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getPublicInfo } from "@/lib/api";
 import { showsCountdown } from "@/lib/magic-vars";
+import { serverNow } from "@/lib/server-clock";
 
 function formatDate(iso: string): string {
   if (!iso) return "";
@@ -18,7 +19,7 @@ function formatCountdown(
   unitS: string,
 ): string {
   if (!iso) return "";
-  const delta = new Date(iso).getTime() - Date.now();
+  const delta = new Date(iso).getTime() - serverNow();
   if (delta <= 0) return pastLabel;
 
   const s = Math.floor(delta / 1000) % 60;
@@ -52,7 +53,7 @@ export function useMagicVars(content: string | undefined): Record<string, string
   const ticking =
     !!content &&
     showsCountdown(content) &&
-    [startIso, endIso].some((iso) => iso && Date.parse(iso) > Date.now());
+    [startIso, endIso].some((iso) => iso && Date.parse(iso) > serverNow());
   useEffect(() => {
     if (!ticking) return;
     const id = setInterval(() => tick((n) => n + 1), 1000);

@@ -1,5 +1,6 @@
 import i18n from "i18next";
 import { promptReauth, REAUTH_REQUIRED } from "@/lib/reauth";
+import { syncServerClock } from "@/lib/server-clock";
 
 const BASE = "/api/v1";
 
@@ -300,6 +301,7 @@ export interface PublicInfo {
   oauth_providers: OAuthProvider[];
   captcha: CaptchaInfo;
   links: PublicLink[];
+  server_time: string;
 }
 
 export interface VersionInfo {
@@ -321,7 +323,10 @@ export interface AdminStats {
 }
 
 export async function getPublicInfo(): Promise<PublicInfo> {
-  return request<PublicInfo>("/info");
+  const sentAt = Date.now();
+  const info = await request<PublicInfo>("/info");
+  syncServerClock(info.server_time, sentAt, Date.now());
+  return info;
 }
 
 export async function getMe(): Promise<User> {
