@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { getPublicInfo } from "@/lib/api";
 import { serverNow } from "@/lib/server-clock";
 
@@ -74,4 +74,19 @@ export function useEventPhase(): EventPhase {
     ended,
     open: !upcoming && !ended,
   };
+}
+
+/** Refetch the challenge list and details once the event starts. */
+export function useRefetchChallengesOnStart(): void {
+  const { upcoming } = useEventPhase();
+  const queryClient = useQueryClient();
+  const wasUpcoming = useRef(upcoming);
+
+  useEffect(() => {
+    if (wasUpcoming.current && !upcoming) {
+      void queryClient.invalidateQueries({ queryKey: ["challenges"] });
+      void queryClient.invalidateQueries({ queryKey: ["challenge"] });
+    }
+    wasUpcoming.current = upcoming;
+  }, [upcoming, queryClient]);
 }
