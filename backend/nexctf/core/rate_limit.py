@@ -18,11 +18,12 @@ import logging
 import time
 import uuid as _uuid
 
-from fastapi import HTTPException, Request, status
+from fastapi import Request
 from redis.asyncio import Redis
 
 from nexctf.core import appconfig
 from nexctf.core.metrics import incr_counter
+from nexctf.exceptions import RateLimitedError
 from nexctf.util.ip import get_client_ip
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ async def check_rate_limit(
     max_requests: int,
     name: str = "other",
 ) -> None:
-    """Sliding-window rate limit check. Raises HTTP 429 when the limit is exceeded.
+    """Sliding-window rate limit check. Raises RateLimitedError when the limit is exceeded.
 
     Uses a Redis sorted set where each member is a unique token and the score
     is the request timestamp (Unix seconds). Old entries outside the window are
@@ -62,10 +63,7 @@ async def check_rate_limit(
             extra={"limit_key": key, "max_requests": max_requests},
         )
         await incr_counter(redis, "rate_limited", name)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Rate limit exceeded. Please wait before submitting again.",
-        )
+        raise RateLimitedError()
 
 
 async def check_config_rate_limit(
