@@ -11,6 +11,7 @@ from nexctf.model import Submission
 from nexctf.module.events import emit
 from nexctf.module.scoreboard.cache import invalidate as invalidate_scoreboard
 from nexctf.module.stats import invalidate_team
+from nexctf.module.submission import recalculate_question
 from nexctf.schema.submission import AdminSubmissionRead
 from nexctf.util.ip import get_client_ip
 
@@ -56,6 +57,7 @@ async def delete_submission(
     if not submission:
         raise NotFoundError()
     team_id = submission.team_id
+    question_id = submission.question_id
     result = await crud.SubmissionCrud.delete(
         session=session,
         filters=[Submission.id == uuid],
@@ -77,4 +79,5 @@ async def delete_submission(
             "points_earned": submission.points_earned,
         },
     )
+    await recalculate_question(session, redis, question_id)
     return result

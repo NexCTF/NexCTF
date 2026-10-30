@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from fastapi_toolsets.schemas import PaginatedResponse, Response
-from sqlalchemy import select
+from sqlalchemy import Row, select
 
 from nexctf import crud
 from nexctf.api.dep import RedisDep, SessionDep
@@ -52,20 +52,37 @@ def _trap_set(flags: list[str] | None) -> set[str]:
     return {f.casefold() for f in flags or ()}
 
 
+def _scoring_changed(before: Row, obj: AdminQuestionUpdate) -> bool:
+    """Whether *obj* changes how the question's submissions are scored."""
+    fields = obj.model_fields_set
+    return (
+        (
+            obj.trap_flags is not None
+            and _trap_set(obj.trap_flags) != _trap_set(before.trap_flags)
+        )
+        or (obj.points is not None and obj.points != before.points)
+        or ("malus" in fields and obj.malus != before.malus)
+    )
+
+
 @question_router.put("/{uuid}")
 async def update_question(
     session: SessionDep, redis: RedisDep, uuid: UUID, obj: AdminQuestionUpdate
 ) -> Response[AdminQuestionRead]:
-    traps_before = _trap_set(
-        await session.scalar(select(Question.trap_flags).where(Question.id == uuid))
-    )
+    before = (
+        await session.execute(
+            select(Question.trap_flags, Question.points, Question.malus).where(
+                Question.id == uuid
+            )
+        )
+    ).one_or_none()
     result = await crud.QuestionCrud.update(
         session=session,
         filters=[Question.id == uuid],
         obj=obj,
         schema=AdminQuestionRead,
     )
-    if obj.trap_flags is not None and _trap_set(obj.trap_flags) != traps_before:
+    if before is not None and _scoring_changed(before, obj):
         await recalculate_question(session, redis, uuid)
     return result
 
