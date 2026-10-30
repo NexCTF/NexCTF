@@ -6,6 +6,7 @@ from uuid import UUID
 
 from fastapi_toolsets.exceptions import NotFoundError
 from sqlalchemy import Row, select
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -49,8 +50,8 @@ def _earliest(*times: datetime | None) -> datetime | None:
 async def _fetch_all_submissions(
     session: AsyncSession, before: datetime | None = None
 ) -> Sequence[SubmissionRow]:
-    """Fetch all correct submissions ordered by creation time."""
-    stmt = (
+    """Fetch each team's first correct submission per question, oldest first."""
+    first = (
         select(
             Submission.team_id,
             Submission.question_id,
@@ -58,10 +59,18 @@ async def _fetch_all_submissions(
             Submission.created_at,
         )
         .where(Submission.is_correct.is_(True))
-        .order_by(Submission.created_at)
+        .ext(distinct_on(Submission.team_id, Submission.question_id))
+        .order_by(Submission.team_id, Submission.question_id, Submission.created_at)
     )
     if before is not None:
-        stmt = stmt.where(Submission.created_at <= before)
+        first = first.where(Submission.created_at <= before)
+    solves = first.subquery()
+    stmt = select(
+        solves.c.team_id,
+        solves.c.question_id,
+        solves.c.points_earned,
+        solves.c.created_at,
+    ).order_by(solves.c.created_at)
     return (await session.execute(stmt)).all()
 
 
@@ -446,7 +455,11 @@ async def _fetch_solves(
 
     details: list[PublicSolveDetail] = []
     total = 0
+    seen: set[UUID] = set()
     for sub in rows:
+        if sub.question_id in seen:
+            continue
+        seen.add(sub.question_id)
         question = sub.question
         challenge = question.challenge
         details.append(

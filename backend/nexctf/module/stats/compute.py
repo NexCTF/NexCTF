@@ -97,7 +97,11 @@ async def compute_admin_team_challenge_stats(
         q_count = len(q_ids)
 
         c_subs = [*subs_by_question.get(qid, []) for qid in q_ids]
-        correct_subs = [s for s in c_subs if s.is_correct]
+        first_correct: dict[UUID, Submission] = {}
+        for s in c_subs:
+            if s.is_correct:
+                first_correct.setdefault(s.question_id, s)
+        correct_subs = list(first_correct.values())
 
         solved_q_ids = {s.question_id for s in correct_subs}
         solved_q_count = len(solved_q_ids & q_ids)
