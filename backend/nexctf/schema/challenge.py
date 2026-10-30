@@ -2,7 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi_toolsets.schemas import PydanticBase
-from pydantic import Field
+from pydantic import StringConstraints
 
 from nexctf.schema.feedback import PublicFeedbackRead
 from nexctf.schema.question import PublicQuestionRead
@@ -75,7 +75,9 @@ class AdminChallengeTypeInfo(PydanticBase):
 
 
 class SubmitBody(PydanticBase):
-    answer: Annotated[str, Field(max_length=16_384)]
+    answer: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=16_384)
+    ]
 
 
 class SubmitResult(PydanticBase):
