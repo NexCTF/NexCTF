@@ -50,6 +50,18 @@ class _FakeRedis:
     async def get(self, key: str) -> bytes | None:
         return self.store.get(key)
 
+    async def set(self, key: str, value: str, *, nx: bool = False, **_: object) -> bool:
+        if nx and key in self.store:
+            return False
+        self.store[key] = value.encode()
+        return True
+
+    async def eval(self, _script: str, _numkeys: int, key: str, token: str) -> int:
+        if self.store.get(key) != token.encode():
+            return 0
+        del self.store[key]
+        return 1
+
     def pipeline(self) -> _FakePipeline:
         return _FakePipeline(self.store)
 

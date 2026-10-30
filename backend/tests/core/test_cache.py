@@ -1,10 +1,13 @@
 """Integration tests for nexctf.core.cache.get_or_compute (real Redis)."""
 
+import asyncio
 from datetime import timedelta
 from unittest.mock import AsyncMock
 
+import pytest
 from pydantic import TypeAdapter
 
+from nexctf.core import cache
 from nexctf.core.cache import DEFAULT_TTL, drop_registered, get_or_compute
 
 
@@ -98,3 +101,59 @@ async def test_stale_payload_is_recomputed(redis, cache_key):
     assert result == {"n": 1}
     compute.assert_awaited_once()
     assert adapter.validate_json(await redis.get(cache_key)) == {"n": 1}
+
+
+@pytest.fixture
+async def compute_lock(redis, cache_key):
+    """The lock key guarding *cache_key*'s computation, deleted after the test."""
+    key = f"{cache_key}:computing"
+    yield key
+    await redis.delete(key)
+
+
+async def test_concurrent_misses_compute_once(redis, cache_key, compute_lock):
+    adapter = TypeAdapter(str)
+    calls = 0
+
+    async def _slow() -> str:
+        nonlocal calls
+        calls += 1
+        await asyncio.sleep(0.2)
+        return "fresh"
+
+    results = await asyncio.gather(
+        *(get_or_compute(redis, cache_key, adapter, _slow) for _ in range(5))
+    )
+
+    assert results == ["fresh"] * 5
+    assert calls == 1
+    assert await redis.exists(compute_lock) == 0
+
+
+async def test_a_failed_compute_releases_the_lock(redis, cache_key, compute_lock):
+    adapter = TypeAdapter(str)
+
+    with pytest.raises(RuntimeError):
+        await get_or_compute(
+            redis, cache_key, adapter, AsyncMock(side_effect=RuntimeError("boom"))
+        )
+
+    assert await redis.exists(compute_lock) == 0
+    assert (
+        await get_or_compute(redis, cache_key, adapter, AsyncMock(return_value="ok"))
+        == "ok"
+    )
+
+
+async def test_a_stuck_holder_does_not_block_forever(
+    redis, cache_key, compute_lock, monkeypatch
+):
+    monkeypatch.setattr(cache, "_COMPUTE_WAIT_SECONDS", 0.1)
+    await redis.set(compute_lock, "someone-else", px=10_000)
+
+    result = await get_or_compute(
+        redis, cache_key, TypeAdapter(str), AsyncMock(return_value="ok")
+    )
+
+    assert result == "ok"
+    assert await redis.get(compute_lock) == "someone-else"
