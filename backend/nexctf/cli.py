@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
 from nexctf.api.scope import full_admin_scopes
-from nexctf.api.security import TOKEN_PREFIX, _hash_token, hash_password
+from nexctf.api.security import TOKEN_PREFIX, _hash_token, hash_password_async
 from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.config import settings
 from nexctf.core.db import get_db_context
@@ -45,7 +45,7 @@ async def create_default_admin(session: AsyncSession) -> bool:
 
     admin = User(
         username=settings.DEFAULT_ADMIN_USERNAME,
-        hashed_password=hash_password(settings.DEFAULT_ADMIN_PASSWORD),
+        hashed_password=await hash_password_async(settings.DEFAULT_ADMIN_PASSWORD),
         role=UserRole.admin,
     )
     session.add(admin)

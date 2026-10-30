@@ -21,7 +21,7 @@ from nexctf.api.dep import (
 )
 from nexctf.api.security import (
     current_sid_hash,
-    hash_password,
+    hash_password_async,
     issue_password_reset_token,
 )
 from nexctf.core.eventbus import close_user_streams
@@ -89,7 +89,7 @@ async def create_user(
             obj=UserCreate(
                 username=obj.username,
                 email=obj.email,
-                hashed_password=hash_password(obj.password),
+                hashed_password=await hash_password_async(obj.password),
                 email_verified=True,
                 role=obj.role,
                 team_id=obj.team_id,
