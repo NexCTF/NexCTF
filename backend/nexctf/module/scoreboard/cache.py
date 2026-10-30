@@ -7,7 +7,7 @@ from pydantic import TypeAdapter
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.core.cache import DEFAULT_TTL, drop_registered, get_or_compute
+from nexctf.core.cache import DEFAULT_TTL, drop_keys, drop_registered, get_or_compute
 from nexctf.module.scoreboard.compute import (
     compute_admin_scoreboard,
     compute_scoreboard,
@@ -140,7 +140,7 @@ async def invalidate(redis: Redis, team_id: UUID | None = None) -> None:
         return
 
     await drop_registered(redis, _BOARD_REGISTRY, _ADMIN_REGISTRY)
-    await redis.delete(f"{_TEAM_KEY_PREFIX}{team_id}")
+    await drop_keys(redis, f"{_TEAM_KEY_PREFIX}{team_id}")
 
 
 async def invalidate_play(

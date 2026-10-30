@@ -17,41 +17,41 @@ FROZEN = {"ctf.freeze_time": FREEZE.isoformat()}
 
 @pytest.fixture
 def dropped(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """Record every registry the cache drops."""
-    registries: list[str] = []
+    """Record every registry and key the cache drops."""
+    names: list[str] = []
 
-    async def _record(_redis: object, *names: str) -> None:
-        registries.extend(names)
+    async def _record(_redis: object, *dropped_names: str) -> None:
+        names.extend(dropped_names)
 
     monkeypatch.setattr(cache, "drop_registered", _record)
-    return registries
+    monkeypatch.setattr(cache, "drop_keys", _record)
+    return names
 
 
 async def test_a_play_after_the_freeze_only_drops_the_admin_board(
     dropped: list[str],
 ) -> None:
-    redis = AsyncMock()
-
     await invalidate_play(
-        redis, uuid4(), played_at=FREEZE + timedelta(seconds=1), overrides=FROZEN
+        AsyncMock(), uuid4(), played_at=FREEZE + timedelta(seconds=1), overrides=FROZEN
     )
 
     assert dropped == [cache._ADMIN_REGISTRY]
-    redis.delete.assert_not_awaited()
 
 
 async def test_a_play_before_the_freeze_drops_every_board(
     dropped: list[str],
 ) -> None:
     team_id = uuid4()
-    redis = AsyncMock()
 
     await invalidate_play(
-        redis, team_id, played_at=FREEZE - timedelta(seconds=1), overrides=FROZEN
+        AsyncMock(), team_id, played_at=FREEZE - timedelta(seconds=1), overrides=FROZEN
     )
 
-    assert set(dropped) == {cache._BOARD_REGISTRY, cache._ADMIN_REGISTRY}
-    redis.delete.assert_awaited_once_with(f"scoreboard:team:{team_id}")
+    assert set(dropped) == {
+        cache._BOARD_REGISTRY,
+        cache._ADMIN_REGISTRY,
+        f"scoreboard:team:{team_id}",
+    }
 
 
 async def test_without_a_freeze_a_play_drops_every_board(
@@ -59,7 +59,7 @@ async def test_without_a_freeze_a_play_drops_every_board(
 ) -> None:
     await invalidate_play(AsyncMock(), uuid4(), played_at=FREEZE, overrides={})
 
-    assert set(dropped) == {cache._BOARD_REGISTRY, cache._ADMIN_REGISTRY}
+    assert {cache._BOARD_REGISTRY, cache._ADMIN_REGISTRY} <= set(dropped)
 
 
 async def test_the_admin_board_has_its_own_registry(
