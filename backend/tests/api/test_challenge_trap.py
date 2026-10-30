@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 from uuid import UUID
 
-import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.core.db import db
 from nexctf.model import Submission, Team, User
 from nexctf.model.question import Hint, Question
 from nexctf.module.submission import recalculate_question
@@ -45,17 +42,6 @@ async def _setup(
     db_session.add(MatchSolution(value=FLAG, question_id=question.id))
     await db_session.flush()
     return challenge, question
-
-
-@pytest.fixture
-def local_recalc(monkeypatch, db_session: AsyncSession):
-    """Run recalculate_question on the test session instead of a locked one."""
-
-    @asynccontextmanager
-    async def _yield_test_session(*_args, **_kwargs):
-        yield db_session
-
-    monkeypatch.setattr(db, "lock_tables", _yield_test_session)
 
 
 class TestTrapSubmission:
@@ -153,7 +139,6 @@ class TestTrapSurvivesRecalculation:
         user_client: tuple[AsyncClient, User],
         db_session: AsyncSession,
         mock_redis,
-        local_recalc,
     ) -> None:
         """recalculate_question runs on every solution write; it must not pay
         out a trap submission."""
@@ -178,7 +163,6 @@ class TestTrapSurvivesRecalculation:
         user_client: tuple[AsyncClient, User],
         db_session: AsyncSession,
         mock_redis,
-        local_recalc,
     ) -> None:
         """Clearing trap_flags and recalculating unmarks past submissions."""
         c, user = user_client
@@ -206,7 +190,6 @@ class TestAdminTrapEdit:
         admin_client: tuple[AsyncClient, User],
         user_client: tuple[AsyncClient, User],
         db_session: AsyncSession,
-        local_recalc,
     ) -> None:
         c, user = user_client
         admin, _ = admin_client
