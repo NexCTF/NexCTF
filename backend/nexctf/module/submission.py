@@ -76,6 +76,7 @@ async def recalculate_question(
         new_is_trap = question.is_trap(sub.answer)
 
         new_is_correct = False
+        timed_out = False
         if not new_is_trap:
             for sol in question.solutions:
                 try:
@@ -83,6 +84,7 @@ async def recalculate_question(
                         new_is_correct = True
                         break
                 except SolutionTimeoutError as exc:
+                    timed_out = True
                     if (
                         exc.solution_id is not None
                         and exc.solution_id not in timed_out_solutions
@@ -101,6 +103,9 @@ async def recalculate_question(
                                 "context": "recalculation",
                             },
                         )
+
+        if timed_out and not new_is_correct:
+            new_is_correct = sub.is_correct
 
         if new_is_correct and team_id not in solved_teams:
             new_points = max(0, question.points - (question.malus or 0) * wrong_before)
