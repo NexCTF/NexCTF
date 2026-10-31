@@ -1,5 +1,6 @@
 """Tests for the cookie credential validator and TOTP check in nexctf.api.security."""
 
+import threading
 import time
 import uuid
 
@@ -12,8 +13,34 @@ from nexctf.api.security import (
     TOTP_LAST_STEP_KEY_PREFIX,
     TOTP_LAST_STEP_TTL,
     _verify_cookie,
+    hash_password,
+    hash_password_async,
+    verify_password,
+    verify_password_async,
     verify_totp_once,
 )
+
+
+class TestPasswordHashingPool:
+    """Argon2 runs on its own thread pool, never on the event loop."""
+
+    async def test_hash_and_verify_run_on_the_argon2_pool(self, monkeypatch) -> None:
+        threads: list[str] = []
+
+        def spy(fn):
+            def wrapped(*args):
+                threads.append(threading.current_thread().name)
+                return fn(*args)
+
+            return wrapped
+
+        monkeypatch.setattr("nexctf.api.security.hash_password", spy(hash_password))
+        monkeypatch.setattr("nexctf.api.security.verify_password", spy(verify_password))
+        hashed = await hash_password_async("pw")
+        assert await verify_password_async("pw", hashed)
+        assert not await verify_password_async("nope", hashed)
+        assert len(threads) == 3
+        assert all(name.startswith("argon2") for name in threads)
 
 
 class TestVerifyCookie:

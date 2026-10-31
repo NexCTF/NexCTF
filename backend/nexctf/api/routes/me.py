@@ -31,9 +31,9 @@ from nexctf.api.security import (
     cookie_auth,
     create_api_token,
     current_sid_hash,
-    hash_password,
+    hash_password_async,
     issue_session_cookie,
-    verify_password,
+    verify_password_async,
     verify_totp_once,
 )
 from nexctf.core import appconfig
@@ -338,7 +338,7 @@ async def change_password(
     user: FreshSessionDep,
 ):
     """Verify the current password, replace it, and log out other sessions."""
-    if not user.hashed_password or not verify_password(
+    if not user.hashed_password or not await verify_password_async(
         body.current_password, user.hashed_password
     ):
         raise InvalidCredentialsError()
@@ -348,7 +348,7 @@ async def change_password(
         filters=[User.id == user.id],
         obj=UserPasswordUpdate(
             id=user.id,
-            hashed_password=hash_password(body.new_password),
+            hashed_password=await hash_password_async(body.new_password),
             session_version=session_version,
         ),
     )

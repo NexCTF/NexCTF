@@ -1,6 +1,8 @@
+import asyncio
 import hashlib
 import secrets
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from uuid import UUID
@@ -48,6 +50,8 @@ LAST_USED_THROTTLE = timedelta(minutes=5)
 REAUTH_WINDOW = 600  # 10 minutes
 
 _ph = PasswordHasher(time_cost=2, memory_cost=19456, parallelism=1)
+_HASH_WORKERS = 4
+_HASH_POOL = ThreadPoolExecutor(max_workers=_HASH_WORKERS, thread_name_prefix="argon2")
 
 
 def hash_password(password: str) -> str:
@@ -61,15 +65,27 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
+async def hash_password_async(password: str) -> str:
+    """Hash *password* on the Argon2 pool, leaving the event loop free."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_HASH_POOL, hash_password, password)
+
+
+async def verify_password_async(plain: str, hashed: str) -> bool:
+    """Verify *plain* against *hashed* on the Argon2 pool, leaving the event loop free."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_HASH_POOL, verify_password, plain, hashed)
+
+
 # Precomputed hash of a throwaway password. Verifying against it lets login
 # spend the same Argon2 cost when the account is missing or has no password as
 # when it exists, so response timing does not reveal which usernames are valid.
 _DUMMY_PASSWORD_HASH = _ph.hash("nexctf-dummy-password")
 
 
-def dummy_verify_password(plain: str) -> None:
+async def dummy_verify_password(plain: str) -> None:
     """Run a throwaway verification to match the cost of a real password check."""
-    verify_password(plain, _DUMMY_PASSWORD_HASH)
+    await verify_password_async(plain, _DUMMY_PASSWORD_HASH)
 
 
 PWD_RESET_KEY_PREFIX = "pwd_reset:"

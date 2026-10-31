@@ -1,6 +1,7 @@
 """Tests for the auth endpoints: register, token login/logout, /me/tokens, TOTP, and OAuth."""
 
 import hashlib
+import threading
 from datetime import UTC
 from unittest.mock import AsyncMock, patch
 
@@ -234,6 +235,24 @@ class TestLogin:
         )
         assert resp.status_code == 204
         assert "NexCTF" in resp.cookies
+
+    @pytest.mark.parametrize("username", ["offloop", "nobody"])
+    async def test_login_hashes_off_the_event_loop(
+        self, http_client, db_session, monkeypatch, username
+    ):
+        db_session.add(User(username="offloop", hashed_password=hash_password("pw")))
+        await db_session.flush()
+        threads: list[str] = []
+
+        def spy(plain: str, hashed: str) -> bool:
+            threads.append(threading.current_thread().name)
+            return verify_password(plain, hashed)
+
+        monkeypatch.setattr("nexctf.api.security.verify_password", spy)
+        await http_client.post(
+            "/auth/token", data={"username": username, "password": "pw"}
+        )
+        assert len(threads) == 1 and threads[0].startswith("argon2")
 
     async def test_login_ignores_username_case(self, http_client, db_session):
         db_session.add(User(username="MixedCase", hashed_password=hash_password("pw")))

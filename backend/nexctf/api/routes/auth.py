@@ -44,12 +44,12 @@ from nexctf.api.security import (
     consume_single_use_token,
     cookie_auth,
     dummy_verify_password,
-    hash_password,
+    hash_password_async,
     issue_password_reset_token,
     issue_session_cookie,
     issue_single_use_token,
     reissue_session_cookie,
-    verify_password,
+    verify_password_async,
     verify_totp_once,
 )
 from nexctf.core import appconfig
@@ -198,7 +198,7 @@ async def register(
             obj=UserCreate(
                 username=obj.username,
                 email=obj.email,
-                hashed_password=hash_password(obj.password),
+                hashed_password=await hash_password_async(obj.password),
                 email_verified=not email_enabled,
             ),
             schema=PublicUserRead,
@@ -278,9 +278,9 @@ async def login(
     # is missing or has no password — so login timing does not reveal which
     # usernames exist (user enumeration via response timing).
     if user and user.hashed_password:
-        password_valid = verify_password(password, user.hashed_password)
+        password_valid = await verify_password_async(password, user.hashed_password)
     else:
-        dummy_verify_password(password)
+        await dummy_verify_password(password)
         password_valid = False
     if not user or not password_valid:
         await _record_login_failure(
@@ -346,7 +346,7 @@ async def _reauth_failure_reason(
     """Why *body* does not re-prove *user*'s identity, or None when it does."""
     if not (user.hashed_password or user.totp_secret):
         return "no_factor"
-    if user.hashed_password and not verify_password(
+    if user.hashed_password and not await verify_password_async(
         body.password or "", user.hashed_password
     ):
         return "bad_password"
@@ -431,7 +431,7 @@ async def reset_password(
         filters=[User.id == user.id],
         obj=UserPasswordUpdate(
             id=user.id,
-            hashed_password=hash_password(body.new_password),
+            hashed_password=await hash_password_async(body.new_password),
             session_version=user.session_version + 1,
         ),
     )
