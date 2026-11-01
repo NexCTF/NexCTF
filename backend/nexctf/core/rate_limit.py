@@ -34,6 +34,20 @@ def client_rate_key(action: str, request: Request) -> str:
     return f"rl:{action}:{get_client_ip(request) or 'unknown'}"
 
 
+def _member(now: float) -> str:
+    """A unique sorted-set member for one request at *now*."""
+    return f"{now:.6f}-{_uuid.uuid4().hex[:8]}"
+
+
+async def _refuse(redis: Redis, key: str, limit: int, name: str) -> None:
+    """Log and count a refusal, then raise RateLimitedError."""
+    logger.warning(
+        "rate limit hit on %s", key, extra={"limit_key": key, "max_requests": limit}
+    )
+    await incr_counter(redis, "rate_limited", name)
+    raise RateLimitedError()
+
+
 async def check_rate_limit(
     redis: Redis,
     key: str,
@@ -46,10 +60,11 @@ async def check_rate_limit(
 
     Uses a Redis sorted set where each member is a unique token and the score
     is the request timestamp (Unix seconds). Old entries outside the window are
-    pruned on every call so the set never grows unboundedly.
+    pruned on every call so the set never grows unboundedly. A refused request
+    is not counted, so the window frees up while a client keeps retrying.
     """
     now = time.time()
-    member = f"{now:.6f}-{_uuid.uuid4().hex[:8]}"
+    member = _member(now)
     pipe = redis.pipeline()
     pipe.zremrangebyscore(key, "-inf", now - window_seconds)
     pipe.zadd(key, {member: now})
@@ -57,13 +72,27 @@ async def check_rate_limit(
     pipe.expire(key, window_seconds + 1)
     results = await pipe.execute()
     if results[2] > max_requests:
-        logger.warning(
-            "rate limit hit on %s",
-            key,
-            extra={"limit_key": key, "max_requests": max_requests},
-        )
-        await incr_counter(redis, "rate_limited", name)
-        raise RateLimitedError()
+        await redis.zrem(key, member)
+        await _refuse(redis, key, max_requests, name)
+
+
+async def check_failure_limit(
+    redis: Redis, key: str, *, window_seconds: int, max_failures: int, name: str
+) -> None:
+    """Raise RateLimitedError once *key* recorded *max_failures* within the window."""
+    since = time.time() - window_seconds
+    if await redis.zcount(key, f"({since}", "+inf") >= max_failures:
+        await _refuse(redis, key, max_failures, name)
+
+
+async def record_failure(redis: Redis, key: str, *, window_seconds: int) -> None:
+    """Count one failure against *key* for ``check_failure_limit``."""
+    now = time.time()
+    pipe = redis.pipeline()
+    pipe.zremrangebyscore(key, "-inf", now - window_seconds)
+    pipe.zadd(key, {_member(now): now})
+    pipe.expire(key, window_seconds + 1)
+    await pipe.execute()
 
 
 async def check_config_rate_limit(

@@ -112,6 +112,7 @@ def mock_redis(config_overrides: dict[str, str]):
     redis_mock.pipeline = MagicMock(return_value=_pipeline)
 
     redis_mock.sunion = AsyncMock(return_value=set())
+    redis_mock.zcount = AsyncMock(return_value=0)
     return redis_mock
 
 

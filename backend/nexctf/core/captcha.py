@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import time
 
@@ -58,7 +59,8 @@ async def verify_captcha(
         await incr_counter(redis, "captcha_failures", "malformed")
         raise CaptchaInvalidError()
 
-    if not altcha.verify_solution(payload, _hmac_secret()).verified:
+    result = await asyncio.to_thread(altcha.verify_solution, payload, _hmac_secret())
+    if not result.verified:
         await incr_counter(redis, "captcha_failures", "invalid")
         raise CaptchaInvalidError()
 

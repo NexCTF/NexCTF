@@ -1184,6 +1184,38 @@ class TestLoginRateLimit:
         assert body["error_code"] == "RATE-429"
         assert "submitting" not in body["description"]
 
+    @pytest.mark.parametrize(
+        ("path", "kwargs"),
+        [
+            ("/auth/token", {"data": {"username": "u", "password": "p"}}),
+            (
+                "/auth/register",
+                {"json": {"username": "newbie", "password": "longenough1"}},
+            ),
+        ],
+    )
+    async def test_rate_limit_runs_before_the_captcha(
+        self, http_client, mock_redis, config_overrides, path: str, kwargs: dict
+    ) -> None:
+        config_overrides["captcha.enabled"] = "true"
+        config_overrides["ctf.allow_registration"] = "true"
+        mock_redis.pipeline.return_value.execute = AsyncMock(
+            return_value=[None, None, 99, None]
+        )
+        resp = await http_client.post(path, **kwargs)
+        assert resp.status_code == 429
+
+    async def test_login_returns_429_once_the_account_collected_failures(
+        self, http_client, mock_redis
+    ) -> None:
+        mock_redis.zcount = AsyncMock(return_value=20)
+        resp = await http_client.post(
+            "/auth/token",
+            data={"username": "Target", "password": "anypass"},
+        )
+        assert resp.status_code == 429
+        assert mock_redis.zcount.call_args[0][0] == "rl:login_fail:target"
+
     async def test_password_reset_returns_429_when_rate_limited(
         self, http_client, mock_redis
     ) -> None:

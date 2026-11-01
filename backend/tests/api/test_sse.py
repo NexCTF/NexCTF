@@ -22,6 +22,7 @@ from nexctf.model import User
 @pytest.fixture(autouse=True)
 def reset_state():
     sse._active.update(authed=0, public=0)
+    sse._by_owner.clear()
     eventbus._subscribers.clear()
     eventbus._reader_task = None
     yield
@@ -36,7 +37,7 @@ def _open(channels: list[str], budget: str = "public") -> asyncio.Task:
         async for _ in stream:
             pass
 
-    return asyncio.create_task(_drain(sse._sse_listener(channels, budget)))
+    return asyncio.create_task(_drain(sse._sse_listener(channels, budget, "ip:test")))
 
 
 class TestStreamCapacity:
@@ -58,6 +59,40 @@ class TestStreamCapacity:
         c, _ = user_client
         resp = await c.get("/stream")
         assert resp.status_code == 503
+
+    async def test_one_user_cannot_take_the_whole_budget(
+        self, user_client: tuple[AsyncClient, User], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(settings, "SSE_MAX_STREAMS_PER_USER", 2)
+        c, user = user_client
+        sse._by_owner[f"user:{user.id}"] = 2
+        resp = await c.get("/stream")
+        assert resp.status_code == 429
+
+    async def test_one_address_cannot_take_the_public_budget(
+        self, http_client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(settings, "SSE_MAX_PUBLIC_STREAMS_PER_IP", 2)
+        sse._by_owner["ip:127.0.0.1"] = 2
+        resp = await http_client.get("/stream/public")
+        assert resp.status_code == 429
+
+    async def test_owner_share_released_when_stream_ends(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(eventbus, "_ensure_reader", lambda: None)
+
+        async def _drain() -> None:
+            async for _ in sse._sse_listener(["config:update"], "public", "ip:x"):
+                pass
+
+        task = asyncio.create_task(_drain())
+        await asyncio.sleep(0.05)
+        assert sse._by_owner["ip:x"] == 1
+        task.cancel()
+        with contextlib.suppress(BaseException):
+            await task
+        assert "ip:x" not in sse._by_owner
 
     async def test_budgets_are_independent(
         self, monkeypatch: pytest.MonkeyPatch
@@ -231,7 +266,7 @@ class TestStreamClose:
         async def _drain() -> list[str | None]:
             seen: list[str | None] = []
             async for event in sse._sse_listener(
-                ["config:update"], "authed", close_on=close
+                ["config:update"], "authed", "user:abc", close_on=close
             ):
                 seen.append(event.event)
             return seen

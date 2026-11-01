@@ -66,8 +66,10 @@ from nexctf.core.eventbus import close_user_streams
 from nexctf.core.logging import bind_user_context
 from nexctf.core.rate_limit import (
     check_config_rate_limit,
+    check_failure_limit,
     check_rate_limit,
     client_rate_key,
+    record_failure,
 )
 from nexctf.exceptions import (
     AccountDisabledError,
@@ -182,7 +184,6 @@ async def register(
 ):
     if not appconfig.get_with_overrides("ctf.allow_registration", overrides):
         raise RegistrationDisabledError()
-    await verify_captcha(redis, overrides, obj.captcha_token)
     client_ip = get_client_ip(request)
     await check_rate_limit(
         redis,
@@ -191,6 +192,7 @@ async def register(
         window_seconds=60,
         max_requests=5,
     )
+    await verify_captcha(redis, overrides, obj.captcha_token)
     # When SMTP is enabled an email is mandatory: it is the verification channel
     # and the login gate keys off it. With SMTP off, email stays optional.
     email_enabled = _email_enabled(overrides)
@@ -227,6 +229,30 @@ async def register(
     return result
 
 
+_ACCOUNT_FAILURES = 20
+_ACCOUNT_WINDOW = 900
+_GUESS_REASONS = frozenset({"bad_password", "unknown_user", "bad_totp"})
+
+
+def _account_key(username: str) -> str:
+    return f"rl:login_fail:{username.lower()}"
+
+
+async def _check_account_failures(
+    redis: Redis, overrides: dict[str, str], username: str
+) -> None:
+    """Refuse a sign-in once the account collected too many wrong guesses."""
+    if not appconfig.get_with_overrides("rate_limit.login.enabled", overrides):
+        return
+    await check_failure_limit(
+        redis,
+        _account_key(username),
+        window_seconds=_ACCOUNT_WINDOW,
+        max_failures=_ACCOUNT_FAILURES,
+        name="login_account",
+    )
+
+
 async def _record_login_failure(
     session: AsyncSession,
     redis: Redis,
@@ -241,6 +267,10 @@ async def _record_login_failure(
     The login handler raises an HTTP error right after, which would otherwise
     roll the event back before the request-end commit runs.
     """
+    if reason.removeprefix("reauth_") in _GUESS_REASONS:
+        await record_failure(
+            redis, _account_key(username), window_seconds=_ACCOUNT_WINDOW
+        )
     logger.warning(
         "login failed for %s (%s)",
         username,
@@ -270,11 +300,12 @@ async def login(
     totp_code: Annotated[str | None, Form()] = None,
     captcha_token: Annotated[str | None, Form()] = None,
 ):
-    await verify_captcha(redis, overrides, captcha_token)
     client_ip = get_client_ip(request)
     await check_config_rate_limit(
         redis, overrides, name="login", key=client_rate_key("login", request)
     )
+    await verify_captcha(redis, overrides, captcha_token)
+    await _check_account_failures(redis, overrides, username)
     user = await crud.UserCrud.first(
         session=session, filters=[func.lower(User.username) == username.lower()]
     )
@@ -380,6 +411,7 @@ async def reauth(
     await check_config_rate_limit(
         redis, overrides, name="login", key=client_rate_key("login", request)
     )
+    await _check_account_failures(redis, overrides, user.username)
     client_ip = get_client_ip(request)
     reason = await _reauth_failure_reason(redis, user, body)
     if reason is not None:
