@@ -1167,7 +1167,8 @@
   "settings": {
     "oauth": {
       "connect": "Connecter",
-      "section_hint": "Gérez les fournisseurs OAuth liés à votre compte.",
+      "connect_error": "",
+      "section_hint": "Gérez les fournisseurs OAuth liés à votre compte. Une connexion via l'un d'eux ne demande pas votre code 2FA.",
       "section_title": "Comptes connectés",
       "unlink": "Dissocier",
       "unlink_confirm": "Dissocier {{name}} ?",

@@ -15,6 +15,10 @@ class OAuthAccountCreate(PydanticBase):
     subject: str
 
 
+class PublicOAuthLinkRead(PydanticBase):
+    redirect_to: str
+
+
 class PublicOAuthAccountRead(PydanticBase):
     id: UUID
     provider_slug: str

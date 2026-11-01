@@ -19,7 +19,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from nexctf import crud
-from nexctf.api.security import _verify_token, hash_password, verify_password
+from nexctf.api.security import (
+    REAUTH_WINDOW,
+    _verify_token,
+    hash_password,
+    verify_password,
+)
 from nexctf.core.config import settings
 from nexctf.exceptions import CaptchaInvalidError, CaptchaRequiredError
 from nexctf.model import Event, OAuthAccount, OAuthProvider, User, UserRole, UserToken
@@ -1307,24 +1312,21 @@ class TestOAuthLinking:
         assert new_user is not None
         assert new_user.email is None  # conflicting email was not assigned
 
-    async def test_oauth_links_to_logged_in_session(
-        self, client_factory, db_session, override_db_context, oauth_provider, idp
-    ) -> None:
-        """When a user is already logged in and completes an OAuth callback for a
-        new (sub, provider) pair, the OAuthAccount is linked to their existing user."""
-        user = User(username="already_logged_in", hashed_password=hash_password("pass"))
-        db_session.add(user)
+    async def _sign_in(self, c, db_session, username: str):
+        db_session.add(User(username=username, hashed_password=hash_password("pass")))
         await db_session.flush()
+        resp = await c.post(
+            "/auth/token", data={"username": username, "password": "pass"}
+        )
+        assert resp.status_code == 204
 
-        async with client_factory() as c:
-            login = await c.post(
-                "/auth/token",
-                data={"username": "already_logged_in", "password": "pass"},
-            )
-            assert login.status_code == 204
-
-            callback_resp = await idp.login(c, "new-oauth-sub-for-existing-user")
+    async def test_link_flow_links_to_logged_in_session(
+        self, signed_in_client, db_session, oauth_provider, idp
+    ) -> None:
+        async with signed_in_client("linker", "pass", UserRole.user) as (c, user):
+            callback_resp = await idp.link(c, "new-oauth-sub-for-existing-user")
             assert callback_resp.status_code == 302
+            assert "NexCTF" not in callback_resp.cookies
 
         oauth_acct = await crud.OAuthAccountCrud.first(
             session=db_session,
@@ -1332,6 +1334,44 @@ class TestOAuthLinking:
         )
         assert oauth_acct is not None
         assert oauth_acct.user_id == user.id
+
+    async def test_sign_in_flow_does_not_link_a_new_identity(
+        self, signed_in_client, db_session, oauth_provider, idp
+    ) -> None:
+        async with signed_in_client("no_linker", "pass", UserRole.user) as (c, _):
+            resp = await idp.login(c, "unlinked-sub")
+
+        assert resp.status_code == 409
+        assert resp.json()["error_code"] == "OAUTH-409-LINK-NOT-STARTED"
+        assert not await crud.OAuthAccountCrud.exists(
+            session=db_session, filters=[OAuthAccount.subject == "unlinked-sub"]
+        )
+
+    async def test_link_needs_a_fresh_session(
+        self, signed_in_client, oauth_provider, idp
+    ) -> None:
+        async with signed_in_client(
+            "stale_linker", "pass", UserRole.user, age=REAUTH_WINDOW + 100
+        ) as (c, _):
+            resp = await idp.start_link(c)
+
+        assert resp.status_code == 401
+        assert resp.json()["error_code"] == "AUTH-REAUTH-REQUIRED"
+
+    async def test_link_flow_is_bound_to_its_initiator(
+        self, client_factory, db_session, override_db_context, oauth_provider, idp
+    ) -> None:
+        async with client_factory() as c:
+            await self._sign_in(c, db_session, "link_initiator")
+            assert (await idp.start_link(c)).status_code == 200
+            await c.post("/auth/logout")
+            await self._sign_in(c, db_session, "link_hijacker")
+            resp = await idp.callback(c, {"sub": "hijacked-sub"})
+
+        assert resp.status_code == 401
+        assert not await crud.OAuthAccountCrud.exists(
+            session=db_session, filters=[OAuthAccount.subject == "hijacked-sub"]
+        )
 
     async def test_oauth_callback_rejects_link_when_subject_belongs_to_different_user(
         self, client_factory, db_session, override_db_context, oauth_provider, idp

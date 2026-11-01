@@ -16,6 +16,7 @@ import {
   getMySessions,
   getMyTokens,
   getPublicInfo,
+  startOAuthLink,
   totpSetup,
   updateMyProfile,
 } from "@/lib/api";
@@ -46,6 +47,7 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   deleteMySession: vi.fn(),
   deleteAllSessions: vi.fn(),
   deleteMyOAuthAccount: vi.fn(),
+  startOAuthLink: vi.fn(),
   changePassword: vi.fn(),
   totpSetup: vi.fn(),
   getMyProfile: vi.fn(),
@@ -314,7 +316,9 @@ it("offers to connect an unlinked provider and to unlink a linked one", async ()
   renderSettings();
 
   expect(await screen.findByRole("heading", { name: "Connected accounts" })).toBeDefined();
-  expect(screen.getByRole("link", { name: "Connect" })).toBeDefined();
+  vi.mocked(startOAuthLink).mockRejectedValue(new ApiError(404, "Not found", null, "RES-404"));
+  await userEvent.click(screen.getByRole("button", { name: "Connect" }));
+  await waitFor(() => expect(startOAuthLink).toHaveBeenCalledWith("gitlab", window.location.href));
 
   await clickAndConfirm(screen.getByRole("button", { name: "Unlink" }), "Unlink");
   await waitFor(() => expect(deleteMyOAuthAccount).toHaveBeenCalledWith("acc1"));

@@ -23,6 +23,7 @@ from fastapi_multiauth.oauth import (
     oauth_validate_id_token,
 )
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError, UnauthorizedError
+from fastapi_toolsets.schemas import Response
 from redis.asyncio import Redis
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -32,6 +33,7 @@ from sqlalchemy.orm import selectinload
 from nexctf import crud
 from nexctf.api.dep import (
     ConfigDep,
+    FreshSessionDep,
     ProviderDep,
     RedisDep,
     SessionDep,
@@ -76,6 +78,7 @@ from nexctf.exceptions import (
     InvalidResetTokenError,
     InvalidVerificationTokenError,
     OAuthAccountAlreadyLinkedError,
+    OAuthLinkNotStartedError,
     OAuthProviderConfigError,
     OAuthProviderResponseError,
     RegistrationDisabledError,
@@ -96,6 +99,7 @@ from nexctf.schema import (
     PublicUserRead,
     UserCreate,
 )
+from nexctf.schema.oauth import PublicOAuthLinkRead
 from nexctf.schema.user import (
     EmailVerifyRequest,
     ForgotPasswordRequest,
@@ -638,13 +642,14 @@ async def _resolve_user_from_userinfo(
     userinfo: dict,
     *,
     current_user: User | None = None,
+    linking: bool = False,
     allow_registration: bool = True,
 ) -> tuple[User, bool]:
     """Return (user, is_new_user) for the verified *subject* and its userinfo.
 
     Looks up an existing OAuthAccount by (provider, subject).  If none is
-    found, links to *current_user* when a session is already active, otherwise
-    creates a brand-new account when *allow_registration* is set.  Email-based auto-linking is intentionally
+    found, links to *current_user* when the flow was started to link an account,
+    otherwise creates a brand-new account when *allow_registration* is set.  Email-based auto-linking is intentionally
     omitted: an unverified provider email could silently take over an existing
     local account.
     """
@@ -664,9 +669,11 @@ async def _resolve_user_from_userinfo(
             raise OAuthAccountAlreadyLinkedError()
         return oauth_account.user, False
 
-    if current_user is not None:
+    if linking and current_user is not None:
         user = current_user
         is_new_user = False
+    elif current_user is not None:
+        raise OAuthLinkNotStartedError()
     else:
         if not allow_registration:
             raise RegistrationDisabledError()
@@ -748,18 +755,35 @@ def _callback_url(slug: str) -> str:
 
 
 def _flow_cookie(slug: str) -> str:
-    """Name of the cookie carrying the state token, nonce and PKCE verifier."""
+    """Name of the cookie carrying the state token, nonce, PKCE verifier and linker."""
     return f"oauth_state_{slug}"
 
 
-def _read_flow_cookie(request: Request, slug: str) -> tuple[str, str, str]:
-    """The ``(state_token, nonce, code_verifier)`` stored by ``/authorize``."""
+class _Flow(NamedTuple):
+    """What ``/authorize`` or ``/link`` stored for the callback."""
+
+    state_token: str
+    nonce: str
+    code_verifier: str
+    link_user_id: str | None
+
+
+def _read_flow_cookie(request: Request, slug: str) -> _Flow:
+    """The flow stored by ``/authorize`` or ``/link``."""
     parts = request.cookies.get(_flow_cookie(slug), "").split(".")
     # No flow cookie: this browser never went through /authorize.
-    if len(parts) != 3 or not all(parts):
+    if len(parts) not in (3, 4) or not all(parts):
         raise InvalidCredentialsError()
-    state_token, nonce, code_verifier = parts
-    return state_token, nonce, code_verifier
+    return _Flow(*parts[:3], link_user_id=parts[3] if len(parts) == 4 else None)
+
+
+def _is_link_flow(flow: _Flow, current_user: User | None) -> bool:
+    """Whether *flow* links an account, refusing one another user started."""
+    if flow.link_user_id is None:
+        return False
+    if current_user is None or flow.link_user_id != str(current_user.id):
+        raise InvalidCredentialsError()
+    return True
 
 
 async def _id_token_subject(
@@ -780,13 +804,14 @@ async def _id_token_subject(
     return claims["sub"]
 
 
-@auth_router.get("/providers/{slug}/authorize")
-async def oauth_authorize(
-    db: SessionDep,
+async def _start_flow(
+    provider: OAuthProvider,
     slug: str,
-    provider: OAuthProvider = ProviderDep,
-    redirect_url: str | None = None,
-) -> RedirectResponse:
+    redirect_url: str | None,
+    *,
+    link_user_id: UUID | None = None,
+) -> tuple[str, str]:
+    """Return the provider authorization URL and the flow cookie value."""
     if not provider.is_active:
         raise NotFoundError()
 
@@ -809,15 +834,47 @@ async def oauth_authorize(
         code_challenge=code_challenge,
         nonce=nonce,
     )
-    redirect.set_cookie(
+    parts = [state_token, nonce, code_verifier]
+    if link_user_id is not None:
+        parts.append(str(link_user_id))
+    return redirect.headers["location"], ".".join(parts)
+
+
+def _set_flow_cookie(response: RawResponse, slug: str, value: str) -> None:
+    response.set_cookie(
         _flow_cookie(slug),
-        f"{state_token}.{nonce}.{code_verifier}",
+        value,
         max_age=600,
         httponly=True,
         samesite="lax",
         secure=settings.ENVIRONMENT != "development",
     )
+
+
+@auth_router.get("/providers/{slug}/authorize")
+async def oauth_authorize(
+    slug: str,
+    provider: OAuthProvider = ProviderDep,
+    redirect_url: str | None = None,
+) -> RedirectResponse:
+    url, flow = await _start_flow(provider, slug, redirect_url)
+    redirect = RedirectResponse(url=url, status_code=303)
+    _set_flow_cookie(redirect, slug, flow)
     return redirect
+
+
+@auth_router.post("/providers/{slug}/link")
+async def oauth_link(
+    slug: str,
+    response: RawResponse,
+    user: FreshSessionDep,
+    provider: OAuthProvider = ProviderDep,
+    redirect_url: str | None = None,
+) -> Response[PublicOAuthLinkRead]:
+    """Start a flow that links the provider identity to the signed-in account."""
+    url, flow = await _start_flow(provider, slug, redirect_url, link_user_id=user.id)
+    _set_flow_cookie(response, slug, flow)
+    return Response(data=PublicOAuthLinkRead(redirect_to=url))
 
 
 @auth_router.get("/providers/{slug}/callback")
@@ -837,10 +894,10 @@ async def oauth_callback(
         raise NotFoundError()
 
     # Consume CSRF state token immediately — single-use regardless of what follows.
-    expected_state_token, nonce, code_verifier = _read_flow_cookie(request, slug)
+    flow = _read_flow_cookie(request, slug)
     destination = oauth_decode_state(
         state,
-        expected_state_token=expected_state_token,
+        expected_state_token=flow.state_token,
         fallback="",
         allowed_hosts=_ALLOWED_REDIRECT_HOSTS,
     )
@@ -866,9 +923,9 @@ async def oauth_callback(
         client_id=provider.client_id,
         client_secret=provider.client_secret,
         redirect_uri=_callback_url(slug),
-        code_verifier=code_verifier,
+        code_verifier=flow.code_verifier,
     )
-    subject = await _id_token_subject(provider, endpoints, token, nonce)
+    subject = await _id_token_subject(provider, endpoints, token, flow.nonce)
     userinfo = await oauth_fetch_userinfo(
         userinfo_url=endpoints.userinfo,
         access_token=token["access_token"],
@@ -877,6 +934,7 @@ async def oauth_callback(
     if userinfo.get("sub") != subject:
         raise OAuthProviderResponseError()
 
+    linking = _is_link_flow(flow, current_user)
     try:
         user, is_new_user = await _resolve_user_from_userinfo(
             db,
@@ -884,6 +942,7 @@ async def oauth_callback(
             subject,
             userinfo,
             current_user=current_user,
+            linking=linking,
             allow_registration=bool(
                 appconfig.get_with_overrides("ctf.allow_registration", overrides)
             ),
@@ -924,8 +983,8 @@ async def oauth_callback(
         },
     )
 
-    if current_user is not None:
-        await reissue_session_cookie(db, redirect, user, request)
-    else:
+    if current_user is None:
         await issue_session_cookie(db, redirect, user, request)
+    elif not linking:
+        await reissue_session_cookie(db, redirect, user, request)
     return redirect

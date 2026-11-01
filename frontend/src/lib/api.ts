@@ -433,6 +433,16 @@ export async function getMyOAuthAccounts(): Promise<OAuthAccount[]> {
   return request<OAuthAccount[]>("/me/oauth");
 }
 
+/** Start linking a provider to the signed-in account; resolves to the provider URL. */
+export async function startOAuthLink(slug: string, redirectUrl: string): Promise<string> {
+  const params = `?redirect_url=${encodeURIComponent(redirectUrl)}`;
+  const { redirect_to } = await request<{ redirect_to: string }>(
+    `/auth/providers/${slug}/link${params}`,
+    { method: "POST" },
+  );
+  return redirect_to;
+}
+
 export async function deleteMyOAuthAccount(id: string): Promise<void> {
   await rawRequest(`/me/oauth/${id}`, { method: "DELETE" });
 }
