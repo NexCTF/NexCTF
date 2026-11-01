@@ -109,13 +109,15 @@ async def compute_list_structure(session: AsyncSession) -> list[ChallengeListIte
 
 
 async def _question_structure(q: Question) -> QuestionStructure:
-    async def _presign(key: str) -> str:
+    async def _presign(key: str, filename: str) -> str:
         try:
-            return await s3.presigned_view_url(key)  # type: ignore[attr-defined]
+            return await s3.presigned_download_url(key, filename)
         except Exception:  # noqa: BLE001
             return ""
 
-    urls = await asyncio.gather(*[_presign(f.s3_key) for f in q.files])
+    urls = await asyncio.gather(
+        *[_presign(f.s3_key, f.original_filename) for f in q.files]
+    )
     files = [
         PublicFileRead(
             id=f.id,

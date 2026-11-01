@@ -277,6 +277,7 @@
       "new_version": "New version (optional)",
       "new_version_hint": "Upload a new file to replace the current version without changing the ID.",
       "no_preview": "No preview available for this file type.",
+      "pdf_load_error": "Could not load the PDF. Check the S3 CORS configuration.",
       "preview": "Preview",
       "text_load_error": "Could not load text — check S3 CORS configuration.",
       "update_error": "Update failed",

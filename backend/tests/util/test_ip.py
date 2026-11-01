@@ -69,3 +69,24 @@ def test_trusted_proxy_count_zero_ignores_xff():
             get_client_ip(_request(xff="1.1.1.1", client_host="9.9.9.9")) == "9.9.9.9"
         )
         assert get_client_ip(_request(xff=None, client_host="9.9.9.9")) == "9.9.9.9"
+
+
+def test_xff_split_across_headers_reads_the_last_one():
+    """A proxy appending a second header must not leave the spoofed first one."""
+    request = Request(
+        {
+            "type": "http",
+            "headers": [
+                (b"x-forwarded-for", b"6.6.6.6"),
+                (b"x-forwarded-for", b"10.0.0.9"),
+            ],
+            "client": ("1.2.3.4", 1234),
+        }
+    )
+    with patch.object(settings, "TRUSTED_PROXY_COUNT", 1):
+        assert get_client_ip(request) == "10.0.0.9"
+
+
+def test_xff_entry_that_is_not_an_ip_falls_back_to_client_host():
+    with patch.object(settings, "TRUSTED_PROXY_COUNT", 1):
+        assert get_client_ip(_request(xff="10.0.0.1, not-an-ip")) == "1.2.3.4"

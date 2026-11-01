@@ -44,12 +44,14 @@ mkdir -p /etc/caddy
 
 SCHEME=""
 SERVERS_DIRECTIVE=""
+HSTS_HEADER='Strict-Transport-Security "max-age=31536000"'
 if [ "${TLS_TERMINATED_UPSTREAM:-}" = "true" ]; then
+    HSTS_HEADER=""
     SCHEME="http://"
     TLS_DIRECTIVE=""
     # Keep the X-Forwarded-For of the proxy in front instead of replacing it.
     SERVERS_DIRECTIVE="servers {
-        trusted_proxies static private_ranges
+        trusted_proxies static ${TRUSTED_PROXIES:-private_ranges}
     }"
     log "TLS: terminated upstream, serving plain HTTP"
 elif [ -f /certs/cert.pem ] && [ -f /certs/key.pem ]; then
@@ -72,6 +74,13 @@ cat > /etc/caddy/Caddyfile << EOF
 ${SCHEME}${DOMAIN} {
     ${TLS_DIRECTIVE}
 
+    header {
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        X-Frame-Options "DENY"
+        ${HSTS_HEADER}
+    }
+
     handle /api/* {
         reverse_proxy 127.0.0.1:8000
     }
@@ -90,7 +99,14 @@ ${SCHEME}${DOMAIN} {
 
 ${SCHEME}s3.${DOMAIN} {
     ${TLS_DIRECTIVE}
-    reverse_proxy ${S3_HOST:-s3}:${S3_PORT:-9000}
+    header {
+        ${HSTS_HEADER}
+    }
+    reverse_proxy ${S3_HOST:-s3}:${S3_PORT:-9000} {
+        header_down Content-Security-Policy "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+        header_down X-Content-Type-Options "nosniff"
+        header_down Referrer-Policy "no-referrer"
+    }
 }
 EOF
 

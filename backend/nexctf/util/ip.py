@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ipaddress
+
 from fastapi import Request
 from starlette.datastructures import Headers
 from starlette.types import Scope
@@ -33,13 +35,20 @@ def client_ip_from_scope(scope: Scope) -> str | None:
     host = client[0] if client else None
     if settings.TRUSTED_PROXY_COUNT == 0:
         return host
-    xff = Headers(scope=scope).get("x-forwarded-for")
-    if xff:
-        parts = [p.strip() for p in xff.split(",") if p.strip()]
-        if parts:
-            # Clamp to the available entries: if fewer hops than configured
-            # are present, fall back to the leftmost (most-trusted) entry
-            # rather than indexing out of range.
-            index = min(settings.TRUSTED_PROXY_COUNT, len(parts))
-            return parts[-index]
+    xff = ",".join(Headers(scope=scope).getlist("x-forwarded-for"))
+    parts = [p.strip() for p in xff.split(",") if p.strip()]
+    if parts:
+        # Clamp to the available entries: if fewer hops than configured
+        # are present, fall back to the leftmost (most-trusted) entry
+        # rather than indexing out of range.
+        index = min(settings.TRUSTED_PROXY_COUNT, len(parts))
+        return _valid_ip(parts[-index]) or host
     return host
+
+
+def _valid_ip(value: str) -> str | None:
+    """*value* normalized when it is an IP address, else None."""
+    try:
+        return str(ipaddress.ip_address(value))
+    except ValueError:
+        return None

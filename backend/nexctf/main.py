@@ -20,6 +20,7 @@ import nexctf.settings as _  # noqa: F401
 from nexctf.api.metrics import metrics_router
 from nexctf.api.openapi import setup_docs
 from nexctf.api.routes import router
+from nexctf.core import s3
 from nexctf.core.appconfig import sync_to_redis
 from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.config import settings
@@ -64,6 +65,7 @@ async def lifespan(app: FastAPI):
             yield
             return
 
+        await s3.allow_browser_reads(settings.all_cors_origins)
         async with get_db_context() as session:
             await sync_to_redis(session, get_redis_client())
             await init_plugins(app, session)

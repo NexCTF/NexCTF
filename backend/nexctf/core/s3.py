@@ -49,6 +49,26 @@ async def _public_client():
         yield client
 
 
+async def allow_browser_reads(origins: list[str]) -> None:
+    """Set the bucket CORS so *origins* can read presigned objects from a browser."""
+    rules = {
+        "CORSRules": [
+            {
+                "AllowedOrigins": origins,
+                "AllowedMethods": ["GET"],
+                "AllowedHeaders": ["*"],
+            }
+        ]
+    }
+    try:
+        async with _client() as client:
+            await client.put_bucket_cors(
+                Bucket=settings.S3_BUCKET, CORSConfiguration=rules
+            )
+    except Exception:
+        logger.warning("s3 bucket CORS not set; file previews will fail", exc_info=True)
+
+
 async def upload(key: str, data: bytes, content_type: str | None = None) -> None:
     extra = {"ContentType": content_type} if content_type else {}
     async with _client() as client, _logged("upload", key):
@@ -126,6 +146,11 @@ async def presigned_download_url(key: str, filename: str, expires: int = 3600) -
             },
             ExpiresIn=expires,
         )
+
+
+INLINE_TYPES = frozenset(
+    {"image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"}
+)
 
 
 async def presigned_view_url(
