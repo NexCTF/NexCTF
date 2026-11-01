@@ -80,10 +80,7 @@ async def test_restore_accepts_a_revision_this_code_knows() -> None:
     ):
         await backup.restore(f"backups/nexctf-20260908T143005Z-{revision}.dump")
 
-    assert run.await_args is not None
-    program, *args = run.await_args.args
-    assert program == "pg_restore"
-    assert "--clean" in args and "--if-exists" in args
+    assert [c.args[0] for c in run.await_args_list] == ["pg_restore", "psql"]
 
 
 async def test_create_uploads_the_dump_stamped_with_the_live_revision() -> None:
@@ -172,18 +169,28 @@ def test_key_drops_a_revision_the_key_syntax_cannot_hold() -> None:
     assert backup.validate_key(key) == key
 
 
-async def test_restore_runs_in_a_single_transaction() -> None:
-    """A partial --clean restore would leave the database half old, half new."""
-    run = AsyncMock()
+async def test_restore_empties_and_replays_in_a_single_transaction() -> None:
+    """Dropping the schemas and replaying the dump commit together or not at all."""
+    prelude: list[str] = []
+
+    async def fake_run(program: str, *args: str, connect: bool = True) -> None:
+        if program == "psql":
+            assert "--single-transaction" in args
+            assert "ON_ERROR_STOP=1" in args
+            prelude.append(args[args.index("-c") + 1])
+        else:
+            assert not connect
+            assert "--clean" not in args
+
     with (
         patch.object(backup.s3, "download_file", AsyncMock()),
         patch.object(backup, "create", AsyncMock(return_value=("backups/safety", 1))),
-        patch.object(backup, "_run", run),
+        patch.object(backup, "_run", fake_run),
     ):
         await backup.restore("backups/nexctf-20260908T143005Z.dump")
 
-    assert run.await_args is not None
-    assert "--single-transaction" in run.await_args.args
+    assert "DROP SCHEMA %I CASCADE" in prelude[0]
+    assert "CREATE SCHEMA public" in prelude[0]
 
 
 async def test_run_passes_connection_flags_to_the_binary() -> None:
@@ -216,7 +223,7 @@ async def test_restore_dumps_the_current_database_first() -> None:
         calls.append(f"create:{source}")
         return "backups/nexctf-20260908T143005Z-pre_restore-abc.dump", 10
 
-    async def fake_run(program: str, *args: str) -> None:
+    async def fake_run(program: str, *args: str, connect: bool = True) -> None:
         calls.append(program)
 
     with (
@@ -226,7 +233,7 @@ async def test_restore_dumps_the_current_database_first() -> None:
     ):
         await backup.restore("backups/nexctf-20260908T143005Z.dump")
 
-    assert calls == ["create:pre_restore", "pg_restore"]
+    assert calls == ["create:pre_restore", "pg_restore", "psql"]
 
 
 async def test_restore_aborts_when_the_safety_dump_fails() -> None:
