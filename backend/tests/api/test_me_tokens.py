@@ -86,3 +86,20 @@ class TestTokenListingShape:
             "/me/tokens", json={"name": "   ", "scopes": ["read:token"]}
         )
         assert resp.json()["data"]["name"] is None
+
+
+class TestTokenLimit:
+    async def test_creation_stops_at_the_listed_maximum(
+        self, user_client: tuple[AsyncClient, User], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from nexctf.api.routes import me
+
+        monkeypatch.setattr(me, "MAX_TOKENS_PER_USER", 1)
+        c, user = user_client
+        await create_api_token(user.id, scopes=["read:challenge"])
+
+        resp = await c.post(
+            "/me/tokens", json={"name": "extra", "scopes": ["read:challenge"]}
+        )
+        assert resp.status_code == 409
+        assert resp.json()["error_code"] == "TOKEN-409-LIMIT"

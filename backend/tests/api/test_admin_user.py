@@ -2,7 +2,9 @@
 
 import hashlib
 from unittest.mock import AsyncMock
+from uuid import uuid4
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -252,6 +254,41 @@ class TestUpdateUser(UpdateGuardMixin):
         )
         assert resp.status_code == 200
         assert resp.json()["data"]["username"] == "new-name"
+
+    async def test_a_body_id_never_rewrites_the_key(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_user_members: list[User],
+        db_session: AsyncSession,
+    ) -> None:
+        c, _ = admin_client
+        u = fixture_user_members[0]
+        other = uuid4()
+        resp = await c.put(
+            f"{self.PREFIX}/{u.id}",
+            json={"id": str(other), "username": "kept-key"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["data"]["id"] == str(u.id)
+        assert await db_session.get(User, other) is None
+
+    @pytest.mark.parametrize("change", [{"role": "user"}, {"is_active": False}])
+    async def test_an_admin_cannot_disarm_themselves(
+        self, admin_client: tuple[AsyncClient, User], change: dict
+    ) -> None:
+        c, admin = admin_client
+        resp = await c.put(
+            f"{self.PREFIX}/{admin.id}", json={"id": str(admin.id), **change}
+        )
+        assert resp.status_code == 409
+        assert resp.json()["error_code"] == "USER-409-SELF"
+
+    async def test_an_admin_cannot_delete_themselves(
+        self, admin_client: tuple[AsyncClient, User]
+    ) -> None:
+        c, admin = admin_client
+        resp = await c.delete(f"{self.PREFIX}/{admin.id}")
+        assert resp.status_code == 409
 
     async def test_update_duplicate_username(
         self,

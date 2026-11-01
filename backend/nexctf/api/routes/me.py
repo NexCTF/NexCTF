@@ -50,6 +50,7 @@ from nexctf.exceptions import (
     TeamCreationDisabledError,
     TeamFullError,
     TeamPlayedError,
+    TokenLimitError,
     TotpAlreadyEnabledError,
     TotpNotEnabledError,
     UngrantableScopeError,
@@ -101,6 +102,8 @@ from nexctf.util.ip import get_client_ip
 
 me_router = APIRouter(prefix="/me", tags=["me"])
 
+MAX_TOKENS_PER_USER = 100
+
 
 def _grantable_scopes(user: User) -> frozenset[str]:
     """The scopes *user* may put on a token."""
@@ -116,7 +119,7 @@ async def list_tokens(
         session=session,
         pagination_type=PaginationType.OFFSET,
         filters=[UserToken.user_id == user.id],
-        items_per_page=100,
+        items_per_page=MAX_TOKENS_PER_USER,
         page=1,
         schema=PublicApiTokenRead,
     )
@@ -139,6 +142,11 @@ async def create_token(
     unknown = sorted(set(obj.scopes) - _grantable_scopes(user))
     if unknown or not obj.scopes:
         raise UngrantableScopeError(unknown)
+    if (
+        await crud.UserTokenCrud.count(session, [UserToken.user_id == user.id])
+        >= MAX_TOKENS_PER_USER
+    ):
+        raise TokenLimitError()
     raw, token_row = await create_api_token(
         user.id, name=obj.name, expires_at=obj.expires_at, scopes=obj.scopes
     )

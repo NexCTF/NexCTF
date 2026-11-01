@@ -1,4 +1,3 @@
-from fastapi_toolsets.crud import AsyncCrud
 from sqlalchemy.orm import joinedload, selectinload
 
 from nexctf.model import (
@@ -28,9 +27,10 @@ from nexctf.model import (
     UserToken,
 )
 from nexctf.module.audit import AuditedCrud
+from nexctf.util.crud import Crud
 
 
-class TeamCrud(AsyncCrud[Team]):
+class TeamCrud(Crud[Team]):
     model = Team
     cursor_column = Team.created_at
     searchable_fields = [Team.name]
@@ -67,7 +67,7 @@ class CustomFieldDefinitionCrud(AuditedCrud[CustomFieldDefinition]):
     default_load_options = []
 
 
-class CustomFieldValueCrud(AsyncCrud[CustomFieldValue]):
+class CustomFieldValueCrud(Crud[CustomFieldValue]):
     model = CustomFieldValue
     cursor_column = CustomFieldValue.created_at
     searchable_fields = []
@@ -76,7 +76,7 @@ class CustomFieldValueCrud(AsyncCrud[CustomFieldValue]):
     default_load_options = [joinedload(CustomFieldValue.definition)]
 
 
-class UserCrud(AsyncCrud[User]):
+class UserCrud(Crud[User]):
     model = User
     cursor_column = User.created_at
     searchable_fields = [User.username, User.email, User.role, (User.team, Team.name)]
@@ -92,7 +92,7 @@ class UserCrud(AsyncCrud[User]):
     default_load_options = [joinedload(User.team)]
 
 
-class UserTokenCrud(AsyncCrud[UserToken]):
+class UserTokenCrud(Crud[UserToken]):
     model = UserToken
     cursor_column = UserToken.created_at
     searchable_fields = [UserToken.name]
@@ -105,7 +105,7 @@ class UserTokenCrud(AsyncCrud[UserToken]):
     default_load_options = [joinedload(UserToken.user)]
 
 
-class UserSessionCrud(AsyncCrud[UserSession]):
+class UserSessionCrud(Crud[UserSession]):
     model = UserSession
     cursor_column = UserSession.created_at
     searchable_fields = []
@@ -117,7 +117,7 @@ class UserSessionCrud(AsyncCrud[UserSession]):
     default_load_options = []
 
 
-class UserAgentSightingCrud(AsyncCrud[UserAgentSighting]):
+class UserAgentSightingCrud(Crud[UserAgentSighting]):
     model = UserAgentSighting
     cursor_column = UserAgentSighting.last_seen_at
     searchable_fields = [
@@ -159,7 +159,7 @@ class OAuthProviderCrud(AuditedCrud[OAuthProvider]):
     default_load_options = []
 
 
-class OAuthAccountCrud(AsyncCrud[OAuthAccount]):
+class OAuthAccountCrud(Crud[OAuthAccount]):
     model = OAuthAccount
     cursor_column = OAuthAccount.created_at
     searchable_fields = [
@@ -256,7 +256,7 @@ class LinkCrud(AuditedCrud[Link]):
     default_load_options = []
 
 
-class SolutionCrud(AsyncCrud[Solution]):
+class SolutionCrud(Crud[Solution]):
     model = Solution
     cursor_column = Solution.created_at
     searchable_fields = [Solution.solve_type]
@@ -287,7 +287,7 @@ class NotificationCrud(AuditedCrud[Notification]):
     m2m_fields = {"team_ids": Notification.teams}
 
 
-class SubmissionCrud(AsyncCrud[Submission]):
+class SubmissionCrud(Crud[Submission]):
     model = Submission
     cursor_column = Submission.created_at
     searchable_fields = [
@@ -313,7 +313,7 @@ class SubmissionCrud(AsyncCrud[Submission]):
     ]
 
 
-class ChallengeFeedbackCrud(AsyncCrud[ChallengeFeedback]):
+class ChallengeFeedbackCrud(Crud[ChallengeFeedback]):
     model = ChallengeFeedback
     cursor_column = ChallengeFeedback.created_at
     searchable_fields = [
@@ -338,7 +338,7 @@ class ChallengeFeedbackCrud(AsyncCrud[ChallengeFeedback]):
     ]
 
 
-class FileCrud(AsyncCrud[File]):
+class FileCrud(Crud[File]):
     model = File
     cursor_column = File.created_at
     searchable_fields = [File.name, File.original_filename, File.mime_type]
@@ -354,7 +354,7 @@ class FileCrud(AsyncCrud[File]):
     default_load_options = []
 
 
-class ScoreAdjustmentCrud(AsyncCrud[ScoreAdjustment]):
+class ScoreAdjustmentCrud(Crud[ScoreAdjustment]):
     model = ScoreAdjustment
     cursor_column = ScoreAdjustment.created_at
     searchable_fields = [ScoreAdjustment.reason, (ScoreAdjustment.team, Team.name)]
@@ -387,7 +387,7 @@ class OAuthServerClientCrud(AuditedCrud[OAuthServerClient]):
     default_load_options = []
 
 
-class SchedulerJobCrud(AsyncCrud[SchedulerJob]):
+class SchedulerJobCrud(Crud[SchedulerJob]):
     model = SchedulerJob
     cursor_column = SchedulerJob.created_at
     searchable_fields = [SchedulerJob.name, SchedulerJob.job_type]
@@ -402,7 +402,7 @@ class SchedulerJobCrud(AsyncCrud[SchedulerJob]):
     default_load_options = []
 
 
-class SchedulerTaskCrud(AsyncCrud[SchedulerTask]):
+class SchedulerTaskCrud(Crud[SchedulerTask]):
     model = SchedulerTask
     cursor_column = SchedulerTask.created_at
     searchable_fields = [SchedulerTask.status]
@@ -431,7 +431,7 @@ class PageCrud(AuditedCrud[CustomPage]):
     default_load_options = []
 
 
-class EventCrud(AsyncCrud[Event]):
+class EventCrud(Crud[Event]):
     model = Event
     cursor_column = Event.created_at
     searchable_fields = [

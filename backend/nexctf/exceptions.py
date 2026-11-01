@@ -145,6 +145,24 @@ class TokenScopeError(ApiException, abstract=True):
     """Base for API-token permission errors."""
 
 
+class SelfLockoutError(ApiException):
+    api_error = ApiError(
+        code=409,
+        msg="Cannot lock yourself out",
+        desc="Ask another admin to demote, disable or delete your account.",
+        err_code="USER-409-SELF",
+    )
+
+
+class TokenLimitError(TokenScopeError):
+    api_error = ApiError(
+        code=409,
+        msg="Too many API tokens",
+        desc="Revoke an API token before creating another one.",
+        err_code="TOKEN-409-LIMIT",
+    )
+
+
 class InsufficientScopeError(TokenScopeError):
     api_error = ApiError(
         code=403,
