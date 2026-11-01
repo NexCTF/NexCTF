@@ -255,6 +255,51 @@ function resolveKind(mimeType: string | null): PreviewKind {
   return "none";
 }
 
+/** Frame a local copy of the PDF, typed so the browser can only render it as a PDF. */
+function PdfPreview({ url, filename }: { url: string; filename: string }) {
+  const { t } = useTranslation();
+  const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.arrayBuffer();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
+        setSrc(objectUrl);
+      })
+      .catch(() => setFailed(true));
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [url]);
+
+  if (failed)
+    return (
+      <p className="text-sm text-destructive">
+        {t("admin.files.pdf_load_error", {
+          defaultValue: "Could not load the PDF. Check the S3 CORS configuration.",
+        })}
+      </p>
+    );
+  if (src === null) return <p className="text-sm text-muted-foreground">{t("common.loading")}</p>;
+  return (
+    <iframe
+      src={src}
+      title={filename}
+      className="w-full rounded border"
+      style={{ height: "65vh" }}
+    />
+  );
+}
+
 function PreviewContent({
   kind,
   url,
@@ -284,16 +329,7 @@ function PreviewContent({
     );
   }
 
-  if (kind === "pdf") {
-    return (
-      <iframe
-        src={url}
-        title={filename}
-        className="w-full rounded border"
-        style={{ height: "65vh" }}
-      />
-    );
-  }
+  if (kind === "pdf") return <PdfPreview url={url} filename={filename} />;
 
   if (kind === "text") {
     if (textError)

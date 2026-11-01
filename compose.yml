@@ -40,6 +40,9 @@ x-app-env: &app-env
 
   # Set to "true" when a proxy in front already terminates TLS.
   TLS_TERMINATED_UPSTREAM: ${TLS_TERMINATED_UPSTREAM:-}
+  # With TLS_TERMINATED_UPSTREAM, the addresses whose X-Forwarded-For is kept:
+  # space-separated CIDRs of that proxy. Leave empty to trust every private range.
+  TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
 
   # Derived from DOMAIN when left empty. Override only when the public URL is
   # not https://${DOMAIN} — e.g. the default 8443 port mapping below.
@@ -108,17 +111,17 @@ services:
   cache:
     image: valkey/valkey:9.1.3-alpine@sha256:bf09d58e96d6b4524a15396b65b242bbe18beebbcc15a04d8ee75ddac62fae0b
     restart: always
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:-nexctf}
     healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
+      test: ["CMD-SHELL", "valkey-cli ping | grep -q PONG"]
       interval: 10s
       retries: 5
       start_period: 10s
       timeout: 5s
     volumes:
       - app-redis-data:/data
-    command: >
-      sh -c "valkey-server
-      $( [ -n '${REDIS_PASSWORD:-}' ] && echo '--requirepass ${REDIS_PASSWORD}' )"
+    command: ["valkey-server", "--requirepass", "${REDIS_PASSWORD:-nexctf}"]
     networks:
       - internal
 

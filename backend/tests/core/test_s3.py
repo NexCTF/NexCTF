@@ -150,3 +150,15 @@ async def test_presigned_view_url_with_filename_uses_inline_disposition(s3_key):
 )
 def test_safe_filename(filename: str, expected: str) -> None:
     assert _safe_filename(filename) == expected
+
+
+async def test_allow_browser_reads_sets_the_bucket_cors():
+    await s3.allow_browser_reads(["https://ctf.example"])
+    try:
+        async with s3._client() as client:
+            cors = await client.get_bucket_cors(Bucket=settings.S3_BUCKET)
+    finally:
+        await s3.allow_browser_reads(settings.all_cors_origins)
+    rule = cors["CORSRules"][0]
+    assert rule["AllowedOrigins"] == ["https://ctf.example"]
+    assert rule["AllowedMethods"] == ["GET"]

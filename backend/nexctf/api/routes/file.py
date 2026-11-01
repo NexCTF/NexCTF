@@ -13,9 +13,12 @@ file_router = APIRouter(prefix="/file", tags=["File"])
 
 @file_router.get("/{uuid}/view")
 async def view_public_file(session: SessionDep, uuid: UUID) -> RedirectResponse:
-    """Redirect to a presigned S3 view URL for a publicly accessible file."""
+    """Redirect to a presigned S3 URL: shown inline for images, downloaded otherwise."""
     file = await crud.FileCrud.get(
         session, filters=[File.id == uuid, File.is_public.is_(True)]
     )
-    url = await s3.presigned_view_url(file.s3_key, filename=file.original_filename)
+    if file.mime_type in s3.INLINE_TYPES:
+        url = await s3.presigned_view_url(file.s3_key, filename=file.original_filename)
+    else:
+        url = await s3.presigned_download_url(file.s3_key, file.original_filename)
     return RedirectResponse(url=url)

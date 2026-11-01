@@ -1,7 +1,7 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
-import { getAdminFiles } from "@/lib/api";
+import { getAdminFile, getAdminFiles } from "@/lib/api";
 import { copyToClipboard } from "@/lib/utils";
 import { paginated } from "@/test/fixtures";
 import { renderRoute } from "@/test/render";
@@ -10,6 +10,7 @@ import { Route } from "./files";
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   getAdminFiles: vi.fn(),
+  getAdminFile: vi.fn(),
 }));
 vi.mock("@/lib/utils", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/utils")>()),
@@ -47,4 +48,34 @@ it("hides the link button on a private file", async () => {
 
   await screen.findByRole("button", { name: "Preview" });
   expect(screen.queryByRole("button", { name: "Copy public link" })).toBeNull();
+});
+
+it("previews a PDF from a local copy typed as a PDF", async () => {
+  const pdf = { ...FILE, mime_type: "application/pdf", original_filename: "notes.pdf" };
+  vi.mocked(getAdminFiles).mockResolvedValue(paginated([pdf]));
+  vi.mocked(getAdminFile).mockResolvedValue({
+    ...pdf,
+    view_url: "https://s3.example/notes.pdf",
+    download_url: "https://s3.example/notes.pdf?dl",
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(new Response(new Uint8Array([0x25, 0x50]), { status: 200 })),
+  );
+  const created: Blob[] = [];
+  URL.createObjectURL = vi.fn((blob: Blob) => {
+    created.push(blob);
+    return "blob:preview";
+  });
+  URL.revokeObjectURL = vi.fn();
+  renderRoute(Route, { path: "/admin/files" });
+
+  await userEvent.click(await screen.findByRole("button", { name: "Preview" }));
+
+  await waitFor(() =>
+    expect(document.querySelector("iframe")?.getAttribute("src")).toBe("blob:preview"),
+  );
+  expect(fetch).toHaveBeenCalledWith("https://s3.example/notes.pdf");
+  expect(created[0].type).toBe("application/pdf");
+  vi.unstubAllGlobals();
 });
