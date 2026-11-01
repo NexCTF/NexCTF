@@ -69,6 +69,13 @@ function clearAccentColor() {
 
 const CUSTOM_CSS_ID = "nexctf-custom-css";
 
+let customCssSuspensions = 0;
+
+function syncCustomCssSuspension() {
+  const el = document.getElementById(CUSTOM_CSS_ID);
+  if (el instanceof HTMLStyleElement) el.disabled = customCssSuspensions > 0;
+}
+
 function applyCustomCss(css: string) {
   let el = document.getElementById(CUSTOM_CSS_ID);
   if (!css) {
@@ -81,6 +88,19 @@ function applyCustomCss(css: string) {
     document.head.appendChild(el);
   }
   el.textContent = css;
+  syncCustomCssSuspension();
+}
+
+/** Switch the custom CSS off while the calling component is mounted. */
+export function useWithoutCustomCss(): void {
+  useEffect(() => {
+    customCssSuspensions += 1;
+    syncCustomCssSuspension();
+    return () => {
+      customCssSuspensions -= 1;
+      syncCustomCssSuspension();
+    };
+  }, []);
 }
 
 const ICON_SELECTOR = "link[rel~='icon'], link[rel~='apple-touch-icon']";

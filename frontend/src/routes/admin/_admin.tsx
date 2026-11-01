@@ -40,7 +40,7 @@ import { PluginNavLinks, usePluginPages } from "@/components/plugin-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { type AdminStats, getAdminStats } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { useBranding } from "@/lib/branding";
+import { useBranding, useWithoutCustomCss } from "@/lib/branding";
 import { bootstrapPlugins } from "@/lib/plugins";
 import { cn } from "@/lib/utils";
 
@@ -155,6 +155,7 @@ const BASE_CLS = "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transit
 function AdminLayout() {
   const { t } = useTranslation();
   const { user, isLoading: authLoading } = useAuth();
+  useWithoutCustomCss();
 
   const { data: stats } = useQuery<AdminStats>({
     queryKey: ["admin", "stats", "global"],
