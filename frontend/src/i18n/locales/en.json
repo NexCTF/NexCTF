@@ -1164,7 +1164,8 @@
   "settings": {
     "oauth": {
       "connect": "Connect",
-      "section_hint": "Manage which OAuth providers are linked to your account.",
+      "connect_error": "Could not start linking this provider",
+      "section_hint": "Manage which OAuth providers are linked to your account. Signing in through one of them does not ask for your 2FA code.",
       "section_title": "Connected accounts",
       "unlink": "Unlink",
       "unlink_confirm": "Unlink {{name}}?",

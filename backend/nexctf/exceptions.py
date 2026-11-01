@@ -372,6 +372,15 @@ class OAuthAccountAlreadyLinkedError(OAuthError):
     )
 
 
+class OAuthLinkNotStartedError(OAuthError):
+    api_error = ApiError(
+        code=409,
+        msg="OAuth account not linked",
+        desc="Link this provider from your account settings before signing in with it.",
+        err_code="OAUTH-409-LINK-NOT-STARTED",
+    )
+
+
 class CannotUnlinkLastOAuthError(OAuthError):
     api_error = ApiError(
         code=409,

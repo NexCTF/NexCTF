@@ -49,7 +49,7 @@ import {
   getMyTokens,
   getPublicInfo,
   type OAuthAccount,
-  oauthAuthorizeUrl,
+  startOAuthLink,
   type TotpSetupData,
   totpDisable,
   totpEnable,
@@ -891,6 +891,22 @@ function OAuthSection() {
     unlink.mutate({ id: account.id, name: account.provider_name });
   }
 
+  const link = useMutation({
+    mutationFn: (slug: string) => startOAuthLink(slug, window.location.href),
+    onSuccess: (url) => {
+      window.location.href = url;
+    },
+    onError: (err) =>
+      toast.error(
+        apiErrorMessage(
+          err,
+          t("settings.oauth.connect_error", {
+            defaultValue: "Could not start linking this provider",
+          }),
+        ),
+      ),
+  });
+
   if (allProviders.length === 0) return null;
 
   return (
@@ -937,13 +953,15 @@ function OAuthSection() {
                     }
                   />
                 ) : (
-                  <a
-                    href={oauthAuthorizeUrl(provider.slug, window.location.href)}
-                    className={buttonVariants({ variant: "outline", size: "sm" })}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={link.isPending}
+                    onClick={() => link.mutate(provider.slug)}
                   >
                     <Link2 className="size-3.5" />
                     {t("settings.oauth.connect")}
-                  </a>
+                  </Button>
                 )}
               </div>
             );

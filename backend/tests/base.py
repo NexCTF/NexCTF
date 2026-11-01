@@ -306,9 +306,27 @@ class FakeIdP:
             resp = await client.get(
                 f"/auth/providers/{self.slug}/authorize", follow_redirects=False
             )
-        query = parse_qs(urlparse(resp.headers.get("location", "")).query)
-        self.sent = {key: values[0] for key, values in query.items()}
+        self._remember(resp.headers.get("location", ""))
         return resp
+
+    def _remember(self, url: str) -> None:
+        """Keep the parameters sent to the provider in *url*."""
+        query = parse_qs(urlparse(url).query)
+        self.sent = {key: values[0] for key, values in query.items()}
+
+    async def start_link(self, client: AsyncClient) -> Response:
+        """Start a linking flow, remembering the parameters sent to the provider."""
+        with self._serving({}):
+            resp = await client.post(f"/auth/providers/{self.slug}/link")
+        if resp.status_code == 200:
+            self._remember(resp.json()["data"]["redirect_to"])
+        return resp
+
+    async def link(self, client: AsyncClient, subject: str) -> Response:
+        """Link the identity *subject* to the signed-in account."""
+        resp = await self.start_link(client)
+        assert resp.status_code == 200, resp.text
+        return await self.callback(client, {"sub": subject})
 
     async def callback(
         self,
