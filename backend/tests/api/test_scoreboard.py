@@ -140,11 +140,41 @@ class TestGetTeamScore:
         resp = await http_client.get(f"{self.PREFIX}/{NULL_UUID}")
         assert resp.status_code == 404
 
+    async def test_solves_follow_challenge_visibility(
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+        config_overrides: dict[str, str],
+    ) -> None:
+        config_overrides["visibility.challenges"] = "authenticated"
+        t, ch, _, _ = await _setup_scored_team(db_session, points=75)
+        author = User(username="adj_author", role=UserRole.admin)
+        db_session.add(author)
+        await db_session.flush()
+        db_session.add(
+            ScoreAdjustment(
+                team_id=t.id,
+                amount=5,
+                reason="writeup",
+                challenge_id=ch.id,
+                created_by_id=author.id,
+            )
+        )
+        await db_session.flush()
+
+        resp = await http_client.get(f"{self.PREFIX}/{t.id}")
+        data = resp.json()["data"]
+        assert data["solves"] == []
+        assert data["adjustments"][0]["challenge_title"] is None
+        assert data["total"] == 80
+
     async def test_with_solves(
         self,
         http_client: AsyncClient,
         db_session: AsyncSession,
+        config_overrides: dict[str, str],
     ) -> None:
+        config_overrides["visibility.challenges"] = "public"
         t, _, _, _ = await _setup_scored_team(db_session, points=75)
         resp = await http_client.get(f"{self.PREFIX}/{t.id}")
         data = resp.json()["data"]

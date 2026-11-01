@@ -8,7 +8,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_object_session
 
 from nexctf.api.routes.challenge import _writeup_visible
-from nexctf.model import HintUnlock, Team, User
+from nexctf.model import HintUnlock, Submission, Team, User
 from nexctf.model.question import Hint, Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 from nexctf.plugins.builtin.solution.mcq.model import MCQSolution
@@ -505,3 +505,36 @@ class TestOptionOrder:
         second = options(await c.get(f"/challenges/{challenge.id}"))
         assert sorted(first) == choices
         assert first == second
+
+
+class TestHintUnlockAfterSolve:
+    @pytest.mark.parametrize(("cost", "status"), [(30, 409), (0, 200)])
+    async def test_paid_hints_stay_locked_once_solved(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        cost: int,
+        status: int,
+    ) -> None:
+        c, user = user_client
+        team = Team(name="solved_team")
+        db_session.add(team)
+        await db_session.flush()
+        user.team_id = team.id
+        challenge, first, _ = await _sequential(db_session)
+        hint = Hint(title="H", content="secret", cost=cost, question_id=first.id)
+        db_session.add(hint)
+        db_session.add(
+            Submission(
+                team_id=team.id, question_id=first.id, answer="f", is_correct=True
+            )
+        )
+        await db_session.flush()
+
+        resp = await c.post(
+            f"/challenges/{challenge.id}/{first.id}/hints/{hint.id}/unlock"
+        )
+
+        assert resp.status_code == status, resp.text
+        if status == 409:
+            assert resp.json()["error_code"] == "HINT-409-SOLVED"

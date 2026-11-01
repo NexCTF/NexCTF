@@ -86,11 +86,13 @@ async def get_team_score(
     team_id: UUID,
     *,
     overrides: dict[str, str],
+    include_challenges: bool = True,
     ttl: timedelta = DEFAULT_TTL,
 ) -> PublicTeamScoreDetail:
+    """A team's score breakdown; without *include_challenges*, no challenge names."""
     freeze_time = parse_config_dt("ctf.freeze_time", overrides)
     end_time = parse_config_dt("ctf.end_time", overrides)
-    return await get_or_compute(
+    detail = await get_or_compute(
         redis,
         f"{_TEAM_KEY_PREFIX}{team_id}",
         _team_adapter,
@@ -100,6 +102,16 @@ async def get_team_score(
         ttl,
         registry=_TEAM_REGISTRY,
     )
+    return detail if include_challenges else _without_challenges(detail)
+
+
+def _without_challenges(detail: PublicTeamScoreDetail) -> PublicTeamScoreDetail:
+    """*detail* with every solve and challenge reference left out."""
+    adjustments = [
+        a.model_copy(update={"challenge_id": None, "challenge_title": None})
+        for a in detail.adjustments
+    ]
+    return detail.model_copy(update={"solves": [], "adjustments": adjustments})
 
 
 async def get_scoreboard_history(

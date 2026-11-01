@@ -3,11 +3,12 @@
 from datetime import UTC, datetime
 from unittest.mock import ANY, AsyncMock, patch
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.model import Submission, Team, User
-from nexctf.model.question import Question
+from nexctf.model import HintUnlock, ScoreAdjustment, Submission, Team, User
+from nexctf.model.question import Hint, Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 from tests.base import PAST, make_solvable, make_team, make_user, put_in_team
 
@@ -106,22 +107,44 @@ class TestLeavingAfterScoring:
         await db_session.flush()
 
         resp = await client.post("/me/team/leave")
-        assert resp.json()["error_code"] == "TEAM-409-SCORED"
+        assert resp.json()["error_code"] == "TEAM-409-PLAYED"
         assert user.team_id is not None
 
-    async def test_wrong_answers_do_not_hold_a_member(
+    @pytest.mark.parametrize(
+        "activity", ["wrong_answer", "hint_unlock", "adjustment", "disqualified"]
+    )
+    async def test_any_team_activity_holds_a_member(
         self,
         user_client: tuple[AsyncClient, User],
         db_session: AsyncSession,
+        activity: str,
     ) -> None:
+        """A throwaway team would otherwise spend hints and wrong guesses for free."""
         client, user = user_client
         _, question = await make_solvable(db_session, user, "flag")
-        db_session.add(
-            Submission(team_id=user.team_id, question_id=question.id, answer="x")
-        )
+        team = await db_session.get(Team, user.team_id)
+        assert team is not None
+        if activity == "wrong_answer":
+            db_session.add(
+                Submission(team_id=team.id, question_id=question.id, answer="x")
+            )
+        elif activity == "hint_unlock":
+            hint = Hint(question_id=question.id, title="h", content="c", cost=10)
+            db_session.add(hint)
+            await db_session.flush()
+            db_session.add(HintUnlock(team_id=team.id, hint_id=hint.id, cost_paid=10))
+        elif activity == "adjustment":
+            db_session.add(
+                ScoreAdjustment(
+                    team_id=team.id, amount=5, reason="bonus", created_by_id=user.id
+                )
+            )
+        else:
+            team.is_disqualified = True
         await db_session.flush()
 
-        assert (await client.post("/me/team/leave")).status_code == 204
+        resp = await client.post("/me/team/leave")
+        assert resp.json()["error_code"] == "TEAM-409-PLAYED"
 
 
 class TestEmptyTeamCleanup:
@@ -135,20 +158,6 @@ class TestEmptyTeamCleanup:
 
         assert (await client.post("/me/team/leave")).status_code == 204
         assert await db_session.get(Team, team.id) is None
-
-    async def test_a_team_with_submissions_is_kept(
-        self,
-        user_client: tuple[AsyncClient, User],
-        db_session: AsyncSession,
-    ) -> None:
-        client, user = user_client
-        _, question = await make_solvable(db_session, user, "flag")
-        team_id = user.team_id
-        db_session.add(Submission(team_id=team_id, question_id=question.id, answer="x"))
-        await db_session.flush()
-
-        assert (await client.post("/me/team/leave")).status_code == 204
-        assert await db_session.get(Team, team_id) is not None
 
     async def test_a_team_with_members_left_is_kept(
         self,

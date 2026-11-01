@@ -23,8 +23,8 @@ from nexctf.api.dep import (
     SessionDep,
     SessionIdleDep,
     SessionOnlyDep,
+    can_view_challenges,
     can_view_scoreboard,
-    challenges_hidden_before_start,
 )
 from nexctf.api.scope import grantable_scopes
 from nexctf.api.security import (
@@ -49,12 +49,18 @@ from nexctf.exceptions import (
     TeamChangesDisabledError,
     TeamCreationDisabledError,
     TeamFullError,
-    TeamScoredError,
+    TeamPlayedError,
     TotpAlreadyEnabledError,
     TotpNotEnabledError,
     UngrantableScopeError,
 )
-from nexctf.model import OAuthAccount, Submission, Team, User, UserRole, UserToken
+from nexctf.model import (
+    OAuthAccount,
+    Team,
+    User,
+    UserRole,
+    UserToken,
+)
 from nexctf.model.user import gen_invite_code
 from nexctf.module.custom_field import load_editable_fields, replace_custom_field_values
 from nexctf.module.events import emit
@@ -64,7 +70,7 @@ from nexctf.module.session import (
     revoke_all_access,
     revoke_session_by_id,
 )
-from nexctf.module.team import delete_if_abandoned, load_team_read
+from nexctf.module.team import delete_if_abandoned, has_played, load_team_read
 from nexctf.schema import (
     PublicApiTokenCreate,
     PublicApiTokenRead,
@@ -471,7 +477,7 @@ async def _load_own_team(
         team_id,
         overrides=overrides,
         include_rank=can_view_scoreboard(user, overrides),
-        include_challenges=not challenges_hidden_before_start(overrides),
+        include_challenges=can_view_challenges(user, overrides),
         live=True,
     )
     if team is None:
@@ -596,10 +602,10 @@ async def leave_team(
     team = await crud.TeamCrud.first(
         session, [Team.id == team_id], with_for_update=True, load_options=[]
     )
-    if await crud.SubmissionCrud.exists(
-        session, [Submission.team_id == team_id, Submission.is_correct.is_(True)]
+    if (team is not None and team.is_disqualified) or await has_played(
+        session, team_id
     ):
-        raise TeamScoredError()
+        raise TeamPlayedError()
     team_name = team.name if team else ""
     await crud.UserCrud.update(
         session, UserTeamUpdate(team_id=None), [User.id == user.id]

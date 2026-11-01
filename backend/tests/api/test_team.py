@@ -117,6 +117,7 @@ class TestGetTeamProfile:
         config_overrides: dict[str, str],
     ) -> None:
         """Post-freeze progress must not leak through the public profile."""
+        config_overrides["visibility.challenges"] = "public"
         config_overrides["ctf.freeze_time"] = "2020-06-01T00:00:00+00:00"
         team = Team(name="FrozenTeam")
         challenge = StandardChallenge(title="Frozen", is_active=True)
@@ -173,7 +174,9 @@ class TestGetTeamProfile:
         self,
         http_client: AsyncClient,
         db_session: AsyncSession,
+        config_overrides: dict[str, str],
     ) -> None:
+        config_overrides["visibility.challenges"] = "public"
         team = Team(name="DraftLeak")
         live = StandardChallenge(title="Live", is_active=True)
         draft = StandardChallenge(title="Draft", is_active=False)
@@ -194,6 +197,25 @@ class TestGetTeamProfile:
         config_overrides["ctf.hide_challenges_before_start"] = "true"
         team = Team(name="EarlyBird")
         db_session.add_all([team, StandardChallenge(title="Soon", is_active=True)])
+        await db_session.flush()
+
+        resp = await http_client.get(f"{self.PREFIX}/{team.id}")
+        assert resp.status_code == 200
+        assert resp.json()["data"]["challenge_stats"] == []
+
+    async def test_challenges_follow_challenge_visibility(
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+        config_overrides: dict[str, str],
+    ) -> None:
+        """A public scoreboard does not open challenges kept for signed-in players."""
+        config_overrides["visibility.scoreboard"] = "public"
+        config_overrides["visibility.challenges"] = "authenticated"
+        team = Team(name="Curious")
+        db_session.add_all(
+            [team, StandardChallenge(title="Members only", is_active=True)]
+        )
         await db_session.flush()
 
         resp = await http_client.get(f"{self.PREFIX}/{team.id}")
