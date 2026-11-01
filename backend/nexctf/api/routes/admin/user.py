@@ -25,6 +25,7 @@ from nexctf.api.security import (
     issue_password_reset_token,
 )
 from nexctf.core.eventbus import close_user_streams
+from nexctf.exceptions import SelfLockoutError
 from nexctf.model import CustomFieldValue, User, UserRole
 from nexctf.model.event import Event
 from nexctf.module.client import user_clients
@@ -236,6 +237,10 @@ async def update_user(
     Granting admin or changing an email needs a fresh session; demoting or
     deactivating an admin needs one unless called with an API token.
     """
+    if uuid == admin.id and (
+        obj.role not in (None, UserRole.admin) or obj.is_active is False
+    ):
+        raise SelfLockoutError()
     target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
     email_changed = (
         target is not None and obj.email is not None and obj.email != target.email
@@ -359,6 +364,8 @@ async def delete_user(
     uuid: UUID,
     admin: CurrentUserDep,
 ) -> Response[None]:
+    if uuid == admin.id:
+        raise SelfLockoutError()
     target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
     result = await crud.UserCrud.delete(
         session=session, filters=[User.id == uuid], return_response=True

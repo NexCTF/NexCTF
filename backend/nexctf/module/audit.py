@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-from fastapi_toolsets.crud import AsyncCrud
 from fastapi_toolsets.schemas import Response
 from fastapi_toolsets.types import ModelType
 from pydantic import BaseModel
@@ -21,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import class_mapper
 
 from nexctf.module.events import emit
+from nexctf.util.crud import Crud
 
 # Columns whose key contains any of these substrings are never recorded in a
 # diff. Substring matching catches plugin-defined variants (e.g. ``flag_hash``,
@@ -150,7 +150,7 @@ async def _emit_write(
     )
 
 
-class AuditedCrud(AsyncCrud[ModelType]):
+class AuditedCrud(Crud[ModelType]):
     """``AsyncCrud`` that records an audit event for each write it performs."""
 
     @classmethod
