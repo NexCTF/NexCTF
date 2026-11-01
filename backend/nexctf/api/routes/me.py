@@ -348,19 +348,16 @@ async def change_password(
         body.current_password, user.hashed_password
     ):
         raise InvalidCredentialsError()
-    session_version = user.session_version + 1
     await crud.UserCrud.update(
         session=session,
         filters=[User.id == user.id],
         obj=UserPasswordUpdate(
             id=user.id,
             hashed_password=await hash_password_async(body.new_password),
-            session_version=session_version,
         ),
     )
     # Reflect the bump on the instance so the re-issued cookie carries it.
-    user.session_version = session_version
-    await revoke_all_access(session, user)
+    user.session_version = await revoke_all_access(session, user)
     background_tasks.add_task(close_user_streams, redis, user.id)
     await issue_session_cookie(session, response, user, request)
     await emit(

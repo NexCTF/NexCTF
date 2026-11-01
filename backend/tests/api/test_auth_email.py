@@ -49,8 +49,8 @@ class TestRegisterVerification:
         )
         dispatch.assert_awaited_once()
 
-    async def test_email_disabled_creates_verified_no_send(self, http_client):
-        """With SMTP off there is no way to verify, so the account is usable."""
+    async def test_email_disabled_keeps_the_address_unverified(self, http_client):
+        """With SMTP off nothing proved the address, so it stays unverified."""
         with _patch_dispatch() as dispatch:
             resp = await http_client.post(
                 "/auth/register",
@@ -61,7 +61,7 @@ class TestRegisterVerification:
                 },
             )
         assert resp.status_code == 201
-        assert resp.json()["data"]["email_verified"] is True
+        assert resp.json()["data"]["email_verified"] is False
         dispatch.assert_not_awaited()
 
     async def test_email_required_when_enabled(self, http_client, config_overrides):
@@ -77,14 +77,13 @@ class TestRegisterVerification:
         dispatch.assert_not_awaited()
 
     async def test_no_email_ok_when_disabled(self, http_client):
-        """With SMTP off, email stays optional and the account is verified."""
+        """With SMTP off, email stays optional."""
         with _patch_dispatch() as dispatch:
             resp = await http_client.post(
                 "/auth/register",
                 json={"username": "noemaildisabled", "password": "strongpass"},
             )
         assert resp.status_code == 201
-        assert resp.json()["data"]["email_verified"] is True
         dispatch.assert_not_awaited()
 
 
@@ -157,7 +156,7 @@ class TestVerifyEmail:
 
         token = "verify_token_xyz"
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        mock_redis.getdel = AsyncMock(return_value=str(user.id))
+        mock_redis.getdel = AsyncMock(return_value=f"{user.id}:tv@test.com")
 
         resp = await http_client.post("/auth/verify-email", json={"token": token})
         assert resp.status_code == 204
@@ -167,6 +166,25 @@ class TestVerifyEmail:
         assert user.email_verified is True
         # The action is audited.
         assert await _event_count(db_session, "user.email_verified") == 1
+
+    async def test_token_for_a_replaced_address_is_refused(
+        self, http_client, db_session, mock_redis, override_db_context
+    ):
+        user = User(
+            username="moved",
+            email="new@test.com",
+            hashed_password=hash_password("pass"),
+            email_verified=False,
+        )
+        db_session.add(user)
+        await db_session.flush()
+        mock_redis.getdel = AsyncMock(return_value=f"{user.id}:old@test.com")
+
+        resp = await http_client.post("/auth/verify-email", json={"token": "t"})
+
+        assert resp.status_code == 400
+        await db_session.refresh(user)
+        assert user.email_verified is False
 
     async def test_invalid_token(self, http_client, mock_redis):
         mock_redis.getdel = AsyncMock(return_value=None)

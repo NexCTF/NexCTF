@@ -9,7 +9,7 @@ from sqlalchemy import select
 from nexctf import crud
 from nexctf.api.security import create_api_token
 from nexctf.core.config import settings
-from nexctf.model import UserSession, UserToken
+from nexctf.model import User, UserSession, UserToken
 
 from ..base import NULL_UUID, second_device
 
@@ -144,6 +144,17 @@ class TestRevokeAllSessions:
             db_session, [UserToken.user_id == user.id]
         )
         assert remaining == 0
+
+    async def test_ends_outstanding_oauth_grants(self, user_client, db_session):
+        c, user = user_client
+        before = await db_session.scalar(
+            select(User.session_version).where(User.id == user.id)
+        )
+        assert (await c.delete("/me/sessions")).status_code == 204
+        after = await db_session.scalar(
+            select(User.session_version).where(User.id == user.id)
+        )
+        assert after == before + 1
 
     async def test_clears_the_cookie(self, user_client):
         c, _ = user_client

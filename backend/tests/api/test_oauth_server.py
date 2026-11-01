@@ -3,7 +3,8 @@
 import json
 from typing import Any
 from unittest.mock import AsyncMock
-from urllib.parse import parse_qsl, urlparse
+from urllib.parse import parse_qs, parse_qsl, urlparse
+from uuid import UUID
 
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +28,7 @@ _CODE_PAYLOAD = json.dumps(
     {
         "client_id": _CLIENT_ID,
         "user_id": _FX_USER1_ID,
+        "session_version": 0,
         "redirect_uri": _REDIRECT_URI,
         "scopes": "openid profile email",
         "state": None,
@@ -232,6 +234,8 @@ class TestOAuth2Approve:
         assert redirect_to.startswith(_REDIRECT_URI)
         assert "code=" in redirect_to
         assert len(_stored(mock_redis, "oauth:code:")) == 1
+        code = parse_qs(urlparse(redirect_to).query)["code"][0]
+        assert _stored(mock_redis, "oauth:code:")[0][0] != f"oauth:code:{code}"
 
     async def test_approve_with_state(
         self,
@@ -381,6 +385,33 @@ class TestOAuth2Token:
         assert data["expires_in"] > 0
         assert len(_stored(mock_redis, "oauth:token:")) == 1
 
+    async def test_a_code_dies_with_a_session_reset(
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+        fixture_oauth_server_client: list[OAuthServerClient],
+        fixture_user_members,
+        mock_redis,
+    ) -> None:
+        user = await db_session.get(User, UUID(_FX_USER1_ID))
+        assert user is not None
+        user.session_version += 1
+        await db_session.flush()
+        mock_redis.getdel = AsyncMock(return_value=_CODE_PAYLOAD)
+
+        resp = await http_client.post(
+            "/oauth2/token",
+            data={
+                "grant_type": "authorization_code",
+                "code": "test_code_value",
+                "redirect_uri": _REDIRECT_URI,
+                "client_id": _CLIENT_ID,
+                "client_secret": _CLIENT_SECRET,
+            },
+        )
+        assert resp.status_code == 400
+        assert resp.json()["error"] == "invalid_grant"
+
     async def test_invalid_code(
         self,
         http_client: AsyncClient,
@@ -438,6 +469,7 @@ class TestOAuth2Token:
                 {
                     "client_id": _ADMIN_CLIENT_ID,
                     "user_id": _FX_USER1_ID,
+                    "session_version": 0,
                     "redirect_uri": _REDIRECT_URI,
                     "scopes": "openid profile",
                     "state": None,
@@ -486,6 +518,7 @@ class TestOAuth2PKCE:
         {
             "client_id": _CLIENT_ID,
             "user_id": _FX_USER1_ID,
+            "session_version": 0,
             "redirect_uri": _REDIRECT_URI,
             "scopes": "openid profile email",
             "state": None,
@@ -780,6 +813,7 @@ class TestOAuth2Userinfo:
         {
             "client_id": _CLIENT_ID,
             "user_id": _FX_USER1_ID,
+            "session_version": 0,
             "scopes": "openid profile email roles",
         }
     )
@@ -802,6 +836,7 @@ class TestOAuth2Userinfo:
         assert "sub" in data
         assert data["username"] == "fx_user1"
         assert data["role"] == "user"
+        assert isinstance(data["email_verified"], bool)
 
     async def test_scopes_narrowed_since_issue_are_withheld(
         self,
@@ -825,6 +860,7 @@ class TestOAuth2Userinfo:
         data = resp.json()
         assert data["username"] == "fx_user1"
         assert data["email"] is None
+        assert data["email_verified"] is None
         assert data["role"] is None
 
     async def test_role_is_rechecked_per_request(
@@ -840,6 +876,7 @@ class TestOAuth2Userinfo:
                 {
                     "client_id": _ADMIN_CLIENT_ID,
                     "user_id": _FX_USER1_ID,
+                    "session_version": 0,
                     "scopes": "openid profile",
                 }
             )
@@ -862,6 +899,27 @@ class TestOAuth2Userinfo:
     ) -> None:
         """Disabling a client kills its outstanding tokens, as invalid_token."""
         fixture_oauth_server_client[0].is_active = False
+        await db_session.flush()
+        mock_redis.get = AsyncMock(return_value=self._TOKEN_PAYLOAD)
+
+        resp = await http_client.get(
+            "/oauth2/userinfo",
+            headers={"Authorization": "Bearer some_opaque_token"},
+        )
+        assert resp.status_code == 401
+        assert resp.json()["error"] == "invalid_token"
+
+    async def test_a_token_dies_with_a_session_reset(
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+        fixture_oauth_server_client: list[OAuthServerClient],
+        fixture_user_members,
+        mock_redis,
+    ) -> None:
+        user = await db_session.get(User, UUID(_FX_USER1_ID))
+        assert user is not None
+        user.session_version += 1
         await db_session.flush()
         mock_redis.get = AsyncMock(return_value=self._TOKEN_PAYLOAD)
 
@@ -902,6 +960,7 @@ class TestOAuth2Userinfo:
             {
                 "client_id": _CLIENT_ID,
                 "user_id": _FX_USER1_ID,
+                "session_version": 0,
                 "scopes": "openid profile",
             }
         )
