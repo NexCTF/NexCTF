@@ -1,10 +1,12 @@
 from datetime import datetime
 from typing import Annotated
+from urllib.parse import urlparse
 from uuid import UUID
 
 from pydantic import AfterValidator, BaseModel, computed_field
 
 from nexctf.core.config import settings
+from nexctf.model.oauth_server import split_redirect_uris
 from nexctf.model.user import UserRole
 
 _VALID_ROLES = {r.value for r in UserRole}
@@ -51,10 +53,25 @@ class AdminOAuthClientRead(BaseModel):
         }
 
 
+_SCRIPT_SCHEMES = frozenset({"javascript", "data", "vbscript", "file", "blob"})
+
+
+def _check_redirect_uris(value: str) -> str:
+    """Refuse a redirect URI without a scheme, or with one a browser runs as script."""
+    for uri in split_redirect_uris(value):
+        scheme = urlparse(uri).scheme.lower()
+        if not scheme or scheme in _SCRIPT_SCHEMES:
+            raise ValueError(f"Unsupported redirect URI: {uri!r}")
+    return value
+
+
+RedirectUris = Annotated[str, AfterValidator(_check_redirect_uris)]
+
+
 class AdminOAuthClientCreate(BaseModel):
     name: str
     description: str | None = None
-    redirect_uris: str
+    redirect_uris: RedirectUris
     allowed_scopes: str = "openid profile email roles"
     allowed_roles: AllowedRoles = None
     is_active: bool = True
@@ -78,7 +95,7 @@ class AdminOAuthClientCreateFull(BaseModel):
 class AdminOAuthClientUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
-    redirect_uris: str | None = None
+    redirect_uris: RedirectUris | None = None
     allowed_scopes: str | None = None
     allowed_roles: AllowedRoles = None
     is_active: bool | None = None

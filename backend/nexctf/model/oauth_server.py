@@ -6,6 +6,11 @@ from sqlalchemy.orm import Mapped, mapped_column
 from .base import Base
 
 
+def split_redirect_uris(text: str) -> list[str]:
+    """The redirect URIs stored one per line in *text*."""
+    return [u.strip() for u in text.splitlines() if u.strip()]
+
+
 class OAuthServerClient(Base):
     """OAuth2 authorization server — registered third-party applications."""
 
@@ -25,7 +30,7 @@ class OAuthServerClient(Base):
 
     @property
     def redirect_uri_list(self) -> list[str]:
-        return [u.strip() for u in self.redirect_uris.splitlines() if u.strip()]
+        return split_redirect_uris(self.redirect_uris)
 
     @property
     def allowed_scope_list(self) -> list[str]:

@@ -2,6 +2,7 @@ import io
 import logging
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
+from typing import BinaryIO
 
 import aioboto3
 from botocore.config import Config
@@ -70,11 +71,16 @@ async def allow_browser_reads(origins: list[str]) -> None:
 
 
 async def upload(key: str, data: bytes, content_type: str | None = None) -> None:
+    await upload_stream(key, io.BytesIO(data), content_type)
+
+
+async def upload_stream(
+    key: str, fileobj: BinaryIO, content_type: str | None = None
+) -> None:
+    """Stream a file object to S3 without holding it in memory."""
     extra = {"ContentType": content_type} if content_type else {}
     async with _client() as client, _logged("upload", key):
-        await client.upload_fileobj(
-            io.BytesIO(data), settings.S3_BUCKET, key, ExtraArgs=extra
-        )
+        await client.upload_fileobj(fileobj, settings.S3_BUCKET, key, ExtraArgs=extra)
 
 
 async def upload_file(key: str, path: str) -> None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 from uuid import UUID
 
@@ -224,8 +225,15 @@ def _model(cls: Any, data: dict[str, Any], path: str) -> Any:
         raise BundleFormatError(f"{path}: {exc}") from exc
 
 
+def _checked_blob(file: FileIR, blob: bytes, path: str) -> bytes:
+    """*blob*, once it matches the sha256 its metadata records."""
+    if file.sha256 is not None and hashlib.sha256(blob).hexdigest() != file.sha256:
+        raise BundleFormatError(f"{path}: content does not match its sha256")
+    return blob
+
+
 def _read_page(path: str, raw: bytes) -> PageIR:
-    text = raw.decode("utf-8").replace("\r\n", "\n")
+    text = load_markdown(raw)
     if not text.startswith(f"{_FRONTMATTER}\n"):
         raise BundleFormatError(f"{path}: missing frontmatter")
     front, _, body = text[len(_FRONTMATTER) + 1 :].partition(f"\n{_FRONTMATTER}\n")
@@ -297,7 +305,7 @@ def read_tree(tree: dict[str, bytes]) -> tuple[Bundle, dict[UUID, bytes]]:
         directory = path.rsplit("/", 1)[0]
         for candidate in sorted(by_directory.get(directory, [])):
             if candidate != path:
-                blobs[file.id] = tree[candidate]
+                blobs[file.id] = _checked_blob(file, tree[candidate], candidate)
                 break
 
     pages = [

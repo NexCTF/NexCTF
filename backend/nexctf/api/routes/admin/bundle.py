@@ -30,6 +30,7 @@ from nexctf.schema.bundle import (
     AdminBundleManifestRead,
     AdminBundlePlanRead,
 )
+from nexctf.util.upload import checked_size
 
 bundle_router = APIRouter(prefix="/bundle", tags=["Bundle"])
 
@@ -151,6 +152,7 @@ async def plan_import(
 ) -> Response[AdminBundlePlanRead]:
     """Stage an uploaded archive and return what importing it would do."""
     _require_challenge_read(granted)
+    checked_size(upload)
     data = await upload.read()
     try:
         incoming, blobs = await asyncio.to_thread(bundle.parse_archive, data)

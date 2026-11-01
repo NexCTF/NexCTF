@@ -306,6 +306,12 @@ def needs_reauth(keys: Iterable[str]) -> bool:
     return any(key in _DEFS and _DEFS[key].reauth for key in keys)
 
 
+def _is_http_url(value: str) -> bool:
+    """True for an absolute http(s) URL."""
+    parsed = urlparse(value)
+    return parsed.scheme.lower() in ("http", "https") and bool(parsed.netloc)
+
+
 def _is_site_path(value: str) -> bool:
     """True for a same-origin path. "//host/x" is protocol-relative, not a path."""
     return value.startswith("/") and not value.startswith("//")
@@ -338,14 +344,14 @@ def _validate(key: str, value: str) -> None:
     elif def_.type == ConfigType.COLOR and value:
         if not re.fullmatch(r"#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?", value):
             raise ValueError(f"Invalid color: {value!r}, expected #RRGGBB or #RRGGBBAA")
-    elif def_.type == ConfigType.URL and value:
-        parsed = urlparse(value)
-        if not parsed.scheme or not parsed.netloc:
-            raise ValueError(f"Invalid URL: {value!r}")
-    elif def_.type == ConfigType.IMAGE and value and not _is_site_path(value):
-        parsed = urlparse(value)
-        if not parsed.scheme or not parsed.netloc:
-            raise ValueError(f"Invalid image URL: {value!r}")
+    elif def_.type == ConfigType.URL and value and not _is_http_url(value):
+        raise ValueError(f"Invalid URL: {value!r}, expected http(s)://")
+    elif (
+        def_.type == ConfigType.IMAGE
+        and value
+        and not (_is_site_path(value) or _is_http_url(value))
+    ):
+        raise ValueError(f"Invalid image URL: {value!r}")
 
 
 async def stage(session: AsyncSession, key: str, value: str) -> None:

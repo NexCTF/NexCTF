@@ -142,6 +142,8 @@ class Settings(BaseSettings):
             self.ENVIRONMENT == "development" or bool(self.METRICS_TOKEN)
         )
 
+    MAX_UPLOAD_BYTES: int = 2 * 1024**3
+
     SSE_MAX_STREAMS: int = 1000
     SSE_MAX_PUBLIC_STREAMS: int = 1000
     SSE_MAX_STREAMS_PER_USER: int = 10

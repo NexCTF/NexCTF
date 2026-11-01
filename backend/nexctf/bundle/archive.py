@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import zipfile
+import zlib
 
 from nexctf.bundle.errors import BundleFormatError
 
@@ -45,11 +46,19 @@ def read_archive(data: bytes) -> dict[str, bytes]:
         if sum(info.file_size for info in members) > MAX_UNCOMPRESSED:
             raise BundleFormatError("archive expands beyond the size limit")
         tree = {
-            _safe_path(info.filename): archive.read(info)
+            _safe_path(info.filename): _read_member(archive, info)
             for info in members
             if not _is_noise(info.filename)
         }
     return _unwrap(tree)
+
+
+def _read_member(archive: zipfile.ZipFile, info: zipfile.ZipInfo) -> bytes:
+    """The bytes of one member, or a BundleFormatError when it is corrupt."""
+    try:
+        return archive.read(info)
+    except (zipfile.BadZipFile, zlib.error, EOFError, RuntimeError) as exc:
+        raise BundleFormatError(f"cannot read {info.filename!r}: {exc}") from exc
 
 
 def _is_noise(name: str) -> bool:

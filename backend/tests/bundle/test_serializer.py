@@ -1,5 +1,9 @@
 """The tree/archive serialization: byte stability, safety and purity."""
 
+import hashlib
+import io
+import struct
+import zipfile
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -25,6 +29,7 @@ from nexctf.bundle import (
 )
 from nexctf.bundle.slugs import sanitize_filename, slugify, unique_slugs
 from nexctf.bundle.tree import CONFIG_PATH
+from nexctf.bundle.yamlio import load_yaml
 
 FILE_ID = UUID("0199a000-0000-7000-8000-00000000000f")
 
@@ -81,7 +86,7 @@ def sample_bundle() -> Bundle:
                 original_filename="notes.txt",
                 mime_type="text/plain",
                 file_size=4,
-                sha256="ab",
+                sha256=hashlib.sha256(b"data").hexdigest(),
             )
         ],
         pages=[PageIR(id=_id(6), slug="home", title="Home", content="# Hi\n\nbody")],
@@ -230,7 +235,12 @@ def test_unique_slugs_do_not_depend_on_input_order() -> None:
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [("a/b.txt", "b.txt"), ("..", "blob"), ("x?<>.txt", "x.txt")],
+    [
+        ("a/b.txt", "b.txt"),
+        ("..", "blob"),
+        ("x?<>.txt", "x.txt"),
+        ("META.yaml", "blob-META.yaml"),
+    ],
 )
 def test_sanitize_filename(value: str, expected: str) -> None:
     assert sanitize_filename(value) == expected
@@ -280,3 +290,33 @@ def test_the_serializer_never_imports_the_database_layer() -> None:
         [sys.executable, "-c", source], capture_output=True, text=True, check=True
     )
     assert result.stdout.strip() == "[]"
+
+
+class TestMalformedInput:
+    """A broken archive is a 400-worthy BundleFormatError, never a crash."""
+
+    def test_corrupt_member_is_a_format_error(self) -> None:
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("nexctf.yaml", b"A" * 1000)
+        data = bytearray(buf.getvalue())
+        for marker, offset in ((b"PK\x01\x02", 24), (b"PK\x03\x04", 22)):
+            at = data.find(marker) + offset
+            data[at : at + 4] = struct.pack("<I", 10)
+
+        with pytest.raises(BundleFormatError):
+            read_archive(bytes(data))
+
+    @pytest.mark.parametrize(
+        "raw",
+        [b"a: [unclosed", b"\xff\xfe not utf-8", b"a: &x [1]\nb: *x\n"],
+    )
+    def test_bad_yaml_is_a_format_error(self, raw: bytes) -> None:
+        with pytest.raises(BundleFormatError):
+            load_yaml(raw)
+
+
+def test_a_blob_that_does_not_match_its_sha256_is_refused() -> None:
+    tree = write_tree(sample_bundle(), {FILE_ID: b"tampered"})
+    with pytest.raises(BundleFormatError, match="sha256"):
+        read_tree(tree)

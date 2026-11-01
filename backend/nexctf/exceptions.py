@@ -573,6 +573,15 @@ class ConfigValidationError(ApiException):
         super().__init__(desc="; ".join(errors))
 
 
+class UploadTooLargeError(ApiException):
+    api_error = ApiError(
+        code=413,
+        msg="Upload too large",
+        desc="The uploaded file is larger than this server accepts.",
+        err_code="FILE-413",
+    )
+
+
 class NothingToUpdateError(ApiException):
     api_error = ApiError(
         code=422,

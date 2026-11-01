@@ -16,6 +16,7 @@ from nexctf.schema.file import (
     AdminFileRead,
     AdminFileUpdate,
 )
+from nexctf.util.upload import checked_size
 
 file_router = APIRouter(prefix="/file", tags=["File"])
 
@@ -38,8 +39,8 @@ async def upload_file(
     file_id = uuid4()
     s3_key = f"files/{file_id}"
 
-    content = await upload.read()
-    await s3.upload(s3_key, content, upload.content_type)
+    size = checked_size(upload)
+    await s3.upload_stream(s3_key, upload.file, upload.content_type)
 
     return await crud.FileCrud.create(
         session=session,
@@ -49,7 +50,7 @@ async def upload_file(
             s3_key=s3_key,
             original_filename=upload.filename or name,
             mime_type=upload.content_type,
-            file_size=len(content),
+            file_size=size,
             is_public=is_public,
         ),
         schema=AdminFileRead,
@@ -100,12 +101,12 @@ async def update_file(
             raise FileNotFoundApiError()
         file_read = result.data
 
-        content = await upload.read()
-        await s3.upload(file_read.s3_key, content, upload.content_type)
+        size = checked_size(upload)
+        await s3.upload_stream(file_read.s3_key, upload.file, upload.content_type)
 
         updates["original_filename"] = upload.filename or file_read.original_filename
         updates["mime_type"] = upload.content_type
-        updates["file_size"] = len(content)
+        updates["file_size"] = size
 
     return await crud.FileCrud.update(
         session=session,
