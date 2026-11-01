@@ -2,7 +2,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getPublicInfo } from "@/lib/api";
-import { ACCENT_VARS, BrandingProvider, DEFAULT_BRANDING } from "@/lib/branding";
+import {
+  ACCENT_VARS,
+  BrandingProvider,
+  DEFAULT_BRANDING,
+  useWithoutCustomCss,
+} from "@/lib/branding";
 import { ThemeProvider } from "@/lib/theme";
 import { publicInfo } from "@/test/fixtures";
 
@@ -11,14 +16,17 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   getPublicInfo: vi.fn(),
 }));
 
-function renderBranding() {
+function WithoutCustomCss() {
+  useWithoutCustomCss();
+  return null;
+}
+
+function renderBranding(child = <div />) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <BrandingProvider>
-          <div />
-        </BrandingProvider>
+        <BrandingProvider>{child}</BrandingProvider>
       </ThemeProvider>
     </QueryClientProvider>,
   );
@@ -88,4 +96,15 @@ it("seeds the configured default theme only while the visitor has no stored choi
   localStorage.setItem("nexctf-theme", "light");
   renderBranding();
   await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(false));
+});
+
+it("keeps custom CSS off while a page opts out of it", async () => {
+  vi.mocked(getPublicInfo).mockResolvedValue(brandingInfo({ custom_css: "body{opacity:0}" }));
+  const { unmount } = renderBranding(<WithoutCustomCss />);
+
+  await waitFor(() => expect(document.getElementById("nexctf-custom-css")).not.toBeNull());
+  const el = document.getElementById("nexctf-custom-css") as HTMLStyleElement;
+  expect(el.disabled).toBe(true);
+  unmount();
+  expect(el.disabled).toBe(false);
 });

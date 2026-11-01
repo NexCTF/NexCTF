@@ -60,6 +60,7 @@ class _SqlAlchemyDriver:
 
     def __init__(self) -> None:
         self._shutdown = asyncio.Event()
+        self._tm = TaskManager()
 
     def _connection(self) -> AbstractAsyncContextManager[AsyncConnection]:
         raise NotImplementedError
@@ -88,7 +89,7 @@ class _SqlAlchemyDriver:
 
     @property
     def tm(self) -> TaskManager:
-        return TaskManager()
+        return self._tm
 
     async def __aenter__(self) -> Self:
         return self
