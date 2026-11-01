@@ -32,6 +32,19 @@ _REVISION_RE = re.compile(r"[0-9A-Za-z_]+")
 _ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 
+_EMPTY_DATABASE = r"""
+DO $$
+DECLARE s text;
+BEGIN
+  FOR s IN SELECT nspname FROM pg_namespace
+           WHERE nspname NOT LIKE 'pg\_%' AND nspname <> 'information_schema' LOOP
+    EXECUTE format('DROP SCHEMA %I CASCADE', s);
+  END LOOP;
+END $$;
+CREATE SCHEMA public;
+"""
+
+
 class BackupError(Exception):
     """A dump or restore could not be carried out."""
 
@@ -55,7 +68,7 @@ def _pg_args() -> list[str]:
     ]
 
 
-async def _run(program: str, *args: str) -> None:
+async def _run(program: str, *args: str, connect: bool = True) -> None:
     """Run a Postgres client binary, raising BackupError on a non-zero exit."""
     if shutil.which(program) is None:
         raise BackupError(
@@ -64,7 +77,7 @@ async def _run(program: str, *args: str) -> None:
         )
     proc = await asyncio.create_subprocess_exec(
         program,
-        *_pg_args(),
+        *(_pg_args() if connect else ()),
         *args,
         env=_pg_env(),
         stdout=asyncio.subprocess.PIPE,
@@ -136,7 +149,11 @@ async def create(source: BackupSource) -> tuple[str, int]:
 
 
 async def restore(key: str) -> None:
-    """Replace the database with an archive from S3. The caller stops the app first."""
+    """Replace the database with an archive from S3. The caller stops the app first.
+
+    Every schema is dropped before the dump replays, in one transaction, so
+    tables a later migration added cannot survive or block the restore.
+    """
     validate_key(key)
 
     revision = revision_of(key)
@@ -150,16 +167,29 @@ async def restore(key: str) -> None:
     logger.info("Pre-restore backup of the current database: %s", safety_key)
 
     with tempfile.TemporaryDirectory() as tmp:
-        path = str(Path(tmp) / "dump")
-        await s3.download_file(key, path)
+        dump = Path(tmp) / "dump"
+        script = Path(tmp) / "restore.sql"
+        await s3.download_file(key, str(dump))
         await _run(
             "pg_restore",
-            "--clean",
-            "--if-exists",
-            "--single-transaction",
             "--no-owner",
             "--no-privileges",
-            path,
+            "-f",
+            str(script),
+            str(dump),
+            connect=False,
+        )
+        await _run(
+            "psql",
+            "-X",
+            "-q",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "--single-transaction",
+            "-c",
+            _EMPTY_DATABASE,
+            "-f",
+            str(script),
         )
 
     logger.info("Restored backup %s", key)
