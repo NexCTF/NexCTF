@@ -1,8 +1,9 @@
 """Tests for /admin/oauth-provider CRUD endpoints."""
 
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.model import OAuthProvider, User
+from nexctf.model import OAuthAccount, OAuthProvider, User
 
 from ..base import (
     NULL_UUID,
@@ -124,6 +125,22 @@ class TestDeleteOAuthProvider(DeleteGuardMixin):
 
         resp2 = await c.get(f"{self.PREFIX}/{p.id}")
         assert resp2.status_code == 404
+
+    async def test_a_provider_in_use_is_kept(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_oauth_provider: list[OAuthProvider],
+        db_session: AsyncSession,
+    ) -> None:
+        c, admin = admin_client
+        p = fixture_oauth_provider[0]
+        db_session.add(OAuthAccount(user_id=admin.id, provider_id=p.id, subject="s"))
+        await db_session.flush()
+
+        resp = await c.delete(f"{self.PREFIX}/{p.id}")
+
+        assert resp.status_code == 409
+        assert await db_session.get(OAuthProvider, p.id) is not None
 
     async def test_delete_not_found(
         self, admin_client: tuple[AsyncClient, User]

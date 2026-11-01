@@ -6,9 +6,10 @@ from unittest.mock import ANY, AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.model import Team, User
+from nexctf.model import Event, Team, User
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 
 PREFIX = "/admin/score-adjustment"
@@ -91,6 +92,25 @@ class TestScoreAdjustmentChallenge:
         resp = await c.put(f"{PREFIX}/{adj_id}", json={"id": adj_id, "amount": 30})
 
         assert resp.json()["data"]["challenge_id"] == str(challenge.id)
+
+    async def test_update_is_audited(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        c, _ = admin_client
+        team, _ = await _setup(db_session)
+        created = await c.post(
+            PREFIX, json={"team_id": str(team.id), "amount": 25, "reason": "r"}
+        )
+        adj_id = created.json()["data"]["id"]
+
+        await c.put(f"{PREFIX}/{adj_id}", json={"id": adj_id, "amount": 30})
+
+        events = await db_session.scalars(
+            select(Event).where(Event.event_type == "score_adjustment.updated")
+        )
+        assert [e.meta["amount"] for e in events] == [30]
 
 
 class TestScoreAdjustmentInvalidation:
