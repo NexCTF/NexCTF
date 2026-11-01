@@ -275,3 +275,54 @@ class TestBracketParam:
         for bracket in ("student", "no-such-bracket"):
             resp = await http_client.get("/scoreboard", params={"bracket": bracket})
             assert resp.status_code == 403, bracket
+
+
+class TestExportAdminScoreboard:
+    PREFIX = "/admin/scoreboard/export"
+
+    @pytest.fixture
+    async def scored_admin(
+        self, admin_client: tuple[AsyncClient, User], db_session: AsyncSession
+    ) -> AsyncClient:
+        await _setup_scored_team(db_session, "TeamA", 100)
+        await db_session.commit()
+        return admin_client[0]
+
+    async def test_requires_admin(self, user_client: tuple[AsyncClient, User]) -> None:
+        c, _ = user_client
+        resp = await c.get(self.PREFIX)
+        assert resp.status_code == 403
+
+    async def test_csv_selected_columns(self, scored_admin: AsyncClient) -> None:
+        resp = await scored_admin.get(
+            self.PREFIX, params={"format": "csv", "columns": ["team_name", "total"]}
+        )
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/csv")
+        assert "attachment" in resp.headers["content-disposition"]
+        assert resp.text.splitlines() == ["team_name,total", "TeamA,100"]
+
+    async def test_unknown_column(self, admin_client: tuple[AsyncClient, User]) -> None:
+        c, _ = admin_client
+        resp = await c.get(self.PREFIX, params={"columns": ["nope"]})
+        assert resp.status_code == 422
+
+    async def test_ctftime(self, scored_admin: AsyncClient) -> None:
+        resp = await scored_admin.get(self.PREFIX, params={"format": "ctftime"})
+        standing = resp.json()["standings"][0]
+        assert (standing["pos"], standing["team"], standing["score"]) == (
+            1,
+            "TeamA",
+            100,
+        )
+
+    async def test_json(self, scored_admin: AsyncClient) -> None:
+        resp = await scored_admin.get(self.PREFIX, params={"format": "json"})
+        assert resp.json()["entries"][0]["solve_points"] == 100
+
+    async def test_unknown_bracket(
+        self, admin_client: tuple[AsyncClient, User]
+    ) -> None:
+        c, _ = admin_client
+        resp = await c.get(self.PREFIX, params={"bracket": "no-such-bracket"})
+        assert resp.status_code == 404

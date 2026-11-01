@@ -1,6 +1,6 @@
 import i18n from "i18next";
 import { afterEach, expect, it, vi } from "vitest";
-import { ApiError, apiErrorMessage, createChallenge } from "@/lib/api";
+import { ApiError, adminScoreboardExportUrl, apiErrorMessage, createChallenge } from "@/lib/api";
 
 function mockResponse(status: number, body: unknown) {
   vi.stubGlobal(
@@ -70,4 +70,20 @@ it("words a known error code in the user's language", async () => {
   } finally {
     await i18n.changeLanguage("en");
   }
+});
+
+it("sends the selected CSV columns in order with the bracket", () => {
+  const url = adminScoreboardExportUrl({
+    format: "csv",
+    bracket: "student",
+    columns: ["team_name", "total"],
+  });
+  expect(url).toBe(
+    "/api/v1/admin/scoreboard/export?format=csv&bracket=student&columns=team_name&columns=total",
+  );
+});
+
+it("drops CSV columns for the JSON formats", () => {
+  const url = adminScoreboardExportUrl({ format: "ctftime", columns: ["team_name"] });
+  expect(url).toBe("/api/v1/admin/scoreboard/export?format=ctftime");
 });

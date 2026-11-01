@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { RefreshCw, Trophy } from "lucide-react";
+import { Download, RefreshCw, Trophy } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { BracketSelect } from "@/components/bracket-select";
 import { CLICKABLE_ROW_CLS, RowChevron } from "@/components/data-table";
 import { PageHeader } from "@/components/page-header";
 import { RankBadge, ScoreboardBanners } from "@/components/scoreboard";
+import { ScoreboardExportDialog } from "@/components/scoreboard-export-dialog";
 import { DateCell, EmptyCell, SignedPoints } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
 import { apiErrorMessage, getAdminScoreboard, invalidateScoreboardCache } from "@/lib/api";
@@ -25,6 +26,7 @@ function ScoreboardSection() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [bracket, setBracket] = useState<string | undefined>(undefined);
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "scoreboard", bracket],
@@ -48,6 +50,10 @@ function ScoreboardSection() {
         <h2 className="text-lg font-semibold">{t("admin.scoreboard.rankings_title")}</h2>
         <div className="flex flex-wrap items-center gap-2">
           {data && <BracketSelect brackets={data.brackets} value={bracket} onChange={setBracket} />}
+          <Button variant="outline" size="sm" onClick={() => setIsExporting(true)} disabled={!data}>
+            <Download />
+            {t("admin.scoreboard.export", { defaultValue: "Export" })}
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -59,6 +65,15 @@ function ScoreboardSection() {
           </Button>
         </div>
       </div>
+
+      {isExporting && data && (
+        <ScoreboardExportDialog
+          bracket={bracket}
+          columnIds={data.export_columns}
+          customFields={data.custom_fields}
+          onClose={() => setIsExporting(false)}
+        />
+      )}
 
       {isLoading && <p className="text-muted-foreground text-sm">{t("common.loading")}</p>}
 
