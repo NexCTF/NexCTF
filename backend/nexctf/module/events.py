@@ -47,6 +47,7 @@ EVENT_CATEGORIES: frozendict[str, str] = frozendict(
         "challenge.complete": "gameplay",
         "challenge.feedback": "gameplay",
         "score_adjustment.created": "admin",
+        "score_adjustment.updated": "admin",
         "score_adjustment.deleted": "admin",
         "admin.user_updated": "admin",
         "admin.user_totp_reset": "admin",

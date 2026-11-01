@@ -27,6 +27,7 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
   "admin.user_deleted": "bg-red-700/10 text-red-700 dark:text-red-400",
   "admin.submission_deleted": "bg-rose-500/10 text-rose-600 dark:text-rose-400",
   "score_adjustment.created": "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+  "score_adjustment.updated": "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
   "score_adjustment.deleted": "bg-rose-700/10 text-rose-700 dark:text-rose-400",
 };
 

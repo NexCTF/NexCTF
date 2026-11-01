@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from nexctf import crud
 from nexctf.api.dep import FreshAuthDep, SessionDep
-from nexctf.model import OAuthProvider
+from nexctf.model import OAuthAccount, OAuthProvider
 from nexctf.schema.oauth import (
     AdminOAuthProviderCreate,
     AdminOAuthProviderRead,
@@ -74,6 +74,13 @@ async def update_oauth_provider(
 
 @oauth_router.delete("/{uuid}", dependencies=[FreshAuthDep])
 async def delete_oauth_provider(session: SessionDep, uuid: UUID) -> Response[None]:
+    """Delete a provider nobody signs in with; a used one can only be deactivated."""
+    if await crud.OAuthAccountCrud.exists(
+        session=session, filters=[OAuthAccount.provider_id == uuid]
+    ):
+        raise ConflictError(
+            detail="Accounts sign in with this provider: deactivate it instead"
+        )
     return await crud.OAuthProviderCrud.delete(
         session=session,
         filters=[OAuthProvider.id == uuid],

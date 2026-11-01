@@ -80,11 +80,13 @@ async def get_score_adjustment(
 
 @score_adjustment_router.put("/{uuid}")
 async def update_score_adjustment(
+    request: Request,
     session: SessionDep,
     redis: RedisDep,
     background_tasks: BackgroundTasks,
     uuid: UUID,
     obj: AdminScoreAdjustmentUpdate,
+    admin: CurrentUserDep,
 ) -> Response[AdminScoreAdjustmentRead]:
     result = await crud.ScoreAdjustmentCrud.update(
         session=session,
@@ -94,6 +96,19 @@ async def update_score_adjustment(
     )
     if result.data is not None:
         background_tasks.add_task(invalidate_scoreboard, redis, result.data.team_id)
+        await emit(
+            session,
+            redis,
+            event_type="score_adjustment.updated",
+            actor_id=admin.id,
+            ip=get_client_ip(request),
+            meta={
+                "adjustment_id": str(uuid),
+                "team_id": str(result.data.team_id),
+                "amount": result.data.amount,
+                "reason": result.data.reason,
+            },
+        )
     return result
 
 
