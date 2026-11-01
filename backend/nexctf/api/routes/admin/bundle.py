@@ -4,20 +4,29 @@ from typing import Annotated
 from uuid import uuid4
 
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, Form, UploadFile
+from fastapi import APIRouter, Form, Request, UploadFile
 from fastapi import Response as FastAPIResponse
+from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import Response
 
-from nexctf.api.dep import RedisDep, SessionDep, TokenScopesDep
+from nexctf.api.dep import (
+    RedisDep,
+    SessionDep,
+    TokenScopesDep,
+    require_fresh_unless_token,
+)
+from nexctf.api.scope import require_scopes
+from nexctf.api.security import consume_single_use_token, issue_single_use_token
 from nexctf.bundle.errors import BundleFormatError
 from nexctf.core import s3
-from nexctf.exceptions import BundleFailedError, InsufficientScopeError
+from nexctf.exceptions import BundleFailedError
 from nexctf.module import bundle
 from nexctf.module.audit import audit_actor
 from nexctf.module.events import emit
 from nexctf.schema.bundle import (
     AdminBundleApply,
     AdminBundleApplyResult,
+    AdminBundleExportTicket,
     AdminBundleManifestRead,
     AdminBundlePlanRead,
 )
@@ -33,36 +42,80 @@ _WRITE_SCOPES = (
 )
 
 
-def _require_scopes(granted: frozenset[str] | None, *required: str) -> None:
-    """Assert scopes a token needs beyond the router's group. No-op for sessions."""
-    if granted is None:
-        return
-    for scope in required:
-        if scope not in granted:
-            raise InsufficientScopeError(scope)
-
-
 def _require_challenge_read(granted: frozenset[str] | None) -> None:
     """An export or plan embeds every solution, so it needs the challenge read."""
-    _require_scopes(granted, *_READ_SCOPES)
+    require_scopes(granted, *_READ_SCOPES)
+
+
+_EXPORT_PREFIX = "bundle_export:"
+_EXPORT_TTL = 60
+
+
+def _check_export(
+    request: Request, granted: frozenset[str] | None, *, include_secrets: bool
+) -> None:
+    """Refuse an export the caller may not take; secrets need a fresh session."""
+    _require_challenge_read(granted)
+    if include_secrets:
+        require_scopes(granted, "read:admin.config")
+        require_fresh_unless_token(request, granted)
+
+
+async def _redeem_ticket(redis: RedisDep, ticket: str) -> tuple[bool, bool]:
+    """The ``(include_files, include_secrets)`` a one-time export *ticket* holds."""
+    stored = await consume_single_use_token(redis, _EXPORT_PREFIX, ticket)
+    if stored is None:
+        raise NotFoundError()
+    files, secrets = stored.split(":")
+    return files == "1", secrets == "1"
+
+
+def _require_fresh_for_config(
+    request: Request, granted: frozenset[str] | None, plan: bundle.Plan
+) -> None:
+    """From a browser, an import writing auth-related config needs a fresh session."""
+    if bundle.changes_reauth_config(plan):
+        require_fresh_unless_token(request, granted)
 
 
 def _fail(exc: Exception) -> BundleFailedError:
     return BundleFailedError(detail=str(exc))
 
 
+@bundle_router.post("/export")
+async def issue_export_ticket(
+    request: Request,
+    granted: TokenScopesDep,
+    redis: RedisDep,
+    include_files: bool = True,
+    include_secrets: bool = False,
+) -> Response[AdminBundleExportTicket]:
+    """Issue a one-time, short-lived ticket to download an export."""
+    _check_export(request, granted, include_secrets=include_secrets)
+    ticket = await issue_single_use_token(
+        redis,
+        _EXPORT_PREFIX,
+        _EXPORT_TTL,
+        f"{int(include_files)}:{int(include_secrets)}",
+    )
+    return Response(data=AdminBundleExportTicket(ticket=ticket))
+
+
 @bundle_router.get("/export")
 async def export_bundle(
+    request: Request,
     granted: TokenScopesDep,
     session: SessionDep,
     redis: RedisDep,
     include_files: bool = True,
     include_secrets: bool = False,
+    ticket: str | None = None,
 ) -> FastAPIResponse:
     """Build a content archive and hand it straight back as a download."""
-    _require_challenge_read(granted)
-    if include_secrets:
-        _require_scopes(granted, "read:admin.config")
+    if ticket is None:
+        _check_export(request, granted, include_secrets=include_secrets)
+    else:
+        include_files, include_secrets = await _redeem_ticket(redis, ticket)
     try:
         data = await bundle.export(
             session, include_files=include_files, include_secrets=include_secrets
@@ -128,13 +181,14 @@ async def plan_import(
 
 @bundle_router.post("/import/apply")
 async def apply_import(
+    request: Request,
     granted: TokenScopesDep,
     session: SessionDep,
     redis: RedisDep,
     body: AdminBundleApply,
 ) -> Response[AdminBundleApplyResult]:
     """Apply a reviewed plan, re-deriving it from the staged archive first."""
-    _require_scopes(granted, *_READ_SCOPES, *_WRITE_SCOPES)
+    require_scopes(granted, *_READ_SCOPES, *_WRITE_SCOPES)
     try:
         key = bundle.validate_import_key(body.import_key)
     except bundle.BundleError as exc:
@@ -150,7 +204,12 @@ async def apply_import(
     try:
         incoming, blobs = await asyncio.to_thread(bundle.parse_archive, data)
         applied = await bundle.apply_import(
-            session, redis, incoming, blobs, prune=body.prune
+            session,
+            redis,
+            incoming,
+            blobs,
+            prune=body.prune,
+            guard=lambda plan: _require_fresh_for_config(request, granted, plan),
         )
     except (bundle.BundleError, BundleFormatError) as exc:
         raise _fail(exc)

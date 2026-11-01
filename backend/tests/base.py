@@ -261,6 +261,13 @@ class DeleteGuardMixin:
         assert resp.status_code == 403
 
 
+BACKUP_JOB = {
+    "name": "nightly",
+    "job_type": "backup_database",
+    "params": {"keep_last": 1},
+    "cron_expression": "0 0 * * *",
+}
+
 _AUTH_ROUTES = "nexctf.api.routes.auth"
 
 IDP_URLS = OIDCEndpoints(

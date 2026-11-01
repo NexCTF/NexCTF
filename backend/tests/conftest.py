@@ -115,6 +115,22 @@ def mock_redis(config_overrides: dict[str, str]):
     return redis_mock
 
 
+@pytest.fixture
+def ticket_store(mock_redis) -> None:
+    """Back the mocked Redis ``set``/``getdel`` with a dict."""
+    store: dict[str, str] = {}
+
+    async def set_(name: str, value: str, **_: object) -> bool:
+        store[name] = value
+        return True
+
+    async def getdel(name: str) -> str | None:
+        return store.pop(name, None)
+
+    mock_redis.set = AsyncMock(side_effect=set_)
+    mock_redis.getdel = AsyncMock(side_effect=getdel)
+
+
 @pytest.fixture(scope="session")
 async def worker_db_url():
     """Create and drop a per-worker test database."""

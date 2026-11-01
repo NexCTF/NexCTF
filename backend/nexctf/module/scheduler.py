@@ -302,12 +302,15 @@ plugin = Plugin(
             handler=handle_send_notification,
             create_schema=SendNotificationParams,
             update_schema=SendNotificationParams,
+            scopes=("write:admin.notification",),
         ),
         JobDef(
             "backup_database",
             handler=handle_backup_database,
             create_schema=BackupDatabaseParams,
             update_schema=BackupDatabaseParams,
+            scopes=("write:admin.backup",),
+            reauth=True,
         ),
         JobDef(
             "toggle_challenge",
@@ -315,6 +318,7 @@ plugin = Plugin(
             create_schema=ToggleChallengeParams,
             update_schema=ToggleChallengeParams,
             invalidate=invalidate_challenges,
+            scopes=("write:admin.challenge",),
         ),
     ],
     tasks=[RUN_JOB_TASK],

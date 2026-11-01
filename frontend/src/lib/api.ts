@@ -2341,16 +2341,19 @@ export interface BundleExportOptions {
   includeSecrets: boolean;
 }
 
-/** URL of the authenticated endpoint building the archive; navigate to it to download. */
-export function adminBundleExportUrl({
+/** Issue a one-time export ticket and return the URL downloading the archive. */
+export async function adminBundleExportUrl({
   includeFiles,
   includeSecrets,
-}: BundleExportOptions): string {
+}: BundleExportOptions): Promise<string> {
   const params = new URLSearchParams({
     include_files: String(includeFiles),
     include_secrets: String(includeSecrets),
   });
-  return `${BASE}/admin/bundle/export?${params}`;
+  const { ticket } = await request<{ ticket: string }>(`/admin/bundle/export?${params}`, {
+    method: "POST",
+  });
+  return `${BASE}/admin/bundle/export?ticket=${encodeURIComponent(ticket)}`;
 }
 
 export async function planAdminBundleImport(file: File, prune: boolean): Promise<BundlePlan> {

@@ -980,6 +980,13 @@ async def _sync_config_cache(
     await cast(Any, pipe.execute())
 
 
+def changes_reauth_config(plan: Plan) -> bool:
+    """True when *plan* writes a config key that needs a fresh sign-in to save."""
+    return appconfig.needs_reauth(
+        entry.id for entry in plan.applicable() if entry.kind is EntityKind.CONFIG
+    )
+
+
 def _refusal(refused: list[PlanEntry]) -> str:
     """Explain a refusal, pointing at the remedy each kind actually has."""
     conflicts = [e for e in refused if e.action is Action.CONFLICT]
@@ -1006,11 +1013,14 @@ async def apply_import(
     blobs: dict[UUID, bytes],
     *,
     prune: bool = False,
+    guard: Callable[[Plan], None] | None = None,
 ) -> Plan:
-    """Re-derive a plan, then apply every safe entry in one transaction."""
+    """Re-derive a plan, let *guard* refuse it, then apply it in one transaction."""
     plan = await plan_import(session, incoming, blobs=blobs, prune=prune)
     if refused := plan.refused():
         raise BundleError(_refusal(refused))
+    if guard is not None:
+        guard(plan)
     selected = {entry.key for entry in plan.applicable()}
 
     writer = _Writer(session, incoming, blobs, plan)

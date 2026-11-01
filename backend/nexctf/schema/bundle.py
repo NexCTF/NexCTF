@@ -5,6 +5,10 @@ from fastapi_toolsets.schemas import PydanticBase
 from nexctf.bundle.diff import PlanEntry
 
 
+class AdminBundleExportTicket(PydanticBase):
+    ticket: str
+
+
 class AdminBundleManifestRead(PydanticBase):
     """What the uploaded archive says about itself."""
 

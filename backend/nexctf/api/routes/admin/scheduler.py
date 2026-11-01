@@ -3,12 +3,19 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
 
 from nexctf import crud
-from nexctf.api.dep import ConfigDep, CurrentUserDep, SessionDep
+from nexctf.api.dep import (
+    ConfigDep,
+    CurrentUserDep,
+    SessionDep,
+    TokenScopesDep,
+    require_fresh_unless_token,
+)
+from nexctf.api.scope import require_scopes
 from nexctf.model.scheduler import SchedulerJob, SchedulerTask
 from nexctf.module.scheduler import next_fire_from_now, run_now
 from nexctf.plugins.registry import SchedulerEntry, scheduler_registry
@@ -29,6 +36,36 @@ from nexctf.util.pydantic import resolve_dynamic_defaults
 scheduler_router = APIRouter(prefix="/scheduler", tags=["Scheduler"])
 
 _PREVIEW_RUNS = 3
+
+
+def _entry(job_type: str) -> SchedulerEntry:
+    try:
+        return scheduler_registry.get(job_type)
+    except KeyError:
+        raise NotFoundError(detail=f"Unknown job type: {job_type!r}")
+
+
+def _authorize(
+    request: Request, granted: frozenset[str] | None, entry: SchedulerEntry
+) -> None:
+    """Refuse a caller who could not take the job's action directly."""
+    require_scopes(granted, *entry.scopes)
+    if entry.reauth:
+        require_fresh_unless_token(request, granted)
+
+
+async def _authorized_job(
+    request: Request, session: SessionDep, uuid: UUID, granted: TokenScopesDep
+) -> SchedulerJob:
+    """The job at *uuid*, once the caller may act on its type."""
+    job = await crud.SchedulerJobCrud.get(session, filters=[SchedulerJob.id == uuid])
+    entry = scheduler_registry.find(job.job_type)
+    if entry is not None:
+        _authorize(request, granted, entry)
+    return job
+
+
+AuthorizedJobDep = Annotated[SchedulerJob, Depends(_authorized_job)]
 
 
 @scheduler_router.get("/cron/next")
@@ -84,18 +121,17 @@ async def get_jobs(
 
 @scheduler_router.post("/jobs")
 async def create_job(
+    request: Request,
     session: SessionDep,
     obj: AdminSchedulerJobCreate,
     user: CurrentUserDep,
     overrides: ConfigDep,
+    granted: TokenScopesDep,
 ) -> Response[AdminSchedulerJobRead]:
+    entry = _entry(obj.job_type)
+    _authorize(request, granted, entry)
     if obj.scheduled_at is None and obj.cron_expression:
         obj.scheduled_at = next_fire_from_now(obj.cron_expression, overrides)
-
-    try:
-        entry = scheduler_registry.get(obj.job_type)
-    except KeyError:
-        raise NotFoundError(detail=f"Unknown job type: {obj.job_type!r}")
 
     entry.create_schema.model_validate(obj.params)
 
@@ -125,15 +161,10 @@ async def update_job(
     uuid: UUID,
     obj: AdminSchedulerJobUpdate,
     overrides: ConfigDep,
+    job: AuthorizedJobDep,
 ) -> Response[AdminSchedulerJobRead]:
-    job = await crud.SchedulerJobCrud.get(session, filters=[SchedulerJob.id == uuid])
-
     if obj.params is not None:
-        try:
-            entry = scheduler_registry.get(job.job_type)
-        except KeyError:
-            raise NotFoundError(detail=f"Unregistered job type: {job.job_type!r}")
-        entry.update_schema.model_validate(obj.params)
+        _entry(job.job_type).update_schema.model_validate(obj.params)
 
     if (
         obj.scheduled_at is None
@@ -151,7 +182,9 @@ async def update_job(
 
 
 @scheduler_router.delete("/jobs/{uuid}")
-async def delete_job(session: SessionDep, uuid: UUID) -> Response[None]:
+async def delete_job(
+    session: SessionDep, uuid: UUID, _: AuthorizedJobDep
+) -> Response[None]:
     return await crud.SchedulerJobCrud.delete(
         session=session,
         filters=[SchedulerJob.id == uuid],
@@ -160,9 +193,11 @@ async def delete_job(session: SessionDep, uuid: UUID) -> Response[None]:
 
 
 @scheduler_router.post("/jobs/{uuid}/run")
-async def run_job(session: SessionDep, uuid: UUID) -> Response[AdminSchedulerTaskRead]:
+async def run_job(
+    session: SessionDep, job: AuthorizedJobDep
+) -> Response[AdminSchedulerTaskRead]:
     """Queue a run of the job now, leaving its schedule as is."""
-    job = await crud.SchedulerJobCrud.get(session, filters=[SchedulerJob.id == uuid])
+    _entry(job.job_type)
     task = await run_now(session, job)
     return Response(data=AdminSchedulerTaskRead.model_validate(task))
 

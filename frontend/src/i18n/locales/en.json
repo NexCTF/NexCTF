@@ -48,6 +48,7 @@
       "col_action": "Action",
       "col_entity": "Entity",
       "col_kind": "Kind",
+      "export_error": "Could not start the export",
       "export_hint": "Builds an archive of the authored content and downloads it. Nothing is kept on the server.",
       "export_now": "Export",
       "export_now_hint": "Build an archive of the authored content and download it",
