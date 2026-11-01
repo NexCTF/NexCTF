@@ -48,6 +48,7 @@
       "col_action": "Action",
       "col_entity": "Entité",
       "col_kind": "Type",
+      "export_error": "",
       "export_hint": "Construit une archive du contenu rédigé et la télécharge. Rien n'est conservé sur le serveur.",
       "export_now": "Exporter",
       "export_now_hint": "Construire une archive du contenu rédigé et la télécharger",

@@ -12,7 +12,7 @@ from nexctf.api.security import REAUTH_WINDOW, create_api_token
 from nexctf.model import Event, OAuthAccount, OAuthProvider, UserRole
 from nexctf.module.session import FAILED_LOGIN_EVENT
 
-from ..base import NULL_UUID, FakeIdP, session_row
+from ..base import BACKUP_JOB, NULL_UUID, FakeIdP, session_row
 
 COOKIE = "NexCTF"
 REAUTH_CODE = "AUTH-REAUTH-REQUIRED"
@@ -77,6 +77,9 @@ ADMIN_GATES = [
     ("PUT", "/admin/config", {"items": {"ctf.allow_registration": "false"}}),
     ("PUT", "/admin/config", {"items": {"email.smtp_host": "evil.example"}}),
     ("PUT", "/admin/config", {"items": {"appearance.custom_css": "body{}"}}),
+    ("GET", "/admin/bundle/export?include_files=false&include_secrets=true", None),
+    ("POST", "/admin/bundle/export?include_files=false&include_secrets=true", None),
+    ("POST", "/admin/scheduler/jobs", BACKUP_JOB),
 ]
 
 
@@ -122,6 +125,7 @@ class TestGates:
         ("method", "path", "body"),
         [
             ("PUT", "/admin/config", {"items": {"ctf.name": "Renamed"}}),
+            ("GET", "/admin/bundle/export?include_files=false", None),
             (
                 "PUT",
                 f"/admin/user/{NULL_UUID}",

@@ -15,6 +15,7 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   planAdminBundleImport: vi.fn(),
   applyAdminBundleImport: vi.fn(),
+  adminBundleExportUrl: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
@@ -62,28 +63,35 @@ async function uploadArchive() {
 
 beforeEach(() => {
   vi.mocked(applyAdminBundleImport).mockResolvedValue({ counts: { update: 1 }, entries: [] });
+  vi.mocked(adminBundleExportUrl).mockRejectedValue(new Error("boom"));
 });
 
-it("the export button downloads the archive directly", async () => {
+it("the export button asks for a download with files and without secrets", async () => {
   renderRoute(Route, { path: "/admin/bundle" });
 
-  const link = await screen.findByRole("link", { name: /Export/ });
+  await userEvent.click(await screen.findByRole("button", { name: /Export/ }));
 
-  expect(link.getAttribute("href")).toBe(
-    adminBundleExportUrl({ includeFiles: true, includeSecrets: false }),
+  await waitFor(() =>
+    expect(adminBundleExportUrl).toHaveBeenCalledWith({
+      includeFiles: true,
+      includeSecrets: false,
+    }),
   );
-  expect(link.hasAttribute("download")).toBe(true);
 });
 
-it("leaving files out is carried into the export URL", async () => {
+it("leaving files out is carried into the export", async () => {
   renderRoute(Route, { path: "/admin/bundle" });
 
   await userEvent.click(
     await screen.findByRole("switch", { name: "Include uploaded file attachments" }),
   );
+  await userEvent.click(screen.getByRole("button", { name: /Export/ }));
 
-  expect(screen.getByRole("link", { name: /Export/ }).getAttribute("href")).toBe(
-    adminBundleExportUrl({ includeFiles: false, includeSecrets: false }),
+  await waitFor(() =>
+    expect(adminBundleExportUrl).toHaveBeenCalledWith({
+      includeFiles: false,
+      includeSecrets: false,
+    }),
   );
 });
 
@@ -97,8 +105,12 @@ it("secrets are off until asked for, and warn once on", async () => {
   await userEvent.click(toggle);
 
   expect(screen.getByText(/clear text/)).toBeTruthy();
-  expect(screen.getByRole("link", { name: /Export/ }).getAttribute("href")).toBe(
-    adminBundleExportUrl({ includeFiles: true, includeSecrets: true }),
+  await userEvent.click(screen.getByRole("button", { name: /Export/ }));
+  await waitFor(() =>
+    expect(adminBundleExportUrl).toHaveBeenCalledWith({
+      includeFiles: true,
+      includeSecrets: true,
+    }),
   );
 });
 
@@ -111,13 +123,13 @@ it("the plan opens as a modal over the three panels, not in place of them", asyn
   const dialog = await screen.findByRole("dialog");
   expect(within(dialog).getByText("Review the import")).toBeTruthy();
   // Still mounted behind the modal, which correctly makes them inert meanwhile.
-  expect(screen.getByRole("link", { name: /Export/, hidden: true })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Export/, hidden: true })).toBeTruthy();
   expect(screen.getByText("Git remote")).toBeTruthy();
 
   await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  expect(screen.getByRole("link", { name: /Export/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Export/ })).toBeTruthy();
 });
 
 it("cancelling the modal writes nothing and drops the plan", async () => {

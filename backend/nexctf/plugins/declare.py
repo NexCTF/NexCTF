@@ -39,13 +39,19 @@ class TypeDef:
 
 @dataclass(frozen=True)
 class JobDef:
-    """A scheduler job type; ``handler(job, session, redis)`` may be sync or async."""
+    """A scheduler job type; ``handler(job, session, redis)`` may be sync or async.
+
+    ``scopes`` are the token scopes needed to schedule or run it, beyond
+    ``write:admin.config``; ``reauth`` also asks a browser for a fresh sign-in.
+    """
 
     type_name: str
     handler: Callable
     create_schema: SchemaClass
     update_schema: SchemaClass
     invalidate: Callable[[Redis], Awaitable[None]] | None = None
+    scopes: tuple[str, ...] = ()
+    reauth: bool = False
 
 
 @dataclass(frozen=True)

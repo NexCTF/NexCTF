@@ -37,7 +37,7 @@ from nexctf.plugins import RouterDef
 from nexctf.plugins.declare import RouterScope
 from nexctf.plugins.routes import route_registry
 
-from ..base import NULL_UUID
+from ..base import BACKUP_JOB, NULL_UUID
 
 _AUTH_DEPS = {_current_user, _optional_auth, _current_admin}
 # Route families deliberately outside every scope group.
@@ -528,3 +528,21 @@ class TestOptionalAuth:
         """The scope check still runs where authentication is optional."""
         async with token_client(UserRole.user, ["read:challenge"]) as (c, _):
             assert (await c.get("/scoreboard")).status_code == 403
+
+
+class TestSchedulerJobScopes:
+    """A job acts on another group, so scheduling it needs that group's scope too."""
+
+    async def test_config_scope_alone_cannot_schedule_a_backup(
+        self, token_client
+    ) -> None:
+        async with token_client(UserRole.admin, ["write:admin.config"]) as (c, _):
+            resp = await c.post("/admin/scheduler/jobs", json=BACKUP_JOB)
+        assert resp.status_code == 403
+        assert "write:admin.backup" in resp.text
+
+    async def test_the_backup_scope_can_schedule_a_backup(self, token_client) -> None:
+        scopes = ["write:admin.config", "write:admin.backup"]
+        async with token_client(UserRole.admin, scopes) as (c, _):
+            resp = await c.post("/admin/scheduler/jobs", json=BACKUP_JOB)
+        assert resp.status_code == 200, resp.text

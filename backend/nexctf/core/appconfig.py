@@ -16,7 +16,7 @@ import enum
 import logging
 import os
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any, cast
@@ -299,6 +299,11 @@ async def sync_to_redis(session: AsyncSession, redis: Redis) -> None:
     if stored:
         await cast(Any, redis).hset(REDIS_HASH, mapping=stored)
     logger.info("config synced to Redis (%d keys)", len(stored))
+
+
+def needs_reauth(keys: Iterable[str]) -> bool:
+    """Whether saving any of *keys* from a browser needs a fresh sign-in."""
+    return any(key in _DEFS and _DEFS[key].reauth for key in keys)
 
 
 def _is_site_path(value: str) -> bool:

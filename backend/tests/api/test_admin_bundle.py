@@ -6,11 +6,12 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nexctf.api.security import REAUTH_WINDOW
 from nexctf.bundle.archive import write_archive
 from nexctf.bundle.tree import write_tree
 from nexctf.core import s3
 from nexctf.core.appconfig import ConfigType, all_defs
-from nexctf.model import ConfigEntry, CustomPage, User
+from nexctf.model import ConfigEntry, CustomPage, User, UserRole
 from nexctf.module import bundle
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 
@@ -103,6 +104,25 @@ class TestExport:
         resp = await c.get(f"{PREFIX}/export", params={"include_secrets": "true"})
 
         assert _config_of(resp.content)[secret] == "hunter2"
+
+    async def test_a_ticket_downloads_the_export_once(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        ticket_store,
+    ) -> None:
+        c, _ = admin_client
+        secret = _a_secret_key()
+        db_session.add(ConfigEntry(key=secret, value="hunter2"))
+        await db_session.flush()
+
+        issued = await c.post(f"{PREFIX}/export", params={"include_secrets": "true"})
+        ticket = issued.json()["data"]["ticket"]
+        resp = await c.get(f"{PREFIX}/export", params={"ticket": ticket})
+        again = await c.get(f"{PREFIX}/export", params={"ticket": ticket})
+
+        assert _config_of(resp.content)[secret] == "hunter2"
+        assert again.status_code == 404
 
     async def test_files_can_be_left_out(
         self, admin_client: tuple[AsyncClient, User], page: CustomPage
@@ -238,6 +258,33 @@ class TestImportApply:
 
         assert resp.status_code == 400
         assert "ctf.end_time: must be after ctf.start_time" in resp.text
+
+    @pytest.mark.parametrize(
+        ("key", "needs_fresh"),
+        [("appearance.custom_css", True), ("ctf.name", False)],
+    )
+    async def test_auth_related_config_needs_a_fresh_session(
+        self, signed_in_client, exported: bytes, key: str, needs_fresh: bool
+    ) -> None:
+        edited = _with_config(exported, {key: "changed-by-import"})
+        async with signed_in_client(
+            "stale_importer", "pass", UserRole.admin, age=REAUTH_WINDOW + 100
+        ) as (c, _):
+            plan = (
+                await c.post(
+                    f"{PREFIX}/import/plan", files={"upload": ("bundle.zip", edited)}
+                )
+            ).json()["data"]
+            resp = await c.post(
+                f"{PREFIX}/import/apply", json={"import_key": plan["import_key"]}
+            )
+
+        if needs_fresh:
+            assert resp.status_code == 401
+            assert resp.json()["error_code"] == "AUTH-REAUTH-REQUIRED"
+            await s3.delete(plan["import_key"])
+        else:
+            assert resp.status_code == 200, resp.text
 
     async def test_an_unknown_staged_key_answers_400(
         self, admin_client: tuple[AsyncClient, User]

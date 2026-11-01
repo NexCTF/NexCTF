@@ -2,7 +2,7 @@
 
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
@@ -14,19 +14,8 @@ KEY = "backups/nexctf-20260908T143005Z-manual.dump"
 
 
 @pytest.fixture(autouse=True)
-def ticket_store(mock_redis) -> None:
-    """Back the mocked Redis ``set``/``getdel`` with a dict."""
-    store: dict[str, str] = {}
-
-    async def set_(name: str, value: str, **_: object) -> bool:
-        store[name] = value
-        return True
-
-    async def getdel(name: str) -> str | None:
-        return store.pop(name, None)
-
-    mock_redis.set = AsyncMock(side_effect=set_)
-    mock_redis.getdel = AsyncMock(side_effect=getdel)
+def _tickets(ticket_store) -> None:
+    """Every download here goes through a stored ticket."""
 
 
 @asynccontextmanager

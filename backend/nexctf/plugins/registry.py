@@ -191,6 +191,8 @@ class SchedulerEntry:
     create_schema: type[BaseModel]
     update_schema: type[BaseModel]
     invalidate: Callable[[Redis], Awaitable[None]] | None = None
+    scopes: tuple[str, ...] = ()
+    reauth: bool = False
 
 
 class SchedulerRegistry(_OwnedNames):
@@ -215,6 +217,8 @@ class SchedulerRegistry(_OwnedNames):
             create_schema=job.create_schema,
             update_schema=job.update_schema,
             invalidate=job.invalidate,
+            scopes=job.scopes,
+            reauth=job.reauth,
         )
 
     def get(self, type_name: str) -> SchedulerEntry:
@@ -230,6 +234,10 @@ class SchedulerRegistry(_OwnedNames):
             KeyError: If no entry is registered under ``type_name``.
         """
         return self._entries[type_name]
+
+    def find(self, type_name: str) -> SchedulerEntry | None:
+        """Return the entry registered under a job type name, or None."""
+        return self._entries.get(type_name)
 
     def items(self):
         """Return an items view of ``(type_name, entry)`` pairs."""

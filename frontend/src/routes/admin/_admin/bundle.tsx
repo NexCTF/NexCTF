@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Banner } from "@/components/banner";
 import { BetaBadge } from "@/components/beta-badge";
 import { PageHeader } from "@/components/page-header";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -356,6 +356,19 @@ function ExportPanel() {
   const { t } = useTranslation();
   const [includeFiles, setIncludeFiles] = useState(true);
   const [includeSecrets, setIncludeSecrets] = useState(false);
+  const exportBundle = useMutation({
+    mutationFn: () => adminBundleExportUrl({ includeFiles, includeSecrets }),
+    onSuccess: (url) => {
+      window.location.href = url;
+    },
+    onError: (err) =>
+      toast.error(
+        apiErrorMessage(
+          err,
+          t("admin.bundle.export_error", { defaultValue: "Could not start the export" }),
+        ),
+      ),
+  });
 
   return (
     <Panel
@@ -391,17 +404,16 @@ function ExportPanel() {
         }
       />
 
-      <a
-        href={adminBundleExportUrl({ includeFiles, includeSecrets })}
-        download
-        className={buttonVariants()}
+      <Button
         title={t("admin.bundle.export_now_hint", {
           defaultValue: "Build an archive of the authored content and download it",
         })}
+        disabled={exportBundle.isPending}
+        onClick={() => exportBundle.mutate()}
       >
         <Download className="size-4" />
         {t("admin.bundle.export_now", { defaultValue: "Export" })}
-      </a>
+      </Button>
     </Panel>
   );
 }

@@ -62,8 +62,7 @@ async def bulk_update_config(
     granted: TokenScopesDep,
 ) -> Response[list[AdminConfigRead]]:
     """Save config; from a browser, auth-related keys need a fresh session."""
-    defs = appconfig.all_defs()
-    if any(key in defs and defs[key].reauth for key in obj.items):
+    if appconfig.needs_reauth(obj.items):
         require_fresh_unless_token(request, granted)
     errors: list[str] = []
     staged: dict[str, str] = {}

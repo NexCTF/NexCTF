@@ -197,6 +197,15 @@ def _get_table(app: FastAPI) -> dict[int, str]:
     return _table
 
 
+def require_scopes(granted: frozenset[str] | None, *required: str) -> None:
+    """Assert scopes a token needs beyond the router's group. No-op for sessions."""
+    if granted is None:
+        return
+    for scope in required:
+        if scope not in granted:
+            raise InsufficientScopeError(scope)
+
+
 def enforce_token_scope(request: Request) -> None:
     """Raise unless the request's token may reach this route. No-op for sessions."""
     granted = token_scopes_of(request)
