@@ -136,4 +136,5 @@ class OAuthUserinfo(BaseModel):
     sub: str
     username: str | None = None
     email: str | None = None
+    email_verified: bool | None = None
     role: str | None = None

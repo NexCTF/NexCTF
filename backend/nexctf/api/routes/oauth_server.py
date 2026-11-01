@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
 from nexctf.api.dep import CurrentUserDep, RedisDep, SessionDep
+from nexctf.api.security import consume_single_use_token, issue_single_use_token
 from nexctf.core.config import settings
 from nexctf.exceptions import (
     OAuth2AccessDeniedError,
@@ -91,15 +92,27 @@ async def _get_active_client(
 
 
 async def _get_active_user(
-    session: AsyncSession, user_id: str, *, error: Exception
+    session: AsyncSession, data: dict, *, error: Exception
 ) -> User:
-    """Load an enabled user, raising *error* if they are unknown or disabled."""
+    """Load the enabled user a grant was issued to, unless their sessions were reset."""
     user = await crud.UserCrud.first(
-        session=session, filters=[User.id == UUID(user_id)]
+        session=session, filters=[User.id == UUID(data["user_id"])]
     )
-    if not user or not user.is_active:
+    if (
+        not user
+        or not user.is_active
+        or data.get("session_version") != user.session_version
+    ):
         raise error
     return user
+
+
+def _granted_scopes(scope: str, client: OAuthServerClient) -> list[str]:
+    """The requested scopes this server knows and *client* may receive."""
+    allowed = set(client.allowed_scope_list)
+    return sorted(
+        {s for s in scope.split() if s in _SCOPE_DESCRIPTIONS and s in allowed}
+    )
 
 
 def _ensure_role_allowed(
@@ -203,13 +216,12 @@ async def client_info(
         raise OAuth2InvalidRequestError(
             desc="redirect_uri is not registered for this client."
         )
-    requested = [s for s in scope.split() if s in _SCOPE_DESCRIPTIONS]
     return Response(
         data=OAuthConsentInfo(
             client_id=client.client_id,
             client_name=client.name,
             client_description=client.description,
-            requested_scopes=requested,
+            requested_scopes=_granted_scopes(scope, client),
             username=user.username,
         )
     )
@@ -234,22 +246,22 @@ async def approve(
             desc="Only the S256 code_challenge_method is supported."
         )
 
-    requested = set(obj.scope.split())
-    granted = requested & set(client.allowed_scope_list)
-    granted_scope = " ".join(sorted(granted))
+    granted_scope = " ".join(_granted_scopes(obj.scope, client))
 
-    code = secrets.token_urlsafe(32)
     payload = json.dumps(
         {
             "client_id": obj.client_id,
             "user_id": str(user.id),
+            "session_version": user.session_version,
             "redirect_uri": obj.redirect_uri,
             "scopes": granted_scope,
             "state": obj.state,
             "code_challenge": obj.code_challenge,
         }
     )
-    await redis.set(_CODE_PREFIX + code, payload, ex=_CODE_TTL)
+    code = await issue_single_use_token(
+        redis, _CODE_PREFIX, int(_CODE_TTL.total_seconds()), payload
+    )
 
     params = {"code": code}
     if obj.state:
@@ -287,7 +299,7 @@ async def token(
     )
     # One-time use: consume the code on any redemption attempt so a failed
     # exchange (client mismatch, bad PKCE verifier) cannot be retried.
-    raw_payload = await redis.getdel(_CODE_PREFIX + code)
+    raw_payload = await consume_single_use_token(redis, _CODE_PREFIX, code)
     if raw_payload is None:
         raise invalid_grant
 
@@ -304,7 +316,7 @@ async def token(
         raise invalid_grant
 
     # Re-check account state and role: either may have changed since consent.
-    user = await _get_active_user(session, data["user_id"], error=invalid_grant)
+    user = await _get_active_user(session, data, error=invalid_grant)
     _ensure_role_allowed(
         client,
         user,
@@ -317,6 +329,7 @@ async def token(
         {
             "client_id": client_id,
             "user_id": data["user_id"],
+            "session_version": user.session_version,
             "scopes": data["scopes"],
         }
     )
@@ -352,7 +365,7 @@ async def userinfo(
 
     # An access token outlives the checks made at consent, so re-run them: the
     # client may have been deactivated and the user demoted since it was issued.
-    user = await _get_active_user(session, data["user_id"], error=invalid_token)
+    user = await _get_active_user(session, data, error=invalid_token)
     client = await _get_active_client(session, data["client_id"], error=invalid_token)
     _ensure_role_allowed(
         client,
@@ -366,5 +379,6 @@ async def userinfo(
         sub=str(user.id),
         username=user.username if "profile" in scopes else None,
         email=user.email if "email" in scopes else None,
+        email_verified=user.email_verified if "email" in scopes else None,
         role=user.role.value if "roles" in scopes else None,
     )

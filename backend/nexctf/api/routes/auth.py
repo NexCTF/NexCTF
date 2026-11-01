@@ -152,7 +152,7 @@ async def _send_verification_email(
     arrives; branding/rendering and the send are deferred to a background task.
     """
     token = await issue_single_use_token(
-        redis, EMAIL_VERIFY_KEY_PREFIX, EMAIL_VERIFY_TTL, str(user_id)
+        redis, EMAIL_VERIFY_KEY_PREFIX, EMAIL_VERIFY_TTL, f"{user_id}:{email.lower()}"
     )
     link = f"{settings.FRONTEND_HOST}/verify-email?token={token}"
     background_tasks.add_task(
@@ -205,7 +205,7 @@ async def register(
                 username=obj.username,
                 email=obj.email,
                 hashed_password=await hash_password_async(obj.password),
-                email_verified=not email_enabled,
+                email_verified=False,
             ),
             schema=PublicUserRead,
         )
@@ -468,7 +468,6 @@ async def reset_password(
         obj=UserPasswordUpdate(
             id=user.id,
             hashed_password=await hash_password_async(body.new_password),
-            session_version=user.session_version + 1,
         ),
     )
     await revoke_all_access(session, user)
@@ -500,15 +499,14 @@ async def verify_email(
         window_seconds=60,
         max_requests=10,
     )
-    user_id_str = await consume_single_use_token(
-        redis, EMAIL_VERIFY_KEY_PREFIX, body.token
-    )
-    if not user_id_str:
+    subject = await consume_single_use_token(redis, EMAIL_VERIFY_KEY_PREFIX, body.token)
+    user_id_str, _, email = (subject or "").partition(":")
+    if not email:
         raise InvalidVerificationTokenError()
     user = await crud.UserCrud.first(
         session=session, filters=[User.id == UUID(user_id_str)]
     )
-    if not user:
+    if not user or (user.email or "").lower() != email:
         raise InvalidVerificationTokenError()
     await crud.UserCrud.update(
         session=session,
