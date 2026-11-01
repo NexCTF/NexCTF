@@ -8,6 +8,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from nexctf.util.types import LinkUrl, PageSlug
+
 FORMAT_VERSION = 1
 
 
@@ -102,7 +104,7 @@ class PageIR(BundleBase):
     """A custom page. ``content`` is the markdown body of ``pages/<slug>.md``."""
 
     id: UUID
-    slug: str
+    slug: PageSlug
     title: str
     content: str = ""
     is_published: bool = False
@@ -114,7 +116,7 @@ class LinkIR(BundleBase):
 
     id: UUID
     name: str
-    url: str
+    url: LinkUrl
     visibility: str
     is_enabled: bool = True
 

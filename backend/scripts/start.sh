@@ -62,6 +62,8 @@ else
     log "TLS: using internal self-signed certificates"
 fi
 
+MAX_BODY_BYTES=$(( ${MAX_UPLOAD_BYTES:-2147483648} + 1048576 ))
+
 log "writing Caddyfile for domain: $DOMAIN"
 cat > /etc/caddy/Caddyfile << EOF
 {
@@ -82,6 +84,9 @@ ${SCHEME}${DOMAIN} {
     }
 
     handle /api/* {
+        request_body {
+            max_size ${MAX_BODY_BYTES}
+        }
         reverse_proxy 127.0.0.1:8000
     }
 

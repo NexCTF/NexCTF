@@ -1,8 +1,10 @@
 import re
+from typing import Annotated
 from uuid import UUID
 
+import regex
 from fastapi_toolsets.schemas import PydanticBase
-from pydantic import field_validator
+from pydantic import AfterValidator, field_validator
 
 from nexctf.schema.solution import AdminSolutionRead
 
@@ -18,9 +20,20 @@ def _validate_flags(v: list[str]) -> list[str]:
     return v
 
 
+def _validate_pattern(v: str) -> str:
+    try:
+        regex.compile(v)
+    except regex.error as exc:
+        raise ValueError(f"Invalid regular expression: {exc}") from exc
+    return v
+
+
+Pattern = Annotated[str, AfterValidator(_validate_pattern)]
+
+
 class RegexSolutionCreate(PydanticBase):
     question_id: UUID
-    pattern: str
+    pattern: Pattern
     flags: list[str] = []
 
     @field_validator("flags")
@@ -31,7 +44,7 @@ class RegexSolutionCreate(PydanticBase):
 
 class RegexSolutionUpdate(PydanticBase):
     id: UUID
-    pattern: str | None = None
+    pattern: Pattern | None = None
     flags: list[str] | None = None
 
     @field_validator("flags")

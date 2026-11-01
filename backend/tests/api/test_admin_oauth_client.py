@@ -1,5 +1,6 @@
 """Tests for /admin/oauth-client CRUD endpoints."""
 
+import pytest
 from httpx import AsyncClient
 
 from nexctf.model import User
@@ -164,3 +165,16 @@ class TestDeleteOAuthClient(DeleteGuardMixin):
         c, _ = admin_client
         resp = await c.delete(f"{self.PREFIX}/{NULL_UUID}")
         assert resp.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "uri", ["javascript:alert(1)", "data:text/html,x", "no-scheme/callback"]
+)
+async def test_a_script_redirect_uri_is_refused(
+    admin_client: tuple[AsyncClient, User], uri: str
+) -> None:
+    c, _ = admin_client
+    resp = await c.post(
+        "/admin/oauth-client", json={"name": "evil", "redirect_uris": uri}
+    )
+    assert resp.status_code == 422

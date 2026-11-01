@@ -38,6 +38,15 @@ def _str_representer(dumper: yaml.SafeDumper, data: str) -> yaml.ScalarNode:
 _Dumper.add_representer(str, _str_representer)
 
 
+class _Loader(yaml.SafeLoader):
+    """SafeLoader refusing anchors and aliases, which a bundle never needs."""
+
+    def compose_node(self, parent: Any, index: Any) -> Any:
+        if self.check_event(yaml.AliasEvent):
+            raise BundleFormatError("YAML aliases are not allowed")
+        return super().compose_node(parent, index)
+
+
 class ConfigValue(str):
     """A config value, quoted on output so every entry in the file looks alike."""
 
@@ -82,7 +91,10 @@ def load_yaml(raw: bytes) -> dict[str, Any]:
     Raises:
         BundleFormatError: If the document is not a mapping.
     """
-    data = yaml.safe_load(raw.decode(ENCODING)) or {}
+    try:
+        data = yaml.load(_decode(raw), Loader=_Loader) or {}
+    except yaml.YAMLError as exc:
+        raise BundleFormatError(f"invalid YAML: {exc}") from exc
     if not isinstance(data, dict):
         raise BundleFormatError("expected a YAML mapping")
     return data
@@ -95,7 +107,15 @@ def dump_markdown(text: str) -> bytes:
 
 def load_markdown(raw: bytes) -> str:
     """Read a ``.md`` sibling back, normalized the same way it was written."""
-    return _normalize(raw.decode(ENCODING), rstrip_lines=False)
+    return _normalize(_decode(raw), rstrip_lines=False)
+
+
+def _decode(raw: bytes) -> str:
+    """*raw* as UTF-8 text, or a BundleFormatError."""
+    try:
+        return raw.decode(ENCODING)
+    except UnicodeDecodeError as exc:
+        raise BundleFormatError(f"not UTF-8 text: {exc}") from exc
 
 
 def normalize_long_text(text: str | None) -> str | None:

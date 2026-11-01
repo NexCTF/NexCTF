@@ -46,5 +46,5 @@ def sanitize_filename(name: str) -> str:
     """Reduce a user-supplied filename to a safe basename for the tree."""
     basename = name.replace("\\", "/").rsplit("/", 1)[-1]
     cleaned = "".join(c for c in basename if c.isprintable() and c not in '<>:"|?*')
-    cleaned = cleaned.strip().strip(".")
-    return cleaned[:_MAX_SLUG] or "blob"
+    cleaned = cleaned.strip().strip(".")[:_MAX_SLUG] or "blob"
+    return f"blob-{cleaned}" if cleaned.lower() == "meta.yaml" else cleaned
