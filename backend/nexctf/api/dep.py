@@ -142,13 +142,18 @@ def check_scoreboard_visibility(user: User | None, overrides: dict[str, str]) ->
     check_visibility(user, overrides, "visibility.scoreboard")
 
 
-def can_view_scoreboard(user: User | None, overrides: dict[str, str]) -> bool:
-    """Non-raising variant of check_scoreboard_visibility."""
+def can_view(user: User | None, overrides: dict[str, str], key: str) -> bool:
+    """Non-raising variant of check_visibility."""
     try:
-        check_scoreboard_visibility(user, overrides)
+        check_visibility(user, overrides, key)
     except ForbiddenError, UnauthorizedError:
         return False
     return True
+
+
+def can_view_scoreboard(user: User | None, overrides: dict[str, str]) -> bool:
+    """Non-raising variant of check_scoreboard_visibility."""
+    return can_view(user, overrides, "visibility.scoreboard")
 
 
 async def _in_use_bracket(session: SessionDep, bracket: Label = None) -> str | None:
@@ -224,6 +229,13 @@ def challenges_hidden_before_start(overrides: dict[str, str]) -> bool:
     return bool(
         appconfig.get_with_overrides("ctf.hide_challenges_before_start", overrides)
     ) and is_config_dt_future("ctf.start_time", overrides)
+
+
+def can_view_challenges(user: User | None, overrides: dict[str, str]) -> bool:
+    """Whether *user* may see challenge titles and questions right now."""
+    return not challenges_hidden_before_start(overrides) and can_view(
+        user, overrides, "visibility.challenges"
+    )
 
 
 async def _event_started(overrides: ConfigDep) -> None:

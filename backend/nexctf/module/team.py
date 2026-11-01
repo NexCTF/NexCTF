@@ -1,6 +1,7 @@
 """Team payload assembly shared by the me and public team endpoints."""
 
 from collections.abc import Sequence
+from typing import Any
 from uuid import UUID
 
 from fastapi_toolsets.db import transaction
@@ -75,20 +76,31 @@ async def _fetch_public_user_fields(
     return by_user
 
 
+_PLAY_COLUMNS = (Submission.team_id, ScoreAdjustment.team_id, HintUnlock.team_id)
+
+
+async def _has_rows(
+    session: AsyncSession, team_id: UUID, columns: tuple[Any, ...]
+) -> bool:
+    """True when any of *columns* holds a row for the team."""
+    traces = [exists().where(column == team_id) for column in columns]
+    return any((await session.execute(select(*traces))).one())
+
+
+async def has_played(session: AsyncSession, team_id: UUID) -> bool:
+    """True once the team has a submission, a hint unlock or a score adjustment."""
+    return await _has_rows(session, team_id, _PLAY_COLUMNS)
+
+
 async def delete_if_abandoned(session: AsyncSession, team_id: UUID) -> bool:
     """Delete a team with no members left and no play or admin history."""
-    traces = [
-        exists().where(column == team_id)
-        for column in (
-            User.team_id,
-            Submission.team_id,
-            ScoreAdjustment.team_id,
-            HintUnlock.team_id,
-            ChallengeFeedback.team_id,
-            notification_team_table.c.team_id,
-        )
-    ]
-    if any((await session.execute(select(*traces))).one()):
+    history = (
+        User.team_id,
+        *_PLAY_COLUMNS,
+        ChallengeFeedback.team_id,
+        notification_team_table.c.team_id,
+    )
+    if await _has_rows(session, team_id, history):
         return False
     try:
         async with transaction(session):

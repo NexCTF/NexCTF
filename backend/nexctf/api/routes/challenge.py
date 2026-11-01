@@ -34,6 +34,7 @@ from nexctf.exceptions import (
     AnswerCheckTimeoutError,
     ChallengeNotCompletedError,
     FeedbackDisabledError,
+    HintAfterSolveError,
     SequentialChallengeError,
     SolutionTimeoutError,
 )
@@ -645,6 +646,9 @@ async def unlock_hint(
         raise NotFoundError(detail="Hint not found")
 
     await _check_question_access(session, user, challenge, question)
+    await _lock_for_team(session, user, question_id)
+    if hint.cost > 0 and question_id in await _solved_ids(session, user, [question_id]):
+        raise HintAfterSolveError()
 
     # A hint is bought once per team; teammates unlocking concurrently race on
     # uq_hint_unlock, so let the database settle who pays.

@@ -198,6 +198,24 @@ it("asks for confirmation before spending points on a hint", async () => {
   await waitFor(() => expect(unlockHint).toHaveBeenCalledWith("c1", "q1", "h1"));
 });
 
+it("keeps paid hints locked once the question is solved", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({
+      questions: [
+        question({
+          is_solved: true,
+          hints: [{ id: "h1", title: "Nudge", cost: 25, is_unlocked: false, content: null }],
+        }),
+      ],
+    }),
+  );
+  renderChallenge();
+
+  await userEvent.click(await screen.findByText("What is the flag?"));
+
+  expect(screen.getByRole("button", { name: "25 pts" }).hasAttribute("disabled")).toBe(true);
+});
+
 it("unlocks a free hint without confirmation and shows its content once unlocked", async () => {
   vi.mocked(getChallenge).mockResolvedValue(
     challengeDetail({

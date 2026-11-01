@@ -239,12 +239,15 @@ class NotInTeamError(TeamError):
     )
 
 
-class TeamScoredError(TeamError):
+class TeamPlayedError(TeamError):
     api_error = ApiError(
         code=409,
-        msg="Team has scored",
-        desc="You cannot leave a team once it has solved a question.",
-        err_code="TEAM-409-SCORED",
+        msg="Team has played",
+        desc=(
+            "You cannot leave a team once it has submitted an answer, unlocked a "
+            "hint, had its score adjusted or been disqualified."
+        ),
+        err_code="TEAM-409-PLAYED",
     )
 
 
@@ -510,6 +513,15 @@ class SequentialChallengeError(ApiException):
         msg="Previous question not solved",
         desc="Complete the previous question first.",
         err_code="SUB-403-SEQ",
+    )
+
+
+class HintAfterSolveError(ApiException):
+    api_error = ApiError(
+        code=409,
+        msg="Question already solved",
+        desc="Your team already solved this question, so its paid hints stay locked.",
+        err_code="HINT-409-SOLVED",
     )
 
 

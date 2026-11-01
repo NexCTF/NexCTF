@@ -11,7 +11,7 @@ from nexctf.api.dep import (
     OptionalCurrentUserDep,
     RedisDep,
     SessionDep,
-    challenges_hidden_before_start,
+    can_view_challenges,
     check_scoreboard_visibility,
 )
 from nexctf.core import appconfig
@@ -40,7 +40,7 @@ async def get_team_profile(
         team_id,
         overrides=overrides,
         include_members=bool(show_members),
-        include_challenges=not challenges_hidden_before_start(overrides),
+        include_challenges=can_view_challenges(user, overrides),
     )
     if team is None:
         raise NotFoundError()

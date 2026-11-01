@@ -465,6 +465,7 @@ function QuestionCard({
               hints={q.hints}
               challengeId={challengeId}
               questionId={q.id}
+              solved={q.is_solved}
               onUnlocked={showUnlockedHint}
             />
           )}
@@ -497,11 +498,13 @@ function HintsSection({
   hints,
   challengeId,
   questionId,
+  solved,
   onUnlocked,
 }: {
   hints: PublicHint[];
   challengeId: string;
   questionId: string;
+  solved: boolean;
   onUnlocked: (hint: PublicHint) => void;
 }) {
   const { t } = useTranslation();
@@ -528,7 +531,7 @@ function HintsSection({
               {!h.is_unlocked && (
                 <UnlockHintButton
                   hint={h}
-                  disabled={!open || unlockMutation.isPending}
+                  disabled={!open || (solved && h.cost > 0) || unlockMutation.isPending}
                   onUnlock={() => unlockMutation.mutate(h.id)}
                 />
               )}

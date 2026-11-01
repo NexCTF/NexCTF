@@ -6,9 +6,11 @@ from fastapi_toolsets.schemas import Response
 from nexctf.api.dep import (
     BracketDep,
     ConfigDep,
+    OptionalCurrentUserDep,
     RedisDep,
     ScoreboardVisibleDep,
     SessionDep,
+    can_view_challenges,
 )
 from nexctf.module.scoreboard.cache import (
     get_scoreboard,
@@ -55,6 +57,13 @@ async def get_team_score_endpoint(
     redis: RedisDep,
     team_id: UUID,
     overrides: ConfigDep,
+    user: OptionalCurrentUserDep = None,
 ) -> Response[PublicTeamScoreDetail]:
-    result = await get_team_score(session, redis, team_id, overrides=overrides)
+    result = await get_team_score(
+        session,
+        redis,
+        team_id,
+        overrides=overrides,
+        include_challenges=can_view_challenges(user, overrides),
+    )
     return Response(data=result)
