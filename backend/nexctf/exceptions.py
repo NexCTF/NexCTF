@@ -625,3 +625,12 @@ class BundleFailedError(ApiException):
         desc="The content bundle could not be exported, planned or imported.",
         err_code="BUNDLE-400",
     )
+
+
+class UnknownExportColumnError(ApiException):
+    api_error = ApiError(
+        code=422,
+        msg="Unknown export column",
+        desc="A requested scoreboard export column does not exist.",
+        err_code="SCOREBOARD-422-COLUMN",
+    )

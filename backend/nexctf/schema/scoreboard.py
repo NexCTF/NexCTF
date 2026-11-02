@@ -4,6 +4,22 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi_toolsets.schemas import PydanticBase
+from pydantic import computed_field
+
+# CSV export columns read straight off AdminScoreboardEntry, in export order
+EXPORT_FIXED_COLUMNS = (
+    "rank",
+    "team_name",
+    "team_bracket",
+    "total",
+    "solve_points",
+    "hint_points",
+    "adjustment_points",
+    "solve_count",
+    "last_solve_at",
+)
+# Prefix of the CSV export column for a scoreboard custom field
+CUSTOM_COLUMN_PREFIX = "custom."
 
 
 class PublicSolveDetail(PydanticBase):
@@ -78,6 +94,13 @@ class AdminScoreboard(PydanticBase):
     computed_at: datetime
     brackets: list[str] = []
     custom_fields: list[ScoreboardCustomField] = []
+
+    @computed_field
+    @property
+    def export_columns(self) -> list[str]:
+        """Every CSV export column id, fixed columns first."""
+        custom = [f"{CUSTOM_COLUMN_PREFIX}{f.name}" for f in self.custom_fields]
+        return [*EXPORT_FIXED_COLUMNS, *custom]
 
 
 class ScoreEvent(PydanticBase):

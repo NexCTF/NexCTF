@@ -1925,6 +1925,8 @@ export interface AdminScoreboard {
   computed_at: string;
   brackets: string[];
   custom_fields: ScoreboardCustomField[];
+  /** CSV export column ids, in export order. */
+  export_columns: string[];
 }
 
 export async function getAdminScoreboard(bracket?: string): Promise<AdminScoreboard> {
@@ -1932,6 +1934,26 @@ export async function getAdminScoreboard(bracket?: string): Promise<AdminScorebo
   if (bracket) params.set("bracket", bracket);
   const qs = params.toString();
   return request<AdminScoreboard>(qs ? `/admin/scoreboard?${qs}` : "/admin/scoreboard");
+}
+
+export type ScoreboardExportFormat = "csv" | "json" | "ctftime";
+
+export interface ScoreboardExportOptions {
+  format: ScoreboardExportFormat;
+  bracket?: string;
+  /** CSV only; ids from `AdminScoreboard.export_columns`, empty means every column. */
+  columns?: string[];
+}
+
+export function adminScoreboardExportUrl({
+  format,
+  bracket,
+  columns = [],
+}: ScoreboardExportOptions): string {
+  const params = new URLSearchParams({ format });
+  if (bracket) params.set("bracket", bracket);
+  if (format === "csv") for (const c of columns) params.append("columns", c);
+  return `${BASE}/admin/scoreboard/export?${params}`;
 }
 
 export async function getTeamScore(teamId: string): Promise<TeamScoreDetail> {
