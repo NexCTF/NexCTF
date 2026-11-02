@@ -2,6 +2,8 @@ from uuid import UUID
 
 from fastapi_toolsets.schemas import PydanticBase
 
+from nexctf.util.types import Slug
+
 
 class PublicOAuthProviderRead(PydanticBase):
     slug: str
@@ -38,7 +40,7 @@ class AdminOAuthProviderRead(PydanticBase):
 
 
 class AdminOAuthProviderCreate(PydanticBase):
-    slug: str
+    slug: Slug
     name: str
     client_id: str
     client_secret: str
@@ -50,7 +52,7 @@ class AdminOAuthProviderCreate(PydanticBase):
 
 class AdminOAuthProviderUpdate(PydanticBase):
     id: UUID
-    slug: str | None = None
+    slug: Slug | None = None
     name: str | None = None
     client_id: str | None = None
     client_secret: str | None = None

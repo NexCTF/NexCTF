@@ -836,7 +836,6 @@ async def _id_token_subject(
 
 async def _start_flow(
     provider: OAuthProvider,
-    slug: str,
     redirect_url: str | None,
     *,
     link_user_id: UUID | None = None,
@@ -858,7 +857,7 @@ async def _start_flow(
         endpoints.authorization,
         client_id=provider.client_id,
         scopes=provider.scopes,
-        redirect_uri=_callback_url(slug),
+        redirect_uri=_callback_url(provider.slug),
         destination=destination,
         state_token=state_token,
         code_challenge=code_challenge,
@@ -883,27 +882,25 @@ def _set_flow_cookie(response: RawResponse, slug: str, value: str) -> None:
 
 @auth_router.get("/providers/{slug}/authorize")
 async def oauth_authorize(
-    slug: str,
     provider: OAuthProvider = ProviderDep,
     redirect_url: str | None = None,
 ) -> RedirectResponse:
-    url, flow = await _start_flow(provider, slug, redirect_url)
+    url, flow = await _start_flow(provider, redirect_url)
     redirect = RedirectResponse(url=url, status_code=303)
-    _set_flow_cookie(redirect, slug, flow)
+    _set_flow_cookie(redirect, provider.slug, flow)
     return redirect
 
 
 @auth_router.post("/providers/{slug}/link")
 async def oauth_link(
-    slug: str,
     response: RawResponse,
     user: FreshSessionDep,
     provider: OAuthProvider = ProviderDep,
     redirect_url: str | None = None,
 ) -> Response[PublicOAuthLinkRead]:
     """Start a flow that links the provider identity to the signed-in account."""
-    url, flow = await _start_flow(provider, slug, redirect_url, link_user_id=user.id)
-    _set_flow_cookie(response, slug, flow)
+    url, flow = await _start_flow(provider, redirect_url, link_user_id=user.id)
+    _set_flow_cookie(response, provider.slug, flow)
     return Response(data=PublicOAuthLinkRead(redirect_to=url))
 
 
@@ -912,7 +909,6 @@ async def oauth_callback(
     request: Request,
     db: SessionDep,
     redis: RedisDep,
-    slug: str,
     current_user: OptionalCookieUserDep,
     overrides: ConfigDep,
     provider: OAuthProvider = ProviderDep,
@@ -924,7 +920,7 @@ async def oauth_callback(
         raise NotFoundError()
 
     # Consume CSRF state token immediately — single-use regardless of what follows.
-    flow = _read_flow_cookie(request, slug)
+    flow = _read_flow_cookie(request, provider.slug)
     destination = oauth_decode_state(
         state,
         expected_state_token=flow.state_token,
@@ -936,7 +932,7 @@ async def oauth_callback(
 
     redirect = RedirectResponse(url=destination, status_code=302)
     redirect.delete_cookie(
-        _flow_cookie(slug),
+        _flow_cookie(provider.slug),
         httponly=True,
         samesite="lax",
         secure=settings.ENVIRONMENT != "development",
@@ -952,7 +948,7 @@ async def oauth_callback(
         code=code,
         client_id=provider.client_id,
         client_secret=provider.client_secret,
-        redirect_uri=_callback_url(slug),
+        redirect_uri=_callback_url(provider.slug),
         code_verifier=flow.code_verifier,
     )
     subject = await _id_token_subject(provider, endpoints, token, flow.nonce)
