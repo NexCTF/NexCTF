@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi_toolsets.schemas import PydanticBase
 
-from nexctf.util.types import PageSlug
+from nexctf.util.types import Slug
 
 
 class AdminPageRead(PydanticBase):
@@ -22,7 +22,7 @@ class AdminPageRead(PydanticBase):
 class AdminPageCreate(PydanticBase):
     """Fields required to create a new custom page."""
 
-    slug: PageSlug
+    slug: Slug
     title: str
     content: str = ""
     is_published: bool = False
@@ -32,7 +32,7 @@ class AdminPageCreate(PydanticBase):
 class AdminPageUpdate(PydanticBase):
     """Partial update for a custom page."""
 
-    slug: PageSlug | None = None
+    slug: Slug | None = None
     title: str | None = None
     content: str | None = None
     is_published: bool | None = None

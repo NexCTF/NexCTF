@@ -1,5 +1,6 @@
 """Tests for /admin/oauth-provider CRUD endpoints."""
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -62,6 +63,14 @@ class TestCreateOAuthProvider(CreateGuardMixin):
         resp = await c.post(self.PREFIX, json={"slug": "only-slug"})
         assert resp.status_code == 422
 
+    @pytest.mark.parametrize("slug", ["", "-idp", "my idp", "idp;Path=/", "a" * 65])
+    async def test_create_rejects_a_slug_unfit_for_urls_and_cookies(
+        self, admin_client: tuple[AsyncClient, User], slug: str
+    ) -> None:
+        c, _ = admin_client
+        resp = await c.post(self.PREFIX, json={**_VALID_PAYLOAD, "slug": slug})
+        assert resp.status_code == 422
+
 
 class TestGetOAuthProvider(GetItemGuardMixin):
     PREFIX = "/admin/oauth-provider"
@@ -101,6 +110,19 @@ class TestUpdateOAuthProvider(UpdateGuardMixin):
         )
         assert resp.status_code == 200
         assert resp.json()["data"]["name"] == "Renamed IdP"
+
+    async def test_update_rejects_an_invalid_slug(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_oauth_provider: list[OAuthProvider],
+    ) -> None:
+        c, _ = admin_client
+        p = fixture_oauth_provider[0]
+        resp = await c.put(
+            f"{self.PREFIX}/{p.id}",
+            json={"id": str(p.id), "slug": "idp;Domain=evil"},
+        )
+        assert resp.status_code == 422
 
     async def test_update_not_found(
         self, admin_client: tuple[AsyncClient, User]
