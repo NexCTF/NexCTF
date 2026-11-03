@@ -45,13 +45,13 @@ def _entry(job_type: str) -> SchedulerEntry:
         raise NotFoundError(detail=f"Unknown job type: {job_type!r}")
 
 
-def _authorize(
+async def _authorize(
     request: Request, granted: frozenset[str] | None, entry: SchedulerEntry
 ) -> None:
     """Refuse a caller who could not take the job's action directly."""
     require_scopes(granted, *entry.scopes)
     if entry.reauth:
-        require_fresh_unless_token(request, granted)
+        await require_fresh_unless_token(request, granted)
 
 
 async def _authorized_job(
@@ -61,7 +61,7 @@ async def _authorized_job(
     job = await crud.SchedulerJobCrud.get(session, filters=[SchedulerJob.id == uuid])
     entry = scheduler_registry.find(job.job_type)
     if entry is not None:
-        _authorize(request, granted, entry)
+        await _authorize(request, granted, entry)
     return job
 
 
@@ -129,7 +129,7 @@ async def create_job(
     granted: TokenScopesDep,
 ) -> Response[AdminSchedulerJobRead]:
     entry = _entry(obj.job_type)
-    _authorize(request, granted, entry)
+    await _authorize(request, granted, entry)
     if obj.scheduled_at is None and obj.cron_expression:
         obj.scheduled_at = next_fire_from_now(obj.cron_expression, overrides)
 

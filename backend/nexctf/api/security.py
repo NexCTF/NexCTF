@@ -1,7 +1,6 @@
 import asyncio
 import hashlib
 import secrets
-import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
@@ -14,7 +13,6 @@ from fastapi_multiauth import (
     APIKeyCookieAuth,
     HTTPBearerAuth,
     MultiAuth,
-    StaleCredentialError,
     totp_verify,
 )
 from fastapi_toolsets.exceptions import ForbiddenError, UnauthorizedError
@@ -274,11 +272,9 @@ def current_sid_hash(request: Request) -> str | None:
     return _hash_token(sid) if sid else None
 
 
-def require_fresh_cookie(request: Request) -> None:
+async def require_fresh_cookie(request: Request) -> None:
     """Refuse a session cookie signed longer ago than the re-authentication window."""
-    signed_at = cookie_auth.authenticated_at(request.cookies.get(cookie_auth.name, ""))
-    if signed_at is None or not 0 <= time.time() - signed_at <= REAUTH_WINDOW:
-        raise StaleCredentialError(max_age=REAUTH_WINDOW)
+    await cookie_auth.ensure_fresh(request, REAUTH_WINDOW)
 
 
 def _set_session_cookie(response: Response, user: User) -> str:
