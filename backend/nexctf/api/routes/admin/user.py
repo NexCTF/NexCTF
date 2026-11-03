@@ -83,7 +83,7 @@ async def create_user(
     Creating an admin needs a recently signed-in browser session.
     """
     if obj.role is UserRole.admin:
-        require_fresh_session(request, granted)
+        await require_fresh_session(request, granted)
     try:
         result = await crud.UserCrud.create(
             session=session,
@@ -254,9 +254,9 @@ async def update_user(
         and (obj.role not in (None, UserRole.admin) or obj.is_active is False)
     )
     if email_changed or granting_admin:
-        require_fresh_session(request, granted)
+        await require_fresh_session(request, granted)
     elif disarming_admin:
-        require_fresh_unless_token(request, granted)
+        await require_fresh_unless_token(request, granted)
     if target is None:
         raise NotFoundError()
     if email_changed:

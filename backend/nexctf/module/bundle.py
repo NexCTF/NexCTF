@@ -7,7 +7,7 @@ import hashlib
 import importlib.metadata
 import logging
 import re
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID
@@ -1013,14 +1013,14 @@ async def apply_import(
     blobs: dict[UUID, bytes],
     *,
     prune: bool = False,
-    guard: Callable[[Plan], None] | None = None,
+    guard: Callable[[Plan], Awaitable[None]] | None = None,
 ) -> Plan:
     """Re-derive a plan, let *guard* refuse it, then apply it in one transaction."""
     plan = await plan_import(session, incoming, blobs=blobs, prune=prune)
     if refused := plan.refused():
         raise BundleError(_refusal(refused))
     if guard is not None:
-        guard(plan)
+        await guard(plan)
     selected = {entry.key for entry in plan.applicable()}
 
     writer = _Writer(session, incoming, blobs, plan)

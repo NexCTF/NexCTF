@@ -52,14 +52,14 @@ _EXPORT_PREFIX = "bundle_export:"
 _EXPORT_TTL = 60
 
 
-def _check_export(
+async def _check_export(
     request: Request, granted: frozenset[str] | None, *, include_secrets: bool
 ) -> None:
     """Refuse an export the caller may not take; secrets need a fresh session."""
     _require_challenge_read(granted)
     if include_secrets:
         require_scopes(granted, "read:admin.config")
-        require_fresh_unless_token(request, granted)
+        await require_fresh_unless_token(request, granted)
 
 
 async def _redeem_ticket(redis: RedisDep, ticket: str) -> tuple[bool, bool]:
@@ -71,12 +71,12 @@ async def _redeem_ticket(redis: RedisDep, ticket: str) -> tuple[bool, bool]:
     return files == "1", secrets == "1"
 
 
-def _require_fresh_for_config(
+async def _require_fresh_for_config(
     request: Request, granted: frozenset[str] | None, plan: bundle.Plan
 ) -> None:
     """From a browser, an import writing auth-related config needs a fresh session."""
     if bundle.changes_reauth_config(plan):
-        require_fresh_unless_token(request, granted)
+        await require_fresh_unless_token(request, granted)
 
 
 def _fail(exc: Exception) -> BundleFailedError:
@@ -92,7 +92,7 @@ async def issue_export_ticket(
     include_secrets: bool = False,
 ) -> Response[AdminBundleExportTicket]:
     """Issue a one-time, short-lived ticket to download an export."""
-    _check_export(request, granted, include_secrets=include_secrets)
+    await _check_export(request, granted, include_secrets=include_secrets)
     ticket = await issue_single_use_token(
         redis,
         _EXPORT_PREFIX,
@@ -114,7 +114,7 @@ async def export_bundle(
 ) -> FastAPIResponse:
     """Build a content archive and hand it straight back as a download."""
     if ticket is None:
-        _check_export(request, granted, include_secrets=include_secrets)
+        await _check_export(request, granted, include_secrets=include_secrets)
     else:
         include_files, include_secrets = await _redeem_ticket(redis, ticket)
     try:

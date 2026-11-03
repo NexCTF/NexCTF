@@ -275,23 +275,25 @@ async def _session_only(user: CurrentUserDep, granted: TokenScopesDep) -> User:
 SessionOnlyDep = Annotated[User, Depends(_session_only)]
 
 
-def require_fresh_session(request: Request, granted: frozenset[str] | None) -> None:
+async def require_fresh_session(
+    request: Request, granted: frozenset[str] | None
+) -> None:
     """Require a browser session signed in within the re-authentication window."""
     require_session(granted)
-    require_fresh_cookie(request)
+    await require_fresh_cookie(request)
 
 
-def require_fresh_unless_token(
+async def require_fresh_unless_token(
     request: Request, granted: frozenset[str] | None
 ) -> None:
     """Accept an API token, or a browser session within the re-auth window."""
     if granted is None:
-        require_fresh_cookie(request)
+        await require_fresh_cookie(request)
 
 
 async def _fresh_session(request: Request, user: SessionOnlyDep) -> User:
     """Require a browser session signed in within the re-authentication window."""
-    require_fresh_cookie(request)
+    await require_fresh_cookie(request)
     return user
 
 
@@ -300,7 +302,7 @@ FreshSessionDep = Annotated[User, Depends(_fresh_session)]
 
 async def _fresh_unless_token(request: Request, granted: TokenScopesDep) -> None:
     """Accept an API token, or a browser session within the re-auth window."""
-    require_fresh_unless_token(request, granted)
+    await require_fresh_unless_token(request, granted)
 
 
 FreshAuthDep = Depends(_fresh_unless_token)
