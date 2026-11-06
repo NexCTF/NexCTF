@@ -113,6 +113,7 @@ def mock_redis(config_overrides: dict[str, str]):
 
     redis_mock.sunion = AsyncMock(return_value=set())
     redis_mock.zcount = AsyncMock(return_value=0)
+    redis_mock.smembers = AsyncMock(return_value=set())
     return redis_mock
 
 

@@ -76,12 +76,21 @@ async def check_rate_limit(
         await _refuse(redis, key, max_requests, name)
 
 
+async def failure_limit_reached(
+    redis: Redis, key: str, *, window_seconds: int, max_failures: int
+) -> bool:
+    """Whether *key* recorded *max_failures* within the window."""
+    since = time.time() - window_seconds
+    return await redis.zcount(key, f"({since}", "+inf") >= max_failures
+
+
 async def check_failure_limit(
     redis: Redis, key: str, *, window_seconds: int, max_failures: int, name: str
 ) -> None:
     """Raise RateLimitedError once *key* recorded *max_failures* within the window."""
-    since = time.time() - window_seconds
-    if await redis.zcount(key, f"({since}", "+inf") >= max_failures:
+    if await failure_limit_reached(
+        redis, key, window_seconds=window_seconds, max_failures=max_failures
+    ):
         await _refuse(redis, key, max_failures, name)
 
 

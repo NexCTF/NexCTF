@@ -39,6 +39,7 @@ from nexctf.api.dep import (
     SessionDep,
     SessionOnlyDep,
 )
+from nexctf.api.device import device_nonce, set_device_cookie
 from nexctf.api.security import (
     EMAIL_VERIFY_KEY_PREFIX,
     EMAIL_VERIFY_TTL,
@@ -66,10 +67,8 @@ from nexctf.core.eventbus import close_user_streams
 from nexctf.core.logging import bind_user_context
 from nexctf.core.rate_limit import (
     check_config_rate_limit,
-    check_failure_limit,
     check_rate_limit,
     client_rate_key,
-    record_failure,
 )
 from nexctf.exceptions import (
     AccountDisabledError,
@@ -87,6 +86,7 @@ from nexctf.exceptions import (
     TotpRequiredError,
 )
 from nexctf.model import OAuthAccount, OAuthProvider, User
+from nexctf.module import login_lock
 from nexctf.module.events import emit
 from nexctf.module.session import (
     FAILED_LOGIN_EVENT,
@@ -229,28 +229,20 @@ async def register(
     return result
 
 
-_ACCOUNT_FAILURES = 20
-_ACCOUNT_WINDOW = 900
 _GUESS_REASONS = frozenset({"bad_password", "unknown_user", "bad_totp"})
 
 
-def _account_key(username: str) -> str:
-    return f"rl:login_fail:{username.lower()}"
+def _failure_counter(
+    request: Request, username: str, user: User | None
+) -> login_lock.Counter:
+    """This client's wrong-guess counter for *username*.
 
-
-async def _check_account_failures(
-    redis: Redis, overrides: dict[str, str], username: str
-) -> None:
-    """Refuse a sign-in once the account collected too many wrong guesses."""
-    if not appconfig.get_with_overrides("rate_limit.login.enabled", overrides):
-        return
-    await check_failure_limit(
-        redis,
-        _account_key(username),
-        window_seconds=_ACCOUNT_WINDOW,
-        max_failures=_ACCOUNT_FAILURES,
-        name="login_account",
-    )
+    A browser holding a device cookie for the account counts on its own key;
+    every other client shares the account-wide key.
+    """
+    if user is not None and (nonce := device_nonce(request, user)):
+        return login_lock.Counter(login_lock.device_key(user.id, nonce), user.id)
+    return login_lock.Counter(login_lock.account_key(username))
 
 
 async def _record_login_failure(
@@ -261,6 +253,7 @@ async def _record_login_failure(
     ip: str | None,
     actor_id: UUID | None,
     reason: str,
+    counter: login_lock.Counter,
 ) -> None:
     """Persist a failed-login audit event, committing so it survives the raise.
 
@@ -268,9 +261,7 @@ async def _record_login_failure(
     roll the event back before the request-end commit runs.
     """
     if reason.removeprefix("reauth_") in _GUESS_REASONS:
-        await record_failure(
-            redis, _account_key(username), window_seconds=_ACCOUNT_WINDOW
-        )
+        await login_lock.record(redis, counter)
     logger.warning(
         "login failed for %s (%s)",
         username,
@@ -305,10 +296,11 @@ async def login(
         redis, overrides, name="login", key=client_rate_key("login", request)
     )
     await verify_captcha(redis, overrides, captcha_token)
-    await _check_account_failures(redis, overrides, username)
     user = await crud.UserCrud.first(
         session=session, filters=[func.lower(User.username) == username.lower()]
     )
+    counter = _failure_counter(request, username, user)
+    await login_lock.check(redis, overrides, counter)
     # Always perform an Argon2 verification — against a dummy hash when the user
     # is missing or has no password — so login timing does not reveal which
     # usernames exist (user enumeration via response timing).
@@ -325,6 +317,7 @@ async def login(
             ip=client_ip,
             actor_id=user.id if user else None,
             reason="bad_password" if user else "unknown_user",
+            counter=counter,
         )
         raise InvalidCredentialsError()
     if not user.is_active:
@@ -335,6 +328,7 @@ async def login(
             ip=client_ip,
             actor_id=user.id,
             reason="disabled",
+            counter=counter,
         )
         raise AccountDisabledError()
     if user.totp_secret:
@@ -348,6 +342,7 @@ async def login(
                 ip=client_ip,
                 actor_id=user.id,
                 reason="bad_totp",
+                counter=counter,
             )
             raise InvalidOtpError()
     # Gate login on email verification, but only while SMTP is enabled — otherwise
@@ -360,6 +355,7 @@ async def login(
             ip=client_ip,
             actor_id=user.id,
             reason="email_not_verified",
+            counter=counter,
         )
         raise EmailNotVerifiedError()
     await issue_session_cookie(session, response, user, request)
@@ -411,7 +407,8 @@ async def reauth(
     await check_config_rate_limit(
         redis, overrides, name="login", key=client_rate_key("login", request)
     )
-    await _check_account_failures(redis, overrides, user.username)
+    counter = _failure_counter(request, user.username, user)
+    await login_lock.check(redis, overrides, counter)
     client_ip = get_client_ip(request)
     reason = await _reauth_failure_reason(redis, user, body)
     if reason is not None:
@@ -422,6 +419,7 @@ async def reauth(
             ip=client_ip,
             actor_id=user.id,
             reason=f"reauth_{reason}",
+            counter=counter,
         )
         raise InvalidOtpError() if reason == "bad_totp" else InvalidCredentialsError()
     await reissue_session_cookie(session, response, user, request)
@@ -442,9 +440,13 @@ async def reset_password(
     session: SessionDep,
     redis: RedisDep,
     background_tasks: BackgroundTasks,
+    response: RawResponse,
     body: PasswordResetRequest,
 ):
-    """Consume a single-use password reset token and update the user's password."""
+    """Consume a single-use password reset token and update the user's password.
+
+    The browser that completes the reset becomes a known device of the account.
+    """
     await check_rate_limit(
         redis,
         client_rate_key("pwd_reset", request),
@@ -472,6 +474,7 @@ async def reset_password(
     )
     await revoke_all_access(session, user)
     background_tasks.add_task(close_user_streams, redis, user.id)
+    set_device_cookie(response, user)
     logger.info("password reset completed for %s", user.username)
     await emit(
         session,
@@ -876,7 +879,7 @@ def _set_flow_cookie(response: RawResponse, slug: str, value: str) -> None:
         max_age=600,
         httponly=True,
         samesite="lax",
-        secure=settings.ENVIRONMENT != "development",
+        secure=settings.secure_cookies,
     )
 
 
@@ -935,7 +938,7 @@ async def oauth_callback(
         _flow_cookie(provider.slug),
         httponly=True,
         samesite="lax",
-        secure=settings.ENVIRONMENT != "development",
+        secure=settings.secure_cookies,
     )
 
     # RFC 6749 §4.1.2.1: a denial arrives as ?error= with no code.

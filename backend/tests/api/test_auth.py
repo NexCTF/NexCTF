@@ -19,6 +19,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from nexctf import crud
+from nexctf.api import device
 from nexctf.api.security import (
     REAUTH_WINDOW,
     _verify_token,
@@ -28,6 +29,7 @@ from nexctf.api.security import (
 from nexctf.core.config import settings
 from nexctf.exceptions import CaptchaInvalidError, CaptchaRequiredError
 from nexctf.model import Event, OAuthAccount, OAuthProvider, User, UserRole, UserToken
+from nexctf.module import login_lock
 from nexctf.schema import UserCreate
 from nexctf.schema.user import AdminUserUpdate
 
@@ -765,6 +767,27 @@ class TestPasswordReset:
         assert user.hashed_password is not None
         assert verify_password("newpass123", user.hashed_password)
 
+    async def test_reset_trusts_the_browser(
+        self, http_client, db_session, mock_redis, override_db_context
+    ) -> None:
+        user = User(username="resetdev", hashed_password=hash_password("oldpass"))
+        db_session.add(user)
+        await db_session.flush()
+        mock_redis.getdel = AsyncMock(return_value=f"{user.id}:0")
+
+        resp = await http_client.post(
+            "/auth/reset-password",
+            json={"token": "tok", "new_password": "newpass123"},
+        )
+        assert resp.status_code == 204
+        cookie = http_client.cookies.get(
+            device.device_cookie_name(user.id), path="/api/v1/auth"
+        )
+        await db_session.refresh(user)
+        nonce, _, sig = (cookie or "").partition(".")
+        assert user.session_version == 1
+        assert sig == device._signature(user, nonce)
+
     async def test_reset_token_dies_with_the_password_it_was_for(
         self, http_client, db_session, mock_redis, override_db_context
     ) -> None:
@@ -1227,6 +1250,114 @@ class TestLoginRateLimit:
             json={"token": "tok", "new_password": "newpass123"},
         )
         assert resp.status_code == 429
+
+
+class TestDeviceCookie:
+    """A browser that signed in before keeps its own failure counter."""
+
+    @staticmethod
+    def owner_client(signed_in_client):
+        return signed_in_client("owner", "right", UserRole.user)
+
+    @staticmethod
+    def lock_shared_key(mock_redis) -> None:
+        shared = login_lock.account_key("owner")
+
+        async def zcount(key: str, *_: object) -> int:
+            return login_lock.MAX_FAILURES if key == shared else 0
+
+        mock_redis.zcount = AsyncMock(side_effect=zcount)
+
+    @staticmethod
+    def recorded_keys(mock_redis) -> list[str]:
+        pipe = mock_redis.pipeline.return_value
+        return [
+            c.args[0] for c in pipe.zadd.call_args_list if "login_fail" in c.args[0]
+        ]
+
+    @staticmethod
+    async def sign_in(client: AsyncClient, username: str = "owner") -> int:
+        resp = await client.post(
+            "/auth/token", data={"username": username, "password": "right"}
+        )
+        return resp.status_code
+
+    async def test_login_sets_a_device_cookie_per_account(
+        self, http_client, db_session
+    ) -> None:
+        owner = User(username="owner", hashed_password=hash_password("right"))
+        db_session.add(owner)
+        await db_session.flush()
+        resp = await http_client.post(
+            "/auth/token", data={"username": "owner", "password": "right"}
+        )
+        name = device.device_cookie_name(owner.id)
+        header = next(
+            h for h in resp.headers.get_list("set-cookie") if h.startswith(f"{name}=")
+        )
+        assert "Path=/api/v1/auth" in header and "HttpOnly" in header
+
+    async def test_known_device_signs_in_while_the_account_is_locked(
+        self, signed_in_client, mock_redis
+    ) -> None:
+        async with self.owner_client(signed_in_client) as (c, _):
+            self.lock_shared_key(mock_redis)
+            assert await self.sign_in(c) == 204
+
+    async def test_another_account_keeps_the_first_device_cookie(
+        self, signed_in_client, db_session, mock_redis
+    ) -> None:
+        db_session.add(User(username="second", hashed_password=hash_password("right")))
+        await db_session.flush()
+        async with self.owner_client(signed_in_client) as (c, _):
+            assert await self.sign_in(c, "second") == 204
+            self.lock_shared_key(mock_redis)
+            assert await self.sign_in(c) == 204
+
+    async def test_known_device_failures_stay_on_its_own_key(
+        self, signed_in_client, mock_redis
+    ) -> None:
+        async with self.owner_client(signed_in_client) as (c, owner):
+            await c.post("/auth/token", data={"username": "owner", "password": "no"})
+        keys = self.recorded_keys(mock_redis)
+        prefix = login_lock.device_key(owner.id, "")
+        assert keys and all(k.startswith(prefix) for k in keys)
+
+    async def test_reauth_failures_stay_on_the_device_key(
+        self, signed_in_client, mock_redis
+    ) -> None:
+        async with self.owner_client(signed_in_client) as (c, owner):
+            self.lock_shared_key(mock_redis)
+            resp = await c.post("/auth/reauth", json={"password": "wrong"})
+        assert resp.status_code == 401
+        keys = self.recorded_keys(mock_redis)
+        prefix = login_lock.device_key(owner.id, "")
+        assert keys and all(k.startswith(prefix) for k in keys)
+
+    @pytest.mark.parametrize(
+        ("signer", "value"),
+        [
+            pytest.param(None, "nonce.forged", id="forged"),
+            pytest.param({"id": NULL_UUID}, "nonce.{sig}", id="other-account"),
+            pytest.param({"session_version": 1}, "nonce.{sig}", id="stale-version"),
+            pytest.param(None, "nonce", id="malformed"),
+        ],
+    )
+    async def test_invalid_device_cookie_uses_the_shared_key(
+        self, http_client, db_session, mock_redis, signer: dict | None, value: str
+    ) -> None:
+        owner = User(username="owner", hashed_password=hash_password("right"))
+        db_session.add(owner)
+        await db_session.flush()
+        fields = {"id": owner.id, "session_version": 0, **(signer or {})}
+        sig = device._signature(User(**fields), "nonce")
+        http_client.cookies.set(
+            device.device_cookie_name(owner.id),
+            value.format(sig=sig),
+            path="/api/v1/auth",
+        )
+        self.lock_shared_key(mock_redis)
+        assert await self.sign_in(http_client) == 429
 
 
 class TestTokenOwnership:
