@@ -9,6 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.model import Team, User
+from nexctf.module import login_lock
 
 from ..base import (
     NULL_UUID,
@@ -496,6 +497,59 @@ class TestAdminPasswordResetToken:
         c, _ = admin_client
         resp = await c.post(f"{self.PREFIX}/{NULL_UUID}/password-reset-token")
         assert resp.status_code == 404
+
+
+class TestAdminLoginLockout:
+    PREFIX = "/admin/user"
+
+    async def test_requires_admin(self, user_client: tuple[AsyncClient, User]) -> None:
+        c, _ = user_client
+        resp = await c.delete(f"{self.PREFIX}/{NULL_UUID}/login-lockout")
+        assert resp.status_code == 403
+
+    async def test_not_found(self, admin_client: tuple[AsyncClient, User]) -> None:
+        c, _ = admin_client
+        resp = await c.delete(f"{self.PREFIX}/{NULL_UUID}/login-lockout")
+        assert resp.status_code == 404
+
+    async def test_detail_reports_the_lockout(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_user_members: list[User],
+        mock_redis,
+    ) -> None:
+        c, _ = admin_client
+        user = fixture_user_members[0]
+        resp = await c.get(f"{self.PREFIX}/{user.id}")
+        assert resp.json()["data"]["login_locked"] is False
+
+        device = login_lock.device_key(user.id, "nonce")
+        mock_redis.smembers = AsyncMock(return_value={device})
+        mock_redis.zcount = AsyncMock(
+            side_effect=lambda key, *_: login_lock.MAX_FAILURES * (key == device)
+        )
+        resp = await c.get(f"{self.PREFIX}/{user.id}")
+        assert resp.json()["data"]["login_locked"] is True
+
+    async def test_clears_account_and_device_counters(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_user_members: list[User],
+        mock_redis,
+    ) -> None:
+        c, _ = admin_client
+        user = fixture_user_members[0]
+        device = login_lock.device_key(user.id, "nonce")
+        mock_redis.smembers = AsyncMock(return_value={device})
+        mock_redis.delete = AsyncMock(return_value=3)
+        resp = await c.delete(f"{self.PREFIX}/{user.id}/login-lockout")
+        assert resp.status_code == 204
+        mock_redis.smembers.assert_awaited_once_with(login_lock.devices_key(user.id))
+        mock_redis.delete.assert_awaited_once_with(
+            login_lock.account_key(user.username),
+            device,
+            login_lock.devices_key(user.id),
+        )
 
 
 class TestDeleteUser(DeleteGuardMixin):

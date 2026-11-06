@@ -714,6 +714,8 @@ export interface AdminUserDetail extends User {
   ips: AdminUserIp[];
   last_login_at: string | null;
   custom_field_values: CustomFieldValue[];
+  /** The shared sign-in counter, or one of the account's known browsers, is locked */
+  login_locked: boolean;
 }
 
 export async function getAdminUser(userId: string): Promise<AdminUserDetail> {
@@ -887,6 +889,10 @@ export async function getAdminSessionClientsSummary(window: SessionWindow): Prom
 
 export async function adminResetUserTotp(userId: string): Promise<void> {
   await rawRequest(`/admin/user/${userId}/totp/reset`, { method: "POST" });
+}
+
+export async function adminClearLoginLockout(userId: string): Promise<void> {
+  await rawRequest(`/admin/user/${userId}/login-lockout`, { method: "DELETE" });
 }
 
 export async function adminCreatePasswordResetToken(userId: string): Promise<string> {

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, expect, it, vi } from "vitest";
 import {
+  adminClearLoginLockout,
   getAdminCustomFields,
   getAdminUser,
   getAdminUserClients,
@@ -24,6 +25,7 @@ import { Route } from "./users_.$userId";
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
+  adminClearLoginLockout: vi.fn(),
   getAdminCustomFields: vi.fn(),
   getAdminUser: vi.fn(),
   getAdminUserClients: vi.fn(),
@@ -70,6 +72,27 @@ it("does not offer to revoke the admin's own session", async () => {
 
   await screen.findByText("Your session");
   expect(screen.queryByRole("button", { name: "Sign out" })).toBeNull();
+});
+
+it("hides the unlock button while sign-in is allowed", async () => {
+  render();
+
+  await screen.findByText(/Chrome on Windows/);
+  expect(screen.queryByRole("button", { name: "Unlock sign-in" })).toBeNull();
+});
+
+it("unlocks a locked sign-in", async () => {
+  vi.mocked(getAdminUser).mockResolvedValue(adminUserDetail({ login_locked: true }));
+  vi.mocked(adminClearLoginLockout).mockResolvedValue(undefined);
+  render();
+
+  expect(await screen.findByText("Locked: too many wrong passwords")).toBeTruthy();
+  await userEvent.click(screen.getByRole("button", { name: "Unlock sign-in" }));
+  const dialog = await screen.findByRole("dialog");
+  await userEvent.click(within(dialog).getByRole("button", { name: "Confirm" }));
+
+  expect(adminClearLoginLockout).toHaveBeenCalledWith("u1");
+  expect(toast.success).toHaveBeenCalledWith("Sign-in unlocked");
 });
 
 it("lists the clients the user was seen with", async () => {

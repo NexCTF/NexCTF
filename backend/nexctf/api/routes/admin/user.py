@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from nexctf import crud
 from nexctf.api.dep import (
     ClientCategoryDep,
+    ConfigDep,
     CurrentUserDep,
     FreshAuthDep,
     FreshSessionDep,
@@ -28,6 +29,7 @@ from nexctf.core.eventbus import close_user_streams
 from nexctf.exceptions import SelfLockoutError
 from nexctf.model import CustomFieldValue, User, UserRole
 from nexctf.model.event import Event
+from nexctf.module import login_lock
 from nexctf.module.client import user_clients
 from nexctf.module.custom_field import replace_custom_field_values
 from nexctf.module.events import emit
@@ -120,6 +122,8 @@ async def create_user(
 @user_router.get("/{uuid}")
 async def get_user(
     session: SessionDep,
+    redis: RedisDep,
+    overrides: ConfigDep,
     idle: SessionIdleDep,
     uuid: UUID,
 ) -> Response[AdminUserDetailRead]:
@@ -142,6 +146,9 @@ async def get_user(
             custom_field_values=[
                 AdminCustomFieldValueRead.model_validate(cfv) for cfv in cfv_rows
             ],
+            login_locked=await login_lock.is_locked(
+                redis, overrides, uuid, result.data.username
+            ),
         )
     )
 
@@ -325,6 +332,29 @@ async def admin_reset_totp(
         session,
         redis,
         event_type="admin.user_totp_reset",
+        actor_id=admin.id,
+        ip=get_client_ip(request),
+        meta={"target_user_id": str(uuid), "target_username": target.username},
+    )
+
+
+@user_router.delete("/{uuid}/login-lockout", status_code=204)
+async def clear_login_lockout(
+    request: Request,
+    session: SessionDep,
+    redis: RedisDep,
+    uuid: UUID,
+    admin: CurrentUserDep,
+):
+    """Forget a user's wrong sign-in guesses so they can sign in again."""
+    target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
+    if not target:
+        raise NotFoundError()
+    await login_lock.clear(redis, target.id, target.username)
+    await emit(
+        session,
+        redis,
+        event_type="admin.user_login_unlocked",
         actor_id=admin.id,
         ip=get_client_ip(request),
         meta={"target_user_id": str(uuid), "target_username": target.username},

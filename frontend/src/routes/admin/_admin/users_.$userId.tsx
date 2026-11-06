@@ -1,6 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Ban, ExternalLink, KeyRound, LogOut, Pencil, ShieldCheck, ShieldOff } from "lucide-react";
+import {
+  Ban,
+  ExternalLink,
+  KeyRound,
+  LockOpen,
+  LogOut,
+  type LucideIcon,
+  Pencil,
+  ShieldCheck,
+  ShieldOff,
+} from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -28,6 +38,7 @@ import { Label } from "@/components/ui/label";
 import {
   type AdminEvent,
   type Link as ApiLink,
+  adminClearLoginLockout,
   adminCreatePasswordResetToken,
   adminResetUserTotp,
   apiErrorMessage,
@@ -336,25 +347,42 @@ function EditUserDialog({
   );
 }
 
-function ResetTotpButton({ userId, onSuccess }: { userId: string; onSuccess: () => void }) {
-  const { t } = useTranslation();
+interface ConfirmActionButtonProps {
+  action: () => Promise<void>;
+  icon: LucideIcon;
+  label: string;
+  confirm: string;
+  success: string;
+  error: string;
+  onSuccess: () => void;
+}
+
+function ConfirmActionButton({
+  action,
+  icon: Icon,
+  label,
+  confirm,
+  success,
+  error,
+  onSuccess,
+}: ConfirmActionButtonProps) {
   const mutation = useMutation({
-    mutationFn: () => adminResetUserTotp(userId),
+    mutationFn: action,
     onSuccess: () => {
-      toast.success(t("admin.users.totp_reset_success"));
+      toast.success(success);
       onSuccess();
     },
-    onError: (err) => toast.error(apiErrorMessage(err, t("admin.users.totp_reset_error"))),
+    onError: (err) => toast.error(apiErrorMessage(err, error)),
   });
 
   return (
     <ConfirmDialog
-      description={t("admin.users.totp_reset_confirm")}
+      description={confirm}
       onConfirm={() => mutation.mutate()}
       trigger={
         <Button variant="outline" size="sm" disabled={mutation.isPending}>
-          <ShieldOff className="size-3.5 mr-1.5" />
-          {t("admin.users.totp_reset_btn")}
+          <Icon className="size-3.5 mr-1.5" />
+          {label}
         </Button>
       }
     />
@@ -517,7 +545,31 @@ function UserDetailPage() {
             actions={
               <>
                 {user.totp_enabled && (
-                  <ResetTotpButton userId={userId} onSuccess={invalidateUser} />
+                  <ConfirmActionButton
+                    action={() => adminResetUserTotp(userId)}
+                    icon={ShieldOff}
+                    label={t("admin.users.totp_reset_btn")}
+                    confirm={t("admin.users.totp_reset_confirm")}
+                    success={t("admin.users.totp_reset_success")}
+                    error={t("admin.users.totp_reset_error")}
+                    onSuccess={invalidateUser}
+                  />
+                )}
+                {user.login_locked && (
+                  <ConfirmActionButton
+                    action={() => adminClearLoginLockout(userId)}
+                    icon={LockOpen}
+                    label={t("admin.users.lockout_clear_btn", { defaultValue: "Unlock sign-in" })}
+                    confirm={t("admin.users.lockout_clear_confirm", {
+                      defaultValue:
+                        "Forget the wrong passwords tried on this account? Check the failed sign-ins first: if someone keeps guessing, the account locks again.",
+                    })}
+                    success={t("admin.users.lockout_cleared", { defaultValue: "Sign-in unlocked" })}
+                    error={t("admin.users.lockout_clear_error", {
+                      defaultValue: "Failed to unlock sign-in",
+                    })}
+                    onSuccess={invalidateUser}
+                  />
                 )}
                 <PasswordResetTokenDialog userId={userId} />
                 <EditUserDialog userId={userId} user={user} onSaved={invalidateUser} />
@@ -567,6 +619,22 @@ function UserDetailPage() {
               <InfoRow
                 label={t("admin.users.field_status")}
                 value={<StatusCell active={user.is_active} />}
+              />
+              <InfoRow
+                label={t("admin.users.field_sign_in", { defaultValue: "Sign-in" })}
+                value={
+                  user.login_locked ? (
+                    <span className="text-amber-600 dark:text-amber-500">
+                      {t("admin.users.login_locked", {
+                        defaultValue: "Locked: too many wrong passwords",
+                      })}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      {t("admin.users.login_allowed", { defaultValue: "Allowed" })}
+                    </span>
+                  )
+                }
               />
               <InfoRow
                 label={t("admin.users.field_ips", { defaultValue: "Known addresses" })}
