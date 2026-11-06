@@ -77,7 +77,14 @@ export function user(overrides: Partial<User> = {}): User {
 }
 
 export function adminUserDetail(overrides: Partial<AdminUserDetail> = {}): AdminUserDetail {
-  return { ...user(), ips: [], last_login_at: null, custom_field_values: [], ...overrides };
+  return {
+    ...user(),
+    ips: [],
+    last_login_at: null,
+    custom_field_values: [],
+    login_locked: false,
+    ...overrides,
+  };
 }
 
 export function customFieldDefinition(

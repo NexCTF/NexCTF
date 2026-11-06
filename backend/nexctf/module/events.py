@@ -53,6 +53,7 @@ EVENT_CATEGORIES: frozendict[str, str] = frozendict(
         "admin.user_totp_reset": "admin",
         "admin.user_session_revoked": "admin",
         "admin.user_password_reset_token": "admin",
+        "admin.user_login_unlocked": "admin",
         "admin.user_deleted": "admin",
         "admin.submission_deleted": "admin",
         "admin.team_disqualified": "admin",

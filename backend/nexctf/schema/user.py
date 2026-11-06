@@ -83,6 +83,8 @@ class AdminUserDetailRead(PublicUserRead):
     ips: list[AdminUserIpRead] = []
     last_login_at: datetime | None = None
     custom_field_values: list[AdminCustomFieldValueRead] = []
+    # The shared sign-in counter, or one of the known browsers, is locked
+    login_locked: bool = False
 
 
 class PublicApiTokenCreate(PydanticBase):

@@ -17,7 +17,7 @@ from nexctf.core.cache import get_client as get_redis_client
 from nexctf.core.config import settings
 from nexctf.core.db import get_db_context
 from nexctf.model import User, UserRole, UserToken
-from nexctf.module import backup
+from nexctf.module import backup, login_lock
 
 cli = typer.Typer(
     name="manager",
@@ -79,6 +79,20 @@ async def create_admin() -> None:
         console.print(f"Created admin user {username!r}.")
     else:
         console.print(f"Admin user {username!r} already exists; skipping.")
+
+
+@cli.command("unlock-login")
+@async_command
+async def unlock_login(username: str) -> None:
+    """Forget a user's wrong sign-in guesses so they can sign in again."""
+    async with get_db_context() as session:
+        user = await crud.UserCrud.first(
+            session=session, filters=[func.lower(User.username) == username.lower()]
+        )
+    if user is None:
+        raise typer.BadParameter(f"No user named {username!r}.")
+    await login_lock.clear(get_redis_client(), user.id, user.username)
+    console.print(f"Cleared the sign-in lockout of {user.username!r}.")
 
 
 @cli.command("restore")
