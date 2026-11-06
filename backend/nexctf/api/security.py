@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from nexctf import crud
+from nexctf.api.device import set_device_cookie
 from nexctf.api.scope import (
     bind_token,
     token_id_of,
@@ -250,7 +251,7 @@ cookie_auth = APIKeyCookieAuth(
     name="NexCTF",
     validator=_verify_cookie,
     secret_key=settings.SECRET_KEY,
-    secure=settings.ENVIRONMENT != "development",
+    secure=settings.secure_cookies,
     ttl=SESSION_TTL,
     session_id=True,
     csrf=True,
@@ -278,10 +279,11 @@ async def require_fresh_cookie(request: Request) -> None:
 
 
 def _set_session_cookie(response: Response, user: User) -> str:
-    """Set a newly signed session cookie for *user*, returning its session id."""
+    """Set a newly signed session and device cookie for *user*, returning the session id."""
     sid = cookie_auth.set_cookie(response, f"{user.id}:{user.session_version}")
     if sid is None:  # session_id=True always mints one
         raise RuntimeError("cookie_auth must be built with session_id=True")
+    set_device_cookie(response, user)
     return sid
 
 

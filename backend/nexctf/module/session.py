@@ -479,7 +479,10 @@ async def _purge_session_batch(db: AsyncSession, now: datetime) -> int:
 
 
 async def revoke_all_access(db: AsyncSession, user: User) -> int:
-    """Revoke every session, API token and OAuth grant; return the new session version."""
+    """Revoke every session, API token and OAuth grant; return the new session version.
+
+    The new version is also set on *user*, so cookies issued next carry it.
+    """
     await revoke_user_sessions(db, user)
     await crud.UserTokenCrud.delete(db, filters=[UserToken.user_id == user.id])
     version = await db.scalar(
@@ -488,4 +491,5 @@ async def revoke_all_access(db: AsyncSession, user: User) -> int:
         .values(session_version=User.session_version + 1)
         .returning(User.session_version)
     )
-    return int(version or 0)
+    user.session_version = int(version or 0)
+    return user.session_version

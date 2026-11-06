@@ -136,6 +136,11 @@ class Settings(BaseSettings):
     METRICS_TOKEN: str | None = None
 
     @property
+    def secure_cookies(self) -> bool:
+        """Whether cookies carry the Secure flag: everywhere but development."""
+        return self.ENVIRONMENT != "development"
+
+    @property
     def metrics_served(self) -> bool:
         """Whether /metrics is mounted: enabled, and token-protected outside dev."""
         return self.METRICS_ENABLED and (

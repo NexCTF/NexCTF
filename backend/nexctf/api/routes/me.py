@@ -364,8 +364,7 @@ async def change_password(
             hashed_password=await hash_password_async(body.new_password),
         ),
     )
-    # Reflect the bump on the instance so the re-issued cookie carries it.
-    user.session_version = await revoke_all_access(session, user)
+    await revoke_all_access(session, user)
     background_tasks.add_task(close_user_streams, redis, user.id)
     await issue_session_cookie(session, response, user, request)
     await emit(
