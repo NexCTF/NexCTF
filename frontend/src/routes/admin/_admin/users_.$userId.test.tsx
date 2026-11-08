@@ -92,6 +92,16 @@ it("lists the clients the user was seen with", async () => {
   expect(getAdminUserClients).toHaveBeenCalledWith("u1");
 });
 
+it("flags clients that sent agent signals", async () => {
+  vi.mocked(getAdminUserClients).mockResolvedValue([
+    userClient({ category: "ai", signature_agent: "chatgpt.com", platform_mismatch: true }),
+  ]);
+  render();
+
+  expect(await screen.findByText("Signed by chatgpt.com")).toBeTruthy();
+  expect(screen.getByText("Platform mismatch")).toBeTruthy();
+});
+
 it("says so when no client was recorded", async () => {
   render();
 

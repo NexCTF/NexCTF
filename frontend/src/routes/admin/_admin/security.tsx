@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { BetaBadge } from "@/components/beta-badge";
 import {
   ClientCategoryBadge,
+  ClientSignalBadges,
   ClientSourceBadge,
   UserAgentText,
   useClientLabels,
@@ -497,7 +498,12 @@ function useClientColumns(): Column<ClientSighting>[] {
       key: "category",
       header: t("admin.clients.col_category", { defaultValue: "Category" }),
       filterOptions: labels.category,
-      cell: (row) => <ClientCategoryBadge category={row.category} />,
+      cell: (row) => (
+        <div className="flex flex-wrap items-center gap-1">
+          <ClientCategoryBadge category={row.category} />
+          <ClientSignalBadges client={row} />
+        </div>
+      ),
     },
     {
       key: "source",

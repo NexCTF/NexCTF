@@ -1,7 +1,7 @@
-import { Bot, Globe, KeyRound, Terminal } from "lucide-react";
+import { Bot, Globe, KeyRound, MonitorX, Signature, Terminal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { StatusBadge } from "@/components/status-badge";
-import type { ClientCategory, ClientSource } from "@/lib/api";
+import type { ClientCategory, ClientSource, UserClient } from "@/lib/api";
 
 const CATEGORY_STYLE = {
   ai: { tone: "red", icon: Bot },
@@ -36,6 +36,45 @@ export function ClientCategoryBadge({ category }: { category: ClientCategory }) 
     <StatusBadge tone={tone} icon={icon}>
       {labels.category[category]}
     </StatusBadge>
+  );
+}
+
+/** Agent signals a client sent besides its user-agent: a signing agent, a platform mismatch. */
+export function ClientSignalBadges({
+  client,
+}: {
+  client: Pick<UserClient, "signature_agent" | "platform_mismatch">;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {client.signature_agent && (
+        <StatusBadge
+          tone="red"
+          icon={Signature}
+          title={t("admin.clients.signature_agent_hint", {
+            defaultValue: "The client sent a Signature-Agent header, as AI agent platforms do",
+          })}
+        >
+          {t("admin.clients.signature_agent", {
+            host: client.signature_agent,
+            defaultValue: "Signed by {{host}}",
+          })}
+        </StatusBadge>
+      )}
+      {client.platform_mismatch && (
+        <StatusBadge
+          tone="amber"
+          icon={MonitorX}
+          title={t("admin.clients.platform_mismatch_hint", {
+            defaultValue:
+              "The browser's platform hint names another operating system than its user-agent",
+          })}
+        >
+          {t("admin.clients.platform_mismatch", { defaultValue: "Platform mismatch" })}
+        </StatusBadge>
+      )}
+    </>
   );
 }
 

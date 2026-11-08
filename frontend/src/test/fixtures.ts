@@ -390,6 +390,8 @@ export function userClient(overrides: Partial<UserClient> = {}): UserClient {
     category: "browser",
     source: "cookie",
     token_name: null,
+    signature_agent: null,
+    platform_mismatch: false,
     first_seen_at: new Date().toISOString(),
     last_seen_at: new Date().toISOString(),
     ...overrides,
@@ -398,17 +400,15 @@ export function userClient(overrides: Partial<UserClient> = {}): UserClient {
 
 export function clientSighting(overrides: Partial<ClientSighting> = {}): ClientSighting {
   return {
-    id: "55555555-5555-4555-8555-555555555555",
+    ...userClient({
+      id: "55555555-5555-4555-8555-555555555555",
+      user_agent: "curl/8.10.1",
+      category: "automation",
+    }),
     user_id: "22222222-2222-4222-8222-222222222222",
     username: "alice",
     team_id: null,
     team_name: null,
-    user_agent: "curl/8.10.1",
-    category: "automation",
-    source: "cookie",
-    token_name: null,
-    first_seen_at: new Date().toISOString(),
-    last_seen_at: new Date().toISOString(),
     ...overrides,
   };
 }

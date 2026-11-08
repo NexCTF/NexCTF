@@ -261,8 +261,8 @@ auth = MultiAuth(bearer_auth, cookie_auth)
 
 def client_of(request: Request) -> ClientInfo:
     """The client behind an authenticated *request*."""
-    return ClientInfo.build(
-        request.headers.get("user-agent"), token_id_of(request), token_name_of(request)
+    return ClientInfo.from_headers(
+        request.headers, token_id_of(request), token_name_of(request)
     )
 
 

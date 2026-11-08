@@ -4,7 +4,12 @@ import { Ban, ExternalLink, KeyRound, LogOut, Pencil, ShieldCheck, ShieldOff } f
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { ClientCategoryBadge, ClientSourceBadge, UserAgentText } from "@/components/client-badges";
+import {
+  ClientCategoryBadge,
+  ClientSignalBadges,
+  ClientSourceBadge,
+  UserAgentText,
+} from "@/components/client-badges";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CustomFieldValuesList } from "@/components/custom-field-values-list";
 import { CustomFieldsSection, useCustomFieldDefs } from "@/components/custom-fields-section";
@@ -177,6 +182,7 @@ function ClientRow({ client }: { client: UserClient }) {
       <div className="flex flex-wrap items-center gap-2">
         <ClientCategoryBadge category={client.category} />
         <ClientSourceBadge source={client.source} tokenName={client.token_name} />
+        <ClientSignalBadges client={client} />
       </div>
       <UserAgentText userAgent={client.user_agent} />
       <p className="text-xs text-muted-foreground">
