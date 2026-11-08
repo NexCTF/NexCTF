@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 from importlib.metadata import version as pkg_version
@@ -12,7 +13,7 @@ from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexctf.core.cache import get_or_compute
+from nexctf.core.cache import get_cached, get_or_compute
 from nexctf.schema.info import VersionInfo
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,7 @@ _REPO = "NexCTF/NexCTF"
 _KEY = f"info:latest_release:{CURRENT_VERSION}"
 _TTL = timedelta(hours=6)
 _adapter: TypeAdapter[VersionInfo] = TypeAdapter(VersionInfo)
+_refreshes: set[asyncio.Task[VersionInfo]] = set()
 
 
 async def current_revision(session: AsyncSession) -> str | None:
@@ -67,6 +69,19 @@ async def _compute() -> VersionInfo:
     )
 
 
+def _refresh(redis: Redis, ttl: timedelta) -> None:
+    """Check GitHub for the latest release in the background, once per process."""
+    if _refreshes:
+        return
+    task = asyncio.create_task(get_or_compute(redis, _KEY, _adapter, _compute, ttl))
+    _refreshes.add(task)
+    task.add_done_callback(_refreshes.discard)
+
+
 async def get_version_info(redis: Redis, ttl: timedelta = _TTL) -> VersionInfo:
-    """Return the cached current/latest version info for the admin dashboard."""
-    return await get_or_compute(redis, _KEY, _adapter, _compute, ttl)
+    """Return the cached version info, checking GitHub in the background on a miss."""
+    cached = await get_cached(redis, _KEY, _adapter)
+    if cached is not None:
+        return cached
+    _refresh(redis, ttl)
+    return VersionInfo(current=CURRENT_VERSION)
