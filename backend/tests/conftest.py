@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pyotp
 import pytest
+import pytest_asyncio
 from fastapi_toolsets.logger import ContextFilter
 from fastapi_toolsets.pytest import (
     create_async_client,
@@ -133,7 +134,7 @@ def ticket_store(mock_redis) -> None:
     mock_redis.getdel = AsyncMock(side_effect=getdel)
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def worker_db_url():
     """Create and drop a per-worker test database."""
     async with create_worker_database(
@@ -143,7 +144,7 @@ async def worker_db_url():
         yield url
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def task_queue_schema(worker_db_url: str) -> str:
     """Install the task queue schema once in the per-worker test database."""
     conn = await connect(worker_db_url)
