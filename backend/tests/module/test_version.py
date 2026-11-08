@@ -1,11 +1,20 @@
-"""Unit tests for nexctf.module.info.version semver comparison."""
+"""Unit tests for nexctf.module.info.version."""
 
+import asyncio
 from typing import Any
 
 import pytest
 
+from nexctf.module.info import version
 from nexctf.module.info.version import CURRENT_VERSION, _is_newer, get_version_info
 from nexctf.schema.info import VersionInfo
+
+LATEST = VersionInfo(
+    current=CURRENT_VERSION,
+    latest="99.0.0",
+    release_url="https://github.com/NexCTF/NexCTF/releases/tag/99.0.0",
+    update_available=True,
+)
 
 
 @pytest.mark.parametrize(
@@ -68,6 +77,63 @@ async def test_stale_cached_version_is_ignored_after_upgrade(
     redis: Any = _FakeRedis({"info:latest_release": stale.encode()})
 
     info = await get_version_info(redis)
+    await _finish_refreshes()
 
     assert info.current == CURRENT_VERSION
     assert info.update_available is False
+
+
+async def _finish_refreshes() -> None:
+    await asyncio.gather(*version._refreshes)
+
+
+class TestBackgroundRefresh:
+    async def test_miss_answers_without_waiting_for_github(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        github = asyncio.Event()
+
+        async def _slow_compute() -> VersionInfo:
+            await github.wait()
+            return LATEST
+
+        monkeypatch.setattr(version, "_compute", _slow_compute)
+        redis: Any = _FakeRedis({})
+
+        assert await get_version_info(redis) == VersionInfo(current=CURRENT_VERSION)
+
+        github.set()
+        await _finish_refreshes()
+        assert await get_version_info(redis) == LATEST
+
+    async def test_hit_does_not_refresh(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        async def _unexpected() -> VersionInfo:
+            raise AssertionError("cached value should be served")
+
+        monkeypatch.setattr(version, "_compute", _unexpected)
+        redis: Any = _FakeRedis({version._KEY: LATEST.model_dump_json().encode()})
+
+        assert await get_version_info(redis) == LATEST
+        assert not version._refreshes
+
+    async def test_one_refresh_per_process(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls = 0
+        github = asyncio.Event()
+
+        async def _counted() -> VersionInfo:
+            nonlocal calls
+            calls += 1
+            await github.wait()
+            return LATEST
+
+        monkeypatch.setattr(version, "_compute", _counted)
+        redis: Any = _FakeRedis({})
+
+        await get_version_info(redis)
+        await get_version_info(redis)
+        github.set()
+        await _finish_refreshes()
+
+        assert calls == 1

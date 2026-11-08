@@ -128,6 +128,12 @@ async def _load[T](redis: Redis, key: str, adapter: TypeAdapter[T]) -> T | _Miss
     return _MISS
 
 
+async def get_cached[T](redis: Redis, key: str, adapter: TypeAdapter[T]) -> T | None:
+    """Return the cached value at *key*, or None when absent or stale."""
+    cached = await _load(redis, key, adapter)
+    return None if isinstance(cached, _Miss) else cached
+
+
 async def _wait_for[T](redis: Redis, key: str, adapter: TypeAdapter[T]) -> T | _Miss:
     """Poll *key* while another request computes it.
 
