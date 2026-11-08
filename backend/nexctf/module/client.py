@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from urllib.parse import urlsplit
 from uuid import UUID
 
 from fastapi_multiauth import hash_token
@@ -27,6 +30,44 @@ AI_PATTERNS_KEY = "clients.ai_patterns"
 AUTOMATION_PATTERNS_KEY = "clients.automation_patterns"
 SIGHTING_THROTTLE = timedelta(minutes=5)
 SEEN_KEY_PREFIX = "client_seen:"
+SIGNATURE_AGENT_MAX = 255
+SIGNATURE_AGENT_URL = re.compile(r'"(https://[^"]+)"')
+UA_PLATFORMS = (
+    ("Windows", "Windows"),
+    ("iPhone", "iOS"),
+    ("iPad", "iOS"),
+    ("Macintosh", "macOS"),
+    ("Android", "Android"),
+    ("CrOS", "Chrome OS"),
+    ("Linux", "Linux"),
+)
+# (user-agent platform, Sec-CH-UA-Platform) pairs real browsers send
+COMPATIBLE_PLATFORMS = {("Linux", "Android"), ("Linux", "Chrome OS")}
+
+
+def signature_agent_host(header: str | None) -> str | None:
+    """Host named by a Signature-Agent header, or the raw value if it names none."""
+    header = (header or "").strip()
+    if not header:
+        return None
+    host = None
+    if match := SIGNATURE_AGENT_URL.search(header):
+        try:
+            host = urlsplit(match.group(1)).hostname
+        except ValueError:
+            pass
+    return (host or header)[:SIGNATURE_AGENT_MAX]
+
+
+def platforms_disagree(user_agent: str, platform_hint: str | None) -> bool:
+    """Whether Sec-CH-UA-Platform names another OS than the user-agent."""
+    hinted = (platform_hint or "").strip().strip('"')
+    if hinted in ("", "Unknown"):
+        return False
+    claimed = next((name for token, name in UA_PLATFORMS if token in user_agent), None)
+    return (
+        claimed not in (None, hinted) and (claimed, hinted) not in COMPATIBLE_PLATFORMS
+    )
 
 
 @dataclass(frozen=True)
@@ -36,35 +77,63 @@ class ClientInfo:
     user_agent: str
     token_id: UUID | None = None
     token_name: str | None = None
+    signature_agent: str | None = None
+    platform_mismatch: bool = False
 
     @classmethod
-    def build(
+    def from_headers(
         cls,
-        user_agent: str | None,
+        headers: Mapping[str, str],
         token_id: UUID | None,
         token_name: str | None = None,
     ) -> ClientInfo:
-        """Describe a client from its raw header and authenticating token."""
+        """Describe a client from its request headers and authenticating token."""
+        user_agent = (headers.get("user-agent") or "")[:USER_AGENT_MAX]
         return cls(
-            user_agent=(user_agent or "")[:USER_AGENT_MAX],
+            user_agent=user_agent,
             token_id=token_id,
             token_name=token_name,
+            signature_agent=signature_agent_host(headers.get("signature-agent")),
+            platform_mismatch=platforms_disagree(
+                user_agent, headers.get("sec-ch-ua-platform")
+            ),
         )
+
+    @property
+    def signals(self) -> tuple[str | None, bool]:
+        """Agent signals sent besides the user-agent."""
+        return self.signature_agent, self.platform_mismatch
 
     @property
     def source(self) -> ClientSource:
         """How the client authenticated."""
         return ClientSource.cookie if self.token_id is None else ClientSource.token
 
-    def event_meta(self) -> dict[str, str]:
+    def event_meta(self) -> dict[str, str | bool]:
         """The fields recorded on the events this client triggers."""
-        return {"user_agent": self.user_agent, "source": self.source.value}
+        meta: dict[str, str | bool] = {
+            "user_agent": self.user_agent,
+            "source": self.source.value,
+        }
+        if self.signature_agent:
+            meta["signature_agent"] = self.signature_agent
+        if self.platform_mismatch:
+            meta["platform_mismatch"] = True
+        return meta
+
+
+def _seen_key(user: User, client: ClientInfo, digest: str) -> str:
+    """Throttle key for one user, source, user-agent and set of agent signals."""
+    key = f"{SEEN_KEY_PREFIX}{user.id}:{client.source.value}:{digest}"
+    if any(client.signals):
+        key += f":{hash_token(repr(client.signals))}"
+    return key
 
 
 async def record_sighting(redis: Redis, user: User, client: ClientInfo) -> None:
     """Record that *user* is using *client*, at most once per throttle window."""
     digest = hash_token(client.user_agent)
-    key = f"{SEEN_KEY_PREFIX}{user.id}:{client.source.value}:{digest}"
+    key = _seen_key(user, client, digest)
     if not await redis.set(key, "1", nx=True, ex=SIGHTING_THROTTLE):
         return
     now = datetime.now(UTC)
@@ -76,6 +145,8 @@ async def record_sighting(redis: Redis, user: User, client: ClientInfo) -> None:
         user_agent=client.user_agent,
         ua_hash=digest,
         source=client.source,
+        signature_agent=client.signature_agent,
+        platform_mismatch=client.platform_mismatch,
         first_seen_at=now,
         last_seen_at=now,
     )
@@ -87,6 +158,12 @@ async def record_sighting(redis: Redis, user: User, client: ClientInfo) -> None:
             "team_id": stmt.excluded.team_id,
             "token_id": stmt.excluded.token_id,
             "token_name": stmt.excluded.token_name,
+            "signature_agent": func.coalesce(
+                stmt.excluded.signature_agent, UserAgentSighting.signature_agent
+            ),
+            "platform_mismatch": or_(
+                UserAgentSighting.platform_mismatch, stmt.excluded.platform_mismatch
+            ),
         },
     )
     async with get_auth_db_context() as db:
@@ -111,7 +188,13 @@ def category_expression(overrides: dict[str, str]) -> ColumnElement[str]:
     ai = _patterns(AI_PATTERNS_KEY, overrides)
     automation = _patterns(AUTOMATION_PATTERNS_KEY, overrides)
     return case(
-        (_matches_any(user_agent, ai), ClientCategory.AI.value),
+        (
+            or_(
+                UserAgentSighting.signature_agent.is_not(None),
+                _matches_any(user_agent, ai),
+            ),
+            ClientCategory.AI.value,
+        ),
         (
             or_(user_agent == "", _matches_any(user_agent, automation)),
             ClientCategory.AUTOMATION.value,

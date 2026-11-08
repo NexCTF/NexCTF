@@ -16,6 +16,8 @@ from nexctf.module.client import (
     SIGHTING_THROTTLE,
     ClientInfo,
     category_expression,
+    platforms_disagree,
+    signature_agent_host,
 )
 
 from ..base import (
@@ -34,6 +36,8 @@ SUMMARY = f"{CLIENTS}/summary"
 BROWSER_UA = "Mozilla/5.0 (X11; Linux x86_64) Chrome/141.0 Safari/537.36"
 AI_UA = "Mozilla/5.0 AppleWebKit/537.36 (compatible; Claude-User/1.0)"
 CURL_UA = "curl/8.10.1"
+WINDOWS_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/141.0 Safari/537.36"
+SIGNED_AGENT = 'sig1="https://chatgpt.com"'
 
 
 async def _sightings(db_session, user: User) -> list[UserAgentSighting]:
@@ -71,6 +75,8 @@ class TestCategoryExpression:
         [
             (AI_UA, ClientCategory.AI),
             ("Mozilla/5.0 (compatible; GPTBot/1.2)", ClientCategory.AI),
+            ("Mozilla/5.0 Chrome/141.0 Claude-Agent/1.0", ClientCategory.AI),
+            ("Mozilla/5.0 Chrome/141.0 Google-Agent", ClientCategory.AI),
             (CURL_UA, ClientCategory.AUTOMATION),
             ("python-httpx/0.28.1", ClientCategory.AUTOMATION),
             ("PYTHON-REQUESTS/2.32", ClientCategory.AUTOMATION),
@@ -93,6 +99,18 @@ class TestCategoryExpression:
         )
         assert await _category_of(db_session, row) is ClientCategory.AI
 
+    async def test_signature_agent_makes_it_ai(self, db_session):
+        user = await make_user(db_session, "signed")
+        row = await add_sighting(
+            db_session, user, BROWSER_UA, signature_agent="chatgpt.com"
+        )
+        assert await _category_of(db_session, row) is ClientCategory.AI
+
+    async def test_platform_mismatch_keeps_the_category(self, db_session):
+        user = await make_user(db_session, "spoofed")
+        row = await add_sighting(db_session, user, WINDOWS_UA, platform_mismatch=True)
+        assert await _category_of(db_session, row) is ClientCategory.BROWSER
+
     async def test_patterns_come_from_config(self, db_session):
         user = await make_user(db_session, "custom")
         mine = await add_sighting(db_session, user, "My-Agent/2.0")
@@ -114,13 +132,78 @@ class TestCategoryExpression:
 
 class TestClientInfo:
     def test_truncates_and_defaults_the_header(self):
-        assert ClientInfo.build(None, None).user_agent == ""
-        assert len(ClientInfo.build("x" * 1000, None).user_agent) == 512
+        assert ClientInfo.from_headers({}, None).user_agent == ""
+        long = ClientInfo.from_headers({"user-agent": "x" * 1000}, None)
+        assert len(long.user_agent) == 512
 
     def test_token_id_makes_it_a_token_client(self):
-        info = ClientInfo.build(CURL_UA, UUID(NULL_UUID))
+        info = ClientInfo.from_headers({"user-agent": CURL_UA}, UUID(NULL_UUID))
         assert info.source is ClientSource.token
         assert info.event_meta() == {"user_agent": CURL_UA, "source": "token"}
+
+    def test_agent_signals_join_the_event_meta(self):
+        headers = {
+            "user-agent": WINDOWS_UA,
+            "signature-agent": SIGNED_AGENT,
+            "sec-ch-ua-platform": '"Linux"',
+        }
+        info = ClientInfo.from_headers(headers, None)
+        assert info.event_meta() == {
+            "user_agent": WINDOWS_UA,
+            "source": "cookie",
+            "signature_agent": "chatgpt.com",
+            "platform_mismatch": True,
+        }
+
+
+class TestSignatureAgentHost:
+    @pytest.mark.parametrize(
+        ("header", "expected"),
+        [
+            (None, None),
+            ("  ", None),
+            ('"https://chatgpt.com"', "chatgpt.com"),
+            (SIGNED_AGENT, "chatgpt.com"),
+            ('a="https://Agent.Example:8443/path"', "agent.example"),
+            ("not-a-url", "not-a-url"),
+            ('"https://[::1"', '"https://[::1"'),
+            ("x" * 300, "x" * 255),
+        ],
+    )
+    def test_parses_the_header(self, header: str | None, expected: str | None):
+        assert signature_agent_host(header) == expected
+
+
+class TestPlatformsDisagree:
+    @pytest.mark.parametrize(
+        ("user_agent", "hint", "expected"),
+        [
+            (WINDOWS_UA, '"Windows"', False),
+            (WINDOWS_UA, '"Linux"', True),
+            (WINDOWS_UA, None, False),
+            (WINDOWS_UA, '"Unknown"', False),
+            (BROWSER_UA, '"Android"', False),
+            (BROWSER_UA, '"Chrome OS"', False),
+            (BROWSER_UA, '"macOS"', True),
+            (
+                "Mozilla/5.0 (Linux; Android 15; Pixel 9) Chrome/141.0",
+                '"Android"',
+                False,
+            ),
+            (
+                "Mozilla/5.0 (X11; CrOS x86_64 16181.0.0) Chrome/141.0",
+                '"Chrome OS"',
+                False,
+            ),
+            ("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", '"iOS"', False),
+            ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", '"Windows"', True),
+            (CURL_UA, '"Windows"', False),
+        ],
+    )
+    def test_compares_hint_and_user_agent(
+        self, user_agent: str, hint: str | None, expected: bool
+    ):
+        assert platforms_disagree(user_agent, hint) is expected
 
 
 class TestRecordSighting:
@@ -193,6 +276,56 @@ class TestRecordSighting:
         key = f"{SEEN_KEY_PREFIX}{user.id}:cookie:{hash_token(BROWSER_UA)}"
         mock_redis.set.assert_awaited_once_with(key, "1", nx=True, ex=SIGHTING_THROTTLE)
 
+    async def test_agent_signals_are_recorded(self, user_client, db_session):
+        c, user = user_client
+
+        await c.get(
+            "/me/profile",
+            headers={
+                "User-Agent": WINDOWS_UA,
+                "Signature-Agent": SIGNED_AGENT,
+                "Sec-CH-UA-Platform": '"Linux"',
+            },
+        )
+
+        [row] = await _sightings(db_session, user)
+        assert (row.signature_agent, row.platform_mismatch) == ("chatgpt.com", True)
+
+    async def test_agent_signals_stick_once_seen(self, user_client, db_session):
+        c, user = user_client
+        await add_sighting(
+            db_session,
+            user,
+            WINDOWS_UA,
+            hours_ago=1,
+            signature_agent="chatgpt.com",
+            platform_mismatch=True,
+        )
+
+        await c.get("/me/profile", headers={"User-Agent": WINDOWS_UA})
+
+        [row] = await _sightings(db_session, user)
+        await db_session.refresh(row)
+        assert (row.signature_agent, row.platform_mismatch) == ("chatgpt.com", True)
+
+    async def test_agent_signals_get_their_own_throttle_key(
+        self, user_client, db_session, mock_redis
+    ):
+        c, user = user_client
+
+        await c.get(
+            "/me/profile",
+            headers={"User-Agent": BROWSER_UA, "Signature-Agent": SIGNED_AGENT},
+        )
+
+        plain = f"{SEEN_KEY_PREFIX}{user.id}:cookie:{hash_token(BROWSER_UA)}"
+        [key] = [
+            call.args[0]
+            for call in mock_redis.set.await_args_list
+            if str(call.args[0]).startswith(SEEN_KEY_PREFIX)
+        ]
+        assert key.startswith(f"{plain}:")
+
     async def test_seen_again_moves_last_seen_only(self, user_client, db_session):
         c, user = user_client
         old = await add_sighting(db_session, user, BROWSER_UA, hours_ago=3)
@@ -221,6 +354,25 @@ class TestRecordSighting:
         assert event is not None
         assert event.meta["user_agent"] == CURL_UA
         assert event.meta["source"] == "cookie"
+        assert "signature_agent" not in event.meta
+
+    async def test_submission_events_carry_the_signature_agent(
+        self, user_client, db_session
+    ):
+        c, user = user_client
+        challenge, question = await make_solvable(db_session, user, "flag")
+
+        await c.post(
+            f"/challenges/{challenge.id}/{question.id}/submit",
+            json={"answer": "nope"},
+            headers={"User-Agent": BROWSER_UA, "Signature-Agent": SIGNED_AGENT},
+        )
+
+        event = await db_session.scalar(
+            select(Event).where(Event.event_type == "submission.wrong")
+        )
+        assert event is not None
+        assert event.meta["signature_agent"] == "chatgpt.com"
 
     async def test_recorded_once_when_both_auth_paths_run(
         self, user_client, db_session, mock_redis
@@ -257,6 +409,8 @@ class TestListClients(ListGuardMixin):
         rows = {r["username"]: r for r in await _rows(admin_client)}
 
         assert rows["alice"]["category"] == "ai"
+        assert rows["alice"]["signature_agent"] is None
+        assert rows["alice"]["platform_mismatch"] is False
         assert rows["alice"]["team_name"] == team.name
         assert rows["alice"]["source"] == "cookie"
         assert rows["bob"]["token_name"] == "solver"

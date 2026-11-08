@@ -93,6 +93,8 @@ async def add_sighting(
     source: ClientSource = ClientSource.cookie,
     token: UserToken | None = None,
     hours_ago: float = 0,
+    signature_agent: str | None = None,
+    platform_mismatch: bool = False,
 ) -> UserAgentSighting:
     """Record that *user* was seen with *user_agent*, through *token* if given."""
     seen = datetime.now(UTC) - timedelta(hours=hours_ago)
@@ -104,6 +106,8 @@ async def add_sighting(
         user_agent=user_agent,
         ua_hash=hash_token(user_agent),
         source=ClientSource.token if token else source,
+        signature_agent=signature_agent,
+        platform_mismatch=platform_mismatch,
         first_seen_at=seen,
         last_seen_at=seen,
     )

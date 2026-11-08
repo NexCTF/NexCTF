@@ -7,7 +7,16 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Enum, ForeignKey, Index, String, UniqueConstraint, func, text
+from sqlalchemy import (
+    Enum,
+    ForeignKey,
+    Index,
+    String,
+    UniqueConstraint,
+    false,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, query_expression, relationship
 
@@ -156,6 +165,12 @@ class UserAgentSighting(Base):
     )
     first_seen_at: Mapped[datetime]
     last_seen_at: Mapped[datetime] = mapped_column(index=True)
+    # Host from the Signature-Agent header, kept once any request sent it
+    signature_agent: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Sec-CH-UA-Platform named another OS than the user-agent, on any request
+    platform_mismatch: Mapped[bool] = mapped_column(
+        default=False, server_default=false()
+    )
     # Classified from the configured patterns, loaded with ``with_expression``
     category: Mapped[ClientCategory | None] = query_expression()
 

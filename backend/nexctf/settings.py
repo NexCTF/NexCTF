@@ -24,6 +24,13 @@ AI_USER_AGENTS = (
     "cohere-ai",
     "meta-externalagent",
     "DuckAssistBot",
+    "Claude-Agent",
+    "Google-Agent",
+    "Manus-User",
+    "GrokAgent",
+    "Agent-NovaAct",
+    "TwinAgent",
+    "CloudflareBrowserRenderingCrawler",
 )
 
 AUTOMATION_USER_AGENTS = (

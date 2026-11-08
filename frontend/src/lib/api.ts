@@ -843,6 +843,10 @@ export interface UserClient {
   category: ClientCategory;
   source: ClientSource;
   token_name: string | null;
+  /** Host named by the Signature-Agent header, once any request sent it */
+  signature_agent: string | null;
+  /** Sec-CH-UA-Platform named another OS than the user-agent */
+  platform_mismatch: boolean;
   first_seen_at: string;
   last_seen_at: string;
 }
@@ -852,19 +856,12 @@ export async function getAdminUserClients(userId: string): Promise<UserClient[]>
   return request<UserClient[]>(`/admin/user/${userId}/clients`);
 }
 
-export interface ClientSighting {
-  id: string;
+export interface ClientSighting extends UserClient {
   user_id: string;
   username: string;
   /** Team of the user when the client was last seen */
   team_id: string | null;
   team_name: string | null;
-  user_agent: string;
-  category: ClientCategory;
-  source: ClientSource;
-  token_name: string | null;
-  first_seen_at: string;
-  last_seen_at: string;
 }
 
 /** Each account and user-agent pair seen over a window, most recent first. */

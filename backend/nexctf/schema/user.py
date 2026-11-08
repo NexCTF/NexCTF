@@ -183,6 +183,8 @@ class AdminUserClientRead(PydanticBase):
     category: ClientCategory
     source: ClientSource
     token_name: str | None
+    signature_agent: str | None
+    platform_mismatch: bool
     first_seen_at: datetime
     last_seen_at: datetime
 
