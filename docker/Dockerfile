@@ -1,4 +1,4 @@
-FROM oven/bun:alpine AS frontend-builder
+FROM oven/bun:1.4.4-alpine@sha256:4cf82f5686b196504fe119db3fcd9185b191f82ece82c40680e597228ec6070a AS frontend-builder
 
 WORKDIR /app
 
@@ -9,9 +9,9 @@ COPY frontend/ ./
 RUN bun run build
 
 
-FROM caddy:2-alpine AS caddy-bin
+FROM caddy:2.11.9-alpine@sha256:0bbb055bda6793c999bde78b1b5ce3e89f829fb031af2cf50056ea1246559fee AS caddy-bin
 
-FROM debian:trixie-slim
+FROM debian:13.7-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
 
 LABEL org.opencontainers.image.title="NexCTF" \
       org.opencontainers.image.description="Next generation of capture the flag platform" \
