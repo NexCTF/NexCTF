@@ -242,15 +242,6 @@ wheels = [
 ]
 
 [[package]]
-name = "async-lru"
-version = "2.4.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/8f/43/9d22679e8dd0ed965182cca990d32c68b150730cce8046ad61b3179b5b7a/async_lru-2.4.0.tar.gz", hash = "sha256:b0b0077d9b7596615b3c12d0aad4f6aeccaaa0ac75ceae472608ede89e764c08", size = 22927, upload-time = "2026-10-12T18:12:54.276Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ec/0b/6a817103fb78faca4970c686a61065047da7226aba0d7cae6d4299b20c59/async_lru-2.4.0-py3-none-any.whl", hash = "sha256:1b46a96419ef91fe11431d58db98d792c9b4250001427191a40faf1031934212", size = 10045, upload-time = "2026-10-12T18:12:53.091Z" },
-]
-
-[[package]]
 name = "asyncpg"
 version = "0.32.0"
 source = { registry = "https://pypi.org/simple" }
@@ -586,18 +577,17 @@ standard-no-fastapi-cloud-cli = [
 
 [[package]]
 name = "fastapi-multiauth"
-version = "1.1.0"
+version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
-    { name = "async-lru" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "itsdangerous" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4a/0b/01f4b0cde52a3bf6212c71391b6ef0afb3c3e68fe8c0298f72a7bc2db041/fastapi_multiauth-1.1.0.tar.gz", hash = "sha256:c81542ea6605acedc213885191a9ff34ee825f908edb4972140cce6e092af089", size = 56660, upload-time = "2026-11-03T18:52:04.922Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/61/01/084c02a01efd64b4322146b03f8e03f17faa0898a0856d8a1cedc4256fc6/fastapi_multiauth-1.2.0.tar.gz", hash = "sha256:a98eb77b8e861d9f188dd1bea8e389b4a20f4106b09d82b8326bb6f483e447e5", size = 60324, upload-time = "2026-11-11T15:31:48.321Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/8d/5f1f8f1d3b1295ba284f2bb8106f90b5c91290989f60b8d857e1d77f167a/fastapi_multiauth-1.1.0-py3-none-any.whl", hash = "sha256:a0107e2b97ae2c1496acf53f475a2fcc2155ccaab260350310b2c1f4c53fb81c", size = 70774, upload-time = "2026-11-03T18:52:03.619Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/f9/fc1b2e3db4dcfb0e1e4c5b2a3030f3f8eabe7afea3617bc482d63734e217/fastapi_multiauth-1.2.0-py3-none-any.whl", hash = "sha256:c170231edaf1e5869c9c6510ac45e70aa0d05e964aa281f51816aa7ed0546254", size = 74661, upload-time = "2026-11-11T15:31:46.77Z" },
 ]
 
 [package.optional-dependencies]
@@ -1025,7 +1015,7 @@ requires-dist = [
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "cronsim", specifier = ">=2.7" },
     { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.142.0" },
-    { name = "fastapi-multiauth", extras = ["jwt", "oauth"], specifier = ">=1.1.0" },
+    { name = "fastapi-multiauth", extras = ["jwt", "oauth"], specifier = ">=1.2.0" },
     { name = "fastapi-toolsets", extras = ["all"], specifier = ">=6.0.0" },
     { name = "pgqueuer", extras = ["web"], specifier = ">=1.5.0,<1.7" },
     { name = "prometheus-client", specifier = ">=0.25.0" },
