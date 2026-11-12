@@ -9,6 +9,7 @@ import time
 from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
 from datetime import UTC, datetime, timedelta
+from functools import partial
 from typing import Any
 from unittest.mock import AsyncMock, patch
 from urllib.parse import parse_qs, urlparse
@@ -18,6 +19,7 @@ from fastapi_multiauth import hash_token
 from fastapi_multiauth.oauth import (
     OAuthExchangeError,
     OAuthIDTokenError,
+    OAuthUserinfoError,
     OIDCEndpoints,
 )
 from httpx import AsyncClient, Response
@@ -285,7 +287,7 @@ IDP_URLS = OIDCEndpoints(
 
 
 class FakeIdP:
-    """The provider behind ``/authorize`` and ``/callback``, enforcing PKCE and nonce."""
+    """The provider behind the flow, enforcing PKCE, nonce and the userinfo sub."""
 
     def __init__(self, slug: str, urls: OIDCEndpoints = IDP_URLS) -> None:
         self.slug = slug
@@ -306,7 +308,7 @@ class FakeIdP:
             patch(f"{_AUTH_ROUTES}.oauth_validate_id_token", self.validate),
             patch(
                 f"{_AUTH_ROUTES}.oauth_fetch_userinfo",
-                AsyncMock(return_value=userinfo),
+                AsyncMock(side_effect=partial(self._userinfo, userinfo)),
             ),
         ):
             yield
@@ -375,3 +377,10 @@ class FakeIdP:
         if nonce != self.sent["nonce"]:
             raise OAuthIDTokenError("ID token nonce does not match")
         return {"sub": self.id_subject, "nonce": nonce}
+
+    async def _userinfo(
+        self, profile: dict[str, Any], *, expected_sub: str | None = None, **_: Any
+    ) -> dict[str, Any]:
+        if not expected_sub or profile.get("sub") != expected_sub:
+            raise OAuthUserinfoError("userinfo sub does not match the ID token")
+        return profile

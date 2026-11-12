@@ -958,10 +958,8 @@ async def oauth_callback(
     userinfo = await oauth_fetch_userinfo(
         userinfo_url=endpoints.userinfo,
         access_token=token["access_token"],
+        expected_sub=subject,
     )
-    # OIDC Core §5.3.2: the userinfo sub must equal the ID token's.
-    if userinfo.get("sub") != subject:
-        raise OAuthProviderResponseError()
 
     linking = _is_link_flow(flow, current_user)
     try:
