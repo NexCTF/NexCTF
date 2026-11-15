@@ -1017,7 +1017,7 @@ requires-dist = [
     { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.142.0" },
     { name = "fastapi-multiauth", extras = ["jwt", "oauth"], specifier = ">=1.2.0" },
     { name = "fastapi-toolsets", extras = ["all"], specifier = ">=6.0.0" },
-    { name = "pgqueuer", extras = ["web"], specifier = ">=1.5.0,<2.1" },
+    { name = "pgqueuer", extras = ["web"], specifier = ">=2.0.0,<2.1" },
     { name = "prometheus-client", specifier = ">=0.25.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.15.0" },

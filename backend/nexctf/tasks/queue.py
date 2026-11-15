@@ -10,14 +10,7 @@ from datetime import timedelta
 from typing import Self
 
 import asyncpg
-from pgqueuer import Queries
-from pgqueuer.adapters.persistence.qb import (
-    DBSettings,
-    QueryBuilderEnvironment,
-    QueryQueueBuilder,
-    QuerySchedulerBuilder,
-)
-from pgqueuer.core.tm import TaskManager
+from pgqueuer import DBSettings, Queries
 from pgqueuer.ports.driver import Driver
 from pydantic import BaseModel
 from sqlalchemy import RowMapping, make_url
@@ -32,12 +25,7 @@ DB_SETTINGS = DBSettings(db_schema="pgqueuer")
 
 def build_queries(driver: Driver) -> Queries:
     """Return PgQueuer queries bound to the NexCTF queue schema."""
-    return Queries(
-        driver,
-        qbe=QueryBuilderEnvironment(DB_SETTINGS),
-        qbq=QueryQueueBuilder(DB_SETTINGS),
-        qbs=QuerySchedulerBuilder(DB_SETTINGS),
-    )
+    return Queries(driver, DB_SETTINGS)
 
 
 async def connect(url: str | None = None) -> asyncpg.Connection:
@@ -60,7 +48,6 @@ class _SqlAlchemyDriver:
 
     def __init__(self) -> None:
         self._shutdown = asyncio.Event()
-        self._tm = TaskManager()
 
     def _connection(self) -> AbstractAsyncContextManager[AsyncConnection]:
         raise NotImplementedError
@@ -86,10 +73,6 @@ class _SqlAlchemyDriver:
     @property
     def shutdown(self) -> asyncio.Event:
         return self._shutdown
-
-    @property
-    def tm(self) -> TaskManager:
-        return self._tm
 
     async def __aenter__(self) -> Self:
         return self
