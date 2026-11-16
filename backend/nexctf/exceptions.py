@@ -96,7 +96,7 @@ class CrossOriginRequestError(AuthError):
     api_error = ApiError(
         code=403,
         msg="Cross-origin request refused",
-        desc="Requests signed in with a session cookie must come from this site.",
+        desc="This request must come from this site.",
         err_code="AUTH-403-CROSS-ORIGIN",
     )
 
