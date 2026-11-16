@@ -40,6 +40,7 @@ from nexctf.exceptions import (
 from nexctf.model import Challenge, OAuthProvider, Solution, Team, User, UserRole
 from nexctf.module.audit import AuditContext, set_audit_context
 from nexctf.module.client import category_expression, record_sighting
+from nexctf.module.custom_field import require_complete_profile
 from nexctf.module.session import session_idle, track_session_ip
 from nexctf.plugins.registry import (
     challenge_registry,
@@ -328,6 +329,21 @@ async def _require_playing_team(session: SessionDep, user: RequireTeamDep) -> Us
 
 
 PlayingTeamDep = Annotated[User, Depends(_require_playing_team)]
+
+
+async def _ready_to_play(
+    session: SessionDep, overrides: ConfigDep, user: PlayingTeamDep
+) -> User:
+    """Raise ProfileIncompleteError while a required field of the user is empty.
+
+    A disqualified team is turned away early here; ``lock_playing_team``
+    re-checks once the play endpoints hold the team row.
+    """
+    await require_complete_profile(session, user, overrides)
+    return user
+
+
+ReadyToPlayDep = Annotated[User, Depends(_ready_to_play)]
 
 ProviderDep = PathDependency(
     model=OAuthProvider,

@@ -3,16 +3,18 @@
 import re
 from uuid import UUID
 
-from sqlalchemy import ColumnElement
+from sqlalchemy import ColumnElement, and_, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf import crud
+from nexctf.core import appconfig
 from nexctf.exceptions import (
     InvalidCustomFieldValueError,
+    ProfileIncompleteError,
     RequiredCustomFieldError,
     UnknownCustomFieldError,
 )
-from nexctf.model import CustomFieldDefinition, CustomFieldValue
+from nexctf.model import CustomFieldDefinition, CustomFieldValue, User
 from nexctf.model.custom_field import CustomFieldTarget, CustomFieldType
 from nexctf.schema.custom_field import EditableCustomField
 
@@ -138,3 +140,57 @@ async def replace_custom_field_values(
             )
     await session.flush()
     return _editable(definitions, written)
+
+
+def _fillable_scopes(
+    user: User, overrides: dict[str, str]
+) -> list[tuple[CustomFieldTarget, ColumnElement[bool]]]:
+    """The targets *user* may edit now, each with the filter matching their values."""
+    candidates = (
+        (
+            CustomFieldTarget.user,
+            "ctf.allow_user_customization",
+            CustomFieldValue.user_id == user.id,
+        ),
+        (
+            CustomFieldTarget.team,
+            "ctf.allow_team_customization",
+            CustomFieldValue.team_id == user.team_id,
+        ),
+    )
+    return [
+        (target, owner)
+        for target, setting, owner in candidates
+        if appconfig.get_with_overrides(setting, overrides)
+    ]
+
+
+async def require_complete_profile(
+    session: AsyncSession, user: User, overrides: dict[str, str]
+) -> None:
+    """Raise ProfileIncompleteError while a required field *user* can fill is empty.
+
+    Covers the user's own fields and their team's, and only the self-editable
+    definitions of a profile the players may currently edit.
+    """
+    scopes = _fillable_scopes(user, overrides)
+    if not scopes:
+        return
+    filled = exists().where(
+        CustomFieldValue.definition_id == CustomFieldDefinition.id,
+        func.btrim(CustomFieldValue.value) != "",
+        or_(
+            *(
+                and_(CustomFieldDefinition.target == target, owner)
+                for target, owner in scopes
+            )
+        ),
+    )
+    missing = exists().where(
+        CustomFieldDefinition.is_required.is_(True),
+        CustomFieldDefinition.is_self_editable.is_(True),
+        CustomFieldDefinition.target.in_([target for target, _ in scopes]),
+        ~filled,
+    )
+    if await session.scalar(select(missing)):
+        raise ProfileIncompleteError()
