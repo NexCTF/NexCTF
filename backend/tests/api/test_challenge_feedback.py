@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from unittest.mock import ANY, AsyncMock, patch
+
 from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nexctf.exceptions import RateLimitedError
 from nexctf.model import ChallengeFeedback, Event, Team, User
 from nexctf.model.question import Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
@@ -137,6 +140,61 @@ class TestFeedback:
         assert event.target_label == challenge.title
         assert event.meta["rating"] == 4
         assert event.meta["team_id"] == str(user.team_id)
+
+    async def test_unchanged_repost_emits_nothing(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        c, user = user_client
+        challenge, qs = await _setup(db_session, user)
+        await _solve(db_session, c, challenge, qs[0])
+
+        url = f"/challenges/{challenge.id}/feedback"
+        for _ in range(3):
+            resp = await c.post(url, json={"rating": 4, "comment": "ok"})
+            assert resp.json()["data"] == {"rating": 4, "comment": "ok"}
+        await c.post(url, json={"rating": 5, "comment": "ok"})
+
+        count = await db_session.scalar(
+            select(func.count())
+            .select_from(Event)
+            .where(Event.event_type == "challenge.feedback")
+        )
+        assert count == 2
+
+    async def test_disqualified_team_refused(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        c, user = user_client
+        challenge, qs = await _setup(db_session, user)
+        await _solve(db_session, c, challenge, qs[0])
+        team = await db_session.get(Team, user.team_id)
+        assert team is not None
+        team.is_disqualified = True
+        await db_session.flush()
+
+        resp = await c.post(f"/challenges/{challenge.id}/feedback", json={"rating": 4})
+        assert resp.json()["error_code"] == "SUB-403-DISQUALIFIED"
+
+    async def test_posts_are_rate_limited_per_user(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        c, user = user_client
+        challenge, qs = await _setup(db_session, user)
+        await _solve(db_session, c, challenge, qs[0])
+
+        target = "nexctf.api.routes.challenge.check_user_write_limit"
+        with patch(target, AsyncMock(side_effect=RateLimitedError())) as limit:
+            resp = await c.post(
+                f"/challenges/{challenge.id}/feedback", json={"rating": 4}
+            )
+        assert resp.status_code == 429
+        limit.assert_awaited_once_with(ANY, user.id, "feedback")
 
     async def test_teamless_user_refused(
         self, user_client: tuple[AsyncClient, User]
