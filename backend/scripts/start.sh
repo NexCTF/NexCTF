@@ -44,7 +44,7 @@ mkdir -p /etc/caddy
 
 SCHEME=""
 SERVERS_DIRECTIVE=""
-HSTS_HEADER='Strict-Transport-Security "max-age=31536000"'
+HSTS_HEADER='Strict-Transport-Security "max-age=31536000; includeSubDomains"'
 if [ "${TLS_TERMINATED_UPSTREAM:-}" = "true" ]; then
     HSTS_HEADER=""
     SCHEME="http://"
@@ -62,9 +62,14 @@ else
     log "TLS: using internal self-signed certificates"
 fi
 
+PERMISSIONS_POLICY="accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+# Applied to API responses that set no policy of their own
+API_CSP="default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
 MAX_BODY_BYTES="${MAX_BODY_BYTES:-1048576}"
 MAX_UPLOAD_BODY_BYTES=$(( ${MAX_UPLOAD_BYTES:-2147483648} + 1048576 ))
-UPLOAD_PROXY="request_body {
+API_HEADERS="header ?Content-Security-Policy \"${API_CSP}\""
+UPLOAD_PROXY="${API_HEADERS}
+        request_body {
             max_size ${MAX_UPLOAD_BODY_BYTES}
         }
         reverse_proxy 127.0.0.1:8000"
@@ -85,6 +90,7 @@ ${SCHEME}${DOMAIN} {
         X-Content-Type-Options "nosniff"
         Referrer-Policy "strict-origin-when-cross-origin"
         X-Frame-Options "DENY"
+        Permissions-Policy "${PERMISSIONS_POLICY}"
         ${HSTS_HEADER}
     }
 
@@ -101,6 +107,7 @@ ${SCHEME}${DOMAIN} {
     }
 
     handle /api/* {
+        ${API_HEADERS}
         request_body {
             max_size ${MAX_BODY_BYTES}
         }

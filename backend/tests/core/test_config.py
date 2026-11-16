@@ -116,3 +116,15 @@ def test_log_dir_can_be_moved(env) -> None:
 def test_metrics_served(env, overrides: dict[str, str], served: bool) -> None:
     settings = env(SECRET_KEY="k" * 32, **overrides)
     assert settings.metrics_served is served
+
+
+@pytest.mark.parametrize(
+    ("environment", "name"),
+    [("development", "NexCTF"), ("production", "__Host-NexCTF")],
+)
+def test_session_cookie_is_host_locked_wherever_it_is_secure(
+    env, environment: str, name: str
+) -> None:
+    settings = env(ENVIRONMENT=environment)
+    assert settings.session_cookie_name == name
+    assert settings.secure_cookies is name.startswith("__Host-")

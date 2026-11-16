@@ -248,7 +248,7 @@ bearer_auth = HTTPBearerAuth(
     prefix=TOKEN_PREFIX,
 )
 cookie_auth = APIKeyCookieAuth(
-    name="NexCTF",
+    name=settings.session_cookie_name,
     validator=_verify_cookie,
     secret_key=settings.SECRET_KEY,
     secure=settings.secure_cookies,
