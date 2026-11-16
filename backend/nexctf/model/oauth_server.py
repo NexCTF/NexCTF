@@ -24,8 +24,8 @@ class OAuthServerClient(Base):
     redirect_uris: Mapped[str] = mapped_column(Text)
     # Space-separated allowed scopes e.g. "openid profile email roles"
     allowed_scopes: Mapped[str] = mapped_column(default="openid profile email")
-    # Space-separated user roles allowed to authorize this client; NULL = all roles
-    allowed_roles: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    # Space-separated user roles allowed to authorize this client
+    allowed_roles: Mapped[str] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(default=True)
 
     @property
@@ -38,4 +38,4 @@ class OAuthServerClient(Base):
 
     @property
     def allowed_role_list(self) -> list[str]:
-        return self.allowed_roles.split() if self.allowed_roles else []
+        return self.allowed_roles.split()

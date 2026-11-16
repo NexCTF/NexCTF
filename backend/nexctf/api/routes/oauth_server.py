@@ -119,12 +119,8 @@ def _granted_scopes(scope: str, client: OAuthServerClient) -> list[str]:
 def _ensure_role_allowed(
     client: OAuthServerClient, user: User, *, error: Exception
 ) -> None:
-    """Reject users whose role is not permitted to authorize this client.
-
-    An empty ``allowed_roles`` means the client is open to every role.
-    """
-    allowed = client.allowed_role_list
-    if allowed and user.role.value not in allowed:
+    """Reject users whose role is not permitted to authorize this client."""
+    if user.role.value not in client.allowed_role_list:
         raise error
 
 
@@ -375,11 +371,12 @@ async def userinfo(
     )
 
     scopes = set(data["scopes"].split()) & set(client.allowed_scope_list)
+    share_email = "email" in scopes and user.email_verified
 
     return OAuthUserinfo(
         sub=str(user.id),
         username=user.username if "profile" in scopes else None,
-        email=user.email if "email" in scopes else None,
+        email=user.email if share_email else None,
         email_verified=user.email_verified if "email" in scopes else None,
         role=user.role.value if "roles" in scopes else None,
     )

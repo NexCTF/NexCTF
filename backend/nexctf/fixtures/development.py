@@ -636,6 +636,7 @@ def oauth_server_client() -> list[OAuthServerClient]:
             client_secret_hash=secret_hash,
             redirect_uris="https://display.example.com/callback",
             allowed_scopes="openid profile email roles",
+            allowed_roles="admin user",
             is_active=True,
         ),
         OAuthServerClient(
