@@ -378,6 +378,19 @@ class TestUpdateUser(UpdateGuardMixin):
 
         assert await custom_field_values(c, url) == {definition_id: "player#1"}
 
+    async def test_update_accepts_values_past_the_player_cap(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_user_members: list[User],
+    ) -> None:
+        """A value stored before the player cap must stay resavable."""
+        c, _ = admin_client
+        u = fixture_user_members[0]
+        definition_id = await define_custom_field(c, "bio", "user")
+        url = f"{self.PREFIX}/{u.id}"
+        body = {"id": str(u.id), "custom_fields": {definition_id: "x" * 300}}
+        assert (await c.put(url, json=body)).status_code == 200
+
     async def test_update_email_resets_verification(
         self,
         admin_client: tuple[AsyncClient, User],

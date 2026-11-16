@@ -8,7 +8,7 @@ from typing import Annotated
 from urllib.parse import quote, urlencode, urlsplit
 from uuid import UUID
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import RedirectResponse
 from fastapi_toolsets.schemas import Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +26,7 @@ from nexctf.exceptions import (
 from nexctf.model import User
 from nexctf.model.oauth_server import OAuthServerClient
 from nexctf.schema.oauth_server import (
+    STATE_MAX_LENGTH,
     OAuthApproveRequest,
     OAuthApproveResponse,
     OAuthConsentInfo,
@@ -171,7 +172,7 @@ async def authorize(
     redirect_uri: str,
     response_type: str = "code",
     scope: str = "openid profile",
-    state: str | None = None,
+    state: Annotated[str | None, Query(max_length=STATE_MAX_LENGTH)] = None,
     code_challenge: str | None = None,
     code_challenge_method: str | None = None,
 ) -> RedirectResponse:

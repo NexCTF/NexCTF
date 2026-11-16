@@ -233,6 +233,25 @@ class TestUpdateTeam(UpdateGuardMixin):
         assert resp.status_code == 200
         assert resp.json()["data"]["name"] == "new-name"
 
+    async def test_update_keeps_a_name_stored_before_normalisation(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        fixture_team: list[Team],
+    ) -> None:
+        """The edit form resends the name, so an old one must not block the save."""
+        c, _ = admin_client
+        t = fixture_team[0]
+        t.name = "old\u200bname"
+        await db_session.flush()
+
+        resp = await c.put(
+            f"{self.PREFIX}/{t.id}",
+            json={"id": str(t.id), "name": t.name, "country": "FR"},
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["data"]["country"] == "FR"
+
     async def test_update_duplicate_name(
         self,
         admin_client: tuple[AsyncClient, User],

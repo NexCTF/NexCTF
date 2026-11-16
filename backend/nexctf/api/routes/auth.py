@@ -1,5 +1,6 @@
 """Authentication action endpoints: register, login, logout, OAuth flow."""
 
+import contextlib
 import logging
 import secrets
 from collections.abc import Awaitable, Callable
@@ -103,6 +104,7 @@ from nexctf.schema import (
 )
 from nexctf.schema.oauth import PublicOAuthLinkRead
 from nexctf.schema.user import (
+    USERNAME_MAX_LENGTH,
     EmailVerifyRequest,
     ForgotPasswordRequest,
     PasswordResetRequest,
@@ -112,6 +114,7 @@ from nexctf.schema.user import (
     UserPasswordUpdate,
 )
 from nexctf.util.ip import get_client_ip
+from nexctf.util.text import normalize_name, sanitize_name
 
 logger = logging.getLogger(__name__)
 
@@ -238,11 +241,14 @@ def _failure_counter(
     """This client's wrong-guess counter for *username*.
 
     A browser holding a device cookie for the account counts on its own key;
-    every other client shares the account-wide key.
+    every other client shares the account-wide key, named after the stored
+    username so every spelling that resolves to the account shares it.
     """
-    if user is not None and (nonce := device_nonce(request, user)):
+    if user is None:
+        return login_lock.Counter(login_lock.account_key(username))
+    if nonce := device_nonce(request, user):
         return login_lock.Counter(login_lock.device_key(user.id, nonce), user.id)
-    return login_lock.Counter(login_lock.account_key(username))
+    return login_lock.Counter(login_lock.account_key(user.username))
 
 
 async def _record_login_failure(
@@ -279,6 +285,18 @@ async def _record_login_failure(
     await session.commit()
 
 
+async def _user_by_login(session: AsyncSession, username: str) -> User | None:
+    """The account *username* signs in to, as typed or as registration stored it."""
+    spellings = [username.lower()]
+    with contextlib.suppress(ValueError):
+        spellings.append(normalize_name(username).strip().lower())
+    found = await crud.UserCrud.get_multi(
+        session=session, filters=[func.lower(User.username).in_(spellings)]
+    )
+    by_spelling = {user.username.lower(): user for user in found}
+    return next((by_spelling[s] for s in spellings if s in by_spelling), None)
+
+
 @auth_router.post("/token", status_code=204)
 async def login(
     request: Request,
@@ -286,19 +304,17 @@ async def login(
     redis: RedisDep,
     response: RawResponse,
     overrides: ConfigDep,
-    username: Annotated[str, Form()],
-    password: Annotated[str, Form()],
-    totp_code: Annotated[str | None, Form()] = None,
-    captcha_token: Annotated[str | None, Form()] = None,
+    username: Annotated[str, Form(max_length=128)],
+    password: Annotated[str, Form(max_length=1024)],
+    totp_code: Annotated[str | None, Form(max_length=16)] = None,
+    captcha_token: Annotated[str | None, Form(max_length=4096)] = None,
 ):
     client_ip = get_client_ip(request)
     await check_config_rate_limit(
         redis, overrides, name="login", key=client_rate_key("login", request)
     )
     await verify_captcha(redis, overrides, captcha_token)
-    user = await crud.UserCrud.first(
-        session=session, filters=[func.lower(User.username) == username.lower()]
-    )
+    user = await _user_by_login(session, username)
     counter = _failure_counter(request, username, user)
     await login_lock.check(redis, overrides, counter)
     # Always perform an Argon2 verification — against a dummy hash when the user
@@ -658,13 +674,19 @@ async def logout(
         )
 
 
+# A dash and six hex digits
+_USERNAME_SUFFIX_LENGTH = 7
+
+
 async def _unique_username(db: SessionDep, desired: str) -> str:
-    """Return *desired*, suffixed if another local account already holds it."""
-    candidate = desired
+    """Return *desired* cleaned up, suffixed if another account already holds it."""
+    base = sanitize_name(desired, USERNAME_MAX_LENGTH) or "user"
+    stem = base[: USERNAME_MAX_LENGTH - _USERNAME_SUFFIX_LENGTH]
+    candidate = base
     while await crud.UserCrud.exists(
         session=db, filters=[func.lower(User.username) == candidate.lower()]
     ):
-        candidate = f"{desired}-{secrets.token_hex(3)}"
+        candidate = f"{stem}-{secrets.token_hex(3)}"
     return candidate
 
 

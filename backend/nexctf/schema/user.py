@@ -9,24 +9,33 @@ from nexctf.enums import ClientCategory, ClientSource
 from nexctf.model import UserRole
 from nexctf.schema.custom_field import (
     AdminCustomFieldValueRead,
+    AdminCustomFieldValuesInput,
     CustomFieldValuesInput,
     EditableCustomField,
 )
 from nexctf.schema.team import Link, LinkListInput
+from nexctf.util.text import NormalizedName
 
-Username = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)
-]
+USERNAME_MAX_LENGTH = 32
+_USERNAME_BOUNDS = StringConstraints(
+    strip_whitespace=True, min_length=1, max_length=USERNAME_MAX_LENGTH
+)
+# A name that may predate normalisation: bounded, otherwise as-is
+StoredUsername = Annotated[str, _USERNAME_BOUNDS]
+Username = Annotated[str, _USERNAME_BOUNDS, NormalizedName]
 NewPassword = Annotated[str, Field(min_length=8, max_length=256)]
 OptionalName = Annotated[
-    str | None,
+    Annotated[str, Field(max_length=64)] | None,
     BeforeValidator(lambda v: (v.strip() or None) if isinstance(v, str) else v),
+]
+TokenScopes = Annotated[
+    list[Annotated[str, Field(max_length=64)]], Field(max_length=64)
 ]
 
 
 class AdminUserUpdate(PydanticBase):
     id: UUID
-    username: Username | None = None
+    username: StoredUsername | None = None
     email: str | None = None
     is_active: bool | None = None
     role: UserRole | None = None
@@ -36,7 +45,7 @@ class AdminUserUpdate(PydanticBase):
 
 class AdminUserUpdateRequest(AdminUserUpdate):
     # None leaves the user's values untouched; a dict replaces them all
-    custom_fields: CustomFieldValuesInput | None = None
+    custom_fields: AdminCustomFieldValuesInput | None = None
 
 
 class AdminUserCreate(PydanticBase):
@@ -45,7 +54,7 @@ class AdminUserCreate(PydanticBase):
     email: EmailStr | None = None
     role: UserRole = UserRole.user
     team_id: UUID | None = None
-    custom_fields: CustomFieldValuesInput = {}
+    custom_fields: AdminCustomFieldValuesInput = {}
 
 
 class PublicRegisterRequest(PydanticBase):
@@ -90,7 +99,7 @@ class AdminUserDetailRead(PublicUserRead):
 class PublicApiTokenCreate(PydanticBase):
     name: OptionalName = None
     expires_at: datetime | None = None
-    scopes: list[str]
+    scopes: TokenScopes
 
 
 class PublicApiTokenRead(PydanticBase):
