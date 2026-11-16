@@ -60,6 +60,7 @@ from nexctf.module.scoreboard import invalidate_play
 from nexctf.module.stats import invalidate as invalidate_stats
 from nexctf.module.stats import invalidate_team
 from nexctf.module.submission import lock_question
+from nexctf.module.team import lock_playing_team
 from nexctf.schema.challenge import (
     PublicChallengeDetail,
     PublicChallengeRead,
@@ -491,6 +492,8 @@ async def submit_answer(
         await session.commit()
         raise AnswerCheckTimeoutError()
 
+    # Taken only now so a slow answer check does not hold the team rows.
+    await lock_playing_team(session, user)
     points_earned = 0
     if is_correct:
         points_earned = question.points
@@ -645,6 +648,7 @@ async def unlock_hint(
     if hint is None:
         raise NotFoundError(detail="Hint not found")
 
+    await lock_playing_team(session, user)
     await _check_question_access(session, user, challenge, question)
     await _lock_for_team(session, user, question_id)
     if hint.cost > 0 and question_id in await _solved_ids(session, user, [question_id]):

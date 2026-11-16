@@ -460,9 +460,10 @@ class TestDisqualifiedTeam:
         db_session: AsyncSession,
     ) -> None:
         client, user = user_client
-        db_session.add(Team(name="Out", invite_code="OUT12345", is_disqualified=True))
+        team = await make_team(db_session, "Out")
+        team.is_disqualified = True
         await db_session.flush()
 
-        resp = await client.post("/me/team/join", json={"code": "OUT12345"})
+        resp = await client.post("/me/team/join", json={"code": team.invite_code})
         assert resp.json()["error_code"] == "TEAM-403-DISQUALIFIED"
         assert user.team_id is None
