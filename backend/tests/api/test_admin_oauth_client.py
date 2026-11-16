@@ -18,6 +18,7 @@ from ..base import (
 _VALID_PAYLOAD = {
     "name": "My App",
     "redirect_uris": "https://app.example.com/callback",
+    "allowed_roles": "admin",
 }
 
 
@@ -85,6 +86,17 @@ class TestCreateOAuthClient(CreateGuardMixin):
         assert resp.status_code == 200
         assert resp.json()["data"]["allowed_roles"] == "admin user"
 
+    @pytest.mark.parametrize("roles", [None, "", "   "])
+    async def test_create_without_a_role_rejected(
+        self, admin_client: tuple[AsyncClient, User], roles: str | None
+    ) -> None:
+        c, _ = admin_client
+        payload = {k: v for k, v in _VALID_PAYLOAD.items() if k != "allowed_roles"}
+        if roles is not None:
+            payload["allowed_roles"] = roles
+        resp = await c.post(self.PREFIX, json=payload)
+        assert resp.status_code == 422
+
     async def test_create_invalid_role_rejected(
         self, admin_client: tuple[AsyncClient, User]
     ) -> None:
@@ -134,6 +146,30 @@ class TestUpdateOAuthClient(UpdateGuardMixin):
         )
         assert resp.status_code == 200
         assert resp.json()["data"]["name"] == "Renamed App"
+
+    @pytest.mark.parametrize("roles", [None, ""])
+    async def test_update_cannot_clear_the_roles(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_oauth_server_client: list[OAuthServerClient],
+        roles: str | None,
+    ) -> None:
+        c, _ = admin_client
+        client = fixture_oauth_server_client[0]
+        resp = await c.put(f"{self.PREFIX}/{client.id}", json={"allowed_roles": roles})
+        assert resp.status_code == 422
+
+    async def test_update_roles(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        fixture_oauth_server_client: list[OAuthServerClient],
+    ) -> None:
+        c, _ = admin_client
+        client = fixture_oauth_server_client[0]
+        resp = await c.put(
+            f"{self.PREFIX}/{client.id}", json={"allowed_roles": "user admin user"}
+        )
+        assert resp.json()["data"]["allowed_roles"] == "admin user"
 
     async def test_update_not_found(
         self, admin_client: tuple[AsyncClient, User]

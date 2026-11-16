@@ -3,7 +3,13 @@ from typing import Annotated
 from urllib.parse import urlparse
 from uuid import UUID
 
-from pydantic import AfterValidator, BaseModel, Field, computed_field
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    Field,
+    computed_field,
+    field_validator,
+)
 
 from nexctf.core.config import settings
 from nexctf.model.oauth_server import split_redirect_uris
@@ -12,20 +18,18 @@ from nexctf.model.user import UserRole
 _VALID_ROLES = {r.value for r in UserRole}
 
 
-def _validate_allowed_roles(value: str | None) -> str | None:
-    """Reject role names that are not part of the UserRole enum.
-
-    An empty value (``None`` or ``""``) means "no restriction" and is kept as-is.
-    """
-    if not value:
-        return value
-    invalid = sorted({r for r in value.split() if r not in _VALID_ROLES})
+def _validate_allowed_roles(value: str) -> str:
+    """Require at least one role, all of them part of the UserRole enum."""
+    roles = sorted(set(value.split()))
+    if not roles:
+        raise ValueError("at least one role is required")
+    invalid = [r for r in roles if r not in _VALID_ROLES]
     if invalid:
         raise ValueError(f"invalid role(s): {', '.join(invalid)}")
-    return value
+    return " ".join(roles)
 
 
-AllowedRoles = Annotated[str | None, AfterValidator(_validate_allowed_roles)]
+AllowedRoles = Annotated[str, AfterValidator(_validate_allowed_roles)]
 
 
 class AdminOAuthClientRead(BaseModel):
@@ -37,7 +41,7 @@ class AdminOAuthClientRead(BaseModel):
     client_id: str
     redirect_uris: str
     allowed_scopes: str
-    allowed_roles: str | None
+    allowed_roles: str
     is_active: bool
     created_at: datetime
 
@@ -73,7 +77,7 @@ class AdminOAuthClientCreate(BaseModel):
     description: str | None = None
     redirect_uris: RedirectUris
     allowed_scopes: str = "openid profile email roles"
-    allowed_roles: AllowedRoles = None
+    allowed_roles: AllowedRoles
     is_active: bool = True
 
 
@@ -88,7 +92,7 @@ class AdminOAuthClientCreateFull(BaseModel):
     client_secret_hash: str
     redirect_uris: str
     allowed_scopes: str
-    allowed_roles: str | None = None
+    allowed_roles: str
     is_active: bool
 
 
@@ -97,8 +101,16 @@ class AdminOAuthClientUpdate(BaseModel):
     description: str | None = None
     redirect_uris: RedirectUris | None = None
     allowed_scopes: str | None = None
-    allowed_roles: AllowedRoles = None
+    allowed_roles: AllowedRoles | None = None
     is_active: bool | None = None
+
+    @field_validator("allowed_roles", mode="before")
+    @classmethod
+    def _roles_cannot_be_cleared(cls, value: object) -> object:
+        """Refuse an explicit null; leaving the field out keeps the roles."""
+        if value is None:
+            raise ValueError("at least one role is required")
+        return value
 
 
 class AdminOAuthClientCreated(AdminOAuthClientRead):

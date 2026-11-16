@@ -106,6 +106,7 @@ def oauth_server_client() -> list[OAuthServerClient]:
                 "https://app.example.com/cb?tenant=acme"
             ),
             allowed_scopes="openid profile email roles",
+            allowed_roles="admin user",
             is_active=True,
         ),
         OAuthServerClient(

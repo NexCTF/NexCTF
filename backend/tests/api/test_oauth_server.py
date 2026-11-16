@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 from urllib.parse import parse_qs, parse_qsl, urlparse
 from uuid import UUID
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -715,8 +716,7 @@ class TestOAuth2PKCE:
 class TestOAuth2RoleRestriction:
     """A client's allowed_roles gates which user roles may authorize it.
 
-    Strict membership: the user's role must be explicitly listed; an empty
-    allowed_roles leaves the client open to every role.
+    Strict membership: the user's role must be explicitly listed.
     """
 
     async def test_client_info_allows_permitted_role(
@@ -790,12 +790,11 @@ class TestOAuth2RoleRestriction:
         )
         assert resp.status_code == 200
 
-    async def test_unrestricted_client_allows_any_role(
+    async def test_client_listing_every_role_allows_any_role(
         self,
         user_client: tuple[AsyncClient, User],
         fixture_oauth_server_client: list[OAuthServerClient],
     ) -> None:
-        # nexctf_testclientid has no allowed_roles -> open to every role.
         c, _ = user_client
         resp = await c.get(
             "/oauth2/client-info",
@@ -837,6 +836,31 @@ class TestOAuth2Userinfo:
         assert data["username"] == "fx_user1"
         assert data["role"] == "user"
         assert isinstance(data["email_verified"], bool)
+
+    @pytest.mark.parametrize("verified", [True, False])
+    async def test_email_is_shared_only_once_verified(
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+        fixture_oauth_server_client: list[OAuthServerClient],
+        fixture_user_members,
+        mock_redis,
+        verified: bool,
+    ) -> None:
+        user = await db_session.get(User, UUID(_FX_USER1_ID))
+        assert user is not None
+        user.email = "player@example.com"
+        user.email_verified = verified
+        await db_session.flush()
+        mock_redis.get = AsyncMock(return_value=self._TOKEN_PAYLOAD)
+
+        resp = await http_client.get(
+            "/oauth2/userinfo",
+            headers={"Authorization": "Bearer some_opaque_token"},
+        )
+        data = resp.json()
+        assert data["email"] == ("player@example.com" if verified else None)
+        assert data["email_verified"] is verified
 
     async def test_scopes_narrowed_since_issue_are_withheld(
         self,
