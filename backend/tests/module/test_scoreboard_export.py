@@ -61,7 +61,20 @@ class TestCsv:
         with pytest.raises(UnknownExportColumnError):
             export.to_csv(_board(), ["password"])
 
-    @pytest.mark.parametrize("name", ["=1+1", "+cmd", "-2", "@SUM(A1)", "\tx"])
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "=1+1",
+            "+cmd",
+            "-2",
+            "@SUM(A1)",
+            "\tx",
+            "\rx",
+            " =1+1",
+            "  \t+cmd",
+            "\u00a0@SUM(A1)",
+        ],
+    )
     def test_formula_injection_neutralized(self, name: str) -> None:
         rows = _rows(export.to_csv(_board(_entry(1, name)), ["team_name"]))
         assert rows[1] == [f"'{name}"]

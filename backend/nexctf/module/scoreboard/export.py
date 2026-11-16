@@ -14,7 +14,9 @@ from nexctf.schema import AdminScoreboard, AdminScoreboardEntry
 from nexctf.schema.scoreboard import CUSTOM_COLUMN_PREFIX
 
 # Characters that make a spreadsheet read a cell as a formula
-_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+_FORMULA_PREFIXES = ("=", "+", "-", "@")
+# Leading characters that are a formula trigger themselves
+_CONTROL_PREFIXES = ("\t", "\r", "\n")
 
 
 class ExportFormat(StrEnum):
@@ -42,6 +44,13 @@ def _cell(entry: AdminScoreboardEntry, column: str) -> object:
     return getattr(entry, column)
 
 
+def _is_formula(text: str) -> bool:
+    """Whether a spreadsheet would evaluate *text*, leading whitespace ignored."""
+    return text.startswith(_CONTROL_PREFIXES) or text.lstrip().startswith(
+        _FORMULA_PREFIXES
+    )
+
+
 def _safe(value: object) -> str:
     """Stringify a cell and neutralize spreadsheet formula injection."""
     if value is None:
@@ -49,7 +58,7 @@ def _safe(value: object) -> str:
     if isinstance(value, datetime):
         return value.isoformat()
     text = str(value)
-    if isinstance(value, str) and text.startswith(_FORMULA_PREFIXES):
+    if isinstance(value, str) and _is_formula(text):
         return f"'{text}"
     return text
 
