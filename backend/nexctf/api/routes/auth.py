@@ -41,6 +41,7 @@ from nexctf.api.dep import (
     SessionOnlyDep,
 )
 from nexctf.api.device import device_nonce, set_device_cookie
+from nexctf.api.origin import require_same_origin
 from nexctf.api.security import (
     EMAIL_VERIFY_KEY_PREFIX,
     EMAIL_VERIFY_TTL,
@@ -118,7 +119,9 @@ from nexctf.util.text import normalize_name, sanitize_name
 
 logger = logging.getLogger(__name__)
 
-auth_router = APIRouter(prefix="/auth", tags=["auth"])
+auth_router = APIRouter(
+    prefix="/auth", tags=["auth"], dependencies=[Depends(require_same_origin)]
+)
 
 
 def _email_enabled(overrides: dict[str, str]) -> bool:
