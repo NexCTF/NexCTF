@@ -88,13 +88,56 @@ export interface TeamSummary {
   invite_code: string;
 }
 
-/** Create a team owned by whoever `api` is signed in as. */
+/** A value each custom field type accepts. */
+const FIELD_VALUES: Record<string, string> = {
+  string: "e2e",
+  integer: "1",
+  boolean: "true",
+  url: "https://e2e.nexctf.lan",
+};
+
+interface EditableField {
+  definition_id: string;
+  field_type: string;
+  is_required: boolean;
+  value: string | null;
+}
+
+/** Error code of a team profile write while team customization is off. */
+const CUSTOMIZATION_DISABLED = "PROFILE-403-DISABLED";
+
+/**
+ * Fill the required custom fields of the caller's team, which a team needs before it can play.
+ * With team customization off the backend does not require them, so there is nothing to fill.
+ */
+async function fillRequiredTeamFields(api: APIRequestContext): Promise<void> {
+  const current = await api.get("/api/v1/me/team/profile");
+  expect(current.ok(), await current.text()).toBe(true);
+  const { custom_fields: fields, ...profile } = (await current.json()).data;
+  const missing = (fields as EditableField[]).filter((f) => f.is_required && !f.value);
+  if (missing.length === 0) return;
+  const values = Object.fromEntries(
+    (fields as EditableField[]).map((f) => [
+      f.definition_id,
+      missing.includes(f) ? FIELD_VALUES[f.field_type] : f.value,
+    ]),
+  );
+  const res = await api.put("/api/v1/me/team/profile", {
+    data: { ...profile, custom_fields: values },
+    headers: SAME_ORIGIN,
+  });
+  if (res.status() === 403 && (await res.json()).error_code === CUSTOMIZATION_DISABLED) return;
+  expect(res.ok(), await res.text()).toBe(true);
+}
+
+/** Create a team owned by whoever `api` is signed in as, ready to play. */
 export async function createTeam(api: APIRequestContext): Promise<TeamSummary> {
   const res = await api.post("/api/v1/me/team", {
     data: { name: uniqueName("team") },
     headers: SAME_ORIGIN,
   });
   expect(res.status(), await res.text()).toBe(201);
+  await fillRequiredTeamFields(api);
   return (await res.json()).data;
 }
 

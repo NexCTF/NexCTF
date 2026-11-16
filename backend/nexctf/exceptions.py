@@ -318,6 +318,15 @@ class UnknownCustomFieldError(ProfileError):
     )
 
 
+class ProfileIncompleteError(ProfileError):
+    api_error = ApiError(
+        code=403,
+        msg="Profile incomplete",
+        desc="Fill in the required profile and team fields before playing.",
+        err_code="SUB-403-PROFILE",
+    )
+
+
 class RequiredCustomFieldError(ProfileError):
     api_error = ApiError(
         code=422,

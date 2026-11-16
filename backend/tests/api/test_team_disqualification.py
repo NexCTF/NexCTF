@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, patch
+
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +12,7 @@ from nexctf.model import Submission, Team, User
 from nexctf.model.event import Event
 from nexctf.model.question import Hint, Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
+from nexctf.plugins.builtin.solution.match.model import MatchSolution
 from tests.base import make_solvable
 
 FLAG = "flag{dq}"
@@ -132,13 +135,16 @@ class TestPlay:
         team.is_disqualified = True
         await db_session.flush()
 
-        resp = await c.post(
-            f"/challenges/{challenge.id}/{question.id}/submit", json={"answer": FLAG}
-        )
+        with patch.object(MatchSolution, "verify", AsyncMock()) as verify:
+            resp = await c.post(
+                f"/challenges/{challenge.id}/{question.id}/submit",
+                json={"answer": FLAG},
+            )
 
         assert resp.status_code == 403
         assert resp.json()["error_code"] == "SUB-403-DISQUALIFIED"
         assert await db_session.scalar(select(Submission.id)) is None
+        verify.assert_not_awaited()
 
     async def test_disqualified_team_cannot_unlock_hints(
         self,
