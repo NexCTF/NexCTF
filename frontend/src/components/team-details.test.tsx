@@ -1,9 +1,9 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it } from "vitest";
-import type { TeamChallengeStats } from "@/lib/api";
+import type { PublicTeam, TeamChallengeStats } from "@/lib/api";
 import { renderWithRouter } from "@/test/render";
-import { ChallengeProgressTable } from "./team-details";
+import { ChallengeProgressTable, TeamBadges } from "./team-details";
 
 // The admin ("detailed") variant keeps the public columns and adds the per-question rows.
 
@@ -66,4 +66,26 @@ it("hides the admin-only rows on the public table", async () => {
 
   await userEvent.click(screen.getByText("1/1"));
   expect(screen.queryByText("A nudge")).toBeNull();
+});
+
+it("shows the real host next to a team link's label", async () => {
+  const team: PublicTeam = {
+    id: "t-1",
+    name: "Team",
+    country: null,
+    bracket: null,
+    links: [{ label: "github.com", url: "https://evil.example/login" }],
+    is_disqualified: false,
+    members: null,
+    member_count: 0,
+    challenge_stats: [],
+    custom_fields: [],
+    rank: null,
+    score: null,
+    team_count: 0,
+  };
+  renderWithRouter(<TeamBadges team={team} />);
+  const link = await screen.findByRole("link");
+  expect(link.getAttribute("href")).toBe("https://evil.example/login");
+  expect(link.textContent).toBe("github.com(evil.example)");
 });

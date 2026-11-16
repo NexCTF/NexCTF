@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Ban, ExternalLink, Pencil, RotateCcw } from "lucide-react";
+import { Ban, Pencil, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import { DetailPageShell, DetailSection, InfoRow } from "@/components/detail-pag
 import { FeedbackDetailDialog, useFeedbackColumns } from "@/components/feedback-table";
 import { LabelInput } from "@/components/label-input";
 import { LinksFormSection } from "@/components/links-form-section";
+import { PlayerLinks } from "@/components/safe-url";
 import { useScoreAdjustmentColumns } from "@/components/score-adjustment-table";
 import { StatCard } from "@/components/stat-card";
 import { SubmissionAnswerDialog, useSubmissionColumns } from "@/components/submission-table";
@@ -391,23 +392,7 @@ function TeamDetailPage() {
                 {team.links.length > 0 && (
                   <InfoRow
                     label={t("admin.teams.field_links")}
-                    value={
-                      <div className="flex flex-wrap gap-2">
-                        {team.links.map((lnk, i) => (
-                          <a
-                            // biome-ignore lint/suspicious/noArrayIndexKey: display-only, never reorders
-                            key={i}
-                            href={lnk.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-link hover:underline underline-offset-2 text-xs"
-                          >
-                            {lnk.label || lnk.url}
-                            <ExternalLink className="size-3 opacity-60" />
-                          </a>
-                        ))}
-                      </div>
-                    }
+                    value={<PlayerLinks links={team.links} className="text-xs" />}
                   />
                 )}
               </div>

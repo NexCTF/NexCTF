@@ -1,22 +1,18 @@
 import { ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DetailSection, InfoRow } from "@/components/detail-page";
+import { isHttpUrl, SafeUrl } from "@/components/safe-url";
 import { EmptyCell } from "@/components/table-cells";
 import type { CustomFieldValue } from "@/lib/api";
 
 function CfvValue({ cfv }: { cfv: CustomFieldValue }) {
   if (!cfv.value) return <EmptyCell />;
-  if (cfv.definition.field_type === "url") {
+  if (cfv.definition.field_type === "url" && isHttpUrl(cfv.value)) {
     return (
-      <a
-        href={cfv.value}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 text-link hover:underline"
-      >
+      <SafeUrl href={cfv.value} className="inline-flex items-center gap-1">
         {cfv.value}
         <ExternalLink className="size-3 opacity-60" />
-      </a>
+      </SafeUrl>
     );
   }
   return <>{cfv.value}</>;

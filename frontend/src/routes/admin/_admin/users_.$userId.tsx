@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Ban,
-  ExternalLink,
   KeyRound,
   LockOpen,
   LogOut,
@@ -27,6 +26,7 @@ import { DataTable, useTableState } from "@/components/data-table";
 import { DetailPageShell, DetailSection, InfoRow } from "@/components/detail-page";
 import { EventDetailsDialog, useEventColumns } from "@/components/event-table";
 import { LinksFormSection } from "@/components/links-form-section";
+import { PlayerLinks } from "@/components/safe-url";
 import { EmptyCell, RoleBadge, StatusCell, TeamLink } from "@/components/table-cells";
 import { TeamSingleSelect } from "@/components/team-single-select";
 import { Button } from "@/components/ui/button";
@@ -678,23 +678,7 @@ function UserDetailPage() {
               {user.links.length > 0 && (
                 <InfoRow
                   label={t("admin.users.field_links")}
-                  value={
-                    <div className="flex flex-wrap gap-2">
-                      {user.links.map((lnk, i) => (
-                        <a
-                          // biome-ignore lint/suspicious/noArrayIndexKey: display-only, never reorders
-                          key={i}
-                          href={lnk.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-link hover:underline underline-offset-2 text-xs"
-                        >
-                          {lnk.label || lnk.url}
-                          <ExternalLink className="size-3 opacity-60" />
-                        </a>
-                      ))}
-                    </div>
-                  }
+                  value={<PlayerLinks links={user.links} className="text-xs" />}
                 />
               )}
             </div>
