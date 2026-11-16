@@ -141,6 +141,11 @@ class Settings(BaseSettings):
         return self.ENVIRONMENT != "development"
 
     @property
+    def session_cookie_name(self) -> str:
+        """The session cookie's name, host-locked wherever cookies are Secure."""
+        return "__Host-NexCTF" if self.secure_cookies else "NexCTF"
+
+    @property
     def metrics_served(self) -> bool:
         """Whether /metrics is mounted: enabled, and token-protected outside dev."""
         return self.METRICS_ENABLED and (
