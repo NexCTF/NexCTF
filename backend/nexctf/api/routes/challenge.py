@@ -23,13 +23,12 @@ from nexctf.api.dep import (
     OptionalCurrentUserDep,
     PlayingTeamDep,
     RedisDep,
-    RequireTeamDep,
     SessionDep,
     check_visibility,
 )
 from nexctf.api.security import client_of
 from nexctf.core import appconfig
-from nexctf.core.rate_limit import check_config_rate_limit
+from nexctf.core.rate_limit import check_config_rate_limit, check_user_write_limit
 from nexctf.exceptions import (
     AnswerCheckTimeoutError,
     ChallengeNotCompletedError,
@@ -713,12 +712,13 @@ async def submit_feedback(
     obj: FeedbackBody,
     overrides: ConfigDep,
     _: EventStartedDep,
-    user: RequireTeamDep,
+    user: PlayingTeamDep,
 ) -> Response[PublicFeedbackRead]:
     """Rate a challenge the caller's team has fully solved; re-posting edits it."""
     _check_challenge_visibility(user, overrides)
     if not _feedback_enabled(overrides):
         raise FeedbackDisabledError()
+    await check_user_write_limit(redis, user.id, "feedback")
 
     challenge = await _get_active_challenge(session, challenge_id)
     question_ids = [q.id for q in challenge.questions]
@@ -726,12 +726,16 @@ async def submit_feedback(
     if not question_ids or len(solved) < len(question_ids):
         raise ChallengeNotCompletedError()
 
+    feedback = PublicFeedbackRead(rating=obj.rating, comment=obj.comment)
+    if await _my_feedback(session, user, challenge_id) == feedback:
+        return Response(data=feedback)
+
     # Teammates racing on uq_challenge_feedback settle in the database: the
     # team owns a single row, and the latest write wins.
     await crud.ChallengeFeedbackCrud.upsert(
         session,
         obj=FeedbackUpsert(
-            team_id=cast(UUID, user.team_id),  # RequireTeamDep guarantees a team
+            team_id=cast(UUID, user.team_id),  # PlayingTeamDep guarantees a team
             challenge_id=challenge_id,
             rating=obj.rating,
             comment=obj.comment,
@@ -752,4 +756,4 @@ async def submit_feedback(
         meta={"team_id": str(user.team_id), "rating": obj.rating},
     )
 
-    return Response(data=PublicFeedbackRead(rating=obj.rating, comment=obj.comment))
+    return Response(data=feedback)
