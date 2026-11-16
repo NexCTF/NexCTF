@@ -248,27 +248,31 @@ async def compute_team_score(
     team_id: UUID,
     freeze_time: datetime | None = None,
     end_time: datetime | None = None,
+    *,
+    include_inactive: bool = False,
 ) -> PublicTeamScoreDetail:
     """Compute the full score breakdown for a single team.
 
     Solves and hint costs count until the earlier of *freeze_time* and
-    *end_time*; adjustments until *freeze_time* only.
+    *end_time*; adjustments until *freeze_time* only. Inactive challenges
+    always count in the totals; their solves are listed, and their
+    adjustments named, only with *include_inactive*.
     """
     team = await session.get(Team, team_id)
     if team is None:
         raise NotFoundError()
 
     solve_cutoff = _earliest(freeze_time, end_time)
-    solves, solve_points = await _fetch_solves(session, team_id, before=solve_cutoff)
+    solves, solve_points, solved_at = await _fetch_solves(
+        session, team_id, before=solve_cutoff, include_inactive=include_inactive
+    )
     adjustments, adjustment_points = await _fetch_adjustments(
-        session, team_id, before=freeze_time
+        session, team_id, before=freeze_time, include_inactive=include_inactive
     )
     hint_unlocks = await _fetch_all_hint_unlocks(
         session, before=solve_cutoff, team_id=team_id
     )
-    first_solve_at: dict[tuple[UUID, UUID], datetime] = {}
-    for s in solves:
-        first_solve_at.setdefault((team_id, s.question_id), s.solved_at)
+    first_solve_at = {(team_id, qid): at for qid, at in solved_at.items()}
     hint_points = -sum(
         cost for _, cost, _ in _charged_hint_unlocks(hint_unlocks, first_solve_at)
     )
@@ -437,9 +441,13 @@ async def compute_scoreboard_history(
 
 
 async def _fetch_solves(
-    session: AsyncSession, team_id: UUID, before: datetime | None = None
-) -> tuple[list[PublicSolveDetail], int]:
-    """Return solves and their total for a team."""
+    session: AsyncSession,
+    team_id: UUID,
+    before: datetime | None = None,
+    *,
+    include_inactive: bool = False,
+) -> tuple[list[PublicSolveDetail], int, dict[UUID, datetime]]:
+    """Return a team's listed solves, their total and each question's solve time."""
     stmt = (
         select(Submission)
         .where(
@@ -455,13 +463,16 @@ async def _fetch_solves(
 
     details: list[PublicSolveDetail] = []
     total = 0
-    seen: set[UUID] = set()
+    solved_at: dict[UUID, datetime] = {}
     for sub in rows:
-        if sub.question_id in seen:
+        if sub.question_id in solved_at:
             continue
-        seen.add(sub.question_id)
+        solved_at[sub.question_id] = sub.created_at
+        total += sub.points_earned
         question = sub.question
         challenge = question.challenge
+        if not (challenge.is_active or include_inactive):
+            continue
         details.append(
             PublicSolveDetail(
                 submission_id=sub.id,
@@ -474,15 +485,18 @@ async def _fetch_solves(
                 solved_at=sub.created_at,
             )
         )
-        total += sub.points_earned
 
-    return details, total
+    return details, total, solved_at
 
 
 async def _fetch_adjustments(
-    session: AsyncSession, team_id: UUID, before: datetime | None = None
+    session: AsyncSession,
+    team_id: UUID,
+    before: datetime | None = None,
+    *,
+    include_inactive: bool = False,
 ) -> tuple[list[PublicAdjustmentDetail], int]:
-    """Return score adjustments and their total for a team."""
+    """Return a team's score adjustments and their total."""
     stmt = (
         select(ScoreAdjustment)
         .where(ScoreAdjustment.team_id == team_id)
@@ -496,13 +510,16 @@ async def _fetch_adjustments(
     details: list[PublicAdjustmentDetail] = []
     total = 0
     for adj in rows:
+        challenge = adj.challenge
+        if challenge and not (challenge.is_active or include_inactive):
+            challenge = None
         details.append(
             PublicAdjustmentDetail(
                 id=adj.id,
                 amount=adj.amount,
                 reason=adj.reason,
-                challenge_id=adj.challenge_id,
-                challenge_title=adj.challenge.title if adj.challenge else None,
+                challenge_id=challenge.id if challenge else None,
+                challenge_title=challenge.title if challenge else None,
                 applied_at=adj.created_at,
             )
         )

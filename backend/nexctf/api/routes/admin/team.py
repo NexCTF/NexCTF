@@ -154,7 +154,11 @@ async def get_team_score_detail(
     """Score breakdown ignoring ``ctf.freeze_time``: admins see live numbers."""
     end_time = parse_config_dt("ctf.end_time", overrides)
     try:
-        return Response(data=await compute_team_score(session, uuid, end_time=end_time))
+        return Response(
+            data=await compute_team_score(
+                session, uuid, end_time=end_time, include_inactive=True
+            )
+        )
     except ValueError:
         raise NotFoundError()
 

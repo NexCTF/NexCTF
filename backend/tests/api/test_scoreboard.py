@@ -17,7 +17,7 @@ async def _setup_scored_team(
     team_name: str = "TeamA",
     points: int = 100,
 ) -> tuple[Team, StandardChallenge, Question, Submission]:
-    ch = StandardChallenge(title=f"Chall-{team_name}")
+    ch = StandardChallenge(title=f"Chall-{team_name}", is_active=True)
     session.add(ch)
     await session.flush()
 

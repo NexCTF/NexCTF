@@ -18,6 +18,7 @@ from nexctf.module.scoreboard.compute import (
     compute_team_score,
 )
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
+from tests.base import make_user
 
 _NOW = datetime.now(UTC)
 _FREEZE = _NOW - timedelta(hours=1)
@@ -26,7 +27,7 @@ _AFTER_FREEZE = _FREEZE + timedelta(minutes=30)
 
 
 async def _challenge(session: AsyncSession) -> StandardChallenge:
-    ch = StandardChallenge(title="Scoreboard Test Challenge")
+    ch = StandardChallenge(title="Scoreboard Test Challenge", is_active=True)
     session.add(ch)
     await session.flush()
     return ch
@@ -620,3 +621,46 @@ async def test_history_charts_one_event_per_solve(db_session):
     history = await compute_scoreboard_history(db_session)
 
     assert [e.cumulative for e in history.series[0].events] == [100]
+
+
+async def test_team_score_hides_inactive_challenges_but_counts_them(db_session):
+    shown = await _challenge(db_session)
+    hidden = StandardChallenge(title="Retired Secret", is_active=False)
+    db_session.add(hidden)
+    await db_session.flush()
+    shown_q = await _question(db_session, shown.id, points=100)
+    hidden_q = await _question(db_session, hidden.id, points=50)
+    t = await _team(db_session)
+    await _submission(db_session, t.id, shown_q.id, points_earned=100)
+    await _submission(db_session, t.id, hidden_q.id, points_earned=50)
+    user = await make_user(db_session, "adjuster")
+    adj = await _adjustment(db_session, t.id, user.id, -10)
+    adj.challenge_id = hidden.id
+    await db_session.flush()
+
+    public = await compute_team_score(db_session, t.id)
+    assert public.total == 140
+    assert [s.challenge_title for s in public.solves] == [shown.title]
+    assert public.adjustments[0].amount == -10
+    assert public.adjustments[0].challenge_id is None
+    assert public.adjustments[0].challenge_title is None
+
+    admin = await compute_team_score(db_session, t.id, include_inactive=True)
+    assert admin.total == 140
+    assert len(admin.solves) == 2
+    assert admin.adjustments[0].challenge_title == "Retired Secret"
+
+
+async def test_hint_on_an_inactive_challenge_is_still_charged(db_session):
+    hidden = StandardChallenge(title="Retired Secret", is_active=False)
+    db_session.add(hidden)
+    await db_session.flush()
+    q = await _question(db_session, hidden.id, points=100)
+    t = await _team(db_session)
+    await _hint_unlock(db_session, t.id, q.id, cost=30)
+    await _submission(db_session, t.id, q.id, points_earned=100)
+
+    public = await compute_team_score(db_session, t.id)
+    assert public.solves == []
+    assert public.hint_points == -30
+    assert public.total == 70
