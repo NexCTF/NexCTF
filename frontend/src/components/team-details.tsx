@@ -2,6 +2,7 @@ import { Ban, Check, ChevronRight, Lightbulb, Users, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Banner } from "@/components/banner";
+import { isHttpUrl, PlayerLink, SafeUrl } from "@/components/safe-url";
 import { ChallengeLink, DateCell, EmptyCell, SignedPoints } from "@/components/table-cells";
 import type {
   Link,
@@ -22,21 +23,6 @@ function TeamBadge({ label, children }: { label: string; children: ReactNode }) 
   );
 }
 
-/** Renders an http(s) URL as a link, anything else as plain text. */
-function SafeUrl({ href, children }: { href: string; children: ReactNode }) {
-  if (!/^https?:\/\//i.test(href)) return children;
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-link hover:underline underline-offset-2"
-    >
-      {children}
-    </a>
-  );
-}
-
 function CustomFieldBadges({ fields }: { fields: PublicCustomField[] }) {
   return fields
     .filter((f): f is PublicCustomField & { value: string } => Boolean(f.value))
@@ -49,10 +35,10 @@ function CustomFieldBadges({ fields }: { fields: PublicCustomField[] }) {
 
 function LinkBadges({ links }: { links: Link[] }) {
   return links
-    .filter((l) => /^https?:\/\//i.test(l.url))
+    .filter((l) => isHttpUrl(l.url))
     .map((l) => (
       <TeamBadge key={l.url} label="">
-        <SafeUrl href={l.url}>{l.label || l.url}</SafeUrl>
+        <PlayerLink link={l} />
       </TeamBadge>
     ));
 }
