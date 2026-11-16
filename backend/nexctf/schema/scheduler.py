@@ -60,7 +60,7 @@ class AdminSchedulerJobCreate(PydanticBase):
 
 
 class AdminSchedulerJobCreateInternal(AdminSchedulerJobCreate):
-    scheduled_at: datetime  # ty: ignore[invalid-mutable-override]
+    scheduled_at: datetime  # ty: ignore[incompatible-mutable-override]
     created_by_id: UUID
 
 
