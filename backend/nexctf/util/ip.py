@@ -16,6 +16,11 @@ def get_client_ip(request: Request) -> str | None:
     return client_ip_from_scope(request.scope)
 
 
+def client_address(request: Request) -> str:
+    """The client's IP address, or "unknown" when there is none to key on."""
+    return get_client_ip(request) or "unknown"
+
+
 def client_ip_from_scope(scope: Scope) -> str | None:
     """Return the client's IP address for an ASGI scope, honouring TRUSTED_PROXY_COUNT.
 

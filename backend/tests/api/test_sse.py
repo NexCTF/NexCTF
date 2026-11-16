@@ -6,23 +6,35 @@ import asyncio
 import contextlib
 from collections.abc import AsyncIterable
 from typing import cast
+from unittest.mock import AsyncMock, MagicMock
 
+import anyio
 import pytest
 from fastapi import HTTPException
 from fastapi.sse import ServerSentEvent
 from httpx import AsyncClient
 from redis.asyncio import Redis
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from nexctf.api.routes import sse
-from nexctf.core import eventbus
+from nexctf.core import eventbus, stream_slots
 from nexctf.core.config import settings
+from nexctf.core.stream_slots import Share, ShareFullError, Slot
 from nexctf.model import User
+
+_SLOT = Slot(member="test", key="sse:slots:test")
+
+
+def _redis() -> Redis:
+    """A Redis stand-in whose pipelines accept every command."""
+    client = MagicMock()
+    client.pipeline.return_value.execute = AsyncMock(return_value=[])
+    return cast(Redis, client)
 
 
 @pytest.fixture(autouse=True)
 def reset_state():
     sse._active.update(authed=0, public=0)
-    sse._by_owner.clear()
     eventbus._subscribers.clear()
     eventbus._reader_task = None
     yield
@@ -37,7 +49,8 @@ def _open(channels: list[str], budget: str = "public") -> asyncio.Task:
         async for _ in stream:
             pass
 
-    return asyncio.create_task(_drain(sse._sse_listener(channels, budget, "ip:test")))
+    stream = sse._sse_listener(channels, budget, _redis(), _SLOT)
+    return asyncio.create_task(_drain(stream))
 
 
 class TestStreamCapacity:
@@ -60,39 +73,104 @@ class TestStreamCapacity:
         resp = await c.get("/stream")
         assert resp.status_code == 503
 
-    async def test_one_user_cannot_take_the_whole_budget(
+    async def test_authed_stream_counts_against_the_user_only(
         self, user_client: tuple[AsyncClient, User], monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        """Players behind one NAT address must not share a stream cap."""
         monkeypatch.setattr(settings, "SSE_MAX_STREAMS_PER_USER", 2)
         c, user = user_client
-        sse._by_owner[f"user:{user.id}"] = 2
+        user_share = Share(f"user:{user.id}", 2)
+        acquire = AsyncMock(side_effect=ShareFullError(user_share))
+        monkeypatch.setattr(stream_slots, "acquire", acquire)
+
         resp = await c.get("/stream")
         assert resp.status_code == 429
+        assert acquire.await_args is not None
+        assert acquire.await_args.args[1] == user_share
 
-    async def test_one_address_cannot_take_the_public_budget(
+    async def test_public_stream_counts_against_the_address(
         self, http_client: AsyncClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(settings, "SSE_MAX_PUBLIC_STREAMS_PER_IP", 2)
-        sse._by_owner["ip:127.0.0.1"] = 2
+        share = Share("public:ip:127.0.0.1", 2)
+        acquire = AsyncMock(side_effect=ShareFullError(share))
+        monkeypatch.setattr(stream_slots, "acquire", acquire)
+
         resp = await http_client.get("/stream/public")
         assert resp.status_code == 429
+        assert acquire.await_args is not None
+        assert acquire.await_args.args[1] == share
 
-    async def test_owner_share_released_when_stream_ends(
+    async def test_slot_given_back_when_the_response_ends(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Released by the dependency, even when the stream never started."""
+        monkeypatch.setattr(stream_slots, "acquire", AsyncMock(return_value=_SLOT))
+        release = AsyncMock()
+        monkeypatch.setattr(stream_slots, "release", release)
+
+        async with sse._hold_slot(_redis(), Share("test", 1)) as slot:
+            assert slot == _SLOT
+            release.assert_not_awaited()
+        await asyncio.gather(*sse._releases)
+        release.assert_awaited_once()
+        assert release.await_args is not None
+        assert release.await_args.args[1] == _SLOT
+
+    async def test_stream_let_in_uncounted_without_redis(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            stream_slots, "acquire", AsyncMock(side_effect=RedisConnectionError())
+        )
+        slot = await sse._take_slot(_redis(), Share("test", 1))
+        assert slot.key == "sse:slots:test"
+
+    async def test_slot_given_back_when_the_cancellation_repeats(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The response task group cancels every await of a closing stream."""
+        monkeypatch.setattr(eventbus, "_ensure_reader", lambda: None)
+        monkeypatch.setattr(stream_slots, "acquire", AsyncMock(return_value=_SLOT))
+        released = asyncio.Event()
+
+        async def _slow_release(_redis: Redis, _slot: Slot) -> None:
+            await asyncio.sleep(0.05)
+            released.set()
+
+        monkeypatch.setattr(stream_slots, "release", _slow_release)
+
+        async def _serve() -> None:
+            async with anyio.create_task_group() as group:
+                group.start_soon(_drain_public)
+                await anyio.sleep(0.05)
+                group.cancel_scope.cancel()
+
+        async def _drain_public() -> None:
+            redis = _redis()
+            async with sse._hold_slot(redis, Share("test", 1)) as slot:
+                async for _ in sse._sse_listener(
+                    ["config:update"], "public", redis, slot
+                ):
+                    pass
+
+        await _serve()
+        await asyncio.wait_for(released.wait(), timeout=1)
+
+    async def test_open_stream_keeps_its_slot_alive(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(eventbus, "_ensure_reader", lambda: None)
+        monkeypatch.setattr(stream_slots, "REFRESH_SECONDS", 0.01)
+        refresh = AsyncMock()
+        monkeypatch.setattr(stream_slots, "refresh", refresh)
 
-        async def _drain() -> None:
-            async for _ in sse._sse_listener(["config:update"], "public", "ip:x"):
-                pass
-
-        task = asyncio.create_task(_drain())
-        await asyncio.sleep(0.05)
-        assert sse._by_owner["ip:x"] == 1
+        task = _open(["config:update"])
+        await asyncio.sleep(0.1)
         task.cancel()
         with contextlib.suppress(BaseException):
             await task
-        assert "ip:x" not in sse._by_owner
+        assert refresh.await_count >= 2
 
     async def test_budgets_are_independent(
         self, monkeypatch: pytest.MonkeyPatch
@@ -106,7 +184,7 @@ class TestStreamCapacity:
         with pytest.raises(HTTPException):
             await sse._public_capacity()
 
-    async def test_slot_and_registration_released_when_stream_ends(
+    async def test_registration_released_when_stream_ends(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """A leaked registration is a phantom subscriber the reader keeps feeding."""
@@ -266,7 +344,7 @@ class TestStreamClose:
         async def _drain() -> list[str | None]:
             seen: list[str | None] = []
             async for event in sse._sse_listener(
-                ["config:update"], "authed", "user:abc", close_on=close
+                ["config:update"], "authed", _redis(), _SLOT, close_on=close
             ):
                 seen.append(event.event)
             return seen
