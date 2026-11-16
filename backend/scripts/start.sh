@@ -62,7 +62,12 @@ else
     log "TLS: using internal self-signed certificates"
 fi
 
-MAX_BODY_BYTES=$(( ${MAX_UPLOAD_BYTES:-2147483648} + 1048576 ))
+MAX_BODY_BYTES="${MAX_BODY_BYTES:-1048576}"
+MAX_UPLOAD_BODY_BYTES=$(( ${MAX_UPLOAD_BYTES:-2147483648} + 1048576 ))
+UPLOAD_PROXY="request_body {
+            max_size ${MAX_UPLOAD_BODY_BYTES}
+        }
+        reverse_proxy 127.0.0.1:8000"
 
 log "writing Caddyfile for domain: $DOMAIN"
 cat > /etc/caddy/Caddyfile << EOF
@@ -81,6 +86,18 @@ ${SCHEME}${DOMAIN} {
         Referrer-Policy "strict-origin-when-cross-origin"
         X-Frame-Options "DENY"
         ${HSTS_HEADER}
+    }
+
+    handle /api/v1/admin/file {
+        ${UPLOAD_PROXY}
+    }
+
+    handle /api/v1/admin/file/* {
+        ${UPLOAD_PROXY}
+    }
+
+    handle /api/v1/admin/bundle/import/plan {
+        ${UPLOAD_PROXY}
     }
 
     handle /api/* {

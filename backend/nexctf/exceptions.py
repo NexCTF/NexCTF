@@ -582,6 +582,15 @@ class UploadTooLargeError(ApiException):
     )
 
 
+class RequestTooLargeError(ApiException):
+    api_error = ApiError(
+        code=413,
+        msg="Request too large",
+        desc="The request body is larger than this endpoint accepts.",
+        err_code="REQ-413",
+    )
+
+
 class NothingToUpdateError(ApiException):
     api_error = ApiError(
         code=422,
