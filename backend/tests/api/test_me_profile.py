@@ -244,22 +244,6 @@ class TestTeamProfile:
         }
         assert team.name == "Renamed"
 
-    async def test_rename_flushes_the_team_scoreboard_cache(
-        self,
-        user_client: tuple[AsyncClient, User],
-        db_session: AsyncSession,
-        mock_redis,
-    ) -> None:
-        client, user = user_client
-        team = await put_in_team(db_session, user)
-
-        await client.put("/me/team/profile", json={"name": "Renamed"})
-
-        assert any(
-            f"scoreboard:team:{team.id}" in call.args
-            for call in mock_redis.delete.await_args_list
-        )
-
     async def test_field_change_flushes_the_team_scoreboard_cache(
         self,
         user_client: tuple[AsyncClient, User],

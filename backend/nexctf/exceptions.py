@@ -278,6 +278,15 @@ class TeamFullError(TeamError):
     )
 
 
+class TeamNotJoinableError(TeamError):
+    api_error = ApiError(
+        code=403,
+        msg="Team disqualified",
+        desc="This team has been disqualified and accepts no new member.",
+        err_code="TEAM-403-DISQUALIFIED",
+    )
+
+
 class InvalidInviteCodeError(TeamError):
     api_error = ApiError(
         code=404,

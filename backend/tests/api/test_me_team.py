@@ -321,7 +321,7 @@ class TestTeamChanges:
 
         resp = await client.post("/me/team", json={"name": "NewTeam"})
         assert resp.status_code == 201
-        assert len(resp.json()["data"]["invite_code"]) == 8
+        assert len(resp.json()["data"]["invite_code"]) == 16
 
     async def test_create_ignores_client_supplied_fields(
         self,
@@ -390,3 +390,79 @@ class TestStreamsFollowMembership:
             resp = await client.post("/me/team/join", json={"code": team.invite_code})
         assert resp.is_success
         close.assert_awaited_once_with(ANY, user.id)
+
+
+class TestTeamWriteLimits:
+    @pytest.mark.parametrize(
+        ("method", "path", "body"),
+        [
+            ("post", "/me/team", {"name": "Limited"}),
+            ("post", "/me/team/join", {"code": "NOSUCHCODE"}),
+            ("post", "/me/team/leave", None),
+            ("post", "/me/team/invite-code", None),
+            ("put", "/me/team/profile", {"name": "Limited"}),
+        ],
+    )
+    async def test_every_team_write_shares_one_user_limit(
+        self,
+        user_client: tuple[AsyncClient, User],
+        config_overrides: dict[str, str],
+        method: str,
+        path: str,
+        body: dict[str, str] | None,
+    ) -> None:
+        client, user = user_client
+        config_overrides["ctf.allow_team_customization"] = "true"
+        target = "nexctf.api.routes.me.check_user_write_limit"
+        with patch(target, AsyncMock()) as limit:
+            await client.request(method, path, json=body)
+        limit.assert_awaited_once_with(ANY, user.id, "team_write")
+
+
+class TestRenaming:
+    async def test_rename_drops_the_scoreboard_cache(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        config_overrides: dict[str, str],
+    ) -> None:
+        client, user = user_client
+        await put_in_team(db_session, user)
+        config_overrides["ctf.allow_team_customization"] = "true"
+        with patch("nexctf.api.routes.me.invalidate_scoreboard", AsyncMock()) as drop:
+            resp = await client.put("/me/team/profile", json={"name": "Renamed"})
+        assert resp.status_code == 200, resp.text
+        drop.assert_awaited_once()
+
+    async def test_rename_is_closed_after_the_end(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        config_overrides: dict[str, str],
+    ) -> None:
+        client, user = user_client
+        team = await put_in_team(db_session, user)
+        config_overrides["ctf.allow_team_customization"] = "true"
+        config_overrides["ctf.end_time"] = PAST
+
+        body = {"name": "TooLate", "country": "FR"}
+        resp = await client.put("/me/team/profile", json=body)
+        assert resp.json()["error_code"] == "TEAM-403-CHANGES-DISABLED"
+
+        body["name"] = team.name
+        assert (await client.put("/me/team/profile", json=body)).status_code == 200
+
+
+class TestDisqualifiedTeam:
+    async def test_cannot_be_joined(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        client, user = user_client
+        db_session.add(Team(name="Out", invite_code="OUT12345", is_disqualified=True))
+        await db_session.flush()
+
+        resp = await client.post("/me/team/join", json={"code": "OUT12345"})
+        assert resp.json()["error_code"] == "TEAM-403-DISQUALIFIED"
+        assert user.team_id is None

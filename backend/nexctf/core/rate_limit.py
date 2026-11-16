@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid as _uuid
+from uuid import UUID
 
 from fastapi import Request
 from redis.asyncio import Redis
@@ -27,6 +28,9 @@ from nexctf.exceptions import RateLimitedError
 from nexctf.util.ip import get_client_ip
 
 logger = logging.getLogger(__name__)
+
+USER_WRITE_WINDOW_SECONDS = 60
+USER_WRITE_MAX_REQUESTS = 10
 
 
 def client_rate_key(action: str, request: Request) -> str:
@@ -74,6 +78,17 @@ async def check_rate_limit(
     if results[2] > max_requests:
         await redis.zrem(key, member)
         await _refuse(redis, key, max_requests, name)
+
+
+async def check_user_write_limit(redis: Redis, user_id: UUID, name: str) -> None:
+    """Rate limit one user's writes to the *name* family of endpoints."""
+    await check_rate_limit(
+        redis,
+        f"rl:{name}:{user_id}",
+        name=name,
+        window_seconds=USER_WRITE_WINDOW_SECONDS,
+        max_requests=USER_WRITE_MAX_REQUESTS,
+    )
 
 
 async def failure_limit_reached(

@@ -37,7 +37,7 @@ class UserRole(enum.Enum):
 
 def gen_invite_code() -> str:
     alphabet = string.ascii_uppercase + string.digits
-    return "".join(secrets.choice(alphabet) for _ in range(8))
+    return "".join(secrets.choice(alphabet) for _ in range(16))
 
 
 class Team(Base):
