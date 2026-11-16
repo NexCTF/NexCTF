@@ -1,24 +1,29 @@
 import asyncio
+import contextlib
 import logging
-from collections import Counter
-from collections.abc import AsyncIterable
+import time
+from collections.abc import AsyncGenerator, AsyncIterable
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
+from redis.asyncio import Redis
+from redis.exceptions import RedisError
 
-from nexctf.api.dep import CurrentUserDep, TokenScopesDep
+from nexctf.api.dep import CurrentUserDep, RedisDep, TokenScopesDep
 from nexctf.api.scope import ADMIN_EVENTS_SCOPE
-from nexctf.core import eventbus
+from nexctf.core import eventbus, stream_slots
 from nexctf.core.config import settings
+from nexctf.core.stream_slots import Share, Slot
 from nexctf.model import User, UserRole
-from nexctf.util.ip import get_client_ip
+from nexctf.util.ip import client_address
 
 logger = logging.getLogger(__name__)
 
 sse_router = APIRouter(prefix="/stream", tags=["SSE"])
 
+# Streams open on this worker, per budget
 _active = {"authed": 0, "public": 0}
-_by_owner: Counter[str] = Counter()
 
 
 def _reject_if_full(budget: str, limit: int) -> None:
@@ -35,26 +40,26 @@ def _reject_if_full(budget: str, limit: int) -> None:
         )
 
 
-def _reject_if_owner_full(owner: str, limit: int) -> None:
-    """Raise 429 when *owner* already holds *limit* streams on this worker."""
-    if _by_owner[owner] >= limit:
+async def _take_slot(redis: Redis, share: Share) -> Slot:
+    """Take a slot in *share*, or raise 429 when it is full.
+
+    Without Redis the stream is let in uncounted; its first refresh counts it.
+    """
+    try:
+        return await stream_slots.acquire(redis, share)
+    except RedisError:
+        logger.warning("sse slot not counted, redis unavailable", exc_info=True)
+        return stream_slots.new_slot(share)
+    except stream_slots.ShareFullError as exc:
         logger.warning(
             "sse stream rejected, %s holds too many",
-            owner,
-            extra={"owner": owner, "limit": limit},
+            exc.share.name,
+            extra={"owner": exc.share.name, "limit": exc.share.limit},
         )
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many open event streams. Close a tab and retry.",
         )
-
-
-def _user_owner(user: User) -> str:
-    return f"user:{user.id}"
-
-
-def _ip_owner(request: Request) -> str:
-    return f"ip:{get_client_ip(request) or 'unknown'}"
 
 
 async def _authed_capacity() -> None:
@@ -65,12 +70,35 @@ async def _public_capacity() -> None:
     _reject_if_full("public", settings.SSE_MAX_PUBLIC_STREAMS)
 
 
-async def _user_capacity(user: CurrentUserDep) -> None:
-    _reject_if_owner_full(_user_owner(user), settings.SSE_MAX_STREAMS_PER_USER)
+@contextlib.asynccontextmanager
+async def _hold_slot(redis: Redis, share: Share) -> AsyncGenerator[Slot]:
+    """Hold a slot in *share* until the response is over, however it ends."""
+    slot = await _take_slot(redis, share)
+    try:
+        yield slot
+    finally:
+        _release_soon(redis, slot)
 
 
-async def _ip_capacity(request: Request) -> None:
-    _reject_if_owner_full(_ip_owner(request), settings.SSE_MAX_PUBLIC_STREAMS_PER_IP)
+async def _user_slot(redis: RedisDep, user: CurrentUserDep) -> AsyncGenerator[Slot]:
+    """A slot counted against the caller's account."""
+    share = Share(f"user:{user.id}", settings.SSE_MAX_STREAMS_PER_USER)
+    async with _hold_slot(redis, share) as slot:
+        yield slot
+
+
+async def _public_slot(request: Request, redis: RedisDep) -> AsyncGenerator[Slot]:
+    """A slot counted against the caller's address."""
+    share = Share(
+        f"public:ip:{client_address(request)}",
+        settings.SSE_MAX_PUBLIC_STREAMS_PER_IP,
+    )
+    async with _hold_slot(redis, share) as slot:
+        yield slot
+
+
+UserSlotDep = Annotated[Slot, Depends(_user_slot)]
+PublicSlotDep = Annotated[Slot, Depends(_public_slot)]
 
 
 def _event_name(channel: str) -> str:
@@ -97,28 +125,60 @@ def _user_channels(user: User, granted: frozenset[str] | None) -> list[str]:
     return channels
 
 
+_releases: set[asyncio.Task[None]] = set()
+
+
+async def _release(redis: Redis, slot: Slot) -> None:
+    with contextlib.suppress(RedisError):
+        await stream_slots.release(redis, slot)
+
+
+def _release_soon(redis: Redis, slot: Slot) -> None:
+    """Give *slot* back from a task of its own, out of reach of a cancellation."""
+    task = asyncio.create_task(_release(redis, slot))
+    _releases.add(task)
+    task.add_done_callback(_releases.discard)
+
+
+async def _keep_slot(redis: Redis, slot: Slot, due: float) -> float:
+    """Refresh *slot* once *due* has passed, returning when it is next due."""
+    now = time.monotonic()
+    if now < due:
+        return due
+    with contextlib.suppress(RedisError):
+        await stream_slots.refresh(redis, slot)
+    return now + stream_slots.REFRESH_SECONDS
+
+
 async def _sse_listener(
     channels: list[str],
     budget: str,
-    owner: str,
+    redis: Redis,
+    slot: Slot,
     close_on: str | None = None,
 ) -> AsyncIterable[ServerSentEvent]:
     """Yield the bus events for *channels* as typed ServerSentEvents.
 
     *close_on* is subscribed too, and an event on it ends the stream. The
-    stream counts against *owner*'s share while it is open.
+    stream keeps *slot* alive while it is open; its dependency gives it back.
     """
     subscribed = [*channels, close_on] if close_on else channels
     with eventbus.subscription(subscribed) as queue:
         _active[budget] += 1
-        _by_owner[owner] += 1
         logger.debug(
             "sse stream opened",
             extra={"budget": budget, "active": _active[budget]},
         )
+        due = time.monotonic() + stream_slots.REFRESH_SECONDS
         try:
             while True:
-                channel, data = await queue.get()
+                due = await _keep_slot(redis, slot, due)
+                try:
+                    channel, data = await asyncio.wait_for(
+                        queue.get(), timeout=max(due - time.monotonic(), 0)
+                    )
+                except TimeoutError:
+                    continue
                 if channel == close_on:
                     return
                 yield ServerSentEvent(raw_data=data, event=_event_name(channel))
@@ -126,9 +186,6 @@ async def _sse_listener(
             pass
         finally:
             _active[budget] -= 1
-            _by_owner[owner] -= 1
-            if _by_owner[owner] <= 0:
-                del _by_owner[owner]
             logger.debug(
                 "sse stream closed",
                 extra={"budget": budget, "active": _active[budget]},
@@ -138,10 +195,10 @@ async def _sse_listener(
 @sse_router.get(
     "",
     response_class=EventSourceResponse,
-    dependencies=[Depends(_authed_capacity), Depends(_user_capacity)],
+    dependencies=[Depends(_authed_capacity)],
 )
 async def event_stream(
-    user: CurrentUserDep, granted: TokenScopesDep
+    redis: RedisDep, user: CurrentUserDep, granted: TokenScopesDep, slot: UserSlotDep
 ) -> AsyncIterable[ServerSentEvent]:
     """Authenticated SSE stream.
 
@@ -153,7 +210,7 @@ async def event_stream(
     channels = [*_user_channels(user, granted), "config:update"]
     close_on = eventbus.user_stream_channel(user.id)
     async for event in _sse_listener(
-        channels, "authed", _user_owner(user), close_on=close_on
+        channels, "authed", redis, slot, close_on=close_on
     ):
         yield event
 
@@ -161,13 +218,15 @@ async def event_stream(
 @sse_router.get(
     "/public",
     response_class=EventSourceResponse,
-    dependencies=[Depends(_public_capacity), Depends(_ip_capacity)],
+    dependencies=[Depends(_public_capacity)],
 )
-async def public_event_stream(request: Request) -> AsyncIterable[ServerSentEvent]:
+async def public_event_stream(
+    redis: RedisDep, slot: PublicSlotDep
+) -> AsyncIterable[ServerSentEvent]:
     """Public (unauthenticated) SSE stream.
 
     Event types emitted:
     - ``config_update``  — admin saved new config values
     """
-    async for event in _sse_listener(["config:update"], "public", _ip_owner(request)):
+    async for event in _sse_listener(["config:update"], "public", redis, slot):
         yield event

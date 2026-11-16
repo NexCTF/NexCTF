@@ -153,7 +153,7 @@ class Settings(BaseSettings):
     SSE_MAX_STREAMS: int = 1000
     SSE_MAX_PUBLIC_STREAMS: int = 1000
     SSE_MAX_STREAMS_PER_USER: int = 10
-    SSE_MAX_PUBLIC_STREAMS_PER_IP: int = 50
+    SSE_MAX_PUBLIC_STREAMS_PER_IP: int = 500
 
     REDIS_HOST: str
     REDIS_PORT: int = 6379

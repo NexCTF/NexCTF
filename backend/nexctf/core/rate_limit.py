@@ -25,7 +25,7 @@ from redis.asyncio import Redis
 from nexctf.core import appconfig
 from nexctf.core.metrics import incr_counter
 from nexctf.exceptions import RateLimitedError
-from nexctf.util.ip import get_client_ip
+from nexctf.util.ip import client_address
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ USER_WRITE_MAX_REQUESTS = 10
 
 def client_rate_key(action: str, request: Request) -> str:
     """Redis key limiting *action* per client address."""
-    return f"rl:{action}:{get_client_ip(request) or 'unknown'}"
+    return f"rl:{action}:{client_address(request)}"
 
 
 def _member(now: float) -> str:
