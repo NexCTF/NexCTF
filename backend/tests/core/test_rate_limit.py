@@ -1,10 +1,14 @@
 """Integration tests for nexctf.core.rate_limit (real Redis, sliding window)."""
 
+from uuid import uuid4
+
 import pytest
 
 from nexctf.core.rate_limit import (
+    USER_WRITE_MAX_REQUESTS,
     check_failure_limit,
     check_rate_limit,
+    check_user_write_limit,
     record_failure,
 )
 from nexctf.exceptions import RateLimitedError
@@ -55,3 +59,17 @@ async def test_failure_limit_counts_only_recorded_failures(redis):
 
     with pytest.raises(RateLimitedError):
         await check_failure_limit(redis, key, **limit)
+
+
+async def test_user_write_limit_is_per_user_and_per_family(redis):
+    user, other = uuid4(), uuid4()
+    for _ in range(USER_WRITE_MAX_REQUESTS):
+        await check_user_write_limit(redis, user, "test_write")
+
+    with pytest.raises(RateLimitedError):
+        await check_user_write_limit(redis, user, "test_write")
+    await check_user_write_limit(redis, other, "test_write")
+    await check_user_write_limit(redis, user, "test_other")
+    await redis.delete(
+        f"rl:test_write:{user}", f"rl:test_write:{other}", f"rl:test_other:{user}"
+    )

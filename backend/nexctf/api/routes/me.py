@@ -40,6 +40,7 @@ from nexctf.api.security import (
 )
 from nexctf.core import appconfig
 from nexctf.core.eventbus import close_user_streams
+from nexctf.core.rate_limit import check_user_write_limit
 from nexctf.exceptions import (
     AlreadyInTeamError,
     CannotUnlinkLastOAuthError,
@@ -51,6 +52,7 @@ from nexctf.exceptions import (
     TeamChangesDisabledError,
     TeamCreationDisabledError,
     TeamFullError,
+    TeamNotJoinableError,
     TeamPlayedError,
     TokenLimitError,
     TotpAlreadyEnabledError,
@@ -514,6 +516,11 @@ def _require_team_changes(overrides: dict[str, str]) -> None:
         raise TeamChangesDisabledError()
 
 
+async def _limit_team_writes(redis: Redis, user: User) -> None:
+    """Rate limit the caller's team changes, all endpoints counted together."""
+    await check_user_write_limit(redis, user.id, "team_write")
+
+
 async def _lock_membership(session: AsyncSession, user: User) -> UUID | None:
     """Lock the caller's row until commit and return their current team id."""
     return await session.scalar(
@@ -531,6 +538,7 @@ async def create_team(
     user: CurrentUserDep,
 ) -> Response[MyTeamRead]:
     _require_team_changes(overrides)
+    await _limit_team_writes(redis, user)
     if not appconfig.get_with_overrides("ctf.allow_team_creation", overrides):
         raise TeamCreationDisabledError()
     if await _lock_membership(session, user) is not None:
@@ -565,6 +573,7 @@ async def join_team(
     user: CurrentUserDep,
 ) -> Response[MyTeamRead]:
     _require_team_changes(overrides)
+    await _limit_team_writes(redis, user)
     if await _lock_membership(session, user) is not None:
         raise AlreadyInTeamError()
 
@@ -573,6 +582,8 @@ async def join_team(
     )
     if team is None:
         raise InvalidInviteCodeError()
+    if team.is_disqualified:
+        raise TeamNotJoinableError()
     members = await crud.UserCrud.count(
         session, [User.team_id == team.id, User.is_active.is_(True)]
     )
@@ -603,6 +614,7 @@ async def leave_team(
     user: CurrentUserDep,
 ):
     _require_team_changes(overrides)
+    await _limit_team_writes(redis, user)
     team_id = await _lock_membership(session, user)
     if team_id is None:
         raise NotInTeamError()
@@ -632,10 +644,12 @@ async def leave_team(
 @me_router.post("/team/invite-code")
 async def rotate_invite_code(
     session: SessionDep,
+    redis: RedisDep,
     overrides: ConfigDep,
     user: CurrentUserDep,
 ) -> Response[str]:
     _require_team_changes(overrides)
+    await _limit_team_writes(redis, user)
     team = await _my_team(session, user)
     team.invite_code = gen_invite_code()
     return Response(data=team.invite_code)
@@ -720,10 +734,13 @@ async def update_my_team_profile(
     """Any member may edit the team, as any member may already rotate its code."""
     if not appconfig.get_with_overrides("ctf.allow_team_customization", overrides):
         raise CustomizationDisabledError()
+    await _limit_team_writes(redis, user)
     team = await _my_team(session, user)
     team_id = team.id
     name = _new_team_name(body.name) if body.name != team.name else team.name
     renamed = name != team.name
+    if renamed and is_config_dt_past("ctf.end_time", overrides):
+        raise TeamChangesDisabledError()
     fields_before = await load_editable_fields(session, team_id=team_id)
     links = [link.model_dump() for link in body.links]
 
