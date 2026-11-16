@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Callable
+from html import escape
 from typing import TYPE_CHECKING, Any
 
-from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.routing import RouteContext, iter_route_contexts
 
 from nexctf.api.dep import (
@@ -35,6 +36,63 @@ _FRESH_SESSION_NOTE = (
     "renew it with `POST /auth/reauth`."
 )
 _TOKENS_SKIP = " API tokens skip this check."
+
+_SWAGGER_CDN = "https://cdn.jsdelivr.net"
+_SWAGGER_DIST = f"{_SWAGGER_CDN}/npm/swagger-ui-dist@5.34.1"
+_SWAGGER_JS_SRI = (
+    "sha384-XFYN47VzPiDY6qPtxYKg0nqUeW/upo20xf1j2SUE7gT/i35FJB4cuS/71Iegzk8Z"
+)
+_SWAGGER_CSS_SRI = (
+    "sha384-4c3vsE5f+trhFyHrFrLM1fFGUn531NIaC7dcqEWIJdoRQJ5CkJbSuSCwXLpaS1KF"
+)
+_DOCS_INIT_PATH = "/api/docs/init.js"
+_DOCS_CSP = (
+    "default-src 'none'; "
+    f"script-src 'self' {_SWAGGER_CDN}; "
+    f"style-src {_SWAGGER_CDN} 'unsafe-inline'; "
+    "img-src 'self' data:; "
+    "connect-src 'self'; "
+    "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+)
+_DOCS_PAGE = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}}</title>
+<link rel="stylesheet" href="{_SWAGGER_DIST}/swagger-ui.css"
+  integrity="{_SWAGGER_CSS_SRI}" crossorigin="anonymous">
+</head>
+<body>
+<div id="swagger-ui" data-openapi-url="{{openapi_url}}"></div>
+<script src="{_SWAGGER_DIST}/swagger-ui-bundle.js"
+  integrity="{_SWAGGER_JS_SRI}" crossorigin="anonymous"></script>
+<script src="{_DOCS_INIT_PATH}"></script>
+</body>
+</html>
+"""
+_DOCS_INIT = """const root = document.getElementById("swagger-ui");
+window.ui = SwaggerUIBundle({
+  url: root.dataset.openapiUrl,
+  dom_id: "#swagger-ui",
+  layout: "BaseLayout",
+  deepLinking: true,
+  showExtensions: true,
+  showCommonExtensions: true,
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIBundle.SwaggerUIStandalonePreset,
+  ],
+});
+"""
+
+
+def _docs_page(*, openapi_url: str, title: str) -> HTMLResponse:
+    """Swagger UI for *openapi_url*: pinned assets and no inline script."""
+    page = _DOCS_PAGE.format(
+        title=escape(title), openapi_url=escape(openapi_url, quote=True)
+    )
+    return HTMLResponse(page, headers={"Content-Security-Policy": _DOCS_CSP})
 
 
 def flat_dependency_calls(dependant: Dependant) -> set[Callable[..., Any]]:
@@ -99,34 +157,43 @@ def _annotate_scopes(
 def setup_docs(app: FastAPI, admin_prefix: str) -> None:
     """Register filtered OpenAPI schemas and Swagger UI endpoints on *app*."""
 
-    def _schema(title: str, prefix_filter: str, exclude: bool) -> dict[str, Any]:
+    @functools.cache
+    def _schema_body(admin: bool) -> bytes:
+        """The admin or public schema, rendered on first use and then kept."""
         routes = [
             ctx
             for ctx in iter_route_contexts(app.routes)
-            if (ctx.path or "").startswith(prefix_filter) != exclude
+            if (ctx.path or "").startswith(admin_prefix) == admin
         ]
-        return _annotate_scopes(
+        title = "NexCTF Admin API" if admin else "NexCTF API"
+        schema = _annotate_scopes(
             get_openapi(title=title, version="1.0.0", routes=routes), routes
         )
+        return bytes(JSONResponse(schema).body)
+
+    def _schema(*, admin: bool) -> Response:
+        return Response(_schema_body(admin), media_type="application/json")
 
     @app.get("/api/openapi.json", include_in_schema=False)
-    def user_openapi() -> JSONResponse:
-        return JSONResponse(_schema("NexCTF API", admin_prefix, exclude=True))
+    def user_openapi() -> Response:
+        return _schema(admin=False)
 
     @app.get(
         "/api/admin/openapi.json", include_in_schema=False, dependencies=[AdminAuthDep]
     )
-    def admin_openapi() -> JSONResponse:
-        return JSONResponse(_schema("NexCTF Admin API", admin_prefix, exclude=False))
+    def admin_openapi() -> Response:
+        return _schema(admin=True)
+
+    @app.get(_DOCS_INIT_PATH, include_in_schema=False)
+    def docs_init() -> Response:
+        return Response(_DOCS_INIT, media_type="text/javascript")
 
     @app.get("/api/docs", include_in_schema=False)
-    def user_docs():
-        return get_swagger_ui_html(
-            openapi_url="/api/openapi.json", title="NexCTF – User API"
-        )
+    def user_docs() -> HTMLResponse:
+        return _docs_page(openapi_url="/api/openapi.json", title="NexCTF – User API")
 
     @app.get("/api/admin/docs", include_in_schema=False, dependencies=[AdminAuthDep])
-    def admin_docs():
-        return get_swagger_ui_html(
+    def admin_docs() -> HTMLResponse:
+        return _docs_page(
             openapi_url="/api/admin/openapi.json", title="NexCTF – Admin API"
         )
