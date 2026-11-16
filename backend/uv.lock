@@ -1017,7 +1017,7 @@ requires-dist = [
     { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.142.0" },
     { name = "fastapi-multiauth", extras = ["jwt", "oauth"], specifier = ">=1.2.0" },
     { name = "fastapi-toolsets", extras = ["all"], specifier = ">=6.0.0" },
-    { name = "pgqueuer", extras = ["web"], specifier = ">=1.5.0,<1.7" },
+    { name = "pgqueuer", extras = ["web"], specifier = ">=2.0.0,<2.1" },
     { name = "prometheus-client", specifier = ">=0.25.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.15.0" },
@@ -1189,7 +1189,7 @@ wheels = [
 
 [[package]]
 name = "pgqueuer"
-version = "1.6.0"
+version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -1200,9 +1200,9 @@ dependencies = [
     { name = "typer" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fd/63/931cef8b78de8715bfdf95b206ec8f931f4fede07dd7b828e04cf806187d/pgqueuer-1.6.0.tar.gz", hash = "sha256:ed1306404f96e25c84c951f434e8b06b091e04e0177af0d5441505a7944f156e", size = 647195, upload-time = "2026-10-11T19:36:32.576Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e2/54/380a7e4bf3496eb6716046818c08c7faba4e3fe9e176ea4f7ef63f02bcb0/pgqueuer-2.0.0.tar.gz", hash = "sha256:95f3f83144426c64df0da000f2ae279d692145faaf03915b10ab4197431bb203", size = 659732, upload-time = "2026-11-09T08:35:15.477Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dc/a9/e60c0744a69faf80081ce4da9fbbbd10874a5fc3b488dcbdbba7ee18b054/pgqueuer-1.6.0-py3-none-any.whl", hash = "sha256:00aff6194ff73b5ebf674cb31126b8be780e2adb0dda56043632bcfb4d142ee2", size = 177741, upload-time = "2026-10-11T19:36:31.018Z" },
+    { url = "https://files.pythonhosted.org/packages/a7/90/dbfe9c3743b4970e797a93e01033752ac04977d88cbf2eae223b0bac600a/pgqueuer-2.0.0-py3-none-any.whl", hash = "sha256:a3da05cc4d090954cbce536aab5f92cc708fdf9f4fe1a107d84569b5a06a5aef", size = 186792, upload-time = "2026-11-09T08:35:13.944Z" },
 ]
 
 [package.optional-dependencies]
