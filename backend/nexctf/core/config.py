@@ -148,6 +148,7 @@ class Settings(BaseSettings):
         )
 
     MAX_UPLOAD_BYTES: int = 2 * 1024**3
+    MAX_BODY_BYTES: int = 1024**2
 
     SSE_MAX_STREAMS: int = 1000
     SSE_MAX_PUBLIC_STREAMS: int = 1000

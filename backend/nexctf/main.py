@@ -1,6 +1,5 @@
 import logging
 import os
-from collections.abc import Mapping
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI, Request
@@ -12,11 +11,12 @@ from fastapi_multiauth.exceptions import OAuthStateError, StaleCredentialError
 from fastapi_multiauth.exceptions import UnauthorizedError as MultiAuthUnauthorizedError
 from fastapi_toolsets.exceptions import UnauthorizedError, init_exceptions_handlers
 from fastapi_toolsets.logger import RequestLoggingMiddleware
-from fastapi_toolsets.schemas import ApiError, ErrorResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Imported for its side effect: registers the config definitions.
 import nexctf.settings as _  # noqa: F401
+from nexctf.api.body_limit import BodyLimitMiddleware
+from nexctf.api.errors import api_error_response
 from nexctf.api.metrics import metrics_router
 from nexctf.api.openapi import setup_docs
 from nexctf.api.routes import router
@@ -39,6 +39,9 @@ from nexctf.tasks.dashboard import install_dashboard, live_dashboard
 from nexctf.util.ip import client_ip_from_scope
 
 _ADMIN_PREFIX = f"{settings.API_V1_STR}/admin"
+_UPLOAD_PATHS = (f"{_ADMIN_PREFIX}/file", f"{_ADMIN_PREFIX}/bundle/import/plan")
+# Multipart framing around the largest accepted upload
+_UPLOAD_OVERHEAD_BYTES = 1024**2
 
 setup_logging("api")
 logger = logging.getLogger(__name__)
@@ -77,6 +80,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 db.install(app)
 app.add_middleware(
+    BodyLimitMiddleware,
+    default_limit=settings.MAX_BODY_BYTES,
+    upload_limit=settings.MAX_UPLOAD_BYTES + _UPLOAD_OVERHEAD_BYTES,
+    upload_paths=_UPLOAD_PATHS,
+)
+app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.all_cors_origins,
     allow_credentials=True,
@@ -87,22 +96,6 @@ app.add_middleware(
     RequestLoggingMiddleware, client_ip=client_ip_from_scope, exclude=is_health_check
 )
 init_exceptions_handlers(app=app)
-
-
-def _api_error_response(
-    api_error: ApiError, headers: Mapping[str, str] | None
-) -> JSONResponse:
-    """Render *api_error* as the toolsets error body, keeping *headers*."""
-    return JSONResponse(
-        status_code=api_error.code,
-        content=ErrorResponse(
-            data=api_error.data,
-            message=api_error.msg,
-            description=api_error.desc,
-            error_code=api_error.err_code,
-        ).model_dump(),
-        headers=headers,
-    )
 
 
 @app.exception_handler(MultiAuthUnauthorizedError)
@@ -116,7 +109,7 @@ async def multiauth_unauthorized_handler(
     produces so the API error contract stays consistent, while preserving the
     RFC 7235 ``WWW-Authenticate`` challenge the source attached.
     """
-    return _api_error_response(UnauthorizedError.api_error, exc.headers)
+    return api_error_response(UnauthorizedError.api_error, exc.headers)
 
 
 @app.exception_handler(MultiAuthForbiddenError)
@@ -124,7 +117,7 @@ async def multiauth_forbidden_handler(
     request: Request, exc: MultiAuthForbiddenError
 ) -> JSONResponse:
     """Render the session cookie's cross-origin refusal as AUTH-403-CROSS-ORIGIN."""
-    return _api_error_response(CrossOriginRequestError.api_error, exc.headers)
+    return api_error_response(CrossOriginRequestError.api_error, exc.headers)
 
 
 @app.exception_handler(StaleCredentialError)
@@ -133,7 +126,7 @@ async def stale_credential_handler(
 ) -> JSONResponse:
     """Render a live but too-old session as AUTH-REAUTH-REQUIRED with its window."""
     api_error = ReauthRequiredError(data={"max_age": int(exc.max_age or 0)}).api_error
-    return _api_error_response(api_error, exc.headers)
+    return api_error_response(api_error, exc.headers)
 
 
 @app.exception_handler(MultiAuthOAuthError)
@@ -142,9 +135,9 @@ async def multiauth_oauth_error_handler(
 ) -> JSONResponse:
     """Render a forged OAuth state as AUTH-401, any other flow failure as OAUTH-502."""
     if isinstance(exc, OAuthStateError):
-        return _api_error_response(InvalidCredentialsError.api_error, None)
+        return api_error_response(InvalidCredentialsError.api_error, None)
     logger.warning("oauth provider flow failed: %s", exc)
-    return _api_error_response(OAuthProviderResponseError.api_error, None)
+    return api_error_response(OAuthProviderResponseError.api_error, None)
 
 
 @app.exception_handler(OAuth2ProtocolError)
