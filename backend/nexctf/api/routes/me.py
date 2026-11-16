@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import Response as RawResponse
 from fastapi_multiauth import totp_generate_secret, totp_provisioning_uri
@@ -11,7 +11,6 @@ from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, PaginationType, Response
 from pydantic import TypeAdapter, ValidationError
 from redis.asyncio import Redis
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -75,7 +74,12 @@ from nexctf.module.session import (
     revoke_all_access,
     revoke_session_by_id,
 )
-from nexctf.module.team import delete_if_abandoned, has_played, load_team_read
+from nexctf.module.team import (
+    delete_if_abandoned,
+    has_played,
+    load_team_read,
+    lock_membership,
+)
 from nexctf.schema import (
     PublicApiTokenCreate,
     PublicApiTokenRead,
@@ -521,14 +525,18 @@ async def _limit_team_writes(redis: Redis, user: User) -> None:
     await check_user_write_limit(redis, user.id, "team_write")
 
 
-async def _lock_membership(session: AsyncSession, user: User) -> UUID | None:
-    """Lock the caller's row until commit and return their current team id."""
-    return await session.scalar(
-        select(User.team_id).where(User.id == user.id).with_for_update()
-    )
+async def _team_change(
+    redis: RedisDep, overrides: ConfigDep, user: CurrentUserDep
+) -> None:
+    """Guard a membership change: teams must be open, then the write rate limited."""
+    _require_team_changes(overrides)
+    await _limit_team_writes(redis, user)
 
 
-@me_router.post("/team", status_code=201)
+TeamChangeDep = Depends(_team_change)
+
+
+@me_router.post("/team", status_code=201, dependencies=[TeamChangeDep])
 async def create_team(
     session: SessionDep,
     redis: RedisDep,
@@ -537,11 +545,9 @@ async def create_team(
     body: TeamCreate,
     user: CurrentUserDep,
 ) -> Response[MyTeamRead]:
-    _require_team_changes(overrides)
-    await _limit_team_writes(redis, user)
     if not appconfig.get_with_overrides("ctf.allow_team_creation", overrides):
         raise TeamCreationDisabledError()
-    if await _lock_membership(session, user) is not None:
+    if await lock_membership(session, user) is not None:
         raise AlreadyInTeamError()
 
     try:
@@ -563,7 +569,7 @@ async def create_team(
     return Response(data=await _load_own_team(session, redis, team.id, user, overrides))
 
 
-@me_router.post("/team/join")
+@me_router.post("/team/join", dependencies=[TeamChangeDep])
 async def join_team(
     session: SessionDep,
     redis: RedisDep,
@@ -572,9 +578,7 @@ async def join_team(
     body: TeamJoinRequest,
     user: CurrentUserDep,
 ) -> Response[MyTeamRead]:
-    _require_team_changes(overrides)
-    await _limit_team_writes(redis, user)
-    if await _lock_membership(session, user) is not None:
+    if await lock_membership(session, user) is not None:
         raise AlreadyInTeamError()
 
     team = await crud.TeamCrud.first(
@@ -605,17 +609,14 @@ async def join_team(
     return Response(data=await _load_own_team(session, redis, team.id, user, overrides))
 
 
-@me_router.post("/team/leave", status_code=204)
+@me_router.post("/team/leave", status_code=204, dependencies=[TeamChangeDep])
 async def leave_team(
     session: SessionDep,
     redis: RedisDep,
     background_tasks: BackgroundTasks,
-    overrides: ConfigDep,
     user: CurrentUserDep,
 ):
-    _require_team_changes(overrides)
-    await _limit_team_writes(redis, user)
-    team_id = await _lock_membership(session, user)
+    team_id = await lock_membership(session, user)
     if team_id is None:
         raise NotInTeamError()
     team = await crud.TeamCrud.first(
@@ -641,15 +642,11 @@ async def leave_team(
     )
 
 
-@me_router.post("/team/invite-code")
+@me_router.post("/team/invite-code", dependencies=[TeamChangeDep])
 async def rotate_invite_code(
     session: SessionDep,
-    redis: RedisDep,
-    overrides: ConfigDep,
     user: CurrentUserDep,
 ) -> Response[str]:
-    _require_team_changes(overrides)
-    await _limit_team_writes(redis, user)
     team = await _my_team(session, user)
     team.invite_code = gen_invite_code()
     return Response(data=team.invite_code)

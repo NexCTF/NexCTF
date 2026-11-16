@@ -2,23 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi_toolsets.exceptions import LockTimeoutError
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from nexctf.module.submission import lock_question
-
-
-@pytest.fixture
-async def sessions(worker_db_url: str) -> AsyncIterator[async_sessionmaker]:
-    engine = create_async_engine(worker_db_url)
-    try:
-        yield async_sessionmaker(engine, expire_on_commit=False)
-    finally:
-        await engine.dispose()
 
 
 async def _holding(

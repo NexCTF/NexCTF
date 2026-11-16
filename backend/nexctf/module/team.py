@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from nexctf import crud
+from nexctf.exceptions import NoTeamError, TeamDisqualifiedError
 from nexctf.model import (
     ChallengeFeedback,
     HintUnlock,
@@ -90,6 +91,36 @@ async def _has_rows(
 async def has_played(session: AsyncSession, team_id: UUID) -> bool:
     """True once the team has a submission, a hint unlock or a score adjustment."""
     return await _has_rows(session, team_id, _PLAY_COLUMNS)
+
+
+async def lock_membership(
+    session: AsyncSession, user: User, *, shared: bool = False
+) -> UUID | None:
+    """Lock the caller's row until commit and return their current team id."""
+    return await session.scalar(
+        select(User.team_id).where(User.id == user.id).with_for_update(read=shared)
+    )
+
+
+async def lock_playing_team(session: AsyncSession, user: User) -> None:
+    """Share-lock the caller's membership and team until commit, then re-check both.
+
+    Raises NoTeamError when the caller no longer belongs to ``user.team_id`` and
+    TeamDisqualifiedError when that team has been disqualified. Rows are locked
+    in the order ``leave_team`` takes them: the user first, then the team.
+    """
+    team_id = await lock_membership(session, user, shared=True)
+    if team_id is None or team_id != user.team_id:
+        raise NoTeamError()
+    disqualified = await session.scalar(
+        select(Team.is_disqualified)
+        .where(Team.id == team_id)
+        .with_for_update(read=True)
+    )
+    if disqualified is None:
+        raise NoTeamError()
+    if disqualified:
+        raise TeamDisqualifiedError()
 
 
 async def delete_if_abandoned(session: AsyncSession, team_id: UUID) -> bool:
