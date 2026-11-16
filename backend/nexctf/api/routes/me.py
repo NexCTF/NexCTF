@@ -3,11 +3,13 @@
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import Response as RawResponse
 from fastapi_multiauth import totp_generate_secret, totp_provisioning_uri
 from fastapi_toolsets.db import transaction
 from fastapi_toolsets.exceptions import ConflictError, NotFoundError
 from fastapi_toolsets.schemas import PaginatedResponse, PaginationType, Response
+from pydantic import TypeAdapter, ValidationError
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -86,6 +88,7 @@ from nexctf.schema.team import (
     MyTeamRead,
     TeamCreate,
     TeamJoinRequest,
+    TeamName,
 )
 from nexctf.schema.user import (
     MyProfileRead,
@@ -693,6 +696,18 @@ async def get_my_team_profile(
     )
 
 
+_team_name_adapter: TypeAdapter[str] = TypeAdapter(TeamName)
+
+
+def _new_team_name(name: str) -> str:
+    """Validate a changed team name, as a 422 on the ``name`` field."""
+    try:
+        return _team_name_adapter.validate_python(name)
+    except ValidationError as exc:
+        errors = [{**e, "loc": ("body", "name")} for e in exc.errors()]
+        raise RequestValidationError(errors)
+
+
 @me_router.put("/team/profile")
 async def update_my_team_profile(
     session: SessionDep,
@@ -707,13 +722,14 @@ async def update_my_team_profile(
         raise CustomizationDisabledError()
     team = await _my_team(session, user)
     team_id = team.id
-    renamed = body.name != team.name
+    name = _new_team_name(body.name) if body.name != team.name else team.name
+    renamed = name != team.name
     fields_before = await load_editable_fields(session, team_id=team_id)
     links = [link.model_dump() for link in body.links]
 
     try:
         async with transaction(session):
-            team.name = body.name
+            team.name = name
             team.country = body.country
             team.links = links
     except IntegrityError:
@@ -725,7 +741,7 @@ async def update_my_team_profile(
         background_tasks.add_task(invalidate_scoreboard, redis, team_id=team_id)
     return Response(
         data=MyTeamProfileRead(
-            name=body.name,
+            name=name,
             country=body.country,
             links=links,
             custom_fields=custom_fields,

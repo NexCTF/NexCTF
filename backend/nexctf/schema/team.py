@@ -7,17 +7,29 @@ from pydantic import Field, StringConstraints
 
 from nexctf.schema.custom_field import (
     AdminCustomFieldValueRead,
+    AdminCustomFieldValuesInput,
     CustomFieldValuesInput,
     EditableCustomField,
     PublicCustomFieldValue,
 )
 from nexctf.schema.stats import TeamChallengeStats
 from nexctf.util.pydantic import Label
+from nexctf.util.text import NormalizedName
 
 # ISO 3166-1 alpha-2: exactly two uppercase letters
 CountryCode = Annotated[str, Field(pattern=r"^[A-Z]{2}$")]
+_TEAM_NAME_BOUNDS = StringConstraints(
+    strip_whitespace=True, min_length=1, max_length=64
+)
+# A name that may predate normalisation: bounded, otherwise as-is
+StoredTeamName = Annotated[str, _TEAM_NAME_BOUNDS]
 TeamName = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)
+    str,
+    _TEAM_NAME_BOUNDS,
+    NormalizedName,
+]
+InviteCode = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)
 ]
 
 
@@ -48,12 +60,12 @@ class AdminTeamCreate(PydanticBase):
 
 
 class AdminTeamCreateRequest(AdminTeamCreate):
-    custom_fields: CustomFieldValuesInput = {}
+    custom_fields: AdminCustomFieldValuesInput = {}
 
 
 class AdminTeamUpdate(PydanticBase):
     id: UUID
-    name: TeamName | None = None
+    name: StoredTeamName | None = None
     country: CountryCode | None = None
     bracket: Label = None
     links: LinkListInput | None = None
@@ -62,7 +74,7 @@ class AdminTeamUpdate(PydanticBase):
 
 class AdminTeamUpdateRequest(AdminTeamUpdate):
     # None leaves the team's values untouched; a dict replaces them all
-    custom_fields: CustomFieldValuesInput | None = None
+    custom_fields: AdminCustomFieldValuesInput | None = None
 
 
 class AdminTeamRead(PydanticBase):
@@ -118,13 +130,14 @@ class MyTeamRead(PublicTeamRead):
 
 
 class TeamJoinRequest(PydanticBase):
-    code: str
+    code: InviteCode
 
 
 class MyTeamProfileUpdate(PydanticBase):
     """Full replacement of the team fields a member may edit."""
 
-    name: TeamName
+    # Normalised by the endpoint, and only when the name actually changes
+    name: StoredTeamName
     country: CountryCode | None = None
     links: LinkListInput = []
     custom_fields: CustomFieldValuesInput = {}

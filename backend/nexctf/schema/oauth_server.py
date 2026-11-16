@@ -3,7 +3,7 @@ from typing import Annotated
 from urllib.parse import urlparse
 from uuid import UUID
 
-from pydantic import AfterValidator, BaseModel, computed_field
+from pydantic import AfterValidator, BaseModel, Field, computed_field
 
 from nexctf.core.config import settings
 from nexctf.model.oauth_server import split_redirect_uris
@@ -121,6 +121,9 @@ class OAuthServerMetadata(BaseModel):
     code_challenge_methods_supported: list[str]
 
 
+STATE_MAX_LENGTH = 512
+
+
 class OAuthApproveResponse(BaseModel):
     redirect_to: str
 
@@ -134,12 +137,12 @@ class OAuthConsentInfo(BaseModel):
 
 
 class OAuthApproveRequest(BaseModel):
-    client_id: str
-    redirect_uri: str
-    scope: str = "openid profile"
-    state: str | None = None
-    code_challenge: str | None = None
-    code_challenge_method: str | None = None
+    client_id: Annotated[str, Field(max_length=128)]
+    redirect_uri: Annotated[str, Field(max_length=2048)]
+    scope: Annotated[str, Field(max_length=512)] = "openid profile"
+    state: Annotated[str | None, Field(max_length=STATE_MAX_LENGTH)] = None
+    code_challenge: Annotated[str | None, Field(max_length=128)] = None
+    code_challenge_method: Annotated[str | None, Field(max_length=16)] = None
 
 
 class OAuthTokenResponse(BaseModel):

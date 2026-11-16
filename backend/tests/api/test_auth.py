@@ -243,6 +243,35 @@ class TestLogin:
         assert resp.status_code == 204
         assert "NexCTF" in resp.cookies
 
+    async def test_login_accepts_the_spelling_typed_at_registration(self, http_client):
+        """A name normalised when stored still signs in as it was typed."""
+        typed = "\uff2aohn"
+        resp = await http_client.post(
+            "/auth/register", json={"username": typed, "password": "long-enough-pw"}
+        )
+        assert resp.json()["data"]["username"] == "John"
+
+        for username in (typed, "john"):
+            resp = await http_client.post(
+                "/auth/token",
+                data={"username": username, "password": "long-enough-pw"},
+            )
+            assert resp.status_code == 204
+
+    async def test_login_prefers_an_account_stored_as_typed(
+        self, http_client, db_session
+    ):
+        """An account whose stored name predates normalisation keeps its login."""
+        legacy = "\uff2aane"
+        db_session.add(User(username=legacy, hashed_password=hash_password("legacy")))
+        db_session.add(User(username="Jane", hashed_password=hash_password("plain")))
+        await db_session.flush()
+
+        resp = await http_client.post(
+            "/auth/token", data={"username": legacy, "password": "legacy"}
+        )
+        assert resp.status_code == 204
+
     @pytest.mark.parametrize("username", ["offloop", "nobody"])
     async def test_login_hashes_off_the_event_loop(
         self, http_client, db_session, monkeypatch, username
@@ -1322,6 +1351,18 @@ class TestDeviceCookie:
         keys = self.recorded_keys(mock_redis)
         prefix = login_lock.device_key(owner.id, "")
         assert keys and all(k.startswith(prefix) for k in keys)
+
+    @pytest.mark.parametrize("typed", ["owner ", " OWNER", "ｏwner"])
+    async def test_every_spelling_counts_on_the_account_key(
+        self, http_client, db_session, mock_redis, typed: str
+    ) -> None:
+        db_session.add(User(username="owner", hashed_password=hash_password("right")))
+        await db_session.flush()
+        resp = await http_client.post(
+            "/auth/token", data={"username": typed, "password": "wrong"}
+        )
+        assert resp.status_code == 401
+        assert self.recorded_keys(mock_redis) == [login_lock.account_key("owner")]
 
     async def test_reauth_failures_stay_on_the_device_key(
         self, signed_in_client, mock_redis

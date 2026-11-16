@@ -1,11 +1,20 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi_toolsets.schemas import PydanticBase
+from pydantic import Field, StringConstraints
 
 from nexctf.model.custom_field import CustomFieldTarget, CustomFieldType
 
 # Values keyed by definition id; empty or null clears a value
-CustomFieldValuesInput = dict[UUID, str | None]
+CustomFieldValueInput = Annotated[
+    str, StringConstraints(strip_whitespace=True, max_length=255)
+]
+CustomFieldValuesInput = Annotated[
+    dict[UUID, CustomFieldValueInput | None], Field(max_length=100)
+]
+# Admins are trusted with longer values and may resave ones stored before the cap
+AdminCustomFieldValuesInput = dict[UUID, str | None]
 
 
 class AdminCustomFieldCreate(PydanticBase):

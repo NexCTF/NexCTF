@@ -192,6 +192,42 @@ class TestTeamNames:
         client, _ = user_client
         assert (await client.post("/me/team", json={"name": "   "})).status_code == 422
 
+    async def test_name_is_normalised(
+        self, user_client: tuple[AsyncClient, User]
+    ) -> None:
+        client, _ = user_client
+        resp = await client.post("/me/team", json={"name": "\uff34\uff45\uff41\uff4d"})
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["data"]["name"] == "Team"
+
+    @pytest.mark.parametrize("name", ["zero\u200bwidth", "bidi\u202eflip"])
+    async def test_invisible_characters_are_refused(
+        self, user_client: tuple[AsyncClient, User], name: str
+    ) -> None:
+        client, _ = user_client
+        assert (await client.post("/me/team", json={"name": name})).status_code == 422
+
+    async def test_stored_name_does_not_block_other_edits(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+        config_overrides: dict[str, str],
+    ) -> None:
+        """A name saved before normalisation still saves alongside other fields."""
+        client, user = user_client
+        team = await put_in_team(db_session, user)
+        team.name = "old\u200bname"
+        await db_session.flush()
+        config_overrides["ctf.allow_team_customization"] = "true"
+
+        body = {"name": team.name, "country": "FR"}
+        resp = await client.put("/me/team/profile", json=body)
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["data"]["country"] == "FR"
+
+        body["name"] = "new\u200bname"
+        assert (await client.put("/me/team/profile", json=body)).status_code == 422
+
 
 class TestTeamChanges:
     async def test_leave(
