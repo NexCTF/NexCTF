@@ -40,7 +40,7 @@ function plan(entries: BundlePlanEntry[]): BundlePlan {
     prune: false,
     manifest: {
       format_version: 1,
-      nexctf_version: "0.12.7",
+      nexctf_version: "0.12.8",
       exported_at: "2026-09-19T12:00:00Z",
       challenge_types: ["standard"],
       solve_types: ["match"],
