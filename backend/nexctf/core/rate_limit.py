@@ -33,9 +33,14 @@ USER_WRITE_WINDOW_SECONDS = 60
 USER_WRITE_MAX_REQUESTS = 10
 
 
+def rate_key(action: str, address: str) -> str:
+    """Redis key limiting *action* for one client *address*."""
+    return f"rl:{action}:{address}"
+
+
 def client_rate_key(action: str, request: Request) -> str:
     """Redis key limiting *action* per client address."""
-    return f"rl:{action}:{client_address(request)}"
+    return rate_key(action, client_address(request))
 
 
 def _member(now: float) -> str:

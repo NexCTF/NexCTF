@@ -12,23 +12,23 @@ from nexctf.model.config import ConfigEntry
 
 
 def _patch_invalidate():
-    return patch(
-        "nexctf.api.routes.admin.config.invalidate_scoreboard", new_callable=AsyncMock
-    )
+    return patch("nexctf.module.config.invalidate_scoreboard", new_callable=AsyncMock)
 
 
 class TestFreezeTimeInvalidation:
-    """A freeze-time change drops the cached scoreboard blobs."""
+    """A freeze-time or end-time change drops the cached scoreboard blobs."""
 
-    async def test_freeze_time_change_drops_scoreboard_caches(
+    @pytest.mark.parametrize("key", ["ctf.freeze_time", "ctf.end_time"])
+    async def test_cutoff_change_drops_scoreboard_caches(
         self,
         admin_client: tuple[AsyncClient, User],
+        key: str,
     ) -> None:
         c, _ = admin_client
         with _patch_invalidate() as invalidate:
             resp = await c.put(
                 "/admin/config",
-                json={"items": {"ctf.freeze_time": "2099-01-01T00:00:00+00:00"}},
+                json={"items": {key: "2099-01-01T00:00:00+00:00"}},
             )
         assert resp.status_code == 200
         invalidate.assert_awaited_once()
@@ -140,8 +140,8 @@ class TestPublicInfoInvalidation:
             calls.append("publish")
 
         with (
-            patch("nexctf.api.routes.admin.config.invalidate_info", _invalidate),
-            patch("nexctf.api.routes.admin.config.publish_event", _publish),
+            patch("nexctf.module.config.invalidate_info", _invalidate),
+            patch("nexctf.module.config.publish_event", _publish),
         ):
             resp = await c.put(
                 "/admin/config", json={"items": {"ctf.name": "Renamed CTF"}}
