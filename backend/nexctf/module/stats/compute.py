@@ -130,7 +130,7 @@ async def compute_admin_team_challenge_stats(
                 ),
                 hint_unlock_count=len(unlocks_by_question.get(q.id, [])),
                 wrong_attempt_count=sum(
-                    1 for s in subs_by_question.get(q.id, []) if not s.is_correct
+                    1 for s in subs_by_question.get(q.id, []) if s.counts_as_wrong
                 ),
                 solved_at=next(
                     (

@@ -145,7 +145,7 @@ async def _team_progress(
         select(
             Submission.question_id,
             func.bool_or(Submission.is_correct),
-            func.count().filter(Submission.is_correct.is_(False)),
+            func.count().filter(Submission.counts_as_wrong),
         )
         .where(
             Submission.question_id.in_(question_ids),
@@ -584,6 +584,7 @@ async def submit_answer(
         Submission(
             answer=obj.answer,
             is_correct=is_correct,
+            correct_at_submit=is_correct,
             is_trap=is_trap,
             points_earned=points_earned,
             wrong_count_before=wrong_count_before,

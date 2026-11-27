@@ -147,3 +147,31 @@ async def test_admin_stats_flag_inactive_challenges(db_session):
         s.challenge_id for s in await compute_team_challenge_stats(db_session, team.id)
     }
     assert inactive.id not in public_ids
+
+
+async def test_admin_stats_do_not_count_a_revoked_solve_as_wrong(db_session):
+    ch = StandardChallenge(title="Stats Revoked Test", is_active=True)
+    db_session.add(ch)
+    await db_session.flush()
+    q = Question(label="Q1", points=100, challenge_id=ch.id)
+    team = Team(name=f"stats_{uuid4().hex[:8]}")
+    db_session.add_all([q, team])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            Submission(answer="no", team_id=team.id, question_id=q.id),
+            Submission(
+                answer="old flag",
+                is_correct=False,
+                correct_at_submit=True,
+                team_id=team.id,
+                question_id=q.id,
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    admin = await compute_admin_team_challenge_stats(db_session, team.id)
+
+    stats = next(s for s in admin if s.challenge_id == ch.id)
+    assert stats.questions[0].wrong_attempt_count == 1
