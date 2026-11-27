@@ -67,6 +67,7 @@ EVENT_CATEGORIES: frozendict[str, str] = frozendict(
         "submission.trap": "security",
         "submission.canary": "security",
         "solution.timeout": "security",
+        "question.rescored": "admin",
         "hint.unlock": "gameplay",
         "challenge.viewed": "gameplay",
         "challenge.complete": "gameplay",

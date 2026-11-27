@@ -9,7 +9,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.exceptions import SolutionTimeoutError
-from nexctf.model import Submission, Team, User
+from nexctf.model import Event, Submission, Team, User
 from nexctf.model.question import Question
 from nexctf.module.submission import recalculate_question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
@@ -173,6 +173,31 @@ class TestFlagChange:
 
         assert await _earned(db_session, old) == 0
         assert await _earned(db_session, new) == 100
+
+    async def test_a_rescore_audits_the_solves_it_moved(
+        self, admin_client: tuple[AsyncClient, User], db_session: AsyncSession
+    ) -> None:
+        admin, admin_user = admin_client
+        question = await _question(db_session, points=100, malus=None)
+        old = await _play(db_session, question, [FLAG], name="old")
+        new = await _play(db_session, question, [NEW_FLAG], name="new")
+
+        await _set_flag(admin, db_session, question, NEW_FLAG)
+        await _set_flag(admin, db_session, question, NEW_FLAG)
+
+        events = (
+            await db_session.scalars(
+                select(Event).where(Event.event_type == "question.rescored")
+            )
+        ).all()
+        assert len(events) == 1
+        assert events[0].target_id == question.id
+        assert events[0].actor_id == admin_user.id
+        assert events[0].meta == {
+            "teams_changed": 2,
+            "solves_granted": [str(new.id)],
+            "solves_revoked": [str(old.id)],
+        }
 
     async def test_a_revoked_solve_does_not_use_an_attempt(
         self,
