@@ -2,14 +2,13 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi_toolsets.schemas import PydanticBase
-from pydantic import AfterValidator, Field
+from pydantic import AfterValidator
 
 from nexctf.enums import InputType
 from nexctf.schema.file import AdminFileRead, PublicFileRead
 from nexctf.schema.hint import PublicHintRead
 from nexctf.util.pydantic import Labels
-
-MaxAttempts = Annotated[int, Field(ge=1)]
+from nexctf.util.types import MaxAttempts
 
 TrapFlags = Annotated[
     list[str], AfterValidator(lambda v: [f for f in (s.strip() for s in v) if f])
@@ -68,7 +67,6 @@ class PublicQuestionRead(PydanticBase):
     description: str | None = None
     points: int
     malus: int | None
-    max_attempts: int | None = None
     attempts_left: int | None = None
     input_type: InputType = InputType.INPUT
     is_solved: bool

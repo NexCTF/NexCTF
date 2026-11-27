@@ -732,7 +732,6 @@
     "submit_correct": "Correct! 🎉",
     "submit_error": "Submission failed",
     "submit_wrong": "Wrong answer, try again.",
-    "submit_wrong_attempts": "Wrong answer. Attempts left: {{n}}",
     "submitting": "Checking…",
     "unavailable": "This challenge is not available.",
     "writeup_title": "Writeup"

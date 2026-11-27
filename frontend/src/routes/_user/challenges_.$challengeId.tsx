@@ -28,11 +28,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  ApiError,
   apiErrorMessage,
   getChallenge,
   getPublicInfo,
   type InputType,
+  isAttemptsExhausted,
   type PublicChallengeDetail,
   type PublicHint,
   type PublicQuestion,
@@ -455,7 +455,7 @@ function QuestionCard({
               solved={q.is_solved}
               exhausted={!q.is_solved && q.attempts_left === 0}
               onUnlocked={showUnlockedHint}
-              onExhausted={() => showAttemptsLeft(0)}
+              onAttemptsLeft={showAttemptsLeft}
             />
           )}
 
@@ -478,7 +478,7 @@ function QuestionCard({
               multiSelect={q.multi_select ?? false}
               attemptsLeft={q.attempts_left}
               onSolved={refetch}
-              onAttempted={showAttemptsLeft}
+              onAttemptsLeft={showAttemptsLeft}
             />
           )}
         </div>
@@ -498,7 +498,7 @@ function HintsSection({
   solved,
   exhausted,
   onUnlocked,
-  onExhausted,
+  onAttemptsLeft,
 }: {
   hints: PublicHint[];
   challengeId: string;
@@ -507,7 +507,7 @@ function HintsSection({
   /** The team has no attempts left, so no hint can be unlocked. */
   exhausted: boolean;
   onUnlocked: (hint: PublicHint) => void;
-  onExhausted: () => void;
+  onAttemptsLeft: (attemptsLeft: number) => void;
 }) {
   const { t } = useTranslation();
   const { open } = useEventPhase();
@@ -515,7 +515,7 @@ function HintsSection({
     mutationFn: (hintId: string) => unlockHint(challengeId, questionId, hintId),
     onSuccess: onUnlocked,
     onError: (err) => {
-      if (err instanceof ApiError && err.errCode === "SUB-403-ATTEMPTS") onExhausted();
+      if (isAttemptsExhausted(err)) onAttemptsLeft(0);
       toast.error(apiErrorMessage(err, t("challenge.hint_unlock_error")));
     },
   });
@@ -564,7 +564,7 @@ function SubmitSection({
   multiSelect = false,
   attemptsLeft,
   onSolved,
-  onAttempted,
+  onAttemptsLeft,
 }: {
   challengeId: string;
   questionId: string;
@@ -573,7 +573,7 @@ function SubmitSection({
   multiSelect?: boolean;
   attemptsLeft: number | null;
   onSolved: () => void;
-  onAttempted: (attemptsLeft: number | null) => void;
+  onAttemptsLeft: (attemptsLeft: number | null) => void;
 }) {
   const { t } = useTranslation();
   const { open } = useEventPhase();
@@ -593,19 +593,12 @@ function SubmitSection({
         setSelected([]);
         onSolved();
       } else {
-        toast.error(
-          result.attempts_left === null
-            ? t("challenge.submit_wrong")
-            : t("challenge.submit_wrong_attempts", {
-                n: result.attempts_left,
-                defaultValue: "Wrong answer. Attempts left: {{n}}",
-              }),
-        );
-        onAttempted(result.attempts_left);
+        toast.error(t("challenge.submit_wrong"));
+        onAttemptsLeft(result.attempts_left);
       }
     },
     onError: (err) => {
-      if (err instanceof ApiError && err.errCode === "SUB-403-ATTEMPTS") onAttempted(0);
+      if (isAttemptsExhausted(err)) onAttemptsLeft(0);
       toast.error(apiErrorMessage(err, t("challenge.submit_error")));
     },
   });

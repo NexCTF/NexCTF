@@ -733,7 +733,6 @@
     "submit_correct": "Correct\u202f! 🎉",
     "submit_error": "Échec de la soumission",
     "submit_wrong": "Mauvaise réponse, réessayez.",
-    "submit_wrong_attempts": "Mauvaise réponse. Tentatives restantes : {{n}}",
     "submitting": "Vérification…",
     "unavailable": "Ce challenge n'est pas disponible.",
     "writeup_title": "Writeup"

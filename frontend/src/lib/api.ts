@@ -157,6 +157,11 @@ function formatFieldError({ field, message }: FieldError): string {
   return field === "root" ? text : `${field}: ${text}`;
 }
 
+/** Whether the API refused an answer or hint because the team has no attempts left. */
+export function isAttemptsExhausted(err: unknown): boolean {
+  return err instanceof ApiError && err.errCode === "SUB-403-ATTEMPTS";
+}
+
 /** Whether the API refused an action until the user signs in again. */
 export function isReauthRequired(err: unknown): boolean {
   return err instanceof ApiError && err.errCode === REAUTH_REQUIRED;
@@ -1212,8 +1217,6 @@ export interface PublicQuestion {
   is_locked: boolean;
   points: number;
   malus: number | null;
-  /** Wrong answers a team may make; null when unlimited. */
-  max_attempts: number | null;
   /** Attempts the caller's team has left; null when unlimited. */
   attempts_left: number | null;
   input_type: InputType;
