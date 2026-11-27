@@ -25,6 +25,7 @@ import type {
   SharedAddress,
   SharedAddressAccount,
   StoredFileListItem,
+  SubmitResult,
   User,
   UserClient,
   UserSession,
@@ -188,6 +189,16 @@ export function hint(overrides: Partial<PublicHint> = {}): PublicHint {
   return { id: "h1", title: "Nudge", cost: 0, is_unlocked: false, content: null, ...overrides };
 }
 
+export function submitResult(overrides: Partial<SubmitResult> = {}): SubmitResult {
+  return {
+    is_correct: false,
+    already_solved: false,
+    points_earned: 0,
+    attempts_left: null,
+    ...overrides,
+  };
+}
+
 export function question(overrides: Partial<PublicQuestion> = {}): PublicQuestion {
   return {
     id: "q1",
@@ -196,6 +207,7 @@ export function question(overrides: Partial<PublicQuestion> = {}): PublicQuestio
     is_locked: false,
     points: 100,
     malus: null,
+    attempts_left: null,
     input_type: "input",
     is_solved: false,
     files: [],

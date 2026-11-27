@@ -128,6 +128,8 @@
         "field_label": "Libellé",
         "field_malus": "Malus",
         "field_malus_placeholder": "Aucun",
+        "field_max_attempts": "Tentatives max",
+        "field_max_attempts_placeholder": "Illimité",
         "field_points": "Points",
         "field_tags": "Tags",
         "field_trap_flags": "Flags pièges",
@@ -701,6 +703,7 @@
     "adjustments_title": "Ajustements de score",
     "answer_label": "Réponse",
     "answer_placeholder": "Entrez votre réponse…",
+    "attempts_left": "Tentatives restantes : {{n}}",
     "back": "Retour aux challenges",
     "copy_sha256": "Copier le SHA-256 de {{name}}",
     "event_ended_banner": "Le CTF est terminé. Les soumissions ne sont plus acceptées.",
@@ -721,6 +724,7 @@
     "list_error": "Impossible de charger les challenges.",
     "list_title": "Challenges",
     "loading": "Chargement…",
+    "no_attempts_left": "Votre équipe n'a plus de tentative pour cette question.",
     "progress": "{{solved}}/{{total}} questions résolues",
     "sequential": "Séquentiel",
     "solved": "✓ Résolu",
@@ -1008,6 +1012,7 @@
   "errors": {
     "api": {
       "answer_check_timeout": "La vérification de votre réponse a pris trop de temps, elle n'a donc pas été comptée. Réessayez.",
+      "attempts_exhausted": "Votre équipe a utilisé toutes les tentatives autorisées pour cette question.",
       "profile_incomplete": "Renseignez les champs obligatoires de votre profil et de votre équipe avant de jouer.",
       "rate_limited": "Trop de tentatives en peu de temps. Patientez un instant puis réessayez.",
       "team_disqualified": "Votre équipe a été disqualifiée et ne peut plus jouer."

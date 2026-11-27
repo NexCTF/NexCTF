@@ -157,6 +157,11 @@ function formatFieldError({ field, message }: FieldError): string {
   return field === "root" ? text : `${field}: ${text}`;
 }
 
+/** Whether the API refused an answer or hint because the team has no attempts left. */
+export function isAttemptsExhausted(err: unknown): boolean {
+  return err instanceof ApiError && err.errCode === "SUB-403-ATTEMPTS";
+}
+
 /** Whether the API refused an action until the user signs in again. */
 export function isReauthRequired(err: unknown): boolean {
   return err instanceof ApiError && err.errCode === REAUTH_REQUIRED;
@@ -167,6 +172,10 @@ const TRANSLATED_ERRORS: Record<string, () => string> = {
   "RATE-429": () =>
     i18n.t("errors.api.rate_limited", {
       defaultValue: "Too many attempts in a short time. Wait a moment and try again.",
+    }),
+  "SUB-403-ATTEMPTS": () =>
+    i18n.t("errors.api.attempts_exhausted", {
+      defaultValue: "Your team has used every attempt allowed for this question.",
     }),
   "SUB-403-DISQUALIFIED": () =>
     i18n.t("errors.api.team_disqualified", {
@@ -1208,6 +1217,8 @@ export interface PublicQuestion {
   is_locked: boolean;
   points: number;
   malus: number | null;
+  /** Attempts the caller's team has left; null when unlimited. */
+  attempts_left: number | null;
   input_type: InputType;
   is_solved: boolean;
   files: PublicFile[];
@@ -1253,6 +1264,7 @@ export interface SubmitResult {
   is_correct: boolean;
   already_solved: boolean;
   points_earned: number;
+  attempts_left: number | null;
 }
 
 export async function getChallenges(): Promise<PublicChallenge[]> {
@@ -1424,6 +1436,7 @@ export interface Question {
   index: number;
   points: number;
   malus: number | null;
+  max_attempts: number | null;
   input_type: InputType;
   trap_flags: string[];
   challenge_title: string | null;

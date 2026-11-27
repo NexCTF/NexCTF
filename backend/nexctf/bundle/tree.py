@@ -61,6 +61,7 @@ _QUESTION_KEYS = [
     "index",
     "points",
     "malus",
+    "max_attempts",
     "input_type",
     "trap_flags",
     "tags",

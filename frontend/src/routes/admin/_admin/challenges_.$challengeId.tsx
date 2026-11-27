@@ -283,7 +283,7 @@ export function QuestionFormFields({
           onChange={(v) => onUpdate({ description: v || null })}
         />
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="space-y-1.5">
           <Label>{t("admin.challenge.question.field_points")}</Label>
           <Input
@@ -294,15 +294,23 @@ export function QuestionFormFields({
         </div>
         <div className="space-y-1.5">
           <Label>{t("admin.challenge.question.field_malus")}</Label>
-          <Input
-            type="number"
-            value={form.malus === null || form.malus === undefined ? "" : String(form.malus)}
+          <OptionalIntInput
+            value={form.malus}
             placeholder={t("admin.challenge.question.field_malus_placeholder")}
-            onChange={(e) =>
-              onUpdate({
-                malus: e.target.value === "" ? null : Number(e.target.value),
-              })
-            }
+            onChange={(malus) => onUpdate({ malus })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>
+            {t("admin.challenge.question.field_max_attempts", { defaultValue: "Max attempts" })}
+          </Label>
+          <OptionalIntInput
+            value={form.max_attempts}
+            min={1}
+            placeholder={t("admin.challenge.question.field_max_attempts_placeholder", {
+              defaultValue: "Unlimited",
+            })}
+            onChange={(max_attempts) => onUpdate({ max_attempts })}
           />
         </div>
         <div className="space-y-1.5">
@@ -343,11 +351,36 @@ export function QuestionFormFields({
   );
 }
 
+/** Whole-number input where an empty field means null. */
+function OptionalIntInput({
+  value,
+  min,
+  placeholder,
+  onChange,
+}: {
+  value: unknown;
+  min?: number;
+  placeholder: string;
+  onChange: (value: number | null) => void;
+}) {
+  return (
+    <Input
+      type="number"
+      min={min}
+      step={1}
+      value={value == null ? "" : String(value)}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value === "" ? null : Math.trunc(Number(e.target.value)))}
+    />
+  );
+}
+
 const EMPTY_QUESTION = {
   label: "",
   description: null,
   points: 100,
   malus: null,
+  max_attempts: null,
   input_type: "input",
   trap_flags: [] as string[],
   tags: [] as string[],
@@ -439,6 +472,7 @@ function EditQuestionDialog({ question, onSaved }: { question: Question; onSaved
     description: question.description ?? null,
     points: question.points,
     malus: question.malus,
+    max_attempts: question.max_attempts,
     index: question.index,
     input_type: question.input_type ?? "input",
     trap_flags: question.trap_flags ?? [],

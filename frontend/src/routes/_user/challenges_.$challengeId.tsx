@@ -32,6 +32,7 @@ import {
   getChallenge,
   getPublicInfo,
   type InputType,
+  isAttemptsExhausted,
   type PublicChallengeDetail,
   type PublicHint,
   type PublicQuestion,
@@ -349,16 +350,27 @@ function QuestionCard({
     refreshTeamProgress();
   }
 
-  function showUnlockedHint(hint: PublicHint) {
-    const withHint = (other: PublicQuestion) =>
-      other.id === q.id
-        ? { ...other, hints: other.hints.map((h) => (h.id === hint.id ? hint : h)) }
-        : other;
+  function patchQuestion(patch: (question: PublicQuestion) => PublicQuestion) {
     queryClient.setQueryData<PublicChallengeDetail>(
       ["challenge", challengeId],
-      (old) => old && { ...old, questions: old.questions.map(withHint) },
+      (old) =>
+        old && {
+          ...old,
+          questions: old.questions.map((other) => (other.id === q.id ? patch(other) : other)),
+        },
     );
+  }
+
+  function showUnlockedHint(hint: PublicHint) {
+    patchQuestion((other) => ({
+      ...other,
+      hints: other.hints.map((h) => (h.id === hint.id ? hint : h)),
+    }));
     refreshTeamProgress();
+  }
+
+  function showAttemptsLeft(attemptsLeft: number | null) {
+    patchQuestion((other) => ({ ...other, attempts_left: attemptsLeft }));
   }
 
   if (q.is_locked) {
@@ -441,13 +453,21 @@ function QuestionCard({
               challengeId={challengeId}
               questionId={q.id}
               solved={q.is_solved}
+              exhausted={!q.is_solved && q.attempts_left === 0}
               onUnlocked={showUnlockedHint}
+              onAttemptsLeft={showAttemptsLeft}
             />
           )}
 
           {q.is_solved ? (
             <QuestionOutcome tone="text-green-600 dark:text-green-400">
               {t("challenge.solved")}
+            </QuestionOutcome>
+          ) : q.attempts_left === 0 ? (
+            <QuestionOutcome tone="text-destructive">
+              {t("challenge.no_attempts_left", {
+                defaultValue: "Your team has no attempts left for this question.",
+              })}
             </QuestionOutcome>
           ) : (
             <SubmitSection
@@ -456,7 +476,9 @@ function QuestionCard({
               inputType={q.input_type ?? "input"}
               options={q.options ?? null}
               multiSelect={q.multi_select ?? false}
+              attemptsLeft={q.attempts_left}
               onSolved={refetch}
+              onAttemptsLeft={showAttemptsLeft}
             />
           )}
         </div>
@@ -474,20 +496,28 @@ function HintsSection({
   challengeId,
   questionId,
   solved,
+  exhausted,
   onUnlocked,
+  onAttemptsLeft,
 }: {
   hints: PublicHint[];
   challengeId: string;
   questionId: string;
   solved: boolean;
+  /** The team has no attempts left, so no hint can be unlocked. */
+  exhausted: boolean;
   onUnlocked: (hint: PublicHint) => void;
+  onAttemptsLeft: (attemptsLeft: number) => void;
 }) {
   const { t } = useTranslation();
   const { open } = useEventPhase();
   const unlockMutation = useMutation({
     mutationFn: (hintId: string) => unlockHint(challengeId, questionId, hintId),
     onSuccess: onUnlocked,
-    onError: (err) => toast.error(apiErrorMessage(err, t("challenge.hint_unlock_error"))),
+    onError: (err) => {
+      if (isAttemptsExhausted(err)) onAttemptsLeft(0);
+      toast.error(apiErrorMessage(err, t("challenge.hint_unlock_error")));
+    },
   });
 
   return (
@@ -506,7 +536,9 @@ function HintsSection({
               {!h.is_unlocked && (
                 <UnlockHintButton
                   hint={h}
-                  disabled={!open || (solved && h.cost > 0) || unlockMutation.isPending}
+                  disabled={
+                    !open || exhausted || (solved && h.cost > 0) || unlockMutation.isPending
+                  }
                   onUnlock={() => unlockMutation.mutate(h.id)}
                 />
               )}
@@ -530,14 +562,18 @@ function SubmitSection({
   inputType,
   options,
   multiSelect = false,
+  attemptsLeft,
   onSolved,
+  onAttemptsLeft,
 }: {
   challengeId: string;
   questionId: string;
   inputType: InputType;
   options?: string[] | null;
   multiSelect?: boolean;
+  attemptsLeft: number | null;
   onSolved: () => void;
+  onAttemptsLeft: (attemptsLeft: number | null) => void;
 }) {
   const { t } = useTranslation();
   const { open } = useEventPhase();
@@ -558,9 +594,13 @@ function SubmitSection({
         onSolved();
       } else {
         toast.error(t("challenge.submit_wrong"));
+        onAttemptsLeft(result.attempts_left);
       }
     },
-    onError: (err) => toast.error(apiErrorMessage(err, t("challenge.submit_error"))),
+    onError: (err) => {
+      if (isAttemptsExhausted(err)) onAttemptsLeft(0);
+      toast.error(apiErrorMessage(err, t("challenge.submit_error")));
+    },
   });
 
   const isMultiSelect = inputType === "mcq" && multiSelect;
@@ -575,9 +615,19 @@ function SubmitSection({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {t("challenge.answer_label")}
-      </p>
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {t("challenge.answer_label")}
+        </p>
+        {attemptsLeft !== null && (
+          <p className="text-xs text-muted-foreground">
+            {t("challenge.attempts_left", {
+              n: attemptsLeft,
+              defaultValue: "Attempts left: {{n}}",
+            })}
+          </p>
+        )}
+      </div>
       <form onSubmit={handleSubmit} className="space-y-2">
         {inputType === "input" && (
           <div className="flex gap-2">

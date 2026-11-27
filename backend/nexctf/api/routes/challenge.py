@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+from collections.abc import Iterable
 from typing import cast
 from uuid import UUID
 
@@ -12,7 +13,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import Response
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
@@ -37,6 +38,7 @@ from nexctf.core.rate_limit import (
 )
 from nexctf.exceptions import (
     AnswerCheckTimeoutError,
+    AttemptsExhaustedError,
     ChallengeNotCompletedError,
     FeedbackDisabledError,
     FileNotFoundApiError,
@@ -133,6 +135,57 @@ async def _solved_ids(
     return {r[0] for r in rows}
 
 
+async def _team_progress(
+    session: SessionDep, user: User | None, question_ids: list[UUID]
+) -> tuple[set[UUID], dict[UUID, int]]:
+    """Questions among *question_ids* the team solved, and its wrong attempts on each."""
+    if not question_ids or user is None or user.team_id is None:
+        return set(), {}
+    rows = await session.execute(
+        select(
+            Submission.question_id,
+            func.bool_or(Submission.is_correct),
+            func.count().filter(Submission.is_correct.is_(False)),
+        )
+        .where(
+            Submission.question_id.in_(question_ids),
+            Submission.team_id == user.team_id,
+        )
+        .group_by(Submission.question_id)
+    )
+    solved: set[UUID] = set()
+    wrong: dict[UUID, int] = {}
+    for question_id, any_correct, wrong_count in rows:
+        if any_correct:
+            solved.add(question_id)
+        wrong[question_id] = wrong_count
+    return solved, wrong
+
+
+def _attempts_left(max_attempts: int | None, wrong: int) -> int | None:
+    """Attempts a team still has, or None when the question has no limit."""
+    return None if max_attempts is None else max(0, max_attempts - wrong)
+
+
+def _done(
+    questions: Iterable[Question | QuestionStructure],
+    solved: set[UUID],
+    wrong: dict[UUID, int],
+) -> set[UUID]:
+    """Questions the team is done with: solved, or out of attempts."""
+    return solved | {
+        q.id
+        for q in questions
+        if _attempts_left(q.max_attempts, wrong.get(q.id, 0)) == 0
+    }
+
+
+def _refuse_without_attempts(max_attempts: int | None, wrong: int) -> None:
+    """Raise once a team has used every attempt the question allows."""
+    if _attempts_left(max_attempts, wrong) == 0:
+        raise AttemptsExhaustedError()
+
+
 async def _lock_for_team(session: SessionDep, user: User, key: UUID) -> None:
     """Hold a transaction lock on *key* for the user's team."""
     team_id = user.team_id
@@ -149,27 +202,28 @@ async def _check_question_access(
     session: SessionDep, user: User, challenge: Challenge, question: Question
 ) -> None:
     """Raise if the team may not act on *question* yet: sequential challenges
-    keep every question after the first unsolved one locked."""
+    keep every question after the first one the team is not done with locked."""
     if not challenge.sequential:
         return
-    ordered = [q.id for q in sorted(challenge.questions, key=question_order)]
-    prev_ids = ordered[: ordered.index(question.id)]
-    if len(await _solved_ids(session, user, prev_ids)) < len(prev_ids):
+    ordered = sorted(challenge.questions, key=question_order)
+    previous = ordered[: ordered.index(question)]
+    solved, wrong = await _team_progress(session, user, [q.id for q in previous])
+    if len(_done(previous, solved, wrong)) < len(previous):
         raise SequentialChallengeError()
 
 
-def _locked_from(structure: ChallengeDetailStructure, solved: set[UUID]) -> int | None:
+def _locked_from(structure: ChallengeDetailStructure, done: set[UUID]) -> int | None:
     """Index from which a sequential challenge's questions are locked, if any."""
     if not structure.sequential:
         return None
     for i, q in enumerate(structure.questions):
-        if q.id not in solved:
+        if q.id not in done:
             return i + 1
     return None
 
 
 def _is_locked(index: int, locked_from: int | None) -> bool:
-    """Whether the question at *index* is locked behind an unsolved one."""
+    """Whether the question at *index* is locked behind one not yet done."""
     return locked_from is not None and index >= locked_from
 
 
@@ -225,6 +279,7 @@ def _assemble_question(
     *,
     is_solved: bool,
     is_locked: bool,
+    attempts_left: int | None,
     unlocked_hint_ids: set[UUID],
     canary_token: str | None,
     option_seed: str,
@@ -240,6 +295,7 @@ def _assemble_question(
             label=q.label,
             points=q.points,
             malus=q.malus,
+            attempts_left=attempts_left,
             input_type=q.input_type,
             is_solved=is_solved,
             is_locked=True,
@@ -256,6 +312,7 @@ def _assemble_question(
         description=canary.plant(q.description, canary_token),
         points=q.points,
         malus=q.malus,
+        attempts_left=attempts_left,
         input_type=q.input_type,
         is_solved=is_solved,
         files=list(q.files),
@@ -380,11 +437,11 @@ async def get_challenge(
             client_of(request),
         )
 
-    solved = await _solved_ids(session, user, [q.id for q in questions])
+    solved, wrong = await _team_progress(session, user, [q.id for q in questions])
     all_hint_ids = [h.id for q in questions for h in q.hints]
     unlocked = await _unlocked_ids(session, user, all_hint_ids)
 
-    locked_from = _locked_from(structure, solved)
+    locked_from = _locked_from(structure, _done(questions, solved, wrong))
 
     canary_token = canary.token(structure.id) if canary.enabled(overrides) else None
     option_seed = str((user.team_id or user.id) if user else "")
@@ -393,6 +450,7 @@ async def get_challenge(
             q,
             is_solved=q.id in solved,
             is_locked=_is_locked(i, locked_from),
+            attempts_left=_attempts_left(q.max_attempts, wrong.get(q.id, 0)),
             unlocked_hint_ids=unlocked,
             canary_token=canary_token,
             option_seed=option_seed,
@@ -465,7 +523,7 @@ async def submit_answer(
     team_id = user.team_id
     await _lock_for_team(session, user, question_id)
 
-    solved = await _solved_ids(session, user, [question_id])
+    solved, wrong = await _team_progress(session, user, [question_id])
     if question_id in solved:
         return Response(
             data=SubmitResult(
@@ -477,15 +535,8 @@ async def submit_answer(
 
     await _check_question_access(session, user, challenge, question)
 
-    # Count previous wrong attempts (for malus)
-    wrong_rows = await session.execute(
-        select(Submission.id).where(
-            Submission.question_id == question_id,
-            Submission.is_correct.is_(False),
-            Submission.team_id == user.team_id,
-        )
-    )
-    wrong_count_before = len(wrong_rows.all())
+    wrong_count_before = wrong.get(question_id, 0)
+    _refuse_without_attempts(question.max_attempts, wrong_count_before)
 
     answer = obj.answer
     is_trap = question.is_trap(answer)
@@ -641,6 +692,9 @@ async def submit_answer(
             is_correct=is_correct,
             already_solved=False,
             points_earned=points_earned,
+            attempts_left=_attempts_left(
+                question.max_attempts, wrong_count_before + (0 if is_correct else 1)
+            ),
         )
     )
 
@@ -671,8 +725,13 @@ async def unlock_hint(
     await lock_playing_team(session, user)
     await _check_question_access(session, user, challenge, question)
     await _lock_for_team(session, user, question_id)
-    if hint.cost > 0 and question_id in await _solved_ids(session, user, [question_id]):
-        raise HintAfterSolveError()
+    if hint.cost > 0 or question.max_attempts is not None:
+        solved, wrong = await _team_progress(session, user, [question_id])
+        if question_id in solved:
+            if hint.cost > 0:
+                raise HintAfterSolveError()
+        else:
+            _refuse_without_attempts(question.max_attempts, wrong.get(question_id, 0))
 
     # A hint is bought once per team; teammates unlocking concurrently race on
     # uq_hint_unlock, so let the database settle who pays.
@@ -784,12 +843,13 @@ async def _downloadable_ids(
     session: SessionDep, user: User | None, structure: ChallengeDetailStructure
 ) -> set[UUID]:
     """Files of the challenge and of every question the caller can see."""
-    solved = (
-        await _solved_ids(session, user, [q.id for q in structure.questions])
-        if structure.sequential
-        else set()
-    )
-    locked_from = _locked_from(structure, solved)
+    done: set[UUID] = set()
+    if structure.sequential:
+        solved, wrong = await _team_progress(
+            session, user, [q.id for q in structure.questions]
+        )
+        done = _done(structure.questions, solved, wrong)
+    locked_from = _locked_from(structure, done)
     ids = {f.id for f in structure.files}
     for i, q in enumerate(structure.questions):
         if not _is_locked(i, locked_from):

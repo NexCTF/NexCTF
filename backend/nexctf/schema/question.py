@@ -8,6 +8,7 @@ from nexctf.enums import InputType
 from nexctf.schema.file import AdminFileRead, PublicFileRead
 from nexctf.schema.hint import PublicHintRead
 from nexctf.util.pydantic import Labels
+from nexctf.util.types import MaxAttempts
 
 TrapFlags = Annotated[
     list[str], AfterValidator(lambda v: [f for f in (s.strip() for s in v) if f])
@@ -22,6 +23,7 @@ class AdminQuestionRead(PydanticBase):
     index: int
     points: int
     malus: int | None
+    max_attempts: int | None = None
     input_type: InputType = InputType.INPUT
     trap_flags: list[str] = []
     challenge_title: str | None = None
@@ -39,6 +41,7 @@ class AdminQuestionCreate(PydanticBase):
     index: int = 0
     points: int = 100
     malus: int | None = None
+    max_attempts: MaxAttempts | None = None
     input_type: InputType = InputType.INPUT
     trap_flags: TrapFlags = []
     tags: Labels = []
@@ -51,6 +54,7 @@ class AdminQuestionUpdate(PydanticBase):
     index: int | None = None
     points: int | None = None
     malus: int | None = None
+    max_attempts: MaxAttempts | None = None
     input_type: InputType | None = None
     trap_flags: TrapFlags | None = None
     files_ids: list[UUID] | None = None
@@ -63,6 +67,7 @@ class PublicQuestionRead(PydanticBase):
     description: str | None = None
     points: int
     malus: int | None
+    attempts_left: int | None = None
     input_type: InputType = InputType.INPUT
     is_solved: bool
     is_locked: bool = False

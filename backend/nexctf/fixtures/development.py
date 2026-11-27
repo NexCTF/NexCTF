@@ -244,6 +244,7 @@ def question() -> list[Question]:
             index=1,
             points=75,
             malus=0,
+            max_attempts=3,
             challenge_id=_cid("Caesar Cipher"),
         ),
         # OSINT Starter — 2 questions

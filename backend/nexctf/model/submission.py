@@ -18,7 +18,14 @@ class Submission(Base):
     """Records every flag attempt."""
 
     __tablename__ = "submissions"
-    __table_args__ = (Index("ix_submissions_team_question", "team_id", "question_id"),)
+    __table_args__ = (
+        Index(
+            "ix_submissions_team_question",
+            "team_id",
+            "question_id",
+            postgresql_include=["is_correct"],
+        ),
+    )
 
     answer: Mapped[str]
     is_correct: Mapped[bool] = mapped_column(default=False)

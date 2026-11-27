@@ -99,6 +99,7 @@ _QUESTION_FIELDS = [
     "index",
     "points",
     "malus",
+    "max_attempts",
     "input_type",
     "trap_flags",
     "tags",

@@ -18,6 +18,7 @@ import {
   publicInfo,
   publicInfoWith,
   question,
+  submitResult,
   team,
   user,
 } from "@/test/fixtures";
@@ -89,11 +90,7 @@ it("lists challenge files with their SHA-256", async () => {
 });
 
 it("submits a typed answer and reports a correct solve", async () => {
-  vi.mocked(submitAnswer).mockResolvedValue({
-    is_correct: true,
-    already_solved: false,
-    points_earned: 100,
-  });
+  vi.mocked(submitAnswer).mockResolvedValue(submitResult({ is_correct: true, points_earned: 100 }));
   renderChallenge();
 
   await userEvent.type(await screen.findByPlaceholderText("Enter your answer…"), "flag_x");
@@ -104,11 +101,7 @@ it("submits a typed answer and reports a correct solve", async () => {
 });
 
 it("submits a pasted answer without its surrounding whitespace", async () => {
-  vi.mocked(submitAnswer).mockResolvedValue({
-    is_correct: true,
-    already_solved: false,
-    points_earned: 100,
-  });
+  vi.mocked(submitAnswer).mockResolvedValue(submitResult({ is_correct: true, points_earned: 100 }));
   renderChallenge();
 
   await userEvent.type(await screen.findByPlaceholderText("Enter your answer…"), "  flag_x ");
@@ -118,11 +111,7 @@ it("submits a pasted answer without its surrounding whitespace", async () => {
 });
 
 it("reports a wrong answer without clearing the field", async () => {
-  vi.mocked(submitAnswer).mockResolvedValue({
-    is_correct: false,
-    already_solved: false,
-    points_earned: 0,
-  });
+  vi.mocked(submitAnswer).mockResolvedValue(submitResult());
   renderChallenge();
 
   const input = await screen.findByPlaceholderText("Enter your answer…");
@@ -131,6 +120,65 @@ it("reports a wrong answer without clearing the field", async () => {
 
   await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Wrong answer, try again."));
   expect(input).toHaveProperty("value", "wrong");
+});
+
+it("shows how many attempts the team has left", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({ questions: [question({ attempts_left: 2 })] }),
+  );
+  renderChallenge();
+
+  expect(await screen.findByText("Attempts left: 2")).toBeDefined();
+});
+
+it("locks the form once the team has no attempts left", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({ questions: [question({ attempts_left: 0 })] }),
+  );
+  renderChallenge();
+
+  expect(await screen.findByText(/no attempts left for this question/)).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
+});
+
+it("disables hint unlocks once the team has no attempts left", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({
+      questions: [question({ attempts_left: 0, hints: [hint({ cost: 10 })] })],
+    }),
+  );
+  renderChallenge();
+
+  expect(await screen.findByText("Nudge")).toBeDefined();
+  expect(screen.getByRole("button", { name: "10 pts" }).hasAttribute("disabled")).toBe(true);
+});
+
+it("locks the form when a hint unlock finds the attempts used up", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({
+      questions: [question({ attempts_left: 1, hints: [hint()] })],
+    }),
+  );
+  vi.mocked(unlockHint).mockRejectedValue(new ApiError(403, "Forbidden", null, "SUB-403-ATTEMPTS"));
+  renderChallenge();
+
+  await userEvent.click(await screen.findByRole("button", { name: "Unlock" }));
+
+  expect(await screen.findByText(/no attempts left for this question/)).toBeDefined();
+});
+
+it("locks the form after the last wrong attempt", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({ questions: [question({ attempts_left: 1 })] }),
+  );
+  vi.mocked(submitAnswer).mockResolvedValue(submitResult({ attempts_left: 0 }));
+  renderChallenge();
+
+  await userEvent.type(await screen.findByPlaceholderText("Enter your answer…"), "wrong");
+  await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+  await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Wrong answer, try again."));
+  expect(await screen.findByText(/no attempts left for this question/)).toBeDefined();
 });
 
 it("keeps submit disabled while the answer is blank", async () => {
@@ -147,11 +195,7 @@ it("sends multi-select answers as a sorted JSON array", async () => {
       ],
     }),
   );
-  vi.mocked(submitAnswer).mockResolvedValue({
-    is_correct: true,
-    already_solved: false,
-    points_earned: 10,
-  });
+  vi.mocked(submitAnswer).mockResolvedValue(submitResult({ is_correct: true, points_earned: 10 }));
   renderChallenge();
 
   await userEvent.click(await screen.findByRole("checkbox", { name: "charlie" }));
@@ -395,11 +439,7 @@ it("shows an unlocked hint without reloading the challenge", async () => {
 });
 
 it("refreshes the team's progress after a correct solve", async () => {
-  vi.mocked(submitAnswer).mockResolvedValue({
-    is_correct: true,
-    already_solved: false,
-    points_earned: 100,
-  });
+  vi.mocked(submitAnswer).mockResolvedValue(submitResult({ is_correct: true, points_earned: 100 }));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(["my-team"], team());
   client.setQueryData(["team-score", "t1"], { total: 0 });

@@ -45,6 +45,7 @@ class Question(Base):
     index: Mapped[int] = mapped_column(default=0)
     points: Mapped[int] = mapped_column(default=100)
     malus: Mapped[int | None]
+    max_attempts: Mapped[int | None]
     input_type: Mapped[InputType] = mapped_column(
         SAEnum(InputType, native_enum=False),
         default=InputType.INPUT,

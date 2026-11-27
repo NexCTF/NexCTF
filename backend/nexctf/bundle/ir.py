@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from nexctf.util.types import LinkUrl, Slug
+from nexctf.util.types import LinkUrl, MaxAttempts, Slug
 
 FORMAT_VERSION = 1
 
@@ -63,6 +63,7 @@ class QuestionIR(BundleBase):
     index: int = 0
     points: int = 100
     malus: int | None = None
+    max_attempts: MaxAttempts | None = None
     input_type: str = "input"
     trap_flags: list[str] = []
     tags: list[str] = []
