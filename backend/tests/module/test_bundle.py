@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
 from nexctf.bundle.diff import Action, EntityKind
+from nexctf.bundle.ir import SolutionIR
 from nexctf.core import s3
 from nexctf.core.appconfig import ConfigType, all_defs
 from nexctf.model import (
@@ -763,3 +764,114 @@ async def test_detaching_every_file_from_a_question(
     assert stored is not None
     await db_session.refresh(stored, ["files"])
     assert stored.files == []
+
+
+async def _answered(
+    db_session: AsyncSession, challenge: StandardChallenge, answers: dict[str, str]
+) -> Question:
+    """Record one scored answer per team name in *answers* on the first question."""
+    question = await db_session.scalar(
+        select(Question).where(Question.challenge_id == challenge.id)
+    )
+    assert question is not None
+    for name, answer in answers.items():
+        team = await make_team(db_session, name)
+        correct = answer == "flag{a}"
+        db_session.add(
+            Submission(
+                team_id=team.id,
+                question_id=question.id,
+                answer=answer,
+                is_correct=correct,
+                correct_at_submit=correct,
+                points_earned=question.points if correct else 0,
+            )
+        )
+    await db_session.flush()
+    return question
+
+
+async def _scores(db_session: AsyncSession, question: Question) -> dict[str, int]:
+    rows = await db_session.execute(
+        select(Submission.answer, Submission.points_earned).where(
+            Submission.question_id == question.id
+        )
+    )
+    return {answer: points for answer, points in rows}
+
+
+async def test_an_imported_flag_change_rescores_past_answers(
+    db_session: AsyncSession, content: StandardChallenge, mock_redis
+) -> None:
+    question = await _answered(
+        db_session, content, {"old": "flag{a}", "new": "flag{b}"}
+    )
+    built, blobs = await bundle.build_bundle(db_session)
+    built.challenges[0].questions[0].solutions[0].data["value"] = "flag{b}"
+
+    await bundle.apply_import(db_session, mock_redis, built, blobs)
+
+    assert await _scores(db_session, question) == {"flag{a}": 0, "flag{b}": 50}
+
+
+async def test_an_imported_extra_flag_rescores_past_answers(
+    db_session: AsyncSession, content: StandardChallenge, mock_redis
+) -> None:
+    question = await _answered(
+        db_session, content, {"old": "flag{a}", "new": "flag{b}"}
+    )
+    built, blobs = await bundle.build_bundle(db_session)
+    built.challenges[0].questions[0].solutions.append(
+        SolutionIR(id=uuid4(), solve_type="match", data={"value": "flag{b}"})
+    )
+
+    await bundle.apply_import(db_session, mock_redis, built, blobs)
+
+    assert await _scores(db_session, question) == {"flag{a}": 50, "flag{b}": 50}
+
+
+async def test_a_pruned_flag_rescores_past_answers(
+    db_session: AsyncSession, content: StandardChallenge, mock_redis
+) -> None:
+    question = await _answered(db_session, content, {"old": "flag{a}"})
+    built, blobs = await bundle.build_bundle(db_session)
+    built.challenges[0].questions[0].solutions = [
+        SolutionIR(id=uuid4(), solve_type="match", data={"value": "flag{b}"})
+    ]
+
+    await bundle.apply_import(db_session, mock_redis, built, blobs, prune=True)
+
+    assert await _scores(db_session, question) == {"flag{a}": 0}
+
+
+async def test_an_imported_points_change_rescores_past_solves(
+    db_session: AsyncSession, content: StandardChallenge, mock_redis
+) -> None:
+    question = await _answered(db_session, content, {"old": "flag{a}"})
+    built, blobs = await bundle.build_bundle(db_session)
+    built.challenges[0].questions[0].points = 200
+
+    await bundle.apply_import(db_session, mock_redis, built, blobs)
+
+    assert await _scores(db_session, question) == {"flag{a}": 200}
+
+
+async def test_an_import_rescore_waits_for_the_question_lock(
+    db_session: AsyncSession, content: StandardChallenge, mock_redis, monkeypatch
+) -> None:
+    from nexctf.module import submission
+
+    await _answered(db_session, content, {"old": "flag{a}"})
+    built, blobs = await bundle.build_bundle(db_session)
+    built.challenges[0].questions[0].points = 200
+    timeouts: list[object] = []
+    lock = submission.lock_question
+
+    async def _spy(session: AsyncSession, question_id: UUID, **kw: object) -> None:
+        timeouts.append(kw.get("timeout"))
+        await lock(session, question_id)
+
+    monkeypatch.setattr(submission, "lock_question", _spy)
+    await bundle.apply_import(db_session, mock_redis, built, blobs)
+
+    assert timeouts == [None]

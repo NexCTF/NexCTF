@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.exceptions import SolutionTimeoutError
@@ -262,3 +262,17 @@ class TestRecalculationTimeout:
         await recalculate_question(db_session, mock_redis, question.id)
 
         assert await _earned(db_session, team) == 0
+
+
+class TestLockTimeout:
+    async def test_the_lock_timeout_ends_with_the_wait(
+        self, db_session: AsyncSession
+    ) -> None:
+        from nexctf.module.submission import lock_question
+
+        before = await db_session.scalar(text("SHOW lock_timeout"))
+        question = await _question(db_session, points=100, malus=None)
+
+        await lock_question(db_session, question.id, timeout="5s")
+
+        assert await db_session.scalar(text("SHOW lock_timeout")) == before
