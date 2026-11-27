@@ -9,7 +9,6 @@ from nexctf.cli.common import CliError, command, console
 lazy from nexctf.core.cache import get_client as get_redis_client
 lazy from nexctf.core.db import get_db_context
 lazy from nexctf.module import backup
-lazy from nexctf.module.events import emit
 lazy from nexctf.schema.backup import BackupSource
 
 backup_cli = typer.Typer(help="List, create and restore backups.", no_args_is_help=True)
@@ -40,13 +39,7 @@ async def create_command() -> None:
     except backup.BackupError as exc:
         raise CliError(str(exc)) from exc
     async with get_db_context() as session:
-        await emit(
-            session,
-            get_redis_client(),
-            event_type="backup.created",
-            target_type="backup",
-            target_label=key,
-        )
+        await backup.audit(session, get_redis_client(), "backup.created", key)
     console.print(f"Created {key!r} ({_size(size)}).")
 
 

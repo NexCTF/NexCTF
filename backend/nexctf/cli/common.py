@@ -1,7 +1,8 @@
 """Helpers shared by the ``manager`` command groups."""
 
-import contextvars
 import functools
+import importlib
+import logging
 import sys
 from collections.abc import Callable, Coroutine
 from typing import Any
@@ -12,13 +13,13 @@ from fastapi_toolsets.cli.utils import async_command
 from rich.console import Console
 from rich.text import Text
 lazy from pydantic import TypeAdapter, ValidationError
-lazy from redis.asyncio import Redis
 lazy from sqlalchemy import func
 lazy from sqlalchemy.ext.asyncio import AsyncSession
 
 lazy from nexctf import crud
 lazy from nexctf.model import User
-lazy from nexctf.module.events import AuditContext, emit, set_audit_context
+lazy from nexctf.module.events import AuditContext, set_audit_context
+lazy from nexctf.plugins import load_plugin_registries
 lazy from nexctf.schema.user import NewPassword
 
 console = Console(markup=False)
@@ -29,21 +30,30 @@ class CliError(Exception):
     """A refused command, printed as ``Error: <message>`` with exit code 1."""
 
 
+def load_registries() -> None:
+    """Register the core and plugin config keys, as the app does at startup."""
+    importlib.import_module("nexctf.settings")
+    logging.getLogger("nexctf.plugins.loader").setLevel(logging.WARNING)
+    load_plugin_registries()
+
+
 def command[**P](func: Callable[P, Coroutine[Any, Any, None]]) -> Callable[P, None]:
     """Run an async command, tagging its audit events with ``source=cli``.
 
     A ``CliError`` is printed as a one-line error with exit code 1.
     """
-    run = async_command(func)
+
+    @functools.wraps(func)
+    async def as_cli(*args: P.args, **kwargs: P.kwargs) -> None:
+        set_audit_context(AuditContext(actor_id=None, ip=None, source="cli"))
+        await func(*args, **kwargs)
+
+    run = async_command(as_cli)
 
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> None:
-        def as_cli() -> None:
-            set_audit_context(AuditContext(actor_id=None, ip=None, source="cli"))
-            run(*args, **kwargs)
-
         try:
-            contextvars.copy_context().run(as_cli)
+            run(*args, **kwargs)
         except CliError as exc:
             err_console.print(Text.assemble(("Error: ", "red"), str(exc)))
             raise typer.Exit(1) from exc
@@ -85,21 +95,3 @@ def read_password(from_stdin: bool) -> str:
         return TypeAdapter(NewPassword).validate_python(password)
     except ValidationError as exc:
         raise CliError(f"Invalid password: {exc.errors()[0]['msg']}") from exc
-
-
-async def audit(
-    session: AsyncSession,
-    redis: Redis,
-    event_type: str,
-    target: User | None = None,
-    **meta: str | bool,
-) -> None:
-    """Record a CLI action on *target* in the audit log, with no actor."""
-    values = {k: str(v).lower() if isinstance(v, bool) else v for k, v in meta.items()}
-    if target is not None:
-        values = {
-            "target_user_id": str(target.id),
-            "target_username": target.username,
-            **values,
-        }
-    await emit(session, redis, event_type=event_type, meta=values)

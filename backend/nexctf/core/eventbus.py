@@ -66,9 +66,9 @@ def user_stream_channel(user_id: UUID) -> str:
     return f"streams:user:{user_id}"
 
 
-async def close_user_streams(redis: Redis, user_id: UUID) -> None:
-    """Close the user's open streams, so they reconnect with fresh access."""
-    await publish_event(redis, [user_stream_channel(user_id)], "")
+async def close_user_streams(redis: Redis, *user_ids: UUID) -> None:
+    """Close the users' open streams, so they reconnect with fresh access."""
+    await publish_event(redis, [user_stream_channel(u) for u in user_ids], "")
 
 
 @contextlib.contextmanager

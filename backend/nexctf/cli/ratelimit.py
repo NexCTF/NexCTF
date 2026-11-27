@@ -1,5 +1,6 @@
 """``manager ratelimit``: inspect and clear the Redis rate-limit windows."""
 
+import importlib
 import time
 from typing import Annotated
 
@@ -7,18 +8,14 @@ import typer
 from rich.table import Table
 lazy from redis.asyncio import Redis
 
-from nexctf.cli.common import audit, command, console
-from nexctf.cli.config import load_registries
+from nexctf.cli.common import command, console, load_registries
 lazy from nexctf.core import appconfig
 lazy from nexctf.core.cache import get_client as get_redis_client
 lazy from nexctf.core.db import get_db_context
 lazy from nexctf.core.rate_limit import rate_key
+lazy from nexctf.module.events import emit
 
-ratelimit_cli = typer.Typer(
-    help="Inspect and clear rate limits.",
-    no_args_is_help=True,
-    callback=load_registries,
-)
+ratelimit_cli = typer.Typer(help="Inspect and clear rate limits.", no_args_is_help=True)
 
 DEFAULT_WINDOW_SECONDS = 60
 
@@ -31,12 +28,19 @@ IpOption = Annotated[str | None, typer.Option("--ip", help="Only this client.")]
 
 async def limited_keys(redis: Redis, action: str, ip: str | None) -> list[str]:
     """The rate-limit keys of *action*, narrowed to *ip* when given."""
-    return [key async for key in redis.scan_iter(match=rate_key(action, ip or "*"))]
+    if ip:
+        key = rate_key(action, ip)
+        return [key] if await redis.exists(key) else []
+    pattern = rate_key(action, "*")
+    return [key async for key in redis.scan_iter(match=pattern, count=1000)]
 
 
 async def window_seconds(redis: Redis, action: str) -> int:
     """The sliding window of *action*: its ``rate_limit`` setting, else 60s."""
     key = f"rate_limit.{action}.window_seconds"
+    importlib.import_module("nexctf.settings")
+    if key not in appconfig.all_defs():
+        load_registries()
     if key not in appconfig.all_defs():
         return DEFAULT_WINDOW_SECONDS
     overrides = await appconfig.fetch_overrides(redis)
@@ -86,7 +90,10 @@ async def clear_command(action: ActionOption = "login", ip: IpOption = None) -> 
     redis = get_redis_client()
     cleared = await clear_limits(redis, action, ip)
     async with get_db_context() as session:
-        await audit(
-            session, redis, "admin.rate_limit_cleared", action=action, ip=ip or "*"
+        await emit(
+            session,
+            redis,
+            event_type="admin.rate_limit_cleared",
+            meta={"action": action, "ip": ip or "*"},
         )
     console.print(f"Cleared {cleared} {action} rate-limit window(s).")

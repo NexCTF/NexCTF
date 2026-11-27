@@ -456,6 +456,12 @@ async def revoke_user_sessions(db: AsyncSession, user: User) -> None:
     )
 
 
+async def revoke_all_sessions(db: AsyncSession) -> set[UUID]:
+    """Revoke every browser session, returning the ids of the users signed out."""
+    deleted = await db.scalars(delete(UserSession).returning(UserSession.user_id))
+    return set(deleted.all())
+
+
 async def purge_expired_access(db: AsyncSession) -> None:
     """Delete expired sessions, and API tokens expired over ``TOKEN_RETENTION``."""
     now = datetime.now(UTC)

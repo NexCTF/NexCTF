@@ -9,16 +9,12 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import Response
-from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.api.dep import FreshAuthDep, RedisDep, SessionDep
 from nexctf.api.security import consume_single_use_token, issue_single_use_token
 from nexctf.core import s3
 from nexctf.exceptions import BackupFailedError
 from nexctf.module import backup
-from nexctf.module.audit import audit_actor
-from nexctf.module.events import emit
 from nexctf.schema.backup import (
     AdminBackupDownloadTicket,
     AdminBackupList,
@@ -49,22 +45,6 @@ def _last_restore_status() -> str | None:
         return _RESTORE_STATUS.read_text().strip() or None
     except OSError:
         return None
-
-
-async def _audit(
-    session: AsyncSession, redis: Redis, event_type: str, key: str
-) -> None:
-    """Record a backup action in the audit log."""
-    actor_id, ip = audit_actor()
-    await emit(
-        session,
-        redis,
-        event_type=event_type,
-        actor_id=actor_id,
-        ip=ip,
-        target_type="backup",
-        target_label=key,
-    )
 
 
 def _spawn_restore(key: str) -> None:
@@ -100,7 +80,7 @@ async def create_backup(
     except backup.BackupError as exc:
         raise BackupFailedError(detail=str(exc))
 
-    await _audit(session, redis, "backup.created", key)
+    await backup.audit(session, redis, "backup.created", key)
     return Response(
         data=AdminBackupRead(
             key=key,
@@ -119,7 +99,7 @@ async def issue_download_ticket(
     """Issue a one-time, short-lived ticket to download a dump."""
     _key_or_400(key)
     ticket = await issue_single_use_token(redis, _DOWNLOAD_PREFIX, _DOWNLOAD_TTL, key)
-    await _audit(session, redis, "backup.downloaded", key)
+    await backup.audit(session, redis, "backup.downloaded", key)
     return Response(data=AdminBackupDownloadTicket(ticket=ticket))
 
 
@@ -165,7 +145,7 @@ async def restore_backup(
     except ClientError:
         raise BackupFailedError(detail=f"No backup at {key!r}")
 
-    await _audit(session, redis, "backup.restored", key)
+    await backup.audit(session, redis, "backup.restored", key)
     await session.commit()
 
     await asyncio.to_thread(_spawn_restore, key)
@@ -180,5 +160,5 @@ async def delete_backup(
     _key_or_400(key)
     await s3.delete(key)
 
-    await _audit(session, redis, "backup.deleted", key)
+    await backup.audit(session, redis, "backup.deleted", key)
     return Response()

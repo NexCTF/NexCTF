@@ -388,5 +388,4 @@ async def remove_and_store(
     """Delete the stored values of *keys*, then drop them from Redis."""
     await session.execute(delete(ConfigEntry).where(ConfigEntry.key.in_(keys)))
     await session.commit()
-    if keys:
-        await cast(Any, redis.hdel(REDIS_HASH, *keys))
+    await cast(Any, redis.hdel(REDIS_HASH, *keys))

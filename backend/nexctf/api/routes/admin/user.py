@@ -22,8 +22,6 @@ from nexctf.api.dep import (
 )
 from nexctf.api.security import (
     current_sid_hash,
-    hash_password_async,
-    issue_password_reset_token,
 )
 from nexctf.core.eventbus import close_user_streams
 from nexctf.exceptions import SelfLockoutError
@@ -39,7 +37,12 @@ from nexctf.module.session import (
     revoke_session_by_id,
     revoke_user_sessions,
 )
-from nexctf.module.user import reset_totp
+from nexctf.module.user import (
+    create_verified_user,
+    issue_password_reset,
+    reset_totp,
+    unlock_login,
+)
 from nexctf.schema.custom_field import AdminCustomFieldValueRead
 from nexctf.schema.event import AdminEventRead
 from nexctf.schema.user import (
@@ -50,7 +53,6 @@ from nexctf.schema.user import (
     AdminUserUpdateRead,
     AdminUserUpdateRequest,
     PublicUserRead,
-    UserCreate,
     UserEmailVerifiedUpdate,
     UserSessionRead,
 )
@@ -77,7 +79,6 @@ async def create_user(
     session: SessionDep,
     redis: RedisDep,
     obj: AdminUserCreate,
-    admin: CurrentUserDep,
     granted: TokenScopesDep,
 ) -> Response[PublicUserRead]:
     """Create a user directly, bypassing registration gating and email verification.
@@ -86,37 +87,11 @@ async def create_user(
     """
     if obj.role is UserRole.admin:
         await require_fresh_session(request, granted)
-    try:
-        result = await crud.UserCrud.create(
-            session=session,
-            obj=UserCreate(
-                username=obj.username,
-                email=obj.email,
-                hashed_password=await hash_password_async(obj.password),
-                email_verified=True,
-                role=obj.role,
-                team_id=obj.team_id,
-            ),
-            schema=PublicUserRead,
-        )
-    except IntegrityError:
-        raise ConflictError(detail="Username or email already taken")
-    if result.data is not None:
-        await replace_custom_field_values(
-            session, obj.custom_fields, user_id=result.data.id, self_service=False
-        )
-        await emit(
-            session,
-            redis,
-            event_type="admin.user_created",
-            actor_id=admin.id,
-            ip=get_client_ip(request),
-            meta={
-                "target_user_id": str(result.data.id),
-                "target_username": result.data.username,
-            },
-        )
-    return result
+    user = await create_verified_user(session, redis, obj)
+    await replace_custom_field_values(
+        session, obj.custom_fields, user_id=user.id, self_service=False
+    )
+    return Response(data=PublicUserRead.model_validate(user))
 
 
 @user_router.get("/{uuid}")
@@ -327,49 +302,29 @@ async def admin_reset_totp(
 
 @user_router.delete("/{uuid}/login-lockout", status_code=204)
 async def clear_login_lockout(
-    request: Request,
     session: SessionDep,
     redis: RedisDep,
     uuid: UUID,
-    admin: CurrentUserDep,
 ):
     """Forget a user's wrong sign-in guesses so they can sign in again."""
     target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
     if not target:
         raise NotFoundError()
-    await login_lock.clear(redis, target.id, target.username)
-    await emit(
-        session,
-        redis,
-        event_type="admin.user_login_unlocked",
-        actor_id=admin.id,
-        ip=get_client_ip(request),
-        meta={"target_user_id": str(uuid), "target_username": target.username},
-    )
+    await unlock_login(session, redis, target)
 
 
 @user_router.post("/{uuid}/password-reset-token")
 async def admin_create_password_reset_token(
-    request: Request,
     session: SessionDep,
     redis: RedisDep,
     uuid: UUID,
-    admin: FreshSessionDep,
+    _: FreshSessionDep,
 ) -> Response[str]:
     """Generate a single-use password reset token for a user (valid 1 hour)."""
     target = await crud.UserCrud.first(session=session, filters=[User.id == uuid])
     if not target:
         raise NotFoundError()
-    token = await issue_password_reset_token(redis, target)
-    await emit(
-        session,
-        redis,
-        event_type="admin.user_password_reset_token",
-        actor_id=admin.id,
-        ip=get_client_ip(request),
-        meta={"target_user_id": str(uuid), "target_username": target.username},
-    )
-    return Response(data=token)
+    return Response(data=await issue_password_reset(session, redis, target))
 
 
 @user_router.delete("/{uuid}", dependencies=[FreshAuthDep])

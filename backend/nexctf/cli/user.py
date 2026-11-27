@@ -8,45 +8,42 @@ from uuid import UUID
 import typer
 from rich.table import Table
 from rich.text import Text
+lazy from fastapi_toolsets.exceptions import ConflictError
 lazy from pydantic import ValidationError
 lazy from redis.asyncio import Redis
-lazy from sqlalchemy import delete, or_, select
-lazy from sqlalchemy.exc import IntegrityError
+lazy from sqlalchemy import or_, select
 lazy from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.cli.common import (
     CliError,
-    audit,
     command,
     console,
     find_user,
     read_password,
 )
 lazy from nexctf import crud
-lazy from nexctf.api.security import (
-    hash_password,
-    issue_password_reset_token,
-    password_reset_link,
-)
+lazy from nexctf.api.security import hash_password, password_reset_link
 lazy from nexctf.core.cache import get_client as get_redis_client
 lazy from nexctf.core.db import get_db_context
-lazy from nexctf.core.eventbus import (
-    close_user_streams,
-    publish_event,
-    user_stream_channel,
-)
+lazy from nexctf.core.eventbus import close_user_streams
 lazy from nexctf.model import OAuthAccount, User, UserRole, UserSession, UserToken
-lazy from nexctf.module import login_lock
+lazy from nexctf.module.events import emit
 lazy from nexctf.module.session import (
     replace_password,
     revoke_all_access,
+    revoke_all_sessions,
     revoke_user_sessions,
 )
-lazy from nexctf.module.user import reset_totp
+lazy from nexctf.module.user import (
+    create_verified_user,
+    emit_user_event,
+    issue_password_reset,
+    reset_totp,
+    unlock_login,
+)
 lazy from nexctf.schema.user import (
     AdminUserCreate,
     AdminUserUpdate,
-    UserCreate,
     UserEmailVerifiedUpdate,
 )
 lazy from nexctf.util.sql import count_of
@@ -94,20 +91,9 @@ async def create_user(
     except ValidationError as exc:
         raise CliError(f"Invalid user: {exc.errors()[0]['msg']}") from exc
     try:
-        user = await crud.UserCrud.create(
-            session=session,
-            obj=UserCreate(
-                username=obj.username,
-                email=obj.email,
-                hashed_password=hash_password(obj.password),
-                email_verified=True,
-                role=obj.role,
-            ),
-        )
-    except IntegrityError as exc:
+        return await create_verified_user(session, redis, obj)
+    except ConflictError as exc:
         raise CliError("Username or email already taken") from exc
-    await audit(session, redis, "admin.user_created", user)
-    return user
 
 
 async def set_role(
@@ -126,7 +112,7 @@ async def set_role(
     )
     if granting_admin:
         await revoke_user_sessions(session, user)
-    await audit(
+    await emit_user_event(
         session,
         redis,
         "admin.user_updated",
@@ -150,7 +136,7 @@ async def set_active(
         filters=[User.id == user.id],
         obj=AdminUserUpdate(id=user.id, is_active=active),
     )
-    await audit(session, redis, "admin.user_updated", user, is_active=active)
+    await emit_user_event(session, redis, "admin.user_updated", user, is_active=active)
 
 
 async def set_password(
@@ -158,14 +144,12 @@ async def set_password(
 ) -> None:
     """Replace the password, revoking every session and API token."""
     await replace_password(session, user, hash_password(password))
-    await audit(session, redis, "admin.user_password_set", user)
+    await emit_user_event(session, redis, "admin.user_password_set", user)
 
 
 async def issue_reset_link(session: AsyncSession, redis: Redis, user: User) -> str:
     """A single-use password reset link, valid for one hour."""
-    token = await issue_password_reset_token(redis, user)
-    await audit(session, redis, "admin.user_password_reset_token", user)
-    return password_reset_link(token)
+    return password_reset_link(await issue_password_reset(session, redis, user))
 
 
 async def disable_totp(session: AsyncSession, redis: Redis, user: User) -> None:
@@ -186,13 +170,9 @@ async def verify_email(session: AsyncSession, redis: Redis, user: User) -> None:
         filters=[User.id == user.id],
         obj=UserEmailVerifiedUpdate(id=user.id, email_verified=True),
     )
-    await audit(session, redis, "admin.user_updated", user, email_verified=True)
-
-
-async def unlock_login(session: AsyncSession, redis: Redis, user: User) -> None:
-    """Clear the user's sign-in lockout."""
-    await login_lock.clear(redis, user.id, user.username)
-    await audit(session, redis, "admin.user_login_unlocked", user)
+    await emit_user_event(
+        session, redis, "admin.user_updated", user, email_verified=True
+    )
 
 
 async def sign_out(
@@ -203,17 +183,19 @@ async def sign_out(
         await revoke_all_access(session, user)
     else:
         await revoke_user_sessions(session, user)
-    await audit(
+    await emit_user_event(
         session, redis, "admin.user_sessions_revoked", user, tokens_revoked=tokens
     )
 
 
 async def sign_out_everyone(session: AsyncSession, redis: Redis) -> set[UUID]:
     """Revoke every browser session, returning the ids of the users signed out."""
-    deleted = await session.scalars(delete(UserSession).returning(UserSession.user_id))
-    signed_out = set(deleted.all())
-    await audit(
-        session, redis, "admin.sessions_revoked_all", users=str(len(signed_out))
+    signed_out = await revoke_all_sessions(session)
+    await emit(
+        session,
+        redis,
+        event_type="admin.sessions_revoked_all",
+        meta={"users": str(len(signed_out))},
     )
     return signed_out
 
@@ -437,7 +419,7 @@ async def sign_out_command(
         redis = get_redis_client()
         async with get_db_context() as session:
             signed_out = await sign_out_everyone(session, redis)
-        await publish_event(redis, [user_stream_channel(u) for u in signed_out], "")
+        await close_user_streams(redis, *signed_out)
         console.print(f"Signed out {len(signed_out)} user(s).")
         return
     target = await _apply(user, partial(sign_out, tokens=tokens), close_streams=True)

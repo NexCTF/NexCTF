@@ -11,8 +11,7 @@ from nexctf.api.dep import (
     require_fresh_unless_token,
 )
 from nexctf.core import appconfig
-from nexctf.module.audit import REDACTED
-from nexctf.module.config import save_config
+from nexctf.module.config import masked_value, save_config
 from nexctf.schema.config import AdminConfigBulkUpdate, AdminConfigRead
 
 config_router = APIRouter(prefix="/config", tags=["Config"])
@@ -20,13 +19,10 @@ config_router = APIRouter(prefix="/config", tags=["Config"])
 
 def _build_item(key: str, overrides: dict[str, str]) -> AdminConfigRead:
     def_ = appconfig.get_def(key)
-    value = appconfig.get_with_overrides(key, overrides)
-    if def_.type == appconfig.ConfigType.SECRET and value:
-        value = REDACTED
     return AdminConfigRead(
         key=def_.key,
         type=cast(appconfig.ConfigType, def_.type).value,
-        value=value,
+        value=masked_value(key, overrides),
         default=cast(str, def_.default),
         label=def_.label,
         description=def_.description,

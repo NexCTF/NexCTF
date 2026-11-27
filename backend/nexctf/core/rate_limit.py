@@ -33,9 +33,9 @@ USER_WRITE_WINDOW_SECONDS = 60
 USER_WRITE_MAX_REQUESTS = 10
 
 
-def rate_key(action: str, address: str) -> str:
-    """Redis key limiting *action* for one client *address*."""
-    return f"rl:{action}:{address}"
+def rate_key(action: str, subject: str) -> str:
+    """Redis key limiting *action* for one *subject*: an address, user or team."""
+    return f"rl:{action}:{subject}"
 
 
 def client_rate_key(action: str, request: Request) -> str:
@@ -89,7 +89,7 @@ async def check_user_write_limit(redis: Redis, user_id: UUID, name: str) -> None
     """Rate limit one user's writes to the *name* family of endpoints."""
     await check_rate_limit(
         redis,
-        f"rl:{name}:{user_id}",
+        rate_key(name, str(user_id)),
         name=name,
         window_seconds=USER_WRITE_WINDOW_SECONDS,
         max_requests=USER_WRITE_MAX_REQUESTS,

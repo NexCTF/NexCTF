@@ -16,6 +16,14 @@ from nexctf.module.stats import invalidate_team
 from nexctf.util.datetime import EVENT_TIME_KEYS, event_time_errors
 
 
+def masked_value(key: str, overrides: dict[str, str]) -> str | int | float | bool:
+    """The value *key* resolves to, with a set secret replaced by the mask."""
+    value = appconfig.get_with_overrides(key, overrides)
+    if appconfig.get_def(key).type == appconfig.ConfigType.SECRET and value:
+        return REDACTED
+    return value
+
+
 async def save_config(
     session: AsyncSession,
     redis: Redis,

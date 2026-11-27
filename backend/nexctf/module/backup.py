@@ -12,10 +12,14 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from alembic.util.exc import CommandError
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.core import s3
 from nexctf.core.config import settings
 from nexctf.core.db import get_db_context
+from nexctf.module.audit import audit_actor
+from nexctf.module.events import emit
 from nexctf.module.info.version import current_revision
 from nexctf.schema.backup import BackupSource
 
@@ -226,3 +230,17 @@ async def prune(keep_last: int) -> int:
     for backup in stale:
         await s3.delete(backup["key"])
     return len(stale)
+
+
+async def audit(session: AsyncSession, redis: Redis, event_type: str, key: str) -> None:
+    """Record a backup action on *key* in the audit log."""
+    actor_id, ip = audit_actor()
+    await emit(
+        session,
+        redis,
+        event_type=event_type,
+        actor_id=actor_id,
+        ip=ip,
+        target_type="backup",
+        target_label=key,
+    )
