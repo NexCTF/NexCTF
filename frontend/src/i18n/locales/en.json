@@ -245,6 +245,24 @@
       "stat_users": "Users",
       "top_teams_section": "Top teams"
     },
+    "display": {
+      "change_visibility": "Change the visibility",
+      "field_link": "Link",
+      "field_resolution": "Screen resolution",
+      "field_rotate": "Seconds per view",
+      "field_view": "Show",
+      "hint_range": "Between {{min}} and {{max}}",
+      "link_copied": "Link copied",
+      "open": "Open",
+      "token_add": "Add a screen token",
+      "token_added_until": "The link carries a read-only token until {{date}}: the screen shows the scoreboard and broadcasts without signing in. Anyone with the link can see them too. Revoke the “Big screen” token in your account settings to disable it sooner.",
+      "token_error": "Could not create the token",
+      "token_hint": "No sign-in on the screen: add a read-only token to the link.",
+      "view_all": "All teams",
+      "view_rotate": "All teams, then each bracket in turn",
+      "visibility_authenticated": "The scoreboard is only visible to signed-in accounts: sign in on the screen before opening the link.",
+      "visibility_hidden": "The scoreboard is hidden: the screen will only show a notice."
+    },
     "feedback": {
       "col_comment": "Comment",
       "col_rating": "Rating",
@@ -509,6 +527,7 @@
       "adjustments_title": "Score adjustments",
       "amount_hint": "Positive = bonus, negative = penalty",
       "amount_placeholder": "e.g. 100 or -50",
+      "big_screen": "Big screen",
       "cache_invalidate_error": "Failed to invalidate cache",
       "cache_invalidated": "Cache invalidated",
       "challenge_hint": "Optional: ties the adjustment to a challenge.",
@@ -1006,6 +1025,22 @@
   "datetime": {
     "echo_event": " · {{time}} {{zone}} (scheduler timezone)",
     "echo_utc": "= {{time}} UTC"
+  },
+  "display": {
+    "bracket": "Bracket: {{bracket}}",
+    "day_unit": "d",
+    "ends_in": "Ends in",
+    "frozen": "Scoreboard frozen",
+    "hidden": "The scoreboard is hidden. Change its visibility in the admin settings.",
+    "live": "Live",
+    "sign_in": "Sign in on this screen",
+    "sign_in_required": "The scoreboard is only visible to signed-in accounts.",
+    "stale": "Last update {{time}}",
+    "starts_in": "Starts in",
+    "status_finished": "Finished",
+    "status_upcoming": "Not started",
+    "token_invalid": "This screen link is no longer valid. Create a new one from the admin scoreboard.",
+    "unknown_bracket": "No team is in the bracket “{{bracket}}”."
   },
   "errors": {
     "api": {

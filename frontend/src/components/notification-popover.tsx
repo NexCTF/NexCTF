@@ -15,7 +15,7 @@ export function NotificationPopover() {
 
   const { data } = useQuery({
     queryKey: ["notifications"],
-    queryFn: getMyNotifications,
+    queryFn: () => getMyNotifications(),
   });
 
   const notifications = data?.notifications ?? [];

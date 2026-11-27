@@ -245,6 +245,24 @@
       "stat_users": "Utilisateurs",
       "top_teams_section": "Meilleures équipes"
     },
+    "display": {
+      "change_visibility": "Modifier la visibilité",
+      "field_link": "Lien",
+      "field_resolution": "Résolution de l'écran",
+      "field_rotate": "Secondes par vue",
+      "field_view": "Afficher",
+      "hint_range": "Entre {{min}} et {{max}}",
+      "link_copied": "Lien copié",
+      "open": "Ouvrir",
+      "token_add": "Ajouter un jeton d'écran",
+      "token_added_until": "Le lien contient un jeton en lecture seule valable jusqu'au {{date}}\u202f: l'écran affiche le classement et les notifications générales sans connexion. Toute personne disposant du lien peut aussi les voir. Révoquez le jeton «\u00a0Big screen\u00a0» dans les paramètres de votre compte pour le désactiver plus tôt.",
+      "token_error": "Impossible de créer le jeton",
+      "token_hint": "Aucune connexion sur l'écran\u202f: ajoutez au lien un jeton en lecture seule.",
+      "view_all": "Toutes les équipes",
+      "view_rotate": "Toutes les équipes, puis chaque catégorie à tour de rôle",
+      "visibility_authenticated": "Le classement n'est visible que par les comptes connectés\u202f: connectez-vous sur l'écran avant d'ouvrir le lien.",
+      "visibility_hidden": "Le classement est masqué\u202f: l'écran n'affichera qu'un message."
+    },
     "feedback": {
       "col_comment": "Commentaire",
       "col_rating": "Note",
@@ -510,6 +528,7 @@
       "adjustments_title": "Ajustements de score",
       "amount_hint": "Positif = bonus, négatif = pénalité",
       "amount_placeholder": "ex. 100 ou -50",
+      "big_screen": "Grand écran",
       "cache_invalidate_error": "Échec de l'invalidation du cache",
       "cache_invalidated": "Cache invalidé",
       "challenge_hint": "Optionnel\u202f: associe l'ajustement à un challenge.",
@@ -1008,6 +1027,22 @@
   "datetime": {
     "echo_event": " · {{time}} {{zone}} (fuseau du planificateur)",
     "echo_utc": "= {{time}} UTC"
+  },
+  "display": {
+    "bracket": "Catégorie\u202f: {{bracket}}",
+    "day_unit": "j",
+    "ends_in": "Fin dans",
+    "frozen": "Classement gelé",
+    "hidden": "Le classement est masqué. Modifiez sa visibilité dans les paramètres d'administration.",
+    "live": "En direct",
+    "sign_in": "Se connecter sur cet écran",
+    "sign_in_required": "Le classement n'est visible que par les comptes connectés.",
+    "stale": "Dernière mise à jour {{time}}",
+    "starts_in": "Début dans",
+    "status_finished": "Terminé",
+    "status_upcoming": "Pas encore commencé",
+    "token_invalid": "Ce lien d'écran n'est plus valide. Créez-en un nouveau depuis le classement de l'administration.",
+    "unknown_bracket": "Aucune équipe dans la catégorie «\u00a0{{bracket}}\u00a0»."
   },
   "errors": {
     "api": {

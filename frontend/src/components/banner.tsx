@@ -1,4 +1,4 @@
-const TONES = {
+export const TONES = {
   amber: "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400",
   yellow: "border-yellow-500/30 bg-yellow-500/10 text-yellow-400",
   zinc: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",
