@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import NamedTuple
 from uuid import UUID
 
 from fastapi_toolsets.db import advisory_lock
 from redis.asyncio import Redis
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import class_mapper, selectin_polymorphic, selectinload
@@ -64,6 +67,87 @@ async def invalidate_scores(redis: Redis, team_ids: set[UUID]) -> None:
         await invalidate_team(redis, tid)
 
 
+class _Verdict(NamedTuple):
+    is_trap: bool
+    is_correct: bool
+    timed_out: bool
+
+
+class _Checker:
+    """Verifies a question's submissions once each, auditing every timed-out solution."""
+
+    def __init__(
+        self, session: AsyncSession, redis: Redis | None, question: Question
+    ) -> None:
+        self.session = session
+        self.redis = redis
+        self.question = question
+        self.verdicts: dict[UUID, _Verdict] = {}
+        self.timed_out_solutions: set[UUID] = set()
+
+    async def check(self, submissions: Sequence[Submission]) -> None:
+        """Verify the *submissions* not verified yet."""
+        for sub in submissions:
+            if sub.id not in self.verdicts:
+                self.verdicts[sub.id] = await self._verify(sub)
+
+    async def _verify(self, sub: Submission) -> _Verdict:
+        if self.question.is_trap(sub.answer):
+            return _Verdict(is_trap=True, is_correct=False, timed_out=False)
+        timed_out = False
+        for sol in self.question.solutions:
+            try:
+                if await sol.verify(sub.answer, team_id=sub.team_id):
+                    return _Verdict(is_trap=False, is_correct=True, timed_out=False)
+            except SolutionTimeoutError as exc:
+                timed_out = True
+                await self._emit_timeout(exc, sub.team_id)
+        return _Verdict(is_trap=False, is_correct=False, timed_out=timed_out)
+
+    async def _emit_timeout(self, exc: SolutionTimeoutError, team_id: UUID) -> None:
+        if exc.solution_id is None or exc.solution_id in self.timed_out_solutions:
+            return
+        self.timed_out_solutions.add(exc.solution_id)
+        await emit(
+            self.session,
+            self.redis,
+            event_type="solution.timeout",
+            target_type="questions",
+            target_id=self.question.id,
+            target_label=self.question.label,
+            meta={
+                "solution_id": str(exc.solution_id),
+                "team_id": str(team_id),
+                "context": "recalculation",
+            },
+        )
+
+
+def _answer_key(question: Question) -> tuple[frozenset[str], dict[UUID, tuple]]:
+    """What decides a verdict: the trap flags and every solution's columns."""
+    return (
+        frozenset(flag.casefold() for flag in question.trap_flags),
+        {
+            sol.id: tuple(
+                getattr(sol, attr.key) for attr in sa_inspect(sol).mapper.column_attrs
+            )
+            for sol in question.solutions
+        },
+    )
+
+
+async def _submissions(
+    session: AsyncSession, question_id: UUID
+) -> Sequence[Submission]:
+    result = await session.scalars(
+        select(Submission)
+        .where(Submission.question_id == question_id)
+        .order_by(Submission.created_at)
+        .execution_options(populate_existing=True)
+    )
+    return result.all()
+
+
 async def rescore_question(
     session: AsyncSession,
     redis: Redis | None,
@@ -73,68 +157,38 @@ async def rescore_question(
 ) -> set[UUID]:
     """Re-verify every submission to *question_id* inside the open transaction.
 
-    Returns the teams whose submissions changed; the caller commits.
+    Answers are checked before the exclusive lock is taken; under it only the
+    submissions that arrived meanwhile are, or every one if the question's flags
+    changed meanwhile. Returns the teams whose submissions changed; the caller
+    commits.
     """
     question = await _load_question(session, question_id)
     if question is None:
         raise ValueError(f"Question {question_id} not found")
 
+    answer_key = _answer_key(question)
+    checker = _Checker(session, redis, question)
+    await checker.check(await _submissions(session, question_id))
     await lock_question(session, question_id, timeout=lock_timeout)
-    submissions = (
-        (
-            await session.execute(
-                select(Submission)
-                .where(Submission.question_id == question_id)
-                .order_by(Submission.created_at)
-            )
-        )
-        .scalars()
-        .all()
-    )
+    question = await _load_question(session, question_id)
+    if question is None:
+        raise ValueError(f"Question {question_id} not found")
+    if _answer_key(question) != answer_key:
+        checker.verdicts.clear()
+    submissions = await _submissions(session, question_id)
+    await checker.check(submissions)
 
     solved_before = {sub.team_id for sub in submissions if sub.is_correct}
     wrong_count_by_team: dict[UUID, int] = {}
     solved_teams: set[UUID] = set()
     affected_teams: set[UUID] = set()
-    timed_out_solutions: set[UUID] = set()
 
     for sub in submissions:
         team_id = sub.team_id
         wrong_before = wrong_count_by_team.get(team_id, 0)
-
-        new_is_trap = question.is_trap(sub.answer)
-
-        new_is_correct = False
-        timed_out = False
-        if not new_is_trap:
-            for sol in question.solutions:
-                try:
-                    if await sol.verify(sub.answer, team_id=team_id):
-                        new_is_correct = True
-                        break
-                except SolutionTimeoutError as exc:
-                    timed_out = True
-                    if (
-                        exc.solution_id is not None
-                        and exc.solution_id not in timed_out_solutions
-                    ):
-                        timed_out_solutions.add(exc.solution_id)
-                        await emit(
-                            session,
-                            redis,
-                            event_type="solution.timeout",
-                            target_type="questions",
-                            target_id=question_id,
-                            target_label=question.label,
-                            meta={
-                                "solution_id": str(exc.solution_id),
-                                "team_id": str(team_id),
-                                "context": "recalculation",
-                            },
-                        )
-
-        if timed_out and not new_is_correct:
-            new_is_correct = sub.is_correct
+        verdict = checker.verdicts[sub.id]
+        new_is_trap = verdict.is_trap
+        new_is_correct = verdict.is_correct or (verdict.timed_out and sub.is_correct)
 
         if new_is_correct and team_id not in solved_teams:
             new_points = max(0, question.points - (question.malus or 0) * wrong_before)
