@@ -93,20 +93,6 @@
       "field_title": "Titre",
       "field_writeup": "Writeup",
       "field_writeup_hint": "Markdown, affiché aux joueurs une fois le challenge terminé (ou après la fin de l'événement, si activé)",
-      "file": {
-        "attach_title": "Joindre des fichiers à la question",
-        "empty": "Aucun fichier attaché",
-        "manage": "Gérer les fichiers",
-        "no_files": "Aucun fichier uploadé. Rendez-vous dans la section Fichiers pour en ajouter.",
-        "no_match": "Aucun fichier ne correspond à votre recherche",
-        "save_files_one": "Enregistrer ({{count}} fichier)",
-        "save_files_many": "Enregistrer ({{count}} fichiers)",
-        "save_files_other": "Enregistrer ({{count}} fichiers)",
-        "search_placeholder": "Rechercher des fichiers…",
-        "section_title": "Fichiers ({{n}})",
-        "update_error": "Échec de la mise à jour des fichiers",
-        "updated": "Fichiers mis à jour"
-      },
       "hint": {
         "add": "Ajouter un indice",
         "add_error": "Échec de l'ajout de l'indice",
@@ -716,6 +702,7 @@
     "answer_label": "Réponse",
     "answer_placeholder": "Entrez votre réponse…",
     "back": "Retour aux challenges",
+    "copy_sha256": "Copier le SHA-256 de {{name}}",
     "event_ended_banner": "Le CTF est terminé. Les soumissions ne sont plus acceptées.",
     "event_not_started_banner": "Le CTF n'a pas encore commencé. Les soumissions ouvriront dès le début.",
     "feedback_error": "Impossible d'enregistrer votre retour",
@@ -778,9 +765,7 @@
     "saving": "Enregistrement…",
     "search": "Rechercher…",
     "sign_out": "Se déconnecter",
-    "true": "vrai",
-    "upload": "Importer",
-    "uploading": "Import en cours…"
+    "true": "vrai"
   },
   "config": {
     "appearance": {
@@ -1030,6 +1015,58 @@
     "not_found": "Page introuvable",
     "not_found_desc": "Cette page n'existe pas ou n'est pas publiée."
   },
+  "files": {
+    "attached": {
+      "challenge_hint": "Partagés par toutes les questions, affichés aux joueurs au-dessus des questions.",
+      "challenge_title": "Fichiers du challenge",
+      "detach": "Détacher {{name}}",
+      "empty": "Aucun fichier attaché.",
+      "error": "Impossible de mettre à jour les fichiers",
+      "manage": "Gérer les fichiers",
+      "pick_title": "Attacher des fichiers",
+      "question_title": "Fichiers",
+      "save": "Attacher {{n}} fichier(s)",
+      "saved": "Fichiers mis à jour"
+    },
+    "col_usage": "Utilisation",
+    "delete_in_use": "Supprimer « {{name}} » ? Il est encore utilisé par :",
+    "delete_in_use_effect": "Ses rattachements seront retirés et les références dans les textes seront cassées.",
+    "duplicate_upload": "« {{name}} » a le même contenu que : {{existing}}",
+    "filter_challenge": "Challenge",
+    "image_picker": {
+      "open": "Choisir",
+      "title": "Choisir une image",
+      "use": "Utiliser l'image"
+    },
+    "picker": {
+      "drop_hint": "Déposez des fichiers sur la liste pour les envoyer.",
+      "empty": "Aucun fichier trouvé. Envoyez-en un ou déposez-le ici.",
+      "error": "Impossible d'utiliser les fichiers",
+      "list": "Fichiers stockés",
+      "more": "Charger plus",
+      "upload": "Envoyer",
+      "will_publish": "{{names}} sera rendu public : toute personne disposant du lien pourra le télécharger, même avant l'ouverture du challenge.",
+      "wrong_type": "Seuls les fichiers {{type}} peuvent être utilisés ici."
+    },
+    "private": "Privé",
+    "private_breaks_links": "Ce fichier est intégré dans {{n}} texte(s). Le rendre privé casse ces images et ces liens.",
+    "public": "Public",
+    "summary": "{{files}} fichiers · {{size}} · {{unused}} inutilisés",
+    "unlink_and_delete": "Dissocier et supprimer",
+    "usage": {
+      "challenge": "Fichier du challenge",
+      "challenge_text": "Texte du challenge",
+      "config": "Paramètre",
+      "count": "Utilisé ({{n}})",
+      "hint_text": "Indice",
+      "notification_text": "Notification",
+      "page_text": "Page",
+      "question": "Fichier de question",
+      "question_text": "Texte de question",
+      "unused": "Inutilisé",
+      "used": "Utilisé"
+    }
+  },
   "forgot_password": {
     "email_label": "Email",
     "error_unexpected": "Une erreur inattendue est survenue",
@@ -1064,14 +1101,14 @@
     "verify_title": "Vérifiez votre email"
   },
   "markdown": {
+    "confirm_public_upload": "Envoyer {{names}} en public ? Toute personne disposant du lien pourra le télécharger, même si vous retirez le lien avant d'enregistrer.",
+    "insert": "Insérer",
     "insert_file": "Insérer un fichier",
-    "make_public_error": "Impossible de rendre le fichier public",
-    "no_files": "Aucun fichier trouvé. Uploadez des fichiers dans la section Fichiers.",
     "nothing_to_preview": "Rien à prévisualiser.",
     "pick_file": "Choisir un fichier à insérer",
     "preview": "Aperçu",
-    "upload_file": "Téléverser",
-    "will_make_public": "sera rendu public",
+    "upload_public": "Envoyer en public",
+    "uploaded_public": "Envoyé en public : toute personne disposant du lien peut le télécharger.",
     "write": "Écrire"
   },
   "nav": {

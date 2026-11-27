@@ -93,19 +93,6 @@
       "field_title": "Title",
       "field_writeup": "Writeup",
       "field_writeup_hint": "Markdown, shown to players once they complete the challenge (or after the event ends, if enabled)",
-      "file": {
-        "attach_title": "Attach files to question",
-        "empty": "No files attached",
-        "manage": "Manage files",
-        "no_files": "No files uploaded yet. Go to the Files section to upload some.",
-        "no_match": "No files match your search",
-        "save_files_one": "Save ({{count}} file)",
-        "save_files_other": "Save ({{count}} files)",
-        "search_placeholder": "Search files…",
-        "section_title": "Files ({{n}})",
-        "update_error": "Failed to update files",
-        "updated": "Files updated"
-      },
       "hint": {
         "add": "Add hint",
         "add_error": "Failed to add hint",
@@ -714,6 +701,7 @@
     "answer_label": "Answer",
     "answer_placeholder": "Enter your answer…",
     "back": "Back to challenges",
+    "copy_sha256": "Copy the SHA-256 of {{name}}",
     "event_ended_banner": "The CTF has ended. Submissions are no longer accepted.",
     "event_not_started_banner": "The CTF has not started yet. Submissions open at the start.",
     "feedback_error": "Could not save your feedback",
@@ -775,9 +763,7 @@
     "saving": "Saving…",
     "search": "Search…",
     "sign_out": "Sign out",
-    "true": "true",
-    "upload": "Upload",
-    "uploading": "Uploading…"
+    "true": "true"
   },
   "config": {
     "appearance": {
@@ -1027,6 +1013,58 @@
     "not_found": "Page not found",
     "not_found_desc": "This page doesn't exist or is not published."
   },
+  "files": {
+    "attached": {
+      "challenge_hint": "Shared by every question, shown to players above the questions.",
+      "challenge_title": "Challenge files",
+      "detach": "Detach {{name}}",
+      "empty": "No files attached.",
+      "error": "Could not update the files",
+      "manage": "Manage files",
+      "pick_title": "Attach files",
+      "question_title": "Files",
+      "save": "Attach {{n}} file(s)",
+      "saved": "Files updated"
+    },
+    "col_usage": "Usage",
+    "delete_in_use": "Delete \"{{name}}\"? It is still used by:",
+    "delete_in_use_effect": "Its attachments will be removed and text references will break.",
+    "duplicate_upload": "\"{{name}}\" has the same content as: {{existing}}",
+    "filter_challenge": "Challenge",
+    "image_picker": {
+      "open": "Choose",
+      "title": "Choose an image",
+      "use": "Use image"
+    },
+    "picker": {
+      "drop_hint": "Drop files on the list to upload them.",
+      "empty": "No files found. Upload one or drop it here.",
+      "error": "Could not use the files",
+      "list": "Stored files",
+      "more": "Load more",
+      "upload": "Upload",
+      "will_publish": "{{names}} will be made public: anyone with the link can download it, even before the challenge opens.",
+      "wrong_type": "Only {{type}} files can be used here."
+    },
+    "private": "Private",
+    "private_breaks_links": "This file is embedded in {{n}} text(s). Making it private breaks those images and links.",
+    "public": "Public",
+    "summary": "{{files}} files · {{size}} · {{unused}} unused",
+    "unlink_and_delete": "Unlink and delete",
+    "usage": {
+      "challenge": "Challenge file",
+      "challenge_text": "Challenge text",
+      "config": "Setting",
+      "count": "Used ({{n}})",
+      "hint_text": "Hint",
+      "notification_text": "Notification",
+      "page_text": "Page",
+      "question": "Question file",
+      "question_text": "Question text",
+      "unused": "Unused",
+      "used": "Used"
+    }
+  },
   "forgot_password": {
     "email_label": "Email",
     "error_unexpected": "An unexpected error occurred",
@@ -1061,14 +1099,14 @@
     "verify_title": "Verify your email"
   },
   "markdown": {
+    "confirm_public_upload": "Upload {{names}} as public? Anyone with the link can download it, even if you remove the link before saving.",
+    "insert": "Insert",
     "insert_file": "Insert file",
-    "make_public_error": "Failed to make file public",
-    "no_files": "No files found. Upload files first in the Files section.",
     "nothing_to_preview": "Nothing to preview.",
     "pick_file": "Pick a file to insert",
     "preview": "Preview",
-    "upload_file": "Upload",
-    "will_make_public": "will be made public",
+    "upload_public": "Upload as public",
+    "uploaded_public": "Uploaded as public: anyone with the link can download it.",
     "write": "Write"
   },
   "nav": {

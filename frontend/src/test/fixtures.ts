@@ -24,6 +24,7 @@ import type {
   SessionOverview,
   SharedAddress,
   SharedAddressAccount,
+  StoredFileListItem,
   User,
   UserClient,
   UserSession,
@@ -216,6 +217,7 @@ export function challengeDetail(
     writeup: null,
     sequential: false,
     question_count: 1,
+    files: [],
     questions: [question()],
     completed: false,
     my_feedback: null,
@@ -492,6 +494,23 @@ export function schedulerTask(overrides: Partial<SchedulerTask> = {}): Scheduler
     completed_at: new Date().toISOString(),
     queue_job_id: 42,
     created_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+export function storedFile(overrides: Partial<StoredFileListItem> = {}): StoredFileListItem {
+  return {
+    id: "f-1",
+    name: "logo.png",
+    s3_key: "files/f-1",
+    original_filename: "logo.png",
+    mime_type: "image/png",
+    file_size: 120,
+    is_public: true,
+    sha256: null,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+    usages: [],
     ...overrides,
   };
 }

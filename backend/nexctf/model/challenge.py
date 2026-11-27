@@ -4,7 +4,8 @@ import logging
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import Column, ForeignKey, Table
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, LabelArray, LabelStr
@@ -12,8 +13,27 @@ from .base import Base, LabelArray, LabelStr
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from .file import File
     from .question import Hint, Question
     from .user import User
+
+challenge_files_table = Table(
+    "challenge_files",
+    Base.metadata,
+    Column(
+        "challenge_id",
+        PG_UUID(as_uuid=True),
+        ForeignKey("challenges.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "file_id",
+        PG_UUID(as_uuid=True),
+        ForeignKey("stored_files.id", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+    ),
+)
 
 
 class Challenge(Base):
@@ -31,6 +51,10 @@ class Challenge(Base):
         back_populates="challenge",
         order_by="Question.index",
         cascade="save-update, merge, delete",
+    )
+
+    files: Mapped[list[File]] = relationship(
+        secondary=challenge_files_table, order_by="File.name"
     )
 
     category: Mapped[LabelStr]

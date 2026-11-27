@@ -9,7 +9,6 @@ import {
   ChevronUp,
   Code2,
   Eye,
-  FileText,
   Lightbulb,
   Lock,
   Star,
@@ -20,11 +19,12 @@ import { toast } from "sonner";
 import { Banner } from "@/components/banner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Markdown } from "@/components/markdown";
+import { PlayerFileList } from "@/components/player-file-list";
 import { PluginSlot } from "@/components/plugin-slot";
 import { PointsBadges } from "@/components/points-badge";
 import { SignedPoints } from "@/components/table-cells";
 import { TagBadge } from "@/components/tag-badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -41,7 +41,6 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useEventPhase, useRefetchChallengesOnStart } from "@/lib/use-event-phase";
-import { formatBytes } from "@/lib/utils";
 
 function UnlockHintButton({
   hint,
@@ -196,6 +195,7 @@ function ChallengeView({ challenge }: { challenge: PublicChallengeDetail }) {
           {challenge.description && (
             <Markdown className="text-sm text-muted-foreground">{challenge.description}</Markdown>
           )}
+          <PlayerFileList files={challenge.files} />
         </div>
 
         <div className="space-y-1.5">
@@ -433,32 +433,7 @@ function QuestionCard({
             <Markdown className="text-sm text-muted-foreground">{q.description}</Markdown>
           )}
 
-          {q.files.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t("challenge.files")}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {q.files.map((f) => (
-                  <a
-                    key={f.id}
-                    href={f.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={buttonVariants({ variant: "outline", size: "sm" })}
-                  >
-                    <FileText className="text-muted-foreground" />
-                    {f.name}
-                    {f.file_size != null && (
-                      <span className="text-xs text-muted-foreground">
-                        ({formatBytes(f.file_size)})
-                      </span>
-                    )}
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
+          <PlayerFileList files={q.files} />
 
           {q.hints.length > 0 && (
             <HintsSection

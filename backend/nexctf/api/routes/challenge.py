@@ -9,6 +9,7 @@ from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, Request
+from fastapi.responses import RedirectResponse
 from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import Response
 from sqlalchemy import select, text
@@ -28,7 +29,7 @@ from nexctf.api.dep import (
     check_visibility,
 )
 from nexctf.api.security import client_of
-from nexctf.core import appconfig
+from nexctf.core import appconfig, s3
 from nexctf.core.rate_limit import (
     check_config_rate_limit,
     check_user_write_limit,
@@ -38,6 +39,7 @@ from nexctf.exceptions import (
     AnswerCheckTimeoutError,
     ChallengeNotCompletedError,
     FeedbackDisabledError,
+    FileNotFoundApiError,
     HintAfterSolveError,
     SequentialChallengeError,
     SolutionTimeoutError,
@@ -45,6 +47,7 @@ from nexctf.exceptions import (
 from nexctf.model import (
     Challenge,
     ChallengeFeedback,
+    File,
     HintUnlock,
     Question,
     ScoreAdjustment,
@@ -58,7 +61,11 @@ from nexctf.module.challenge import (
     question_order,
     record_first_view,
 )
-from nexctf.module.challenge.compute import QuestionStructure, solution_load_option
+from nexctf.module.challenge.compute import (
+    ChallengeDetailStructure,
+    QuestionStructure,
+    solution_load_option,
+)
 from nexctf.module.events import emit as emit_event
 from nexctf.module.scoreboard import invalidate_play
 from nexctf.module.stats import invalidate as invalidate_stats
@@ -149,6 +156,21 @@ async def _check_question_access(
     prev_ids = ordered[: ordered.index(question.id)]
     if len(await _solved_ids(session, user, prev_ids)) < len(prev_ids):
         raise SequentialChallengeError()
+
+
+def _locked_from(structure: ChallengeDetailStructure, solved: set[UUID]) -> int | None:
+    """Index from which a sequential challenge's questions are locked, if any."""
+    if not structure.sequential:
+        return None
+    for i, q in enumerate(structure.questions):
+        if q.id not in solved:
+            return i + 1
+    return None
+
+
+def _is_locked(index: int, locked_from: int | None) -> bool:
+    """Whether the question at *index* is locked behind an unsolved one."""
+    return locked_from is not None and index >= locked_from
 
 
 def _writeup_visible(*, challenge_completed: bool, overrides: dict[str, str]) -> bool:
@@ -362,14 +384,7 @@ async def get_challenge(
     all_hint_ids = [h.id for q in questions for h in q.hints]
     unlocked = await _unlocked_ids(session, user, all_hint_ids)
 
-    # Sequential: all questions are shown, but questions after the first unsolved
-    # one are marked as locked (blurred on the frontend).
-    locked_from: int | None = None
-    if structure.sequential:
-        for i, q in enumerate(questions):
-            if q.id not in solved:
-                locked_from = i + 1  # everything after this index is locked
-                break
+    locked_from = _locked_from(structure, solved)
 
     canary_token = canary.token(structure.id) if canary.enabled(overrides) else None
     option_seed = str((user.team_id or user.id) if user else "")
@@ -377,7 +392,7 @@ async def get_challenge(
         _assemble_question(
             q,
             is_solved=q.id in solved,
-            is_locked=locked_from is not None and i >= locked_from,
+            is_locked=_is_locked(i, locked_from),
             unlocked_hint_ids=unlocked,
             canary_token=canary_token,
             option_seed=option_seed,
@@ -413,6 +428,7 @@ async def get_challenge(
             solved_count=len(solved),
             challenge_type=structure.challenge_type,
             sequential=structure.sequential,
+            files=list(structure.files),
             questions=question_reads,
             completed=challenge_completed,
             tags=list(structure.tags),
@@ -762,3 +778,40 @@ async def submit_feedback(
     )
 
     return Response(data=feedback)
+
+
+async def _downloadable_ids(
+    session: SessionDep, user: User | None, structure: ChallengeDetailStructure
+) -> set[UUID]:
+    """Files of the challenge and of every question the caller can see."""
+    solved = (
+        await _solved_ids(session, user, [q.id for q in structure.questions])
+        if structure.sequential
+        else set()
+    )
+    locked_from = _locked_from(structure, solved)
+    ids = {f.id for f in structure.files}
+    for i, q in enumerate(structure.questions):
+        if not _is_locked(i, locked_from):
+            ids.update(f.id for f in q.files)
+    return ids
+
+
+@challenge_router.get("/{challenge_id}/files/{file_id}")
+async def download_challenge_file(
+    session: SessionDep,
+    redis: RedisDep,
+    challenge_id: UUID,
+    file_id: UUID,
+    overrides: ConfigDep,
+    _: EventStartedDep = None,
+    user: OptionalCurrentUserDep = None,
+) -> RedirectResponse:
+    """Redirect to a fresh download URL for a file the caller can see."""
+    _check_challenge_visibility(user, overrides)
+    structure = await get_detail_structure(session, redis, challenge_id)
+    if file_id not in await _downloadable_ids(session, user, structure):
+        raise FileNotFoundApiError()
+    file = await crud.FileCrud.get(session, filters=[File.id == file_id])
+    url = await s3.presigned_download_url(file.s3_key, file.original_filename)
+    return RedirectResponse(url=url)

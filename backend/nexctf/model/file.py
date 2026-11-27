@@ -12,3 +12,4 @@ class File(Base):
     mime_type: Mapped[str | None]
     file_size: Mapped[int | None]
     is_public: Mapped[bool] = mapped_column(default=False)
+    sha256: Mapped[str | None] = mapped_column(index=True)

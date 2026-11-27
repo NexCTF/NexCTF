@@ -90,6 +90,7 @@ _CHALLENGE_FIELDS = [
     "category",
     "tags",
     "author_username",
+    "file_ids",
     "data",
 ]
 _QUESTION_FIELDS = [

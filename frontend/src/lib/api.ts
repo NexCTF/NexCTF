@@ -1187,6 +1187,7 @@ export interface PublicFile {
   original_filename: string;
   mime_type: string | null;
   file_size: number | null;
+  sha256: string | null;
   url: string;
 }
 
@@ -1241,6 +1242,7 @@ export interface PublicChallengeDetail extends PublicChallenge {
   description: string | null;
   writeup: string | null;
   sequential: boolean;
+  files: PublicFile[];
   questions: PublicQuestion[];
   completed: boolean;
   my_feedback: PublicFeedback | null;
@@ -1664,8 +1666,34 @@ export interface StoredFile {
   mime_type: string | null;
   file_size: number | null;
   is_public: boolean;
+  sha256: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type FileUsageKind =
+  | "challenge"
+  | "question"
+  | "challenge_text"
+  | "question_text"
+  | "hint_text"
+  | "page_text"
+  | "notification_text"
+  | "config";
+
+export interface FileUsage {
+  kind: FileUsageKind;
+  target_id: string | null;
+  label: string;
+  challenge_id: string | null;
+}
+
+export interface StoredFileListItem extends StoredFile {
+  usages: FileUsage[];
+}
+
+export interface UploadedFile extends StoredFile {
+  duplicates: StoredFile[];
 }
 
 export interface StoredFileDetail extends StoredFile {
@@ -1673,8 +1701,39 @@ export interface StoredFileDetail extends StoredFile {
   download_url: string;
 }
 
-export async function getAdminFiles(queryString: string): Promise<PaginatedResponse<StoredFile>> {
-  return requestPaginated<StoredFile>(`/admin/file?${queryString}`);
+export interface FilesSummary {
+  count: number;
+  total_size: number;
+  unused_count: number;
+}
+
+/** Whether a usage is a text reference that breaks when the file goes private or away. */
+export function isTextUsage(usage: FileUsage): boolean {
+  return usage.kind !== "challenge" && usage.kind !== "question";
+}
+
+export async function getAdminFiles(
+  queryString: string,
+): Promise<PaginatedResponse<StoredFileListItem>> {
+  return requestPaginated<StoredFileListItem>(`/admin/file?${queryString}`);
+}
+
+export async function getAdminFilesSummary(): Promise<FilesSummary> {
+  return request<FilesSummary>("/admin/file/summary");
+}
+
+export async function getChallengeFiles(challengeId: string): Promise<StoredFile[]> {
+  return request<StoredFile[]>(`/admin/challenge/${challengeId}/files`);
+}
+
+export async function setChallengeFiles(
+  challengeId: string,
+  fileIds: string[],
+): Promise<StoredFile[]> {
+  return request<StoredFile[]>(`/admin/challenge/${challengeId}/files`, {
+    method: "PUT",
+    body: JSON.stringify({ file_ids: fileIds }),
+  });
 }
 
 export async function getAdminFile(id: string): Promise<StoredFileDetail> {
@@ -1698,7 +1757,7 @@ export async function uploadAdminFile(
   name: string,
   file: File,
   isPublic = false,
-): Promise<StoredFile> {
+): Promise<UploadedFile> {
   const form = new FormData();
   form.append("name", name);
   form.append("upload", file);
@@ -1716,8 +1775,8 @@ export async function updateAdminFile(
   return multipartRequest(`/admin/file/${id}`, "PUT", form);
 }
 
-export async function deleteAdminFile(id: string): Promise<void> {
-  await rawRequest(`/admin/file/${id}`, { method: "DELETE" });
+export async function deleteAdminFile(id: string, force = false): Promise<void> {
+  await rawRequest(`/admin/file/${id}${force ? "?force=true" : ""}`, { method: "DELETE" });
 }
 
 /** Stable URL for a public file; redirects to a freshly presigned S3 URL. */

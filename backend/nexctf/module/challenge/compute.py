@@ -1,14 +1,13 @@
 """Compute the cacheable, user-agnostic structure of player-facing challenges.
 
-The structures here hold every field a player view can need (including presigned
-file URLs and hint content). They are server-side only; per-request assembly in
+The structures here hold every field a player view can need (including file
+download routes and hint content). They are server-side only; per-request assembly in
 the API layer decides what is actually exposed based on the caller's solved /
 unlocked / lock state.
 """
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 from uuid import UUID
 
@@ -18,9 +17,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectin_polymorphic, selectinload
 
-from nexctf.core import s3
+from nexctf.core.config import settings
 from nexctf.enums import InputType
-from nexctf.model import Challenge, Question
+from nexctf.model import Challenge, File, Question
 from nexctf.model.solution import Solution
 from nexctf.plugins.registry import solution_registry
 from nexctf.schema.file import PublicFileRead
@@ -37,7 +36,7 @@ class HintStructure(BaseModel):
 
 
 class QuestionStructure(BaseModel):
-    """A question with all assets resolved (files presigned, options collected)."""
+    """A question with all assets resolved (file routes built, options collected)."""
 
     id: UUID
     label: str
@@ -74,6 +73,7 @@ class ChallengeDetailStructure(BaseModel):
     challenge_type: str
     sequential: bool
     tags: list[str]
+    files: list[PublicFileRead] = []
     questions: list[QuestionStructure]
 
 
@@ -108,27 +108,28 @@ async def compute_list_structure(session: AsyncSession) -> list[ChallengeListIte
     ]
 
 
-async def _question_structure(q: Question) -> QuestionStructure:
-    async def _presign(key: str, filename: str) -> str:
-        try:
-            return await s3.presigned_download_url(key, filename)
-        except Exception:  # noqa: BLE001
-            return ""
+def _file_download_path(challenge_id: UUID, file_id: UUID) -> str:
+    """The player route that redirects to a fresh download URL for a file."""
+    return f"{settings.API_V1_STR}/challenges/{challenge_id}/files/{file_id}"
 
-    urls = await asyncio.gather(
-        *[_presign(f.s3_key, f.original_filename) for f in q.files]
-    )
-    files = [
+
+def _public_files(challenge_id: UUID, files: list[File]) -> list[PublicFileRead]:
+    return [
         PublicFileRead(
             id=f.id,
             name=f.name,
             original_filename=f.original_filename,
             mime_type=f.mime_type,
             file_size=f.file_size,
-            url=url,
+            sha256=f.sha256,
+            url=_file_download_path(challenge_id, f.id),
         )
-        for f, url in zip(q.files, urls)
+        for f in files
     ]
+
+
+def _question_structure(q: Question) -> QuestionStructure:
+    files = _public_files(q.challenge_id, q.files)
 
     hints = [
         HintStructure(
@@ -182,6 +183,7 @@ async def compute_detail_structure(
         select(Challenge)
         .where(Challenge.id == challenge_id, Challenge.is_active.is_(True))
         .options(
+            selectinload(Challenge.files),
             selectinload(Challenge.questions).options(
                 solution_load_option(),
                 selectinload(Question.hints),
@@ -194,9 +196,7 @@ async def compute_detail_structure(
         raise NotFoundError(detail="Challenge not found")
 
     questions = sorted(challenge.questions, key=question_order)
-    question_structs = list(
-        await asyncio.gather(*[_question_structure(q) for q in questions])
-    )
+    question_structs = [_question_structure(q) for q in questions]
     return ChallengeDetailStructure(
         id=challenge.id,
         title=challenge.title,
@@ -206,5 +206,6 @@ async def compute_detail_structure(
         challenge_type=challenge.challenge_type,
         sequential=challenge.sequential,
         tags=challenge.tags,
+        files=_public_files(challenge.id, challenge.files),
         questions=question_structs,
     )

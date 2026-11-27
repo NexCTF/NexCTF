@@ -5,7 +5,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request
 from fastapi_toolsets.exceptions import ConflictError
 from fastapi_toolsets.schemas import PaginatedResponse, Response
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from nexctf import crud
 from nexctf.api.dep import (
@@ -14,9 +17,17 @@ from nexctf.api.dep import (
     SessionDep,
     validate_body,
 )
+from nexctf.exceptions import FileNotFoundApiError
+from nexctf.model import Challenge, File
+from nexctf.module.audit import emit_write
 from nexctf.module.challenge.removal import ensure_challenge_removable
 from nexctf.plugins.registry import RegistryEntry, challenge_registry
-from nexctf.schema.challenge import AdminChallengeRead, AdminChallengeTypeInfo
+from nexctf.schema.challenge import (
+    AdminChallengeFilesUpdate,
+    AdminChallengeRead,
+    AdminChallengeTypeInfo,
+)
+from nexctf.schema.file import AdminFileRead
 from nexctf.util.pydantic import resolve_dynamic_defaults
 
 challenge_router = APIRouter(prefix="/challenge", tags=["Challenge"])
@@ -115,3 +126,52 @@ async def delete_challenge(
     return await crud_inst.delete(
         session=session, filters=[crud_inst.model.id == uuid], return_response=True
     )
+
+
+async def _challenge_with_files(session: AsyncSession, uuid: UUID) -> Challenge:
+    return await crud.ChallengeCrud.get(
+        session=session,
+        filters=[Challenge.id == uuid],
+        load_options=[selectinload(Challenge.files)],
+    )
+
+
+def _file_reads(files: list[File]) -> list[AdminFileRead]:
+    return [AdminFileRead.model_validate(f) for f in files]
+
+
+@challenge_router.get("/{uuid}/files")
+async def get_challenge_files(
+    session: SessionDep, uuid: UUID
+) -> Response[list[AdminFileRead]]:
+    """Files attached to the challenge itself, by name."""
+    challenge = await _challenge_with_files(session, uuid)
+    return Response(data=_file_reads(challenge.files))
+
+
+@challenge_router.put("/{uuid}/files")
+async def set_challenge_files(
+    session: SessionDep, uuid: UUID, obj: AdminChallengeFilesUpdate
+) -> Response[list[AdminFileRead]]:
+    """Replace the challenge's attached files."""
+    challenge = await _challenge_with_files(session, uuid)
+    wanted = set(obj.file_ids)
+    rows = await session.execute(
+        select(File).where(File.id.in_(wanted)).order_by(File.name)
+    )
+    files = list(rows.scalars().all())
+    if len(files) != len(wanted):
+        raise FileNotFoundApiError()
+    before = list(challenge.files)
+    challenge.files = files
+    await session.flush()
+    if {f.id for f in before} != wanted:
+        await emit_write(
+            session,
+            Challenge.__tablename__,
+            "updated",
+            target_id=challenge.id,
+            target_label=challenge.title,
+            changes={"files": [[f.name for f in before], [f.name for f in files]]},
+        )
+    return Response(data=_file_reads(files))

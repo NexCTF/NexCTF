@@ -65,6 +65,29 @@ it("shows the challenge with its category, tags and progress", async () => {
   expect(screen.getByText("25%")).toBeDefined();
 });
 
+it("lists challenge files with their SHA-256", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({
+      files: [
+        {
+          id: "f1",
+          name: "dump.pcap",
+          original_filename: "dump.pcap",
+          mime_type: null,
+          file_size: 2048,
+          sha256: "ab12",
+          url: "/api/v1/challenges/c1/files/f1",
+        },
+      ],
+    }),
+  );
+  renderChallenge();
+
+  const link = await screen.findByRole("link", { name: /dump\.pcap/ });
+  expect(link.getAttribute("href")).toBe("/api/v1/challenges/c1/files/f1");
+  expect(screen.getByRole("button", { name: "Copy the SHA-256 of dump.pcap" })).toBeDefined();
+});
+
 it("submits a typed answer and reports a correct solve", async () => {
   vi.mocked(submitAnswer).mockResolvedValue({
     is_correct: true,

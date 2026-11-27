@@ -24,14 +24,15 @@ question_files_table = Table(
     Column(
         "question_id",
         PG_UUID(as_uuid=True),
-        ForeignKey("questions.id"),
+        ForeignKey("questions.id", ondelete="CASCADE"),
         primary_key=True,
     ),
     Column(
         "file_id",
         PG_UUID(as_uuid=True),
-        ForeignKey("stored_files.id"),
+        ForeignKey("stored_files.id", ondelete="CASCADE"),
         primary_key=True,
+        index=True,
     ),
 )
 
@@ -58,7 +59,9 @@ class Question(Base):
     solutions: Mapped[list[Solution]] = relationship(
         back_populates="question", cascade="save-update, merge, delete"
     )
-    files: Mapped[list[File]] = relationship(secondary=question_files_table)
+    files: Mapped[list[File]] = relationship(
+        secondary=question_files_table, order_by="File.name"
+    )
     tags: Mapped[LabelArray]
 
     challenge: Mapped[Challenge] = relationship(back_populates="questions")

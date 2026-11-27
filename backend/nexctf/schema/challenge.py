@@ -5,6 +5,7 @@ from fastapi_toolsets.schemas import PydanticBase
 from pydantic import StringConstraints
 
 from nexctf.schema.feedback import PublicFeedbackRead
+from nexctf.schema.file import PublicFileRead
 from nexctf.schema.question import PublicQuestionRead
 from nexctf.schema.score_adjustment import PublicScoreAdjustmentRead
 from nexctf.util.pydantic import Label, Labels
@@ -61,10 +62,17 @@ class PublicChallengeDetail(PublicChallengeRead):
     description: str | None = None
     writeup: str | None = None
     sequential: bool
+    files: list[PublicFileRead] = []
     questions: list[PublicQuestionRead]
     completed: bool = False
     my_feedback: PublicFeedbackRead | None = None
     score_adjustments: list[PublicScoreAdjustmentRead] = []
+
+
+class AdminChallengeFilesUpdate(PydanticBase):
+    """The full set of files to attach to a challenge."""
+
+    file_ids: list[UUID]
 
 
 class AdminChallengeTypeInfo(PydanticBase):
