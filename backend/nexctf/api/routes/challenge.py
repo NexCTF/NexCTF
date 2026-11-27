@@ -202,13 +202,16 @@ async def _check_question_access(
     session: SessionDep, user: User, challenge: Challenge, question: Question
 ) -> None:
     """Raise if the team may not act on *question* yet: sequential challenges
-    keep every question after the first one the team is not done with locked."""
+    keep every question after the first one the team is not done with locked,
+    except the ones the team is already done with."""
     if not challenge.sequential:
         return
     ordered = sorted(challenge.questions, key=question_order)
-    previous = ordered[: ordered.index(question)]
-    solved, wrong = await _team_progress(session, user, [q.id for q in previous])
-    if len(_done(previous, solved, wrong)) < len(previous):
+    index = ordered.index(question)
+    scope = ordered[: index + 1]
+    solved, wrong = await _team_progress(session, user, [q.id for q in scope])
+    done = _done(scope, solved, wrong)
+    if question.id not in done and len(done) < index:
         raise SequentialChallengeError()
 
 
@@ -222,9 +225,12 @@ def _locked_from(structure: ChallengeDetailStructure, done: set[UUID]) -> int | 
     return None
 
 
-def _is_locked(index: int, locked_from: int | None) -> bool:
-    """Whether the question at *index* is locked behind one not yet done."""
-    return locked_from is not None and index >= locked_from
+def _is_locked(index: int, locked_from: int | None, *, is_done: bool) -> bool:
+    """Whether the question at *index* is locked behind one not yet done.
+
+    A question the team is already done with is never locked.
+    """
+    return not is_done and locked_from is not None and index >= locked_from
 
 
 def _writeup_visible(*, challenge_completed: bool, overrides: dict[str, str]) -> bool:
@@ -441,7 +447,8 @@ async def get_challenge(
     all_hint_ids = [h.id for q in questions for h in q.hints]
     unlocked = await _unlocked_ids(session, user, all_hint_ids)
 
-    locked_from = _locked_from(structure, _done(questions, solved, wrong))
+    done = _done(questions, solved, wrong)
+    locked_from = _locked_from(structure, done)
 
     canary_token = canary.token(structure.id) if canary.enabled(overrides) else None
     option_seed = str((user.team_id or user.id) if user else "")
@@ -449,7 +456,7 @@ async def get_challenge(
         _assemble_question(
             q,
             is_solved=q.id in solved,
-            is_locked=_is_locked(i, locked_from),
+            is_locked=_is_locked(i, locked_from, is_done=q.id in done),
             attempts_left=_attempts_left(q.max_attempts, wrong.get(q.id, 0)),
             unlocked_hint_ids=unlocked,
             canary_token=canary_token,
@@ -852,7 +859,7 @@ async def _downloadable_ids(
     locked_from = _locked_from(structure, done)
     ids = {f.id for f in structure.files}
     for i, q in enumerate(structure.questions):
-        if not _is_locked(i, locked_from):
+        if not _is_locked(i, locked_from, is_done=q.id in done):
             ids.update(f.id for f in q.files)
     return ids
 

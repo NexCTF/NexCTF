@@ -476,6 +476,34 @@ class TestSequentialLock:
         assert locked["description"] is None
         assert locked["tags"] == []
 
+    async def test_a_solved_question_stays_open_behind_an_unsolved_one(
+        self,
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        """Q2 solved while Q1 is not, as after a rescore revokes the Q1 solve."""
+        c, user = user_client
+        team = await put_in_team(db_session, user)
+        challenge, _, second = await _sequential(db_session, description="Q2 text")
+        hint = Hint(title="H", content="free", cost=0, question_id=second.id)
+        db_session.add(hint)
+        db_session.add(
+            Submission(
+                team_id=team.id, question_id=second.id, answer="f", is_correct=True
+            )
+        )
+        await db_session.flush()
+
+        detail = (await c.get(f"/challenges/{challenge.id}")).json()["data"]
+        unlock = await c.post(
+            f"/challenges/{challenge.id}/{second.id}/hints/{hint.id}/unlock"
+        )
+
+        solved = detail["questions"][1]
+        assert solved["is_locked"] is False
+        assert solved["description"] == "Q2 text"
+        assert unlock.status_code == 200, unlock.text
+
 
 # ── option order ───────────────────────────────────────────────────────────────
 
