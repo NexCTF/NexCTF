@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi_toolsets.db import advisory_lock
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import class_mapper, selectin_polymorphic, selectinload
 
@@ -29,7 +29,8 @@ async def lock_question(
     """Hold a transaction lock on *question_id*.
 
     Submits take it shared, a recalculation exclusive, so a recalculation waits
-    for in-flight submits and holds new ones until it commits.
+    for in-flight submits and holds new ones until it commits. A *timeout*
+    bounds only this wait, not the rest of the transaction.
     """
     async with advisory_lock(
         session,
@@ -39,6 +40,8 @@ async def lock_question(
         timeout=timeout,
     ):
         pass
+    if timeout is not None:
+        await session.execute(text("SET LOCAL lock_timeout = DEFAULT"))
 
 
 async def recalculate_question(
@@ -47,11 +50,35 @@ async def recalculate_question(
     question_id: UUID,
 ) -> set[UUID]:
     """Re-verify every submission to *question_id*, then commit and drop the caches."""
+    affected_teams = await rescore_question(session, redis, question_id)
+    await session.commit()
+    await invalidate_scores(redis, affected_teams)
+    return affected_teams
+
+
+async def invalidate_scores(redis: Redis, team_ids: set[UUID]) -> None:
+    """Drop the scoreboard and the stats of the teams a rescore changed."""
+    await invalidate(redis)
+    for tid in team_ids:
+        await invalidate_team(redis, tid)
+
+
+async def rescore_question(
+    session: AsyncSession,
+    redis: Redis | None,
+    question_id: UUID,
+    *,
+    lock_timeout: str | None = _RECALC_LOCK_TIMEOUT,
+) -> set[UUID]:
+    """Re-verify every submission to *question_id* inside the open transaction.
+
+    Returns the teams whose submissions changed; the caller commits.
+    """
     question = await _load_question(session, question_id)
     if question is None:
         raise ValueError(f"Question {question_id} not found")
 
-    await lock_question(session, question_id, timeout=_RECALC_LOCK_TIMEOUT)
+    await lock_question(session, question_id, timeout=lock_timeout)
     submissions = (
         (
             await session.execute(
@@ -128,11 +155,7 @@ async def recalculate_question(
             sub.is_trap = new_is_trap
             affected_teams.add(team_id)
 
-    await session.commit()
-    await invalidate(redis)
-    for tid in affected_teams:
-        await invalidate_team(redis, tid)
-
+    await session.flush()
     return affected_teams
 
 
@@ -157,6 +180,7 @@ async def _load_question(session: AsyncSession, question_id: UUID) -> Question |
     return await session.scalar(
         select(Question)
         .where(Question.id == question_id)
+        .execution_options(populate_existing=True)
         .options(
             selectinload(Question.solutions).options(
                 selectin_polymorphic(Solution, solution_subtypes)

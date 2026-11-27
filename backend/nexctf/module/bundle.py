@@ -70,6 +70,7 @@ from nexctf.module.challenge.removal import (
     question_history,
 )
 from nexctf.module.events import emit
+from nexctf.module.submission import invalidate_scores, rescore_question
 from nexctf.plugins.loader import get_plugin_metadata
 from nexctf.plugins.registry import (
     PolymorphicRegistry,
@@ -1013,6 +1014,52 @@ def _refusal(refused: list[PlanEntry]) -> str:
     return "the import was not applied. It has " + "; and ".join(parts) + "."
 
 
+_SCORING_FIELDS = frozenset({"points", "malus", "trap_flags"})
+
+
+async def _scoring_targets(session: AsyncSession, plan: Plan) -> set[UUID]:
+    """Questions whose flags or scoring *plan* changes, read before it writes."""
+    entries = plan.applicable()
+    solutions = [e for e in entries if e.kind is EntityKind.SOLUTION]
+    targets = {UUID(e.parent_id) for e in solutions if e.parent_id is not None}
+    targets.update(
+        await session.scalars(
+            select(Solution.question_id).where(
+                Solution.id.in_([UUID(e.id) for e in solutions])
+            )
+        )
+    )
+    targets.update(
+        UUID(e.id)
+        for e in entries
+        if e.kind is EntityKind.QUESTION
+        and e.action is Action.UPDATE
+        and _SCORING_FIELDS & e.changes.keys()
+    )
+    return targets
+
+
+async def _rescore(
+    session: AsyncSession, redis: Redis | None, question_ids: set[UUID]
+) -> None:
+    """Rescore the *question_ids* that still exist, each in its own transaction.
+
+    A rescore waits for the submits in flight on its question rather than
+    timing out, so every changed question is rescored.
+    """
+    if not question_ids:
+        return
+    existing = (
+        await session.scalars(select(Question.id).where(Question.id.in_(question_ids)))
+    ).all()
+    teams: set[UUID] = set()
+    for question_id in sorted(existing):
+        teams |= await rescore_question(session, redis, question_id, lock_timeout=None)
+        await session.commit()
+    if redis is not None:
+        await invalidate_scores(redis, teams)
+
+
 async def apply_import(
     session: AsyncSession,
     redis: Redis | None,
@@ -1022,7 +1069,8 @@ async def apply_import(
     prune: bool = False,
     guard: Callable[[Plan], Awaitable[None]] | None = None,
 ) -> Plan:
-    """Re-derive a plan, let *guard* refuse it, then apply it in one transaction."""
+    """Re-derive a plan, let *guard* refuse it, apply it in one transaction, then
+    rescore the questions whose flags or scoring it changed."""
     plan = await plan_import(session, incoming, blobs=blobs, prune=prune)
     if refused := plan.refused():
         raise BundleError(_refusal(refused))
@@ -1030,6 +1078,7 @@ async def apply_import(
         await guard(plan)
     selected = {entry.key for entry in plan.applicable()}
 
+    targets = await _scoring_targets(session, plan)
     writer = _Writer(session, incoming, blobs, plan)
     await writer.run()
     updates, removals = await _apply_config(session, incoming, writer.actions)
@@ -1049,5 +1098,6 @@ async def apply_import(
     for key in writer.removed_objects:
         await s3.delete(key)
     await _sync_config_cache(redis, updates, removals)
+    await _rescore(session, redis, targets)
     logger.info("Applied bundle import: %s", applied.counts())
     return applied
