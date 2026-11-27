@@ -29,7 +29,11 @@ from nexctf.api.dep import (
 )
 from nexctf.api.security import client_of
 from nexctf.core import appconfig
-from nexctf.core.rate_limit import check_config_rate_limit, check_user_write_limit
+from nexctf.core.rate_limit import (
+    check_config_rate_limit,
+    check_user_write_limit,
+    rate_key,
+)
 from nexctf.exceptions import (
     AnswerCheckTimeoutError,
     ChallengeNotCompletedError,
@@ -432,7 +436,7 @@ async def submit_answer(
 ) -> Response[SubmitResult]:
     _check_challenge_visibility(user, overrides)
     await check_config_rate_limit(
-        redis, overrides, name="submit", key=f"rl:submit:{user.team_id}"
+        redis, overrides, name="submit", key=rate_key("submit", str(user.team_id))
     )
 
     await lock_question(session, question_id, shared=True)

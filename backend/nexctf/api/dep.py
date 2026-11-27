@@ -38,9 +38,9 @@ from nexctf.exceptions import (
     UnscopableEndpointError,
 )
 from nexctf.model import Challenge, OAuthProvider, Solution, Team, User, UserRole
-from nexctf.module.audit import AuditContext, set_audit_context
 from nexctf.module.client import category_expression, record_sighting
 from nexctf.module.custom_field import require_complete_profile
+from nexctf.module.events import AuditContext, set_audit_context
 from nexctf.module.session import session_idle, track_session_ip
 from nexctf.plugins.registry import (
     challenge_registry,

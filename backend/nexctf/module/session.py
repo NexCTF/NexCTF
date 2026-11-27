@@ -42,6 +42,7 @@ from nexctf.schema.user import (
     AdminSessionOverviewRead,
     AdminSharedAddressRead,
     AdminUserIpRead,
+    UserPasswordUpdate,
 )
 from nexctf.util.ip import get_client_ip
 
@@ -455,6 +456,12 @@ async def revoke_user_sessions(db: AsyncSession, user: User) -> None:
     )
 
 
+async def revoke_all_sessions(db: AsyncSession) -> set[UUID]:
+    """Revoke every browser session, returning the ids of the users signed out."""
+    deleted = await db.scalars(delete(UserSession).returning(UserSession.user_id))
+    return set(deleted.all())
+
+
 async def purge_expired_access(db: AsyncSession) -> None:
     """Delete expired sessions, and API tokens expired over ``TOKEN_RETENTION``."""
     now = datetime.now(UTC)
@@ -493,3 +500,13 @@ async def revoke_all_access(db: AsyncSession, user: User) -> int:
     )
     user.session_version = int(version or 0)
     return user.session_version
+
+
+async def replace_password(db: AsyncSession, user: User, hashed_password: str) -> None:
+    """Store a new password hash, voiding reset tokens, sessions and API tokens."""
+    await crud.UserCrud.update(
+        session=db,
+        filters=[User.id == user.id],
+        obj=UserPasswordUpdate(id=user.id, hashed_password=hashed_password),
+    )
+    await revoke_all_access(db, user)

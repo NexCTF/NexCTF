@@ -64,6 +64,10 @@ ENV UV_PYTHON_INSTALL_DIR=/python \
 COPY --chown=nexctf:nexctf backend/.python-version ./
 RUN uv python install
 
+# Tab completion for `manager` in interactive shells (docker exec -it <container> bash)
+COPY docker/manager-completion.bash /etc/bash_completion.d/manager
+RUN echo '. /etc/bash_completion.d/manager' >> /etc/bash.bashrc
+
 USER nexctf
 
 # Install dependencies (no dev tools in production image)

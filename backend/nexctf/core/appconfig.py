@@ -16,14 +16,14 @@ import enum
 import logging
 import os
 import re
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Collection, Iterable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any, cast
 from urllib.parse import urlparse
 
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.model.config import ConfigEntry
@@ -380,3 +380,12 @@ async def commit_and_store(
     for key, value in updates.items():
         cast(Any, pipe.hset(REDIS_HASH, key, value))
     await cast(Any, pipe.execute())
+
+
+async def remove_and_store(
+    session: AsyncSession, redis: Redis, keys: Collection[str]
+) -> None:
+    """Delete the stored values of *keys*, then drop them from Redis."""
+    await session.execute(delete(ConfigEntry).where(ConfigEntry.key.in_(keys)))
+    await session.commit()
+    await cast(Any, redis.hdel(REDIS_HASH, *keys))
