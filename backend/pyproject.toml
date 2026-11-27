@@ -31,7 +31,6 @@ dependencies = [
 Repository = "https://github.com/NexCTF/NexCTF"
 
 [project.scripts]
-backend = "backend:main"
 nexctf-plugins = "nexctf.plugins.migrate:main"
 
 [build-system]
