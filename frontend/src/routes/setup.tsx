@@ -104,8 +104,9 @@ export const Route = createFileRoute("/setup")({
 function SetupPage() {
   const { step } = Route.useSearch();
   const { user, isLoading } = useAuth();
-  const { data: status } = useQuery(SETUP_QUERY);
+  const { data: status, isError, refetch } = useQuery(SETUP_QUERY);
 
+  if (isError) return <StatusError onRetry={() => void refetch()} />;
   if (!status || isLoading) return null;
   if (status.admin_required) {
     return (
@@ -119,6 +120,25 @@ function SetupPage() {
     return <Navigate to={isAdmin ? "/admin" : "/"} replace />;
   }
   return <SetupShell step={step}>{step === "event" ? <EventStep /> : <NextStep />}</SetupShell>;
+}
+
+function StatusError({ onRetry }: { onRetry: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <Card className="w-full max-w-lg">
+        <CardHeader>
+          <CardTitle>{t("setup.status_error.title")}</CardTitle>
+          <CardDescription>{t("setup.status_error.description")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button className="w-full" onClick={onRetry}>
+            {t("setup.status_error.retry")}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 function SetupShell({ step, children }: { step: Step; children: ReactNode }) {
@@ -162,6 +182,37 @@ function AccountStep() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  async function createAccount(): Promise<boolean> {
+    try {
+      await createFirstAdmin({ token, username, password, email: email || undefined });
+      return true;
+    } catch (err) {
+      const code = err instanceof ApiError ? err.errCode : null;
+      if (code === "SETUP-403-TOKEN") {
+        setAskToken(true);
+        setError(t("setup.account.token_invalid"));
+      } else if (code === "SETUP-409-DONE") {
+        await refresh().catch(() => undefined);
+        await qc.invalidateQueries({ queryKey: SETUP_QUERY.queryKey });
+      } else {
+        setError(apiErrorMessage(err, t("setup.account.error_unexpected")));
+      }
+      return false;
+    }
+  }
+
+  async function enterSetup() {
+    try {
+      await refresh();
+    } catch {
+      setError(t("setup.account.error_sign_in"));
+      return;
+    }
+    await qc.invalidateQueries({ queryKey: ["info"] });
+    qc.setQueryData(SETUP_QUERY.queryKey, { admin_required: false });
+    await navigate({ search: { step: "event" }, replace: true });
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (password !== confirm) {
@@ -171,20 +222,7 @@ function AccountStep() {
     setError(null);
     setLoading(true);
     try {
-      await createFirstAdmin({ token, username, password, email: email || undefined });
-      await refresh();
-      qc.setQueryData(SETUP_QUERY.queryKey, { admin_required: false });
-      await navigate({ search: { step: "event" }, replace: true });
-    } catch (err) {
-      const code = err instanceof ApiError ? err.errCode : null;
-      if (code === "SETUP-403-TOKEN") {
-        setAskToken(true);
-        setError(t("setup.account.token_invalid"));
-      } else if (code === "SETUP-409-DONE") {
-        await qc.invalidateQueries({ queryKey: SETUP_QUERY.queryKey });
-      } else {
-        setError(apiErrorMessage(err, t("setup.account.error_unexpected")));
-      }
+      if (await createAccount()) await enterSetup();
     } finally {
       setLoading(false);
     }

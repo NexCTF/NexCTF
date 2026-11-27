@@ -1,5 +1,7 @@
 """Tests for the first-run setup endpoints."""
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock
 
 import pytest
@@ -24,7 +26,7 @@ BODY = {
 
 
 @pytest.fixture
-def stored_token(mock_redis) -> AsyncMock:
+def stored_token(mock_redis: AsyncMock) -> AsyncMock:
     """Serve TOKEN as the current setup token; returns the mocked delete."""
     mock_redis.get = AsyncMock(return_value=hash_token(TOKEN))
     mock_redis.delete = AsyncMock(return_value=1)
@@ -36,9 +38,18 @@ async def _users(db_session: AsyncSession) -> list[User]:
 
 
 @pytest.fixture(autouse=True)
-def setup_pending(monkeypatch: pytest.MonkeyPatch) -> None:
+def setup_pending(
+    monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession, mock_redis: AsyncMock
+) -> None:
     """Start each test on an instance that has not seen an admin yet."""
+
+    @asynccontextmanager
+    async def _db() -> AsyncGenerator[AsyncSession]:
+        yield db_session
+
     monkeypatch.setattr(setup, "_admin_seen", False)
+    monkeypatch.setattr(setup, "get_db_context", _db)
+    mock_redis.exists = AsyncMock(return_value=0)
 
 
 class TestSetupGate:
@@ -50,6 +61,12 @@ class TestSetupGate:
         assert resp.json()["error_code"] == "SETUP-403-REQUIRED"
 
         await make_user(db_session, "root", role=UserRole.admin)
+        assert (await http_client.get("/info/me")).status_code == 401
+
+    async def test_public_info_answers_before_setup(
+        self, http_client: AsyncClient
+    ) -> None:
+        """Health checks and the branding of the setup page keep working."""
         assert (await http_client.get("/info")).status_code == 200
 
 
@@ -68,7 +85,10 @@ class TestSetupStatus:
 
 class TestCreateFirstAdmin:
     async def test_creates_a_signed_in_admin(
-        self, http_client: AsyncClient, db_session: AsyncSession, stored_token
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+        stored_token: AsyncMock,
     ) -> None:
         resp = await http_client.post("/setup/admin", json=BODY)
 
@@ -90,7 +110,11 @@ class TestCreateFirstAdmin:
 
     @pytest.mark.parametrize("token", ["wrong-token", ""])
     async def test_rejects_a_wrong_token(
-        self, http_client: AsyncClient, db_session: AsyncSession, stored_token, token
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+        stored_token: AsyncMock,
+        token: str,
     ) -> None:
         resp = await http_client.post("/setup/admin", json={**BODY, "token": token})
 
@@ -108,7 +132,10 @@ class TestCreateFirstAdmin:
         assert await _users(db_session) == []
 
     async def test_closed_once_an_admin_exists(
-        self, http_client: AsyncClient, db_session: AsyncSession, stored_token
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+        stored_token: AsyncMock,
     ) -> None:
         await make_user(db_session, "admin", role=UserRole.admin)
 
@@ -119,7 +146,10 @@ class TestCreateFirstAdmin:
         stored_token.assert_not_awaited()
 
     async def test_taken_username_keeps_the_token(
-        self, http_client: AsyncClient, db_session: AsyncSession, stored_token
+        self,
+        http_client: AsyncClient,
+        db_session: AsyncSession,
+        stored_token: AsyncMock,
     ) -> None:
         await make_user(db_session, "root")
 
@@ -129,7 +159,7 @@ class TestCreateFirstAdmin:
         stored_token.assert_not_awaited()
 
     async def test_refuses_when_the_token_was_used_meanwhile(
-        self, http_client: AsyncClient, mock_redis, stored_token
+        self, http_client: AsyncClient, mock_redis: AsyncMock, stored_token: AsyncMock
     ) -> None:
         mock_redis.delete = AsyncMock(return_value=0)
 
@@ -139,7 +169,7 @@ class TestCreateFirstAdmin:
         assert "NexCTF" not in resp.cookies
 
     async def test_rejects_a_weak_password(
-        self, http_client: AsyncClient, stored_token
+        self, http_client: AsyncClient, stored_token: AsyncMock
     ) -> None:
         resp = await http_client.post(
             "/setup/admin", json={**BODY, "password": "short"}

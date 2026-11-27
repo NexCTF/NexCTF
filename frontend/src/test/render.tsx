@@ -41,7 +41,7 @@ export function renderRoute(
     isLoading: false,
     login: vi.fn(),
     logout: vi.fn(),
-    refresh: vi.fn(),
+    refresh: vi.fn().mockResolvedValue(undefined),
     ...auth,
   };
   const rootRoute = createRootRoute({

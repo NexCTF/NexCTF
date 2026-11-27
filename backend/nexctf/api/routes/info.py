@@ -21,10 +21,11 @@ from nexctf.schema import PublicUserRead
 from nexctf.schema.info import AdminStats, PublicInfoRead
 from nexctf.util.sql import count_of
 
+public_info_router = APIRouter(prefix="/info", tags=["info"])
 info_router = APIRouter(prefix="/info", tags=["info"])
 
 
-@info_router.get("")
+@public_info_router.get("")
 async def public_info(
     session: SessionDep,
     redis: RedisDep,

@@ -106,6 +106,8 @@ class SetupError(ApiException, abstract=True):
 
 
 class SetupRequiredError(SetupError):
+    """The API is closed until the first admin exists."""
+
     api_error = ApiError(
         code=403,
         msg="Setup required",
@@ -115,15 +117,19 @@ class SetupRequiredError(SetupError):
 
 
 class InvalidSetupTokenError(SetupError):
+    """The setup token is wrong or was already used."""
+
     api_error = ApiError(
         code=403,
         msg="Invalid setup token",
-        desc="The setup token is wrong or no longer valid. Run `manager bootstrap` for a new one.",
+        desc="The setup token is wrong or no longer valid. Run `manager bootstrap --new-link` for a new one.",
         err_code="SETUP-403-TOKEN",
     )
 
 
 class SetupCompletedError(SetupError):
+    """An admin exists, so the first-run setup is closed."""
+
     api_error = ApiError(
         code=409,
         msg="Setup completed",

@@ -49,6 +49,8 @@ class AdminUserUpdateRequest(AdminUserUpdate):
 
 
 class AccountCreate(PydanticBase):
+    """A new account's username, password and optional email."""
+
     username: Username
     password: NewPassword
     email: EmailStr | None = None

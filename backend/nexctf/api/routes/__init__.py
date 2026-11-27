@@ -6,7 +6,7 @@ from .admin import admin_router
 from .auth import auth_router
 from .challenge import challenge_router
 from .file import file_router
-from .info import info_router
+from .info import info_router, public_info_router
 from .me import me_router
 from .notification import notification_router
 from .oauth_server import oauth_router
@@ -35,4 +35,5 @@ gated_router.include_router(router=sse_router)
 gated_router.include_router(router=team_router)
 gated_router.include_router(router=oauth_router)
 router.include_router(router=gated_router)
+router.include_router(router=public_info_router)
 router.include_router(router=setup_router)

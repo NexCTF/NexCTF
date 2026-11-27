@@ -196,9 +196,9 @@ def invalidate_on_write(
     return _dep
 
 
-async def require_setup_done(session: SessionDep) -> None:
+async def require_setup_done(redis: RedisDep) -> None:
     """Refuse the request until the first admin exists."""
-    if not await setup_done(session):
+    if not await setup_done(redis):
         raise SetupRequiredError()
 
 

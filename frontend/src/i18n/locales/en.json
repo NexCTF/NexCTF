@@ -1310,6 +1310,7 @@
     "account": {
       "confirm_password": "Confirm password",
       "email": "Email (optional)",
+      "error_sign_in": "The account was created, but signing in failed. Sign in from the login page.",
       "error_unexpected": "The account could not be created",
       "mismatch": "Passwords do not match",
       "password": "Password",
@@ -1317,8 +1318,8 @@
       "subtitle": "This instance has no administrator yet. The account you create here manages everything else.",
       "title": "Create the admin account",
       "token": "Setup token",
-      "token_hint": "Printed in the server logs at start. Run the manager bootstrap command on the server for a new one.",
-      "token_invalid": "This setup token is not valid anymore. Run the manager bootstrap command on the server for a new link.",
+      "token_hint": "Printed in the server logs at start. Run manager bootstrap --new-link on the server for a new one.",
+      "token_invalid": "This setup token is not valid anymore. Run manager bootstrap --new-link on the server for a new link.",
       "username": "Username"
     },
     "event": {
@@ -1345,7 +1346,12 @@
       "subtitle": "A few places to go from here.",
       "title": "You are all set"
     },
-    "progress": "Step {{current}} of {{total}}"
+    "progress": "Step {{current}} of {{total}}",
+    "status_error": {
+      "description": "The setup status could not be loaded. Check that the server is running, then try again.",
+      "retry": "Try again",
+      "title": "Setup is unavailable"
+    }
   },
   "table": {
     "all_columns": "All columns",

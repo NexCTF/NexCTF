@@ -85,6 +85,37 @@ it("explains a stale token and lets the admin paste a new one", async () => {
   expect(screen.getByLabelText("Setup token")).toBeDefined();
 });
 
+it("tells a created admin to sign in when reloading the account fails", async () => {
+  const { router } = renderRoute(Route, {
+    path: "/setup?token=tok123",
+    auth: { refresh: vi.fn().mockRejectedValue(new Error("offline")) },
+  });
+  await fillAccount();
+
+  expect(await screen.findByText(/The account was created, but signing in failed/)).toBeDefined();
+  expect(router.state.location.search).toEqual({ token: "tok123" });
+});
+
+it("reloads the account when the admin was already created", async () => {
+  vi.mocked(createFirstAdmin).mockRejectedValue(
+    new ApiError(409, "Conflict", null, "SETUP-409-DONE"),
+  );
+  const { auth } = renderRoute(Route, { path: "/setup?token=tok123" });
+  await fillAccount();
+
+  await waitFor(() => expect(auth.refresh).toHaveBeenCalled());
+  expect(getSetupStatus).toHaveBeenCalledTimes(2);
+});
+
+it("offers a retry when the setup status cannot be loaded", async () => {
+  vi.mocked(getSetupStatus).mockRejectedValue(new ApiError(400, "Bad Request", null, null));
+  renderRoute(Route, { path: "/setup" });
+
+  await userEvent.click(await screen.findByRole("button", { name: "Try again" }));
+
+  expect(getSetupStatus).toHaveBeenCalledTimes(2);
+});
+
 it("saves only the event settings that changed", async () => {
   renderStep("event");
 

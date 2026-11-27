@@ -1313,6 +1313,7 @@
     "account": {
       "confirm_password": "Confirmer le mot de passe",
       "email": "Email (facultatif)",
+      "error_sign_in": "Le compte a été créé, mais la connexion a échoué. Connectez-vous depuis la page de connexion.",
       "error_unexpected": "Le compte n'a pas pu être créé",
       "mismatch": "Les mots de passe ne correspondent pas",
       "password": "Mot de passe",
@@ -1320,8 +1321,8 @@
       "subtitle": "Cette instance n'a pas encore d'administrateur. Le compte créé ici permet de gérer tout le reste.",
       "title": "Créer le compte administrateur",
       "token": "Token de configuration",
-      "token_hint": "Affiché dans les logs du serveur au démarrage. Lancez la commande manager bootstrap sur le serveur pour en obtenir un nouveau.",
-      "token_invalid": "Ce token de configuration n'est plus valide. Lancez la commande manager bootstrap sur le serveur pour obtenir un nouveau lien.",
+      "token_hint": "Affiché dans les logs du serveur au démarrage. Lancez manager bootstrap --new-link sur le serveur pour en obtenir un nouveau.",
+      "token_invalid": "Ce token de configuration n'est plus valide. Lancez manager bootstrap --new-link sur le serveur pour obtenir un nouveau lien.",
       "username": "Nom d'utilisateur"
     },
     "event": {
@@ -1348,7 +1349,12 @@
       "subtitle": "Quelques pistes pour la suite.",
       "title": "Tout est prêt"
     },
-    "progress": "Étape {{current}} sur {{total}}"
+    "progress": "Étape {{current}} sur {{total}}",
+    "status_error": {
+      "description": "L'état de l'installation n'a pas pu être chargé. Vérifiez que le serveur fonctionne, puis réessayez.",
+      "retry": "Réessayer",
+      "title": "Installation indisponible"
+    }
   },
   "table": {
     "all_columns": "Toutes les colonnes",

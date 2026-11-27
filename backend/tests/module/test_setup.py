@@ -1,15 +1,20 @@
 """Tests for the first-run setup token and the admin gate."""
 
+import uuid
+from collections.abc import AsyncGenerator, AsyncIterator
+from contextlib import asynccontextmanager
+
 import pytest
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.model import UserRole
+from nexctf.module import setup
 from nexctf.module.setup import (
     admin_exists,
     consume_setup_token,
     issue_setup_token,
-    refresh_setup_token,
+    setup_done,
     setup_token_matches,
 )
 from tests.base import make_user
@@ -18,23 +23,30 @@ pytestmark = pytest.mark.usefixtures("setup_key")
 
 
 async def test_only_the_issued_token_matches(redis: Redis, setup_key: str) -> None:
-    token = await issue_setup_token(redis)
+    token = await issue_setup_token(redis, replace=True)
 
+    assert token is not None
     assert await setup_token_matches(redis, token)
     assert not await setup_token_matches(redis, token[:-1])
     assert await redis.get(setup_key) != token
 
 
-async def test_a_new_token_replaces_the_previous(redis: Redis) -> None:
-    first = await issue_setup_token(redis)
-    second = await issue_setup_token(redis)
+async def test_an_issued_token_is_kept_unless_replaced(redis: Redis) -> None:
+    first = await issue_setup_token(redis, replace=False)
+    assert first is not None
+    assert await issue_setup_token(redis, replace=False) is None
+    assert await setup_token_matches(redis, first)
 
+    second = await issue_setup_token(redis, replace=True)
+
+    assert second is not None
     assert not await setup_token_matches(redis, first)
     assert await setup_token_matches(redis, second)
 
 
 async def test_consume_succeeds_once(redis: Redis) -> None:
-    token = await issue_setup_token(redis)
+    token = await issue_setup_token(redis, replace=True)
+    assert token is not None
 
     assert await consume_setup_token(redis)
     assert not await consume_setup_token(redis)
@@ -54,22 +66,48 @@ async def test_admin_exists(
     assert await admin_exists(db_session) is expected
 
 
-async def test_refresh_issues_a_token_while_no_admin_exists(
-    db_session: AsyncSession, redis: Redis
+@pytest.fixture
+async def done_key(
+    redis: Redis, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> AsyncIterator[str]:
+    """A fresh process with its own done flag, reading the test database."""
+
+    @asynccontextmanager
+    async def _db() -> AsyncGenerator[AsyncSession]:
+        yield db_session
+
+    key = f"test:setup-done:{uuid.uuid4()}"
+    monkeypatch.setattr(setup, "SETUP_DONE_KEY", key)
+    monkeypatch.setattr(setup, "_admin_seen", False)
+    monkeypatch.setattr(setup, "get_db_context", _db)
+    yield key
+    await redis.delete(key)
+
+
+async def test_setup_done_once_an_admin_is_seen(
+    db_session: AsyncSession, redis: Redis, done_key: str
 ) -> None:
-    await make_user(db_session, "player")
+    """The first admin found is shared through Redis for the other workers."""
+    assert not await setup_done(redis)
+    assert not await redis.exists(done_key)
 
-    token = await refresh_setup_token(db_session, redis)
-
-    assert token is not None
-    assert await setup_token_matches(redis, token)
-
-
-async def test_refresh_drops_the_token_once_an_admin_exists(
-    db_session: AsyncSession, redis: Redis
-) -> None:
-    stale = await issue_setup_token(redis)
     await make_user(db_session, "root", role=UserRole.admin)
 
-    assert await refresh_setup_token(db_session, redis) is None
-    assert not await setup_token_matches(redis, stale)
+    assert await setup_done(redis)
+    assert await redis.exists(done_key)
+
+
+async def test_setup_stays_done_for_new_workers(
+    redis: Redis, done_key: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A worker started after the flag was set never reopens the gate."""
+    await redis.set(done_key, "1")
+
+    @asynccontextmanager
+    async def _no_db() -> AsyncGenerator[AsyncSession]:
+        raise AssertionError("the database should not be read")
+        yield
+
+    monkeypatch.setattr(setup, "get_db_context", _no_db)
+
+    assert await setup_done(redis)

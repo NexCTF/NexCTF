@@ -20,6 +20,7 @@ from fastapi_toolsets.pytest import (
 from httpx import AsyncClient
 from pgqueuer import Queries
 from pgqueuer.db import AsyncpgDriver
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 os.environ["NEXCTF_TEST_MODE"] = "1"
@@ -143,7 +144,9 @@ def setup_finished(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-async def setup_key(redis, monkeypatch: pytest.MonkeyPatch):
+async def setup_key(
+    redis: Redis, monkeypatch: pytest.MonkeyPatch
+) -> AsyncIterator[str]:
     """Point the setup token at a key of its own, deleted after the test."""
     key = f"test:setup:{uuid.uuid4()}"
     monkeypatch.setattr(setup, "SETUP_TOKEN_KEY", key)
