@@ -11,6 +11,7 @@ from sqlalchemy.orm import class_mapper, selectin_polymorphic, selectinload
 from nexctf.exceptions import SolutionTimeoutError
 from nexctf.model import Question, Submission
 from nexctf.model.solution import Solution
+from nexctf.module.audit import audit_actor
 from nexctf.module.events import emit
 from nexctf.module.scoreboard import invalidate
 from nexctf.module.stats import invalidate_team
@@ -91,6 +92,7 @@ async def rescore_question(
         .all()
     )
 
+    solved_before = {sub.team_id for sub in submissions if sub.is_correct}
     wrong_count_by_team: dict[UUID, int] = {}
     solved_teams: set[UUID] = set()
     affected_teams: set[UUID] = set()
@@ -156,7 +158,44 @@ async def rescore_question(
             affected_teams.add(team_id)
 
     await session.flush()
+    if affected_teams:
+        await _emit_rescored(
+            session,
+            redis,
+            question,
+            affected=affected_teams,
+            granted=solved_teams - solved_before,
+            revoked=solved_before - solved_teams,
+        )
     return affected_teams
+
+
+async def _emit_rescored(
+    session: AsyncSession,
+    redis: Redis | None,
+    question: Question,
+    *,
+    affected: set[UUID],
+    granted: set[UUID],
+    revoked: set[UUID],
+) -> None:
+    """Audit one rescore: the teams it changed, and the solves it granted or revoked."""
+    actor_id, ip = audit_actor()
+    await emit(
+        session,
+        redis,
+        event_type="question.rescored",
+        actor_id=actor_id,
+        ip=ip,
+        target_type="questions",
+        target_id=question.id,
+        target_label=question.label,
+        meta={
+            "teams_changed": len(affected),
+            "solves_granted": sorted(str(t) for t in granted),
+            "solves_revoked": sorted(str(t) for t in revoked),
+        },
+    )
 
 
 def _subclasses(base: type) -> list[type]:
