@@ -32,7 +32,7 @@ log "loading fixtures (contexts: $FIXTURE_CONTEXTS)"
 # shellcheck disable=SC2086 # word splitting is how the list becomes arguments
 manager fixtures load $FIXTURE_CONTEXTS --strategy skip_existing
 
-log "creating default admin account (if missing)"
+log "bootstrapping the admin account"
 manager bootstrap
 
 # Dev runs its own server (fastapi dev) after this; skip prod orchestration.

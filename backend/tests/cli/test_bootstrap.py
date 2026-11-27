@@ -10,6 +10,7 @@ from nexctf.cli import bootstrap
 from nexctf.cli.bootstrap import create_default_admin
 from nexctf.core.config import settings
 from nexctf.model import User, UserRole, UserToken
+from tests.base import make_user
 
 
 @pytest.fixture(autouse=True)
@@ -21,7 +22,7 @@ def _no_installed_plugins(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def admin_settings(monkeypatch):
+def admin_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     """Configure deterministic default-admin settings for a test."""
     monkeypatch.setattr(settings, "DEFAULT_ADMIN_USERNAME", "seed_admin")
     monkeypatch.setattr(settings, "DEFAULT_ADMIN_PASSWORD", "seed_password")
@@ -35,7 +36,7 @@ async def _get_admin(session: AsyncSession) -> User | None:
 
 
 async def test_creates_admin_with_token(
-    db_session: AsyncSession, admin_settings
+    db_session: AsyncSession, admin_settings: None
 ) -> None:
     """A fresh database gets an admin user plus a usable API token."""
     created = await create_default_admin(db_session)
@@ -59,7 +60,7 @@ async def test_creates_admin_with_token(
     assert set(token.scopes) == grantable_scopes(is_admin=True)
 
 
-async def test_is_idempotent(db_session: AsyncSession, admin_settings) -> None:
+async def test_is_idempotent(db_session: AsyncSession, admin_settings: None) -> None:
     """Running twice neither duplicates the user nor errors."""
     assert await create_default_admin(db_session) is True
     assert await create_default_admin(db_session) is False
@@ -73,7 +74,7 @@ async def test_is_idempotent(db_session: AsyncSession, admin_settings) -> None:
 
 
 async def test_no_token_creates_user_without_token(
-    db_session: AsyncSession, admin_settings, monkeypatch
+    db_session: AsyncSession, admin_settings: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """When no token is configured the admin is created with no API token."""
     monkeypatch.setattr(settings, "DEFAULT_ADMIN_TOKEN", None)
@@ -95,7 +96,7 @@ async def test_no_token_creates_user_without_token(
 
 
 async def test_rejects_token_without_prefix(
-    db_session: AsyncSession, admin_settings, monkeypatch
+    db_session: AsyncSession, admin_settings: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A token missing the bearer prefix is rejected loudly, before any write."""
     monkeypatch.setattr(settings, "DEFAULT_ADMIN_TOKEN", "bad_token")
@@ -104,3 +105,45 @@ async def test_rejects_token_without_prefix(
         await create_default_admin(db_session)
 
     assert await _get_admin(db_session) is None
+
+
+async def test_no_password_creates_nothing(
+    db_session: AsyncSession, admin_settings: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without a password the admin is left to the first-run setup."""
+    monkeypatch.setattr(settings, "DEFAULT_ADMIN_PASSWORD", None)
+    monkeypatch.setattr(settings, "DEFAULT_ADMIN_TOKEN", None)
+
+    assert await create_default_admin(db_session) is False
+    assert await _get_admin(db_session) is None
+
+
+async def test_rejects_token_without_password(
+    db_session: AsyncSession, admin_settings: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An API token alone cannot create the admin."""
+    monkeypatch.setattr(settings, "DEFAULT_ADMIN_PASSWORD", None)
+
+    with pytest.raises(ValueError, match="DEFAULT_ADMIN_PASSWORD"):
+        await create_default_admin(db_session)
+
+
+async def test_token_without_password_is_fine_once_the_admin_exists(
+    db_session: AsyncSession, admin_settings: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An upgraded instance keeping only DEFAULT_ADMIN_TOKEN still boots."""
+    await make_user(db_session, "seed_admin", role=UserRole.admin)
+    monkeypatch.setattr(settings, "DEFAULT_ADMIN_PASSWORD", None)
+
+    assert await create_default_admin(db_session) is False
+
+
+async def test_skips_a_taken_username(
+    db_session: AsyncSession, admin_settings: None
+) -> None:
+    """A non-admin already holding the username leaves the admin to setup."""
+    await make_user(db_session, "Seed_Admin")
+
+    assert await create_default_admin(db_session) is False
+    users = (await db_session.scalars(select(User))).all()
+    assert [(u.username, u.role) for u in users] == [("Seed_Admin", UserRole.user)]

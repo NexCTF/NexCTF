@@ -66,7 +66,7 @@ _PREFIX_GROUPS: frozendict[str, str] = frozendict(
     }
 )
 # Core route prefixes that belong to no token group; plugins may not claim them either.
-_UNGROUPED_PREFIXES = ("/auth", "/oauth2")
+_UNGROUPED_PREFIXES = ("/auth", "/oauth2", "/setup")
 # The admin audit channel rides the notification group, so it gates on its own scope.
 ADMIN_EVENTS_SCOPE = "read:admin.config"
 

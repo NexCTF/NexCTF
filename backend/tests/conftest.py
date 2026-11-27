@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 os.environ["NEXCTF_TEST_MODE"] = "1"
 os.environ["LOG_FILES"] = "false"
 
+from nexctf.api.dep import require_setup_done
 from nexctf.core import appconfig
 from nexctf.core.cache import get_redis
 from nexctf.core.config import settings
@@ -189,13 +190,18 @@ def app_overrides(db_session: AsyncSession, mock_redis):
     async def _redis():
         yield mock_redis
 
+    async def _setup_done() -> None:
+        pass
+
     app.dependency_overrides[db] = _db
     app.dependency_overrides[get_redis] = _redis
+    app.dependency_overrides[require_setup_done] = _setup_done
     try:
         yield
     finally:
         app.dependency_overrides.pop(db, None)
         app.dependency_overrides.pop(get_redis, None)
+        app.dependency_overrides.pop(require_setup_done, None)
 
 
 @pytest.fixture
@@ -230,7 +236,7 @@ async def http_client(client_factory) -> AsyncGenerator[AsyncClient]:
 def override_db_context(
     db_session: AsyncSession, mock_redis, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Patch the session contexts in security.py and module/client.py, and its Redis.
+    """Patch the session contexts in security.py and modules client/setup, and its Redis.
 
     Functions like _verify_cookie(), create_api_token() and record_sighting() open a session
     directly instead of using FastAPI dependency injection. Patching it in the
@@ -239,7 +245,7 @@ def override_db_context(
     as the real context commits.
     """
     from nexctf.api import security
-    from nexctf.module import client
+    from nexctf.module import client, setup
 
     @asynccontextmanager
     async def _test_db_context() -> AsyncGenerator[AsyncSession]:
@@ -250,6 +256,7 @@ def override_db_context(
     monkeypatch.setattr(security, "get_db_context", _test_db_context)
     monkeypatch.setattr(security, "get_auth_db_context", _test_db_context)
     monkeypatch.setattr(client, "get_auth_db_context", _test_db_context)
+    monkeypatch.setattr(setup, "get_db_context", _test_db_context)
 
 
 @pytest.fixture

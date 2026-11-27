@@ -6,7 +6,7 @@ import pytest
 from fastapi import APIRouter, FastAPI
 from fastapi.routing import APIRoute, iter_route_contexts
 
-from nexctf.api.dep import _current_admin, _current_user
+from nexctf.api.dep import _current_admin, _current_user, require_setup_done
 from nexctf.api.openapi import flat_dependency_calls
 from nexctf.plugins import RouterDef, mount_plugin_routes, routes
 
@@ -48,3 +48,7 @@ def test_user_scope_requires_a_user(mounted: dict[str, set]) -> None:
 
 def test_anonymous_scope_adds_no_auth(mounted: dict[str, set]) -> None:
     assert not {_current_user, _current_admin} & mounted["/api/v1/q/ping"]
+
+
+def test_every_scope_waits_for_the_first_admin(mounted: dict[str, set]) -> None:
+    assert all(require_setup_done in calls for calls in mounted.values())

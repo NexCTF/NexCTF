@@ -1,8 +1,10 @@
+import { vi } from "vitest";
 import type {
   AdminUserDetail,
   ApiToken,
   ClientSighting,
   ClientSummary,
+  ConfigItem,
   CursorPaginatedResponse,
   CustomFieldDefinition,
   FailedLoginAddress,
@@ -26,6 +28,7 @@ import type {
   UserClient,
   UserSession,
 } from "@/lib/api";
+import type { AuthContext } from "@/lib/auth";
 import { DEFAULT_BRANDING } from "@/lib/branding";
 import type { PluginManifestEntry } from "@/lib/plugins";
 
@@ -58,6 +61,39 @@ export function publicInfo(overrides: Partial<PublicInfo> = {}): PublicInfo {
 /** Same as `publicInfo`, with only the competition block patched. */
 export function publicInfoWith(competition: Partial<PublicInfo["competition"]>): PublicInfo {
   return publicInfo({ competition: { ...publicInfo().competition, ...competition } });
+}
+
+/** One `/admin/config` setting, a plain string in the general category. */
+export function configItem(overrides: Partial<ConfigItem> = {}): ConfigItem {
+  return {
+    key: "a.one",
+    type: "string",
+    value: "",
+    default: "",
+    label: "Field",
+    description: "",
+    choices: [],
+    min: null,
+    max: null,
+    category: "general",
+    category_label: "general",
+    category_icon: null,
+    category_section: "settings",
+    is_plugin_category: false,
+    ...overrides,
+  };
+}
+
+/** Auth context of a signed-out visitor with stubbed actions — override what a test needs. */
+export function authContext(overrides: Partial<AuthContext> = {}): AuthContext {
+  return {
+    user: null,
+    isLoading: false,
+    login: vi.fn().mockResolvedValue(undefined),
+    logout: vi.fn().mockResolvedValue(undefined),
+    refresh: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
 }
 
 export function user(overrides: Partial<User> = {}): User {
