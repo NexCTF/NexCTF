@@ -217,7 +217,7 @@ export function FilePickerDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={trigger} />
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl space-y-3">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
