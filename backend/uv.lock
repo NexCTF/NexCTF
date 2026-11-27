@@ -2,9 +2,6 @@ version = 1
 revision = 5
 requires-python = ">=3.15"
 
-[manifest]
-constraints = [{ name = "typer", specifier = "<0.29" }]
-
 [[package]]
 name = "aioboto3"
 version = "15.5.0"
@@ -1021,7 +1018,7 @@ requires-dist = [
     { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.142.0" },
     { name = "fastapi-multiauth", extras = ["jwt", "oauth"], specifier = ">=1.2.0" },
     { name = "fastapi-toolsets", extras = ["all"], specifier = ">=6.0.0" },
-    { name = "pgqueuer", extras = ["web"], specifier = ">=2.0.0,<2.1" },
+    { name = "pgqueuer", extras = ["web"], specifier = ">=2.2.0,<2.3" },
     { name = "prometheus-client", specifier = ">=0.25.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.15.0" },
@@ -1193,7 +1190,7 @@ wheels = [
 
 [[package]]
 name = "pgqueuer"
-version = "2.0.0"
+version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -1204,15 +1201,16 @@ dependencies = [
     { name = "typer" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e2/54/380a7e4bf3496eb6716046818c08c7faba4e3fe9e176ea4f7ef63f02bcb0/pgqueuer-2.0.0.tar.gz", hash = "sha256:95f3f83144426c64df0da000f2ae279d692145faaf03915b10ab4197431bb203", size = 659732, upload-time = "2026-11-09T08:35:15.477Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/13/69/74c6ecc3603856cedc5816b7f4350965dca0571ae8d12499c91026fcc60d/pgqueuer-2.2.0.tar.gz", hash = "sha256:4a9a9666043eb63caa773c2a789ad38454fcdba6b0b1d945ecb429fb98a11294", size = 653307, upload-time = "2026-11-27T09:35:31.975Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a7/90/dbfe9c3743b4970e797a93e01033752ac04977d88cbf2eae223b0bac600a/pgqueuer-2.0.0-py3-none-any.whl", hash = "sha256:a3da05cc4d090954cbce536aab5f92cc708fdf9f4fe1a107d84569b5a06a5aef", size = 186792, upload-time = "2026-11-09T08:35:13.944Z" },
+    { url = "https://files.pythonhosted.org/packages/f8/0f/aef49df55f25fa5a9a808c7759675c70a418d57782c8c48dc78872b09e6e/pgqueuer-2.2.0-py3-none-any.whl", hash = "sha256:eb1d64035b146ba4bff8b26965790e2161cb80e90279ffc95d9531213d5d8047", size = 188780, upload-time = "2026-11-27T09:35:30.377Z" },
 ]
 
 [package.optional-dependencies]
 web = [
     { name = "fastapi" },
     { name = "jinja2" },
+    { name = "python-multipart" },
     { name = "uvicorn" },
 ]
 
@@ -1746,17 +1744,18 @@ wheels = [
 
 [[package]]
 name = "typer"
-version = "0.28.0"
+version = "0.29.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
     { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "pydantic" },
     { name = "rich" },
     { name = "shellingham" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ad/8f/21021859316f44289101638dc74d82e13d722d8533e4b8708a3ab7c8461a/typer-0.28.0.tar.gz", hash = "sha256:69ab84ef79fd601cff071bbd2566d855ecadfd93adbc4b3360b9924359bdd857", size = 205415, upload-time = "2026-11-06T08:37:19.779Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f4/8f/4583099c74623e04610d9df01ff58a9217935e88fdbd4b14167ebe99c134/typer-0.29.3.tar.gz", hash = "sha256:8189a53bb9684dc551e0b61e71904b323214884f2eb14bfe71aa859ae980d10a", size = 205982, upload-time = "2026-11-26T08:20:50.693Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/19/98/8ef60c7cd773dbab9d276a4c7bff505913a25b61acd8a9ef01ceeb70f554/typer-0.28.0-py3-none-any.whl", hash = "sha256:afd18929180b706c5e9a239f53c3c8136903553c0c2d460598bbaa924191d4ab", size = 123253, upload-time = "2026-11-06T08:37:18.611Z" },
+    { url = "https://files.pythonhosted.org/packages/d9/43/a3e7ce867dc4fa852f4223ada99d29bc9ba5faf32496b63ec587cd10a0d7/typer-0.29.3-py3-none-any.whl", hash = "sha256:1fd37275046faecc86caa2e0e313978c10db71533fc0fe1a48f4e03a60efc23c", size = 121082, upload-time = "2026-11-26T08:20:49.527Z" },
 ]
 
 [[package]]
