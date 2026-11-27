@@ -12,7 +12,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 from fastapi_toolsets.exceptions import NotFoundError
 from fastapi_toolsets.schemas import Response
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
@@ -37,6 +37,7 @@ from nexctf.core.rate_limit import (
 )
 from nexctf.exceptions import (
     AnswerCheckTimeoutError,
+    AttemptsExhaustedError,
     ChallengeNotCompletedError,
     FeedbackDisabledError,
     FileNotFoundApiError,
@@ -133,6 +134,29 @@ async def _solved_ids(
     return {r[0] for r in rows}
 
 
+async def _wrong_counts(
+    session: SessionDep, user: User | None, question_ids: list[UUID]
+) -> dict[UUID, int]:
+    """Wrong attempts of the user's team on each of *question_ids*."""
+    if not question_ids or user is None or user.team_id is None:
+        return {}
+    rows = await session.execute(
+        select(Submission.question_id, func.count())
+        .where(
+            Submission.question_id.in_(question_ids),
+            Submission.is_correct.is_(False),
+            Submission.team_id == user.team_id,
+        )
+        .group_by(Submission.question_id)
+    )
+    return {question_id: count for question_id, count in rows}
+
+
+def _attempts_left(max_attempts: int | None, wrong: int) -> int | None:
+    """Attempts a team still has, or None when the question has no limit."""
+    return None if max_attempts is None else max(0, max_attempts - wrong)
+
+
 async def _lock_for_team(session: SessionDep, user: User, key: UUID) -> None:
     """Hold a transaction lock on *key* for the user's team."""
     team_id = user.team_id
@@ -225,6 +249,7 @@ def _assemble_question(
     *,
     is_solved: bool,
     is_locked: bool,
+    attempts_left: int | None,
     unlocked_hint_ids: set[UUID],
     canary_token: str | None,
     option_seed: str,
@@ -240,6 +265,8 @@ def _assemble_question(
             label=q.label,
             points=q.points,
             malus=q.malus,
+            max_attempts=q.max_attempts,
+            attempts_left=attempts_left,
             input_type=q.input_type,
             is_solved=is_solved,
             is_locked=True,
@@ -256,6 +283,8 @@ def _assemble_question(
         description=canary.plant(q.description, canary_token),
         points=q.points,
         malus=q.malus,
+        max_attempts=q.max_attempts,
+        attempts_left=attempts_left,
         input_type=q.input_type,
         is_solved=is_solved,
         files=list(q.files),
@@ -385,6 +414,8 @@ async def get_challenge(
     unlocked = await _unlocked_ids(session, user, all_hint_ids)
 
     locked_from = _locked_from(structure, solved)
+    limited = [q.id for q in questions if q.max_attempts is not None]
+    wrong = await _wrong_counts(session, user, limited)
 
     canary_token = canary.token(structure.id) if canary.enabled(overrides) else None
     option_seed = str((user.team_id or user.id) if user else "")
@@ -393,6 +424,7 @@ async def get_challenge(
             q,
             is_solved=q.id in solved,
             is_locked=_is_locked(i, locked_from),
+            attempts_left=_attempts_left(q.max_attempts, wrong.get(q.id, 0)),
             unlocked_hint_ids=unlocked,
             canary_token=canary_token,
             option_seed=option_seed,
@@ -477,15 +509,11 @@ async def submit_answer(
 
     await _check_question_access(session, user, challenge, question)
 
-    # Count previous wrong attempts (for malus)
-    wrong_rows = await session.execute(
-        select(Submission.id).where(
-            Submission.question_id == question_id,
-            Submission.is_correct.is_(False),
-            Submission.team_id == user.team_id,
-        )
+    wrong_count_before = (await _wrong_counts(session, user, [question_id])).get(
+        question_id, 0
     )
-    wrong_count_before = len(wrong_rows.all())
+    if _attempts_left(question.max_attempts, wrong_count_before) == 0:
+        raise AttemptsExhaustedError()
 
     answer = obj.answer
     is_trap = question.is_trap(answer)
@@ -641,6 +669,9 @@ async def submit_answer(
             is_correct=is_correct,
             already_solved=False,
             points_earned=points_earned,
+            attempts_left=_attempts_left(
+                question.max_attempts, wrong_count_before + (0 if is_correct else 1)
+            ),
         )
     )
 

@@ -1208,6 +1208,10 @@ export interface PublicQuestion {
   is_locked: boolean;
   points: number;
   malus: number | null;
+  /** Wrong answers a team may make; null when unlimited. */
+  max_attempts: number | null;
+  /** Attempts the caller's team has left; null when unlimited. */
+  attempts_left: number | null;
   input_type: InputType;
   is_solved: boolean;
   files: PublicFile[];
@@ -1253,6 +1257,7 @@ export interface SubmitResult {
   is_correct: boolean;
   already_solved: boolean;
   points_earned: number;
+  attempts_left: number | null;
 }
 
 export async function getChallenges(): Promise<PublicChallenge[]> {
@@ -1424,6 +1429,7 @@ export interface Question {
   index: number;
   points: number;
   malus: number | null;
+  max_attempts: number | null;
   input_type: InputType;
   trap_flags: string[];
   challenge_title: string | null;

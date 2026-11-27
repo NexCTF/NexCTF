@@ -93,6 +93,7 @@ it("submits a typed answer and reports a correct solve", async () => {
     is_correct: true,
     already_solved: false,
     points_earned: 100,
+    attempts_left: null,
   });
   renderChallenge();
 
@@ -108,6 +109,7 @@ it("submits a pasted answer without its surrounding whitespace", async () => {
     is_correct: true,
     already_solved: false,
     points_earned: 100,
+    attempts_left: null,
   });
   renderChallenge();
 
@@ -122,6 +124,7 @@ it("reports a wrong answer without clearing the field", async () => {
     is_correct: false,
     already_solved: false,
     points_earned: 0,
+    attempts_left: null,
   });
   renderChallenge();
 
@@ -131,6 +134,44 @@ it("reports a wrong answer without clearing the field", async () => {
 
   await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Wrong answer, try again."));
   expect(input).toHaveProperty("value", "wrong");
+});
+
+it("shows how many attempts the team has left", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({ questions: [question({ max_attempts: 3, attempts_left: 2 })] }),
+  );
+  renderChallenge();
+
+  expect(await screen.findByText("Attempts left: 2")).toBeDefined();
+});
+
+it("locks the form once the team has no attempts left", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({ questions: [question({ max_attempts: 3, attempts_left: 0 })] }),
+  );
+  renderChallenge();
+
+  expect(await screen.findByText(/no attempts left for this question/)).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
+});
+
+it("locks the form after the last wrong attempt", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({ questions: [question({ max_attempts: 1, attempts_left: 1 })] }),
+  );
+  vi.mocked(submitAnswer).mockResolvedValue({
+    is_correct: false,
+    already_solved: false,
+    points_earned: 0,
+    attempts_left: 0,
+  });
+  renderChallenge();
+
+  await userEvent.type(await screen.findByPlaceholderText("Enter your answer…"), "wrong");
+  await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+  await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Wrong answer. Attempts left: 0"));
+  expect(await screen.findByText(/no attempts left for this question/)).toBeDefined();
 });
 
 it("keeps submit disabled while the answer is blank", async () => {
@@ -151,6 +192,7 @@ it("sends multi-select answers as a sorted JSON array", async () => {
     is_correct: true,
     already_solved: false,
     points_earned: 10,
+    attempts_left: null,
   });
   renderChallenge();
 
@@ -399,6 +441,7 @@ it("refreshes the team's progress after a correct solve", async () => {
     is_correct: true,
     already_solved: false,
     points_earned: 100,
+    attempts_left: null,
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(["my-team"], team());

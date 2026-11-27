@@ -589,6 +589,17 @@ class SequentialChallengeError(ApiException):
     )
 
 
+class AttemptsExhaustedError(ApiException):
+    """The team used every attempt the question allows."""
+
+    api_error = ApiError(
+        code=403,
+        msg="No attempts left",
+        desc="Your team has used every attempt allowed for this question.",
+        err_code="SUB-403-ATTEMPTS",
+    )
+
+
 class HintAfterSolveError(ApiException):
     api_error = ApiError(
         code=409,

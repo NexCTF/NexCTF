@@ -92,3 +92,4 @@ class SubmitResult(PydanticBase):
     is_correct: bool
     already_solved: bool
     points_earned: int
+    attempts_left: int | None = None

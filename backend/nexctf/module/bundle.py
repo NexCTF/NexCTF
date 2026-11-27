@@ -180,6 +180,7 @@ def _question_ir(question: Question) -> QuestionIR:
         index=question.index,
         points=question.points,
         malus=question.malus,
+        max_attempts=question.max_attempts,
         input_type=question.input_type.value,
         trap_flags=list(question.trap_flags),
         tags=list(question.tags),
@@ -606,6 +607,7 @@ _QUESTION_COLUMNS = (
     "index",
     "points",
     "malus",
+    "max_attempts",
     "trap_flags",
     "tags",
 )

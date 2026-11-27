@@ -65,6 +65,7 @@ def sample_bundle() -> Bundle:
                         label="Part 1",
                         description="answer it",
                         points=50,
+                        max_attempts=3,
                         file_ids=[FILE_ID],
                         hints=[
                             HintIR(id=_id(4), title="H", content="multi\nline hint")
@@ -111,6 +112,11 @@ def test_tree_round_trip_is_byte_identical() -> None:
     first = write_tree(bundle, blobs)
     reread, reread_blobs = read_tree(first)
     assert write_tree(reread, reread_blobs) == first
+
+
+def test_question_limits_survive_the_round_trip() -> None:
+    bundle, _ = read_tree(write_tree(sample_bundle(), {FILE_ID: b"data"}))
+    assert bundle.challenges[0].questions[0].max_attempts == 3
 
 
 def test_archive_round_trip_is_byte_identical() -> None:

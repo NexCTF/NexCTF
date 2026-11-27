@@ -43,6 +43,7 @@ class QuestionStructure(BaseModel):
     description: str | None
     points: int
     malus: int | None
+    max_attempts: int | None = None
     input_type: InputType
     index: int
     files: list[PublicFileRead]
@@ -156,6 +157,7 @@ def _question_structure(q: Question) -> QuestionStructure:
         description=q.description,
         points=q.points,
         malus=q.malus,
+        max_attempts=q.max_attempts,
         input_type=q.input_type,
         index=q.index,
         files=files,

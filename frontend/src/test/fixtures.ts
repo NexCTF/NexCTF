@@ -196,6 +196,8 @@ export function question(overrides: Partial<PublicQuestion> = {}): PublicQuestio
     is_locked: false,
     points: 100,
     malus: null,
+    max_attempts: null,
+    attempts_left: null,
     input_type: "input",
     is_solved: false,
     files: [],

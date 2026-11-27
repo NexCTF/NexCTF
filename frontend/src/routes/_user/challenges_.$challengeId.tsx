@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  ApiError,
   apiErrorMessage,
   getChallenge,
   getPublicInfo,
@@ -349,16 +350,27 @@ function QuestionCard({
     refreshTeamProgress();
   }
 
-  function showUnlockedHint(hint: PublicHint) {
-    const withHint = (other: PublicQuestion) =>
-      other.id === q.id
-        ? { ...other, hints: other.hints.map((h) => (h.id === hint.id ? hint : h)) }
-        : other;
+  function patchQuestion(patch: (question: PublicQuestion) => PublicQuestion) {
     queryClient.setQueryData<PublicChallengeDetail>(
       ["challenge", challengeId],
-      (old) => old && { ...old, questions: old.questions.map(withHint) },
+      (old) =>
+        old && {
+          ...old,
+          questions: old.questions.map((other) => (other.id === q.id ? patch(other) : other)),
+        },
     );
+  }
+
+  function showUnlockedHint(hint: PublicHint) {
+    patchQuestion((other) => ({
+      ...other,
+      hints: other.hints.map((h) => (h.id === hint.id ? hint : h)),
+    }));
     refreshTeamProgress();
+  }
+
+  function showAttemptsLeft(attemptsLeft: number | null) {
+    patchQuestion((other) => ({ ...other, attempts_left: attemptsLeft }));
   }
 
   if (q.is_locked) {
@@ -449,6 +461,12 @@ function QuestionCard({
             <QuestionOutcome tone="text-green-600 dark:text-green-400">
               {t("challenge.solved")}
             </QuestionOutcome>
+          ) : q.attempts_left === 0 ? (
+            <QuestionOutcome tone="text-destructive">
+              {t("challenge.no_attempts_left", {
+                defaultValue: "Your team has no attempts left for this question.",
+              })}
+            </QuestionOutcome>
           ) : (
             <SubmitSection
               challengeId={challengeId}
@@ -456,7 +474,9 @@ function QuestionCard({
               inputType={q.input_type ?? "input"}
               options={q.options ?? null}
               multiSelect={q.multi_select ?? false}
+              attemptsLeft={q.attempts_left}
               onSolved={refetch}
+              onAttempted={showAttemptsLeft}
             />
           )}
         </div>
@@ -530,14 +550,18 @@ function SubmitSection({
   inputType,
   options,
   multiSelect = false,
+  attemptsLeft,
   onSolved,
+  onAttempted,
 }: {
   challengeId: string;
   questionId: string;
   inputType: InputType;
   options?: string[] | null;
   multiSelect?: boolean;
+  attemptsLeft: number | null;
   onSolved: () => void;
+  onAttempted: (attemptsLeft: number | null) => void;
 }) {
   const { t } = useTranslation();
   const { open } = useEventPhase();
@@ -557,10 +581,21 @@ function SubmitSection({
         setSelected([]);
         onSolved();
       } else {
-        toast.error(t("challenge.submit_wrong"));
+        toast.error(
+          result.attempts_left === null
+            ? t("challenge.submit_wrong")
+            : t("challenge.submit_wrong_attempts", {
+                n: result.attempts_left,
+                defaultValue: "Wrong answer. Attempts left: {{n}}",
+              }),
+        );
+        onAttempted(result.attempts_left);
       }
     },
-    onError: (err) => toast.error(apiErrorMessage(err, t("challenge.submit_error"))),
+    onError: (err) => {
+      if (err instanceof ApiError && err.errCode === "SUB-403-ATTEMPTS") onAttempted(0);
+      toast.error(apiErrorMessage(err, t("challenge.submit_error")));
+    },
   });
 
   const isMultiSelect = inputType === "mcq" && multiSelect;
@@ -575,9 +610,19 @@ function SubmitSection({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {t("challenge.answer_label")}
-      </p>
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {t("challenge.answer_label")}
+        </p>
+        {attemptsLeft !== null && (
+          <p className="text-xs text-muted-foreground">
+            {t("challenge.attempts_left", {
+              n: attemptsLeft,
+              defaultValue: "Attempts left: {{n}}",
+            })}
+          </p>
+        )}
+      </div>
       <form onSubmit={handleSubmit} className="space-y-2">
         {inputType === "input" && (
           <div className="flex gap-2">

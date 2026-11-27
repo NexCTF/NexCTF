@@ -283,7 +283,7 @@ export function QuestionFormFields({
           onChange={(v) => onUpdate({ description: v || null })}
         />
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="space-y-1.5">
           <Label>{t("admin.challenge.question.field_points")}</Label>
           <Input
@@ -301,6 +301,24 @@ export function QuestionFormFields({
             onChange={(e) =>
               onUpdate({
                 malus: e.target.value === "" ? null : Number(e.target.value),
+              })
+            }
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>
+            {t("admin.challenge.question.field_max_attempts", { defaultValue: "Max attempts" })}
+          </Label>
+          <Input
+            type="number"
+            min={1}
+            value={form.max_attempts == null ? "" : String(form.max_attempts)}
+            placeholder={t("admin.challenge.question.field_max_attempts_placeholder", {
+              defaultValue: "Unlimited",
+            })}
+            onChange={(e) =>
+              onUpdate({
+                max_attempts: e.target.value === "" ? null : Number(e.target.value),
               })
             }
           />
@@ -348,6 +366,7 @@ const EMPTY_QUESTION = {
   description: null,
   points: 100,
   malus: null,
+  max_attempts: null,
   input_type: "input",
   trap_flags: [] as string[],
   tags: [] as string[],
@@ -439,6 +458,7 @@ function EditQuestionDialog({ question, onSaved }: { question: Question; onSaved
     description: question.description ?? null,
     points: question.points,
     malus: question.malus,
+    max_attempts: question.max_attempts,
     index: question.index,
     input_type: question.input_type ?? "input",
     trap_flags: question.trap_flags ?? [],
