@@ -66,11 +66,14 @@ async def reset_config(
             of order.
     """
     errors = [f"Unknown key: {k!r}" for k in keys if k not in appconfig.all_defs()]
-    overrides = {k: v for k, v in old_overrides.items() if k not in keys}
-    _check(errors, overrides, keys)
+    stored = [k for k in keys if k in old_overrides]
+    overrides = {k: v for k, v in old_overrides.items() if k not in stored}
+    _check(errors, overrides, stored)
+    if not stored:
+        return overrides
 
-    await appconfig.remove_and_store(session, redis, keys)
-    await _announce(session, redis, old_overrides, overrides, keys)
+    await appconfig.remove_and_store(session, redis, stored)
+    await _announce(session, redis, old_overrides, overrides, stored)
     return overrides
 
 

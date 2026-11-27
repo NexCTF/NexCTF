@@ -53,11 +53,17 @@ def command[**P](func: Callable[P, Coroutine[Any, Any, None]]) -> Callable[P, No
 
 async def find_user(session: AsyncSession, ref: str) -> User:
     """The user *ref* names by UUID, username or email, ignoring letter case."""
+    user = None
     try:
-        filters: list[Any] = [User.id == UUID(ref)]
+        user = await crud.UserCrud.first(
+            session=session, filters=[User.id == UUID(ref)]
+        )
     except ValueError:
-        filters = [func.lower(User.username) == ref.lower()]
-    user = await crud.UserCrud.first(session=session, filters=filters)
+        pass
+    if user is None:
+        user = await crud.UserCrud.first(
+            session=session, filters=[func.lower(User.username) == ref.lower()]
+        )
     if user is None and "@" in ref:
         user = await crud.UserCrud.first(
             session=session, filters=[func.lower(User.email) == ref.lower()]

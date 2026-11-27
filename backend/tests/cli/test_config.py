@@ -1,6 +1,7 @@
 """Tests for the config writes shared by ``manager config`` and the admin API."""
 
 from collections.abc import Awaitable, Callable
+from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import select
@@ -30,6 +31,17 @@ async def test_reset_falls_back_to_the_default(
     assert [e.meta["changes"][KEY] for e in events] == [[10, 42], [42, 10]]
 
 
+async def test_reset_of_an_unstored_key_changes_nothing(
+    db_session: AsyncSession, mock_redis: AsyncMock
+) -> None:
+    """Resetting a key with no stored value neither logs nor broadcasts."""
+    assert await reset_config(db_session, mock_redis, [KEY], {}) == {}
+
+    assert (await db_session.scalars(select(Event))).all() == []
+    mock_redis.hdel.assert_not_awaited()
+    mock_redis.publish.assert_not_awaited()
+
+
 @pytest.mark.parametrize(
     ("write", "items", "error"),
     [
@@ -49,7 +61,7 @@ async def test_reset_falls_back_to_the_default(
 )
 async def test_invalid_writes_store_nothing(
     db_session: AsyncSession,
-    mock_redis,
+    mock_redis: AsyncMock,
     write: Callable[..., Awaitable[dict[str, str]]],
     items: dict[str, str] | list[str],
     error: str,

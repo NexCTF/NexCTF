@@ -3,6 +3,7 @@
 from collections.abc import Awaitable, Callable, Sequence
 from functools import partial
 from typing import Annotated
+from uuid import UUID
 
 import typer
 from rich.table import Table
@@ -125,7 +126,6 @@ async def set_role(
     )
     if granting_admin:
         await revoke_user_sessions(session, user)
-    await close_user_streams(redis, user.id)
     await audit(
         session,
         redis,
@@ -150,7 +150,6 @@ async def set_active(
         filters=[User.id == user.id],
         obj=AdminUserUpdate(id=user.id, is_active=active),
     )
-    await close_user_streams(redis, user.id)
     await audit(session, redis, "admin.user_updated", user, is_active=active)
 
 
@@ -159,7 +158,6 @@ async def set_password(
 ) -> None:
     """Replace the password, revoking every session and API token."""
     await replace_password(session, user, hash_password(password))
-    await close_user_streams(redis, user.id)
     await audit(session, redis, "admin.user_password_set", user)
 
 
@@ -194,6 +192,7 @@ async def verify_email(session: AsyncSession, redis: Redis, user: User) -> None:
 async def unlock_login(session: AsyncSession, redis: Redis, user: User) -> None:
     """Clear the user's sign-in lockout."""
     await login_lock.clear(redis, user.id, user.username)
+    await audit(session, redis, "admin.user_login_unlocked", user)
 
 
 async def sign_out(
@@ -204,21 +203,19 @@ async def sign_out(
         await revoke_all_access(session, user)
     else:
         await revoke_user_sessions(session, user)
-    await close_user_streams(redis, user.id)
     await audit(
         session, redis, "admin.user_sessions_revoked", user, tokens_revoked=tokens
     )
 
 
-async def sign_out_everyone(session: AsyncSession, redis: Redis) -> int:
-    """Revoke every browser session, returning how many users were signed out."""
+async def sign_out_everyone(session: AsyncSession, redis: Redis) -> set[UUID]:
+    """Revoke every browser session, returning the ids of the users signed out."""
     deleted = await session.scalars(delete(UserSession).returning(UserSession.user_id))
     signed_out = set(deleted.all())
-    await publish_event(redis, [user_stream_channel(u) for u in signed_out], "")
     await audit(
         session, redis, "admin.sessions_revoked_all", users=str(len(signed_out))
     )
-    return len(signed_out)
+    return signed_out
 
 
 async def _require_other_admin(session: AsyncSession, user: User) -> None:
@@ -234,12 +231,18 @@ async def _require_other_admin(session: AsyncSession, user: User) -> None:
 
 
 async def _apply(
-    ref: str, action: Callable[[AsyncSession, Redis, User], Awaitable[None]]
+    ref: str,
+    action: Callable[[AsyncSession, Redis, User], Awaitable[None]],
+    *,
+    close_streams: bool = False,
 ) -> User:
-    """Find the user *ref* names and apply *action* to them."""
+    """Apply *action* to the user *ref* names, then close their open streams."""
+    redis = get_redis_client()
     async with get_db_context() as session:
         target = await find_user(session, ref)
-        await action(session, get_redis_client(), target)
+        await action(session, redis, target)
+    if close_streams:
+        await close_user_streams(redis, target.id)
     return target
 
 
@@ -325,7 +328,9 @@ async def create_command(
 @command
 async def promote_command(user: UserArg) -> None:
     """Grant admin and sign the user out everywhere."""
-    target = await _apply(user, partial(set_role, role=UserRole.admin))
+    target = await _apply(
+        user, partial(set_role, role=UserRole.admin), close_streams=True
+    )
     console.print(f"{target.username!r} is now an admin and was signed out.")
 
 
@@ -333,7 +338,9 @@ async def promote_command(user: UserArg) -> None:
 @command
 async def demote_command(user: UserArg) -> None:
     """Remove admin, refusing the last active admin."""
-    target = await _apply(user, partial(set_role, role=UserRole.user))
+    target = await _apply(
+        user, partial(set_role, role=UserRole.user), close_streams=True
+    )
     console.print(f"{target.username!r} is no longer an admin.")
 
 
@@ -341,7 +348,7 @@ async def demote_command(user: UserArg) -> None:
 @command
 async def activate_command(user: UserArg) -> None:
     """Re-enable a deactivated account."""
-    target = await _apply(user, partial(set_active, active=True))
+    target = await _apply(user, partial(set_active, active=True), close_streams=True)
     console.print(f"Activated {target.username!r}.")
 
 
@@ -349,7 +356,7 @@ async def activate_command(user: UserArg) -> None:
 @command
 async def deactivate_command(user: UserArg) -> None:
     """Disable an account, refusing the last active admin."""
-    target = await _apply(user, partial(set_active, active=False))
+    target = await _apply(user, partial(set_active, active=False), close_streams=True)
     console.print(f"Deactivated {target.username!r}.")
 
 
@@ -370,7 +377,9 @@ async def reset_password_command(
         console.print(url, soft_wrap=True)
         return
     password = read_password(password_stdin)
-    target = await _apply(user, partial(set_password, password=password))
+    target = await _apply(
+        user, partial(set_password, password=password), close_streams=True
+    )
     console.print(
         f"Password of {target.username!r} replaced; sessions and API tokens "
         "were revoked."
@@ -425,11 +434,13 @@ async def sign_out_command(
     if user is None:
         if not yes:
             typer.confirm("Sign every user out of every browser session?", abort=True)
+        redis = get_redis_client()
         async with get_db_context() as session:
-            count = await sign_out_everyone(session, get_redis_client())
-        console.print(f"Signed out {count} user(s).")
+            signed_out = await sign_out_everyone(session, redis)
+        await publish_event(redis, [user_stream_channel(u) for u in signed_out], "")
+        console.print(f"Signed out {len(signed_out)} user(s).")
         return
-    target = await _apply(user, partial(sign_out, tokens=tokens))
+    target = await _apply(user, partial(sign_out, tokens=tokens), close_streams=True)
     revoked = "sessions and API tokens" if tokens else "sessions"
     console.print(f"Revoked the {revoked} of {target.username!r}.")
 

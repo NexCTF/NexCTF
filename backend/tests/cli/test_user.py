@@ -2,6 +2,7 @@
 
 from collections.abc import Awaitable
 from functools import partial
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -97,7 +98,9 @@ async def test_create_user_refusals(
         )
 
 
-async def test_promote_signs_the_user_out(db_session: AsyncSession, mock_redis) -> None:
+async def test_promote_signs_the_user_out(
+    db_session: AsyncSession, mock_redis: AsyncMock
+) -> None:
     """Granting admin revokes every browser session, as the API does."""
     user = await make_user(db_session, "erin")
     await add_session(db_session, user, ip="203.0.113.1")
@@ -130,7 +133,9 @@ async def test_last_active_admin_is_kept(
         await disarm(db_session, mock_redis, admin)
 
 
-async def test_demote_with_another_admin(db_session: AsyncSession, mock_redis) -> None:
+async def test_demote_with_another_admin(
+    db_session: AsyncSession, mock_redis: AsyncMock
+) -> None:
     admin = await make_user(db_session, "root", role=UserRole.admin)
     await make_user(db_session, "backup", role=UserRole.admin)
 
@@ -172,7 +177,7 @@ async def test_reset_link_points_at_the_frontend(
     mock_redis.set.assert_awaited_once()
 
 
-async def test_disable_totp(db_session: AsyncSession, mock_redis) -> None:
+async def test_disable_totp(db_session: AsyncSession, mock_redis: AsyncMock) -> None:
     user = await make_user(db_session, "hank")
     user.totp_secret = "JBSWY3DPEHPK3PXP"
     await db_session.flush()
@@ -185,7 +190,7 @@ async def test_disable_totp(db_session: AsyncSession, mock_redis) -> None:
         await cli_user.disable_totp(db_session, mock_redis, user)
 
 
-async def test_verify_email(db_session: AsyncSession, mock_redis) -> None:
+async def test_verify_email(db_session: AsyncSession, mock_redis: AsyncMock) -> None:
     user = await make_user(db_session, "ivy")
     with pytest.raises(CliError, match="no email"):
         await cli_user.verify_email(db_session, mock_redis, user)
@@ -213,11 +218,35 @@ async def test_sign_out(
     assert await _tokens(db_session, user) == tokens_left
 
 
-async def test_sign_out_everyone(db_session: AsyncSession, mock_redis) -> None:
+async def test_sign_out_everyone(
+    db_session: AsyncSession, mock_redis: AsyncMock
+) -> None:
     kim = await make_user(db_session, "kim")
     lee = await make_user(db_session, "lee")
     for user in (kim, kim, lee):
         await add_session(db_session, user, ip="203.0.113.4")
 
-    assert await cli_user.sign_out_everyone(db_session, mock_redis) == 2
+    assert await cli_user.sign_out_everyone(db_session, mock_redis) == {kim.id, lee.id}
     assert await db_session.scalar(select(func.count()).select_from(UserSession)) == 0
+    mock_redis.publish.assert_not_awaited()
+
+
+async def test_unlock_login_is_audited(
+    db_session: AsyncSession, mock_redis: AsyncMock
+) -> None:
+    """Lifting a sign-in lockout is recorded like the API's unlock."""
+    user = await make_user(db_session, "mona")
+
+    await cli_user.unlock_login(db_session, mock_redis, user)
+
+    event = await _last_event(db_session)
+    assert event.event_type == "admin.user_login_unlocked"
+    assert event.meta["target_username"] == "mona"
+
+
+async def test_find_user_by_a_uuid_shaped_username(db_session: AsyncSession) -> None:
+    """A username that parses as a UUID is still found by name."""
+    name = uuid4().hex
+    user = await make_user(db_session, name)
+
+    assert (await find_user(db_session, name)).id == user.id
