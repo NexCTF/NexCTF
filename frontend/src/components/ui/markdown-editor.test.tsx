@@ -120,3 +120,42 @@ it("leaves a document paste that also carries an image alone", async () => {
 
   expect(uploadAdminFile).not.toHaveBeenCalled();
 });
+
+it("asks before publishing a dropped file that is not an image", async () => {
+  const zip = storedFile({ id: "f4", name: "solve.zip", mime_type: "application/zip" });
+  vi.mocked(uploadAdminFile).mockResolvedValue({ ...zip, duplicates: [] });
+  renderEditor();
+
+  fireEvent.drop(screen.getByRole("textbox"), {
+    dataTransfer: {
+      types: ["Files"],
+      files: [new File(["zip"], "solve.zip", { type: "application/zip" })],
+    },
+  });
+
+  expect(await screen.findByText(/Upload solve.zip as public\?/)).toBeDefined();
+  expect(uploadAdminFile).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Upload as public" }));
+
+  await waitFor(() =>
+    expect(screen.getByRole("textbox")).toHaveProperty(
+      "value",
+      "[solve.zip](/api/v1/file/f4/view)",
+    ),
+  );
+});
+
+it("drops nothing when the public upload is cancelled", async () => {
+  renderEditor();
+
+  fireEvent.drop(screen.getByRole("textbox"), {
+    dataTransfer: {
+      types: ["Files"],
+      files: [new File(["zip"], "solve.zip", { type: "application/zip" })],
+    },
+  });
+  await userEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+
+  expect(uploadAdminFile).not.toHaveBeenCalled();
+  expect(screen.getByRole("textbox")).toHaveProperty("value", "");
+});

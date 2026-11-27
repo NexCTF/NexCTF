@@ -1027,7 +1027,7 @@
       "saved": "Files updated"
     },
     "col_usage": "Usage",
-    "delete_in_use": "Delete \"{{name}}\"? It is still used by:\n{{usages}}\nIts attachments will be removed and text references will break.",
+    "delete_in_use": "Delete \"{{name}}\"? It is still used by:",
     "delete_in_use_effect": "Its attachments will be removed and text references will break.",
     "duplicate_upload": "\"{{name}}\" has the same content as: {{existing}}",
     "filter_challenge": "Challenge",
@@ -1099,11 +1099,13 @@
     "verify_title": "Verify your email"
   },
   "markdown": {
+    "confirm_public_upload": "Upload {{names}} as public? Anyone with the link can download it, even if you remove the link before saving.",
     "insert": "Insert",
     "insert_file": "Insert file",
     "nothing_to_preview": "Nothing to preview.",
     "pick_file": "Pick a file to insert",
     "preview": "Preview",
+    "upload_public": "Upload as public",
     "uploaded_public": "Uploaded as public: anyone with the link can download it.",
     "write": "Write"
   },

@@ -51,14 +51,14 @@ def _text_sources(like: str) -> list[tuple[FileUsageKind, Select]]:
                 Challenge.description,
                 Challenge.writeup,
             ).where(
-                or_(Challenge.description.like(like), Challenge.writeup.like(like))
+                or_(Challenge.description.ilike(like), Challenge.writeup.ilike(like))
             ),
         ),
         (
             FileUsageKind.QUESTION_TEXT,
             select(Question.id, _question_label(), Challenge.id, Question.description)
             .join(Challenge, Question.challenge_id == Challenge.id)
-            .where(Question.description.like(like)),
+            .where(Question.description.ilike(like)),
         ),
         (
             FileUsageKind.HINT_TEXT,
@@ -70,19 +70,19 @@ def _text_sources(like: str) -> list[tuple[FileUsageKind, Select]]:
             )
             .join(Question, Hint.question_id == Question.id)
             .join(Challenge, Question.challenge_id == Challenge.id)
-            .where(Hint.content.like(like)),
+            .where(Hint.content.ilike(like)),
         ),
         (
             FileUsageKind.PAGE_TEXT,
             select(CustomPage.id, CustomPage.title, _NULL_ID, CustomPage.content).where(
-                CustomPage.content.like(like)
+                CustomPage.content.ilike(like)
             ),
         ),
         (
             FileUsageKind.NOTIFICATION_TEXT,
             select(
                 Notification.id, Notification.title, _NULL_ID, Notification.content
-            ).where(Notification.content.like(like)),
+            ).where(Notification.content.ilike(like)),
         ),
         (
             FileUsageKind.CONFIG,
@@ -91,7 +91,7 @@ def _text_sources(like: str) -> list[tuple[FileUsageKind, Select]]:
                 ConfigEntry.key,
                 _NULL_ID,
                 ConfigEntry.value,
-            ).where(ConfigEntry.value.like(like)),
+            ).where(ConfigEntry.value.ilike(like)),
         ),
     ]
 

@@ -13,7 +13,10 @@ import {
 
 type ConfirmDialogProps = {
   /** Element opening the dialog. Rendered as the trigger. */
-  trigger: ReactElement;
+  trigger?: ReactElement;
+  /** Controls the dialog from outside, when no trigger opens it. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   /** What the confirmation is about. */
   description: ReactNode;
   confirmLabel?: string;
@@ -24,17 +27,21 @@ type ConfirmDialogProps = {
 
 export function ConfirmDialog({
   trigger,
+  open: controlledOpen,
+  onOpenChange,
   description,
   confirmLabel,
   destructive = true,
   onConfirm,
 }: ConfirmDialogProps) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen ?? localOpen;
+  const setOpen = onOpenChange ?? setLocalOpen;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={trigger} />
+      {trigger && <DialogTrigger render={trigger} />}
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>{t("common.confirm_title", { defaultValue: "Are you sure?" })}</DialogTitle>

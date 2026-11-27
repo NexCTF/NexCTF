@@ -227,6 +227,6 @@ async def delete_file(
     response = await crud.FileCrud.delete(
         session=session, filters=[File.id == uuid], return_response=True
     )
-    await session.flush()
+    await session.commit()
     await s3.delete(s3_key)
     return response

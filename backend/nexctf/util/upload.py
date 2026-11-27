@@ -6,6 +6,7 @@ from typing import BinaryIO
 
 from fastapi import UploadFile
 
+from nexctf.core import s3
 from nexctf.core.config import settings
 from nexctf.exceptions import UploadTooLargeError
 
@@ -32,3 +33,12 @@ def _digest(fileobj: BinaryIO) -> str:
 async def sha256_of(upload: UploadFile) -> str:
     """Hex SHA-256 of the upload's content, leaving it rewound."""
     return await asyncio.to_thread(_digest, upload.file)
+
+
+async def stored_sha256(key: str) -> str:
+    """Hex SHA-256 of the S3 object at *key*, streamed in chunks."""
+    digest = hashlib.sha256()
+    async with s3.stream(key) as chunks:
+        async for chunk in chunks:
+            digest.update(chunk)
+    return digest.hexdigest()

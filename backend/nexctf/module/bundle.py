@@ -668,6 +668,7 @@ class _Writer:
             if action is Action.DELETE and kind != EntityKind.CONFIG.value:
                 self.deletes.setdefault(kind, set()).add(UUID(entity_id))
         self.authors: dict[str, UUID] = {}
+        self.removed_objects: list[str] = []
 
     def action_for(self, kind: EntityKind, entity_id: Any) -> Action | None:
         """The accepted action for an entity, or None when it is not being written."""
@@ -922,10 +923,8 @@ class _Writer:
         instance = await self._get(File, file_id)
         if instance is None:
             return
-        s3_key = instance.s3_key
+        self.removed_objects.append(instance.s3_key)
         await self.session.delete(instance)
-        await self.session.flush()
-        await s3.delete(s3_key)
 
 
 async def _apply_config(
@@ -1045,6 +1044,8 @@ async def apply_import(
         meta={"counts": applied.counts(), "prune": prune},
     )
     await session.commit()
+    for key in writer.removed_objects:
+        await s3.delete(key)
     await _sync_config_cache(redis, updates, removals)
     logger.info("Applied bundle import: %s", applied.counts())
     return applied

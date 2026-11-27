@@ -3,6 +3,7 @@ import type * as React from "react";
 import { useImperativeHandle, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { FilePickerDialog } from "@/components/file-picker-dialog";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
@@ -71,12 +72,19 @@ export function MarkdownEditor({
   const [previewing, setPreviewing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const upload = useFileUpload(true);
+  const [pending, setPending] = useState<File[]>([]);
   const valueRef = useRef(value);
   valueRef.current = value;
 
-  function uploadAndInsert(files: FileList | null): boolean {
+  function dropFiles(files: FileList | null): boolean {
     const list = Array.from(files ?? []);
     if (list.length === 0) return false;
+    if (list.every((file) => file.type.startsWith("image/"))) uploadAndInsert(list);
+    else setPending(list);
+    return true;
+  }
+
+  function uploadAndInsert(list: File[]) {
     upload.mutate(list, {
       onSuccess: (uploaded) => {
         insert(uploaded.map(fileMarkdown).join("\n"));
@@ -87,7 +95,6 @@ export function MarkdownEditor({
         );
       },
     });
-    return true;
   }
 
   function insert(text: string) {
@@ -168,19 +175,31 @@ export function MarkdownEditor({
           onChange={(e) => onChange(e.target.value)}
           onPaste={(e) => {
             if (isRichTextPaste(e.clipboardData)) return;
-            if (uploadAndInsert(e.clipboardData.files)) e.preventDefault();
+            if (dropFiles(e.clipboardData.files)) e.preventDefault();
           }}
           onDragOver={(e) => {
             if (e.dataTransfer.types.includes("Files")) e.preventDefault();
           }}
           onDrop={(e) => {
-            if (uploadAndInsert(e.dataTransfer.files)) e.preventDefault();
+            if (dropFiles(e.dataTransfer.files)) e.preventDefault();
           }}
           required={required}
           placeholder={placeholder}
           className="rounded-none border-0 focus-visible:ring-0 resize-y"
         />
       )}
+      <ConfirmDialog
+        open={pending.length > 0}
+        onOpenChange={(open) => !open && setPending([])}
+        destructive={false}
+        description={t("markdown.confirm_public_upload", {
+          names: pending.map((file) => file.name).join(", "),
+          defaultValue:
+            "Upload {{names}} as public? Anyone with the link can download it, even if you remove the link before saving.",
+        })}
+        confirmLabel={t("markdown.upload_public", { defaultValue: "Upload as public" })}
+        onConfirm={() => uploadAndInsert(pending)}
+      />
     </div>
   );
 }

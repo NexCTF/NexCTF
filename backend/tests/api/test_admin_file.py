@@ -249,6 +249,23 @@ class TestDelete:
         with pytest.raises(ClientError):
             await s3.download(data["s3_key"])
 
+    async def test_an_uppercase_text_reference_still_blocks_delete(
+        self, admin_client: tuple[AsyncClient, User], db_session: AsyncSession
+    ) -> None:
+        """A link typed with uppercase hex counts, as it does in the file list."""
+        c, _ = admin_client
+        data = await _upload(c, "shouted", b"keep")
+        db_session.add(
+            CustomPage(slug="up", title="Page", content=_view(data["id"].upper()))
+        )
+        await db_session.flush()
+
+        resp = await c.delete(f"/admin/file/{data['id']}")
+
+        assert resp.status_code == 409
+        assert resp.json()["data"][0]["kind"] == "page_text"
+        await s3.delete(data["s3_key"])
+
     async def test_an_unused_file_deletes_without_force(
         self, admin_client: tuple[AsyncClient, User]
     ) -> None:

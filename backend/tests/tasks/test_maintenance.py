@@ -1,7 +1,10 @@
-"""Tests for the task queue and session retention crons."""
+"""Tests for the maintenance crons: task queue, sessions and file hashes."""
 
 from __future__ import annotations
 
+import hashlib
+from collections.abc import AsyncGenerator, AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -10,15 +13,21 @@ from pgqueuer import Queries
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nexctf.core import s3
 from nexctf.enums import SessionWindow
-from nexctf.model import User, UserSession, UserToken
+from nexctf.model import File, User, UserSession, UserToken
 from nexctf.module import session as session_module
 from nexctf.module.session import (
     TOKEN_RETENTION,
     purge_expired_access,
     sessions_by_address,
 )
-from nexctf.tasks.maintenance import RETENTION, plugin, purge_old_jobs
+from nexctf.tasks.maintenance import (
+    RETENTION,
+    hash_stored_files,
+    plugin,
+    purge_old_jobs,
+)
 from nexctf.tasks.queue import DB_SETTINGS
 
 from ..base import add_login, add_session, add_sighting, make_user
@@ -146,3 +155,32 @@ class TestPurgeExpiredAccess:
 
 def test_purge_runs_as_a_core_cron() -> None:
     assert "purge_expired_sessions" in {cron.name for cron in plugin.crons}
+
+
+async def test_hash_stored_files_fills_only_missing_hashes(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Files stored before hashing get their digest; hashed ones are left alone."""
+    stored = {"files/old": b"old bytes", "files/new": b"new bytes"}
+
+    @asynccontextmanager
+    async def stream(key: str) -> AsyncGenerator[AsyncIterator[bytes]]:
+        async def chunks() -> AsyncIterator[bytes]:
+            yield stored[key][:3]
+            yield stored[key][3:]
+
+        yield chunks()
+
+    monkeypatch.setattr(s3, "stream", stream)
+    old = File(name="old", s3_key="files/old", original_filename="old.bin")
+    new = File(
+        name="new", s3_key="files/new", original_filename="new.bin", sha256="kept"
+    )
+    db_session.add_all([old, new])
+    await db_session.flush()
+
+    assert await hash_stored_files(db_session) == 1
+
+    assert old.sha256 == hashlib.sha256(b"old bytes").hexdigest()
+    assert new.sha256 == "kept"
+    assert await hash_stored_files(db_session) == 0
