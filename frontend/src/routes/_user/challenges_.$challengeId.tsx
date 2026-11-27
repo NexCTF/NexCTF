@@ -453,6 +453,7 @@ function QuestionCard({
               challengeId={challengeId}
               questionId={q.id}
               solved={q.is_solved}
+              exhausted={!q.is_solved && q.attempts_left === 0}
               onUnlocked={showUnlockedHint}
             />
           )}
@@ -494,12 +495,15 @@ function HintsSection({
   challengeId,
   questionId,
   solved,
+  exhausted,
   onUnlocked,
 }: {
   hints: PublicHint[];
   challengeId: string;
   questionId: string;
   solved: boolean;
+  /** The team has no attempts left, so no hint can be unlocked. */
+  exhausted: boolean;
   onUnlocked: (hint: PublicHint) => void;
 }) {
   const { t } = useTranslation();
@@ -526,7 +530,9 @@ function HintsSection({
               {!h.is_unlocked && (
                 <UnlockHintButton
                   hint={h}
-                  disabled={!open || (solved && h.cost > 0) || unlockMutation.isPending}
+                  disabled={
+                    !open || exhausted || (solved && h.cost > 0) || unlockMutation.isPending
+                  }
                   onUnlock={() => unlockMutation.mutate(h.id)}
                 />
               )}

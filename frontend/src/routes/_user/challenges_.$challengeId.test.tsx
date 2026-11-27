@@ -155,6 +155,18 @@ it("locks the form once the team has no attempts left", async () => {
   expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
 });
 
+it("disables hint unlocks once the team has no attempts left", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({
+      questions: [question({ max_attempts: 1, attempts_left: 0, hints: [hint({ cost: 10 })] })],
+    }),
+  );
+  renderChallenge();
+
+  expect(await screen.findByText("Nudge")).toBeDefined();
+  expect(screen.getByRole("button", { name: "10 pts" }).hasAttribute("disabled")).toBe(true);
+});
+
 it("locks the form after the last wrong attempt", async () => {
   vi.mocked(getChallenge).mockResolvedValue(
     challengeDetail({ questions: [question({ max_attempts: 1, attempts_left: 1 })] }),

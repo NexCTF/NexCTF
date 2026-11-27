@@ -157,6 +157,16 @@ def _attempts_left(max_attempts: int | None, wrong: int) -> int | None:
     return None if max_attempts is None else max(0, max_attempts - wrong)
 
 
+async def _check_attempts_left(
+    session: SessionDep, user: User, question: Question
+) -> int:
+    """Wrong attempts the team made on *question*, refusing once none are left."""
+    wrong = (await _wrong_counts(session, user, [question.id])).get(question.id, 0)
+    if _attempts_left(question.max_attempts, wrong) == 0:
+        raise AttemptsExhaustedError()
+    return wrong
+
+
 async def _lock_for_team(session: SessionDep, user: User, key: UUID) -> None:
     """Hold a transaction lock on *key* for the user's team."""
     team_id = user.team_id
@@ -509,11 +519,7 @@ async def submit_answer(
 
     await _check_question_access(session, user, challenge, question)
 
-    wrong_count_before = (await _wrong_counts(session, user, [question_id])).get(
-        question_id, 0
-    )
-    if _attempts_left(question.max_attempts, wrong_count_before) == 0:
-        raise AttemptsExhaustedError()
+    wrong_count_before = await _check_attempts_left(session, user, question)
 
     answer = obj.answer
     is_trap = question.is_trap(answer)
@@ -702,8 +708,11 @@ async def unlock_hint(
     await lock_playing_team(session, user)
     await _check_question_access(session, user, challenge, question)
     await _lock_for_team(session, user, question_id)
-    if hint.cost > 0 and question_id in await _solved_ids(session, user, [question_id]):
+    solved = question_id in await _solved_ids(session, user, [question_id])
+    if hint.cost > 0 and solved:
         raise HintAfterSolveError()
+    if not solved:
+        await _check_attempts_left(session, user, question)
 
     # A hint is bought once per team; teammates unlocking concurrently race on
     # uq_hint_unlock, so let the database settle who pays.

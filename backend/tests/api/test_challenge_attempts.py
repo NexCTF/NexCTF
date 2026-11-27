@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.model import Submission, Team, User
-from nexctf.model.question import Question
+from nexctf.model.question import Hint, Question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 from nexctf.plugins.builtin.solution.match.model import MatchSolution
 
@@ -119,6 +119,49 @@ class TestAttemptLimit:
         result = await _submit(c, challenge, question, "nope")
 
         assert result["data"]["attempts_left"] is None
+
+
+async def _add_hint(db_session: AsyncSession, question: Question) -> Hint:
+    hint = Hint(title="Nudge", content="look closer", cost=10, question_id=question.id)
+    db_session.add(hint)
+    await db_session.flush()
+    return hint
+
+
+async def _unlock(
+    c: AsyncClient, challenge: StandardChallenge, question: Question, hint: Hint
+) -> dict:
+    resp = await c.post(
+        f"/challenges/{challenge.id}/{question.id}/hints/{hint.id}/unlock"
+    )
+    return {**resp.json(), "http_status": resp.status_code}
+
+
+class TestHintsAfterTheLastAttempt:
+    async def test_no_hint_unlocks_once_attempts_are_used_up(
+        self, user_client: tuple[AsyncClient, User], db_session: AsyncSession
+    ) -> None:
+        c, user = user_client
+        challenge, question = await _setup(db_session, user, max_attempts=1)
+        hint = await _add_hint(db_session, question)
+        await _submit(c, challenge, question, "nope")
+
+        refused = await _unlock(c, challenge, question, hint)
+
+        assert refused["http_status"] == 403
+        assert refused["error_code"] == "SUB-403-ATTEMPTS"
+
+    async def test_hints_unlock_while_attempts_remain(
+        self, user_client: tuple[AsyncClient, User], db_session: AsyncSession
+    ) -> None:
+        c, user = user_client
+        challenge, question = await _setup(db_session, user, max_attempts=2)
+        hint = await _add_hint(db_session, question)
+        await _submit(c, challenge, question, "nope")
+
+        unlocked = await _unlock(c, challenge, question, hint)
+
+        assert unlocked["data"]["content"] == "look closer"
 
 
 class TestPlayerView:
