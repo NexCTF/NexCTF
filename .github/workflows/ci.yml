@@ -200,7 +200,7 @@ jobs:
       - run: bunx playwright test -c playwright.screenshots.config.ts
         working-directory: frontend
         env:
-          NEXCTF_PLUGINS: nexctf-sandbox==1.0.0
+          NEXCTF_PLUGINS: nexctf-sandbox
       # To look at the captures, not only at the check.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
