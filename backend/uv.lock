@@ -973,7 +973,7 @@ wheels = [
 
 [[package]]
 name = "nexctf"
-version = "0.12.8"
+version = "0.13.0"
 source = { editable = "." }
 dependencies = [
     { name = "aioboto3" },
