@@ -167,6 +167,20 @@ it("disables hint unlocks once the team has no attempts left", async () => {
   expect(screen.getByRole("button", { name: "10 pts" }).hasAttribute("disabled")).toBe(true);
 });
 
+it("locks the form when a hint unlock finds the attempts used up", async () => {
+  vi.mocked(getChallenge).mockResolvedValue(
+    challengeDetail({
+      questions: [question({ max_attempts: 1, attempts_left: 1, hints: [hint()] })],
+    }),
+  );
+  vi.mocked(unlockHint).mockRejectedValue(new ApiError(403, "Forbidden", null, "SUB-403-ATTEMPTS"));
+  renderChallenge();
+
+  await userEvent.click(await screen.findByRole("button", { name: "Unlock" }));
+
+  expect(await screen.findByText(/no attempts left for this question/)).toBeDefined();
+});
+
 it("locks the form after the last wrong attempt", async () => {
   vi.mocked(getChallenge).mockResolvedValue(
     challengeDetail({ questions: [question({ max_attempts: 1, attempts_left: 1 })] }),

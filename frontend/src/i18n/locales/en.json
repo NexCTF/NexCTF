@@ -1011,6 +1011,7 @@
   "errors": {
     "api": {
       "answer_check_timeout": "Checking your answer took too long, so it was not counted. Try again.",
+      "attempts_exhausted": "Your team has used every attempt allowed for this question.",
       "profile_incomplete": "Fill in the required profile and team fields before playing.",
       "rate_limited": "Too many attempts in a short time. Wait a moment and try again.",
       "team_disqualified": "Your team has been disqualified and can no longer play."

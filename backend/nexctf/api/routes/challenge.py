@@ -711,7 +711,7 @@ async def unlock_hint(
     solved = question_id in await _solved_ids(session, user, [question_id])
     if hint.cost > 0 and solved:
         raise HintAfterSolveError()
-    if not solved:
+    if not solved and question.max_attempts is not None:
         await _check_attempts_left(session, user, question)
 
     # A hint is bought once per team; teammates unlocking concurrently race on

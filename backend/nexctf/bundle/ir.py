@@ -63,7 +63,7 @@ class QuestionIR(BundleBase):
     index: int = 0
     points: int = 100
     malus: int | None = None
-    max_attempts: int | None = None
+    max_attempts: int | None = Field(default=None, ge=1)
     input_type: str = "input"
     trap_flags: list[str] = []
     tags: list[str] = []

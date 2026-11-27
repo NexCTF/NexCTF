@@ -168,6 +168,10 @@ const TRANSLATED_ERRORS: Record<string, () => string> = {
     i18n.t("errors.api.rate_limited", {
       defaultValue: "Too many attempts in a short time. Wait a moment and try again.",
     }),
+  "SUB-403-ATTEMPTS": () =>
+    i18n.t("errors.api.attempts_exhausted", {
+      defaultValue: "Your team has used every attempt allowed for this question.",
+    }),
   "SUB-403-DISQUALIFIED": () =>
     i18n.t("errors.api.team_disqualified", {
       defaultValue: "Your team has been disqualified and can no longer play.",

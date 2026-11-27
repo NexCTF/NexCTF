@@ -1013,6 +1013,7 @@
   "errors": {
     "api": {
       "answer_check_timeout": "La vérification de votre réponse a pris trop de temps, elle n'a donc pas été comptée. Réessayez.",
+      "attempts_exhausted": "Votre équipe a utilisé toutes les tentatives autorisées pour cette question.",
       "profile_incomplete": "Renseignez les champs obligatoires de votre profil et de votre équipe avant de jouer.",
       "rate_limited": "Trop de tentatives en peu de temps. Patientez un instant puis réessayez.",
       "team_disqualified": "Votre équipe a été disqualifiée et ne peut plus jouer."

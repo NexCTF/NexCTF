@@ -455,6 +455,7 @@ function QuestionCard({
               solved={q.is_solved}
               exhausted={!q.is_solved && q.attempts_left === 0}
               onUnlocked={showUnlockedHint}
+              onExhausted={() => showAttemptsLeft(0)}
             />
           )}
 
@@ -497,6 +498,7 @@ function HintsSection({
   solved,
   exhausted,
   onUnlocked,
+  onExhausted,
 }: {
   hints: PublicHint[];
   challengeId: string;
@@ -505,13 +507,17 @@ function HintsSection({
   /** The team has no attempts left, so no hint can be unlocked. */
   exhausted: boolean;
   onUnlocked: (hint: PublicHint) => void;
+  onExhausted: () => void;
 }) {
   const { t } = useTranslation();
   const { open } = useEventPhase();
   const unlockMutation = useMutation({
     mutationFn: (hintId: string) => unlockHint(challengeId, questionId, hintId),
     onSuccess: onUnlocked,
-    onError: (err) => toast.error(apiErrorMessage(err, t("challenge.hint_unlock_error"))),
+    onError: (err) => {
+      if (err instanceof ApiError && err.errCode === "SUB-403-ATTEMPTS") onExhausted();
+      toast.error(apiErrorMessage(err, t("challenge.hint_unlock_error")));
+    },
   });
 
   return (

@@ -312,13 +312,14 @@ export function QuestionFormFields({
           <Input
             type="number"
             min={1}
+            step={1}
             value={form.max_attempts == null ? "" : String(form.max_attempts)}
             placeholder={t("admin.challenge.question.field_max_attempts_placeholder", {
               defaultValue: "Unlimited",
             })}
             onChange={(e) =>
               onUpdate({
-                max_attempts: e.target.value === "" ? null : Number(e.target.value),
+                max_attempts: e.target.value === "" ? null : Math.trunc(Number(e.target.value)),
               })
             }
           />

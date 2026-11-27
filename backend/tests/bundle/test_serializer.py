@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
+from pydantic import ValidationError
 
 from nexctf.bundle import (
     Bundle,
@@ -117,6 +118,12 @@ def test_tree_round_trip_is_byte_identical() -> None:
 def test_question_limits_survive_the_round_trip() -> None:
     bundle, _ = read_tree(write_tree(sample_bundle(), {FILE_ID: b"data"}))
     assert bundle.challenges[0].questions[0].max_attempts == 3
+
+
+@pytest.mark.parametrize("limit", [0, -1])
+def test_a_question_limit_below_one_is_refused(limit: int) -> None:
+    with pytest.raises(ValidationError):
+        QuestionIR(id=_id(9), label="Q", max_attempts=limit)
 
 
 def test_archive_round_trip_is_byte_identical() -> None:
