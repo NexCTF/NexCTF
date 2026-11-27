@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import cast
+from uuid import UUID
 
 from httpx import AsyncClient
-from sqlalchemy import select, text
+from sqlalchemy import Table, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexctf.exceptions import SolutionTimeoutError
 from nexctf.model import Event, Submission, Team, User
 from nexctf.model.question import Question
+from nexctf.module import submission as submission_module
 from nexctf.module.submission import recalculate_question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 from nexctf.plugins.builtin.solution.match.model import MatchSolution
@@ -301,3 +304,58 @@ class TestLockTimeout:
         await lock_question(db_session, question.id, timeout="5s")
 
         assert await db_session.scalar(text("SHOW lock_timeout")) == before
+
+
+class TestRecalculationLock:
+    async def test_answers_are_checked_before_the_lock_and_late_ones_under_it(
+        self, db_session: AsyncSession, mock_redis, monkeypatch
+    ) -> None:
+        question = await _question(db_session, points=100, malus=None)
+        await _play(db_session, question, ["nope", "still nope"])
+        late = Team(name="late")
+        db_session.add(late)
+        await db_session.flush()
+        checked: list[str] = []
+        verify = MatchSolution.verify
+        lock = submission_module.lock_question
+
+        async def _spy(self: MatchSolution, answer: str, **kw: object) -> bool:
+            checked.append(answer)
+            return await verify(self, answer, **kw)
+
+        async def _lock(session: AsyncSession, question_id: UUID, **_: object) -> None:
+            assert checked == ["nope", "still nope"]
+            session.add(
+                Submission(answer=FLAG, team_id=late.id, question_id=question.id)
+            )
+            await session.flush()
+            await lock(session, question_id)
+
+        monkeypatch.setattr(MatchSolution, "verify", _spy)
+        monkeypatch.setattr(submission_module, "lock_question", _lock)
+        await recalculate_question(db_session, mock_redis, question.id)
+
+        assert checked == ["nope", "still nope", FLAG]
+        assert await _earned(db_session, late) == 100
+
+    async def test_a_flag_changed_while_waiting_rechecks_every_answer(
+        self, db_session: AsyncSession, mock_redis, monkeypatch
+    ) -> None:
+        question = await _question(db_session, points=100, malus=None)
+        team = await _play(db_session, question, [NEW_FLAG])
+        sol_id = await db_session.scalar(
+            select(MatchSolution.id).where(MatchSolution.question_id == question.id)
+        )
+        match = cast(Table, MatchSolution.__table__)
+        lock = submission_module.lock_question
+
+        async def _lock(session: AsyncSession, question_id: UUID, **_: object) -> None:
+            await session.execute(
+                update(match).where(match.c.id == sol_id).values(value=NEW_FLAG)
+            )
+            await lock(session, question_id)
+
+        monkeypatch.setattr(submission_module, "lock_question", _lock)
+        await recalculate_question(db_session, mock_redis, question.id)
+
+        assert await _earned(db_session, team) == 100
