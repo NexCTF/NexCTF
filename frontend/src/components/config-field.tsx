@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { type ConfigItem, SECRET_MASK } from "@/lib/api";
 
 function FieldWrapper({
@@ -137,12 +138,7 @@ export function ConfigField({
     case "text":
       return (
         <FieldWrapper label={label} description={description}>
-          <textarea
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            rows={4}
-            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
+          <Textarea value={value} onChange={(e) => onChange(e.target.value)} rows={4} />
         </FieldWrapper>
       );
     case "int":

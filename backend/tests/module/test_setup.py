@@ -22,6 +22,17 @@ from tests.base import make_user
 pytestmark = pytest.mark.usefixtures("setup_key")
 
 
+@pytest.fixture
+async def setup_key(
+    redis: Redis, monkeypatch: pytest.MonkeyPatch
+) -> AsyncIterator[str]:
+    """Point the setup token at a key of its own, deleted after the test."""
+    key = f"test:setup:{uuid.uuid4()}"
+    monkeypatch.setattr(setup, "SETUP_TOKEN_KEY", key)
+    yield key
+    await redis.delete(key)
+
+
 async def test_only_the_issued_token_matches(redis: Redis, setup_key: str) -> None:
     token = await issue_setup_token(redis, replace=True)
 
@@ -68,18 +79,12 @@ async def test_admin_exists(
 
 @pytest.fixture
 async def done_key(
-    redis: Redis, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+    redis: Redis, override_db_context: None, monkeypatch: pytest.MonkeyPatch
 ) -> AsyncIterator[str]:
     """A fresh process with its own done flag, reading the test database."""
-
-    @asynccontextmanager
-    async def _db() -> AsyncGenerator[AsyncSession]:
-        yield db_session
-
     key = f"test:setup-done:{uuid.uuid4()}"
     monkeypatch.setattr(setup, "SETUP_DONE_KEY", key)
     monkeypatch.setattr(setup, "_admin_seen", False)
-    monkeypatch.setattr(setup, "get_db_context", _db)
     yield key
     await redis.delete(key)
 

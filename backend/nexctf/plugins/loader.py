@@ -12,7 +12,7 @@ from email.utils import getaddresses
 from pathlib import Path
 from typing import TYPE_CHECKING, get_args
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, Depends, FastAPI
 from sqlalchemy import Table
 
 from nexctf.plugins.config import plugin_config_defs, register_config
@@ -31,7 +31,7 @@ from nexctf.plugins.registry import (
     task_registry,
 )
 from nexctf.plugins.routes import route_registry
-lazy from nexctf.api.dep import AdminAuthDep, UserAuthDep
+lazy from nexctf.api.dep import AdminAuthDep, UserAuthDep, require_setup_done
 lazy from nexctf.api.scope import plugin_prefix_conflict, reset_table
 lazy from nexctf.core.appconfig import ConfigDef, sync_to_redis
 lazy from nexctf.core.cache import get_client as get_redis_client
@@ -387,12 +387,13 @@ def mount_plugin_routes(app: FastAPI) -> None:
     Args:
         app: The FastAPI application to mount the routers on.
     """
+    gate = Depends(require_setup_done)
     parents = {
         "admin": APIRouter(
-            prefix=f"{settings.API_V1_STR}/admin", dependencies=[AdminAuthDep]
+            prefix=f"{settings.API_V1_STR}/admin", dependencies=[gate, AdminAuthDep]
         ),
-        "user": APIRouter(prefix=settings.API_V1_STR, dependencies=[UserAuthDep]),
-        "anonymous": APIRouter(prefix=settings.API_V1_STR),
+        "user": APIRouter(prefix=settings.API_V1_STR, dependencies=[gate, UserAuthDep]),
+        "anonymous": APIRouter(prefix=settings.API_V1_STR, dependencies=[gate]),
     }
     for router in route_registry.get_routers():
         parents[router.scope].include_router(

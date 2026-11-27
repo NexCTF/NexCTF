@@ -2,9 +2,9 @@ import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { ApiError, getMyOAuthAccounts, reauth, type User } from "@/lib/api";
-import { type AuthContext, AuthCtx } from "@/lib/auth";
+import { AuthCtx } from "@/lib/auth";
 import { promptReauth } from "@/lib/reauth";
-import { user } from "@/test/fixtures";
+import { authContext, user } from "@/test/fixtures";
 import { renderWithQuery } from "@/test/render";
 import { ReauthDialog } from "./reauth-dialog";
 
@@ -21,13 +21,7 @@ afterEach(() => {
 
 function renderDialog(me: User) {
   vi.mocked(getMyOAuthAccounts).mockResolvedValue([]);
-  const auth: AuthContext = {
-    user: me,
-    isLoading: false,
-    login: vi.fn(),
-    logout: vi.fn(),
-    refresh: vi.fn(),
-  };
+  const auth = authContext({ user: me });
   renderWithQuery(
     <AuthCtx.Provider value={auth}>
       <ReauthDialog />

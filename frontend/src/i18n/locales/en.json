@@ -1308,19 +1308,14 @@
   },
   "setup": {
     "account": {
-      "confirm_password": "Confirm password",
-      "email": "Email (optional)",
       "error_sign_in": "The account was created, but signing in failed. Sign in from the login page.",
       "error_unexpected": "The account could not be created",
-      "mismatch": "Passwords do not match",
-      "password": "Password",
       "submit": "Create the account",
       "subtitle": "This instance has no administrator yet. The account you create here manages everything else.",
       "title": "Create the admin account",
       "token": "Setup token",
       "token_hint": "Printed in the server logs at start. Run manager bootstrap --new-link on the server for a new one.",
-      "token_invalid": "This setup token is not valid anymore. Run manager bootstrap --new-link on the server for a new link.",
-      "username": "Username"
+      "token_invalid": "This setup token is not valid anymore. Run manager bootstrap --new-link on the server for a new link."
     },
     "event": {
       "error": "The settings could not be saved",

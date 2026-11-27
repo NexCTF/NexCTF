@@ -1,7 +1,6 @@
 """Pytest configuration for NexCTF backend tests."""
 
 import os
-import uuid
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
 from functools import partial
@@ -20,12 +19,12 @@ from fastapi_toolsets.pytest import (
 from httpx import AsyncClient
 from pgqueuer import Queries
 from pgqueuer.db import AsyncpgDriver
-from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 os.environ["NEXCTF_TEST_MODE"] = "1"
 os.environ["LOG_FILES"] = "false"
 
+from nexctf.api.dep import require_setup_done
 from nexctf.core import appconfig
 from nexctf.core.cache import get_redis
 from nexctf.core.config import settings
@@ -33,7 +32,6 @@ from nexctf.core.db import db
 from nexctf.fixtures import test_fixture_registry
 from nexctf.main import app
 from nexctf.model import Base, User, UserRole
-from nexctf.module import setup
 from nexctf.plugins import load_builtin_plugins
 from nexctf.plugins.frontend import frontend_registry
 from nexctf.plugins.registry import (
@@ -137,23 +135,6 @@ def ticket_store(mock_redis) -> None:
     mock_redis.getdel = AsyncMock(side_effect=getdel)
 
 
-@pytest.fixture(autouse=True)
-def setup_finished(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Serve the API as on an instance whose first admin already exists."""
-    monkeypatch.setattr(setup, "_admin_seen", True)
-
-
-@pytest.fixture
-async def setup_key(
-    redis: Redis, monkeypatch: pytest.MonkeyPatch
-) -> AsyncIterator[str]:
-    """Point the setup token at a key of its own, deleted after the test."""
-    key = f"test:setup:{uuid.uuid4()}"
-    monkeypatch.setattr(setup, "SETUP_TOKEN_KEY", key)
-    yield key
-    await redis.delete(key)
-
-
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def worker_db_url():
     """Create and drop a per-worker test database."""
@@ -209,13 +190,18 @@ def app_overrides(db_session: AsyncSession, mock_redis):
     async def _redis():
         yield mock_redis
 
+    async def _setup_done() -> None:
+        pass
+
     app.dependency_overrides[db] = _db
     app.dependency_overrides[get_redis] = _redis
+    app.dependency_overrides[require_setup_done] = _setup_done
     try:
         yield
     finally:
         app.dependency_overrides.pop(db, None)
         app.dependency_overrides.pop(get_redis, None)
+        app.dependency_overrides.pop(require_setup_done, None)
 
 
 @pytest.fixture
@@ -250,7 +236,7 @@ async def http_client(client_factory) -> AsyncGenerator[AsyncClient]:
 def override_db_context(
     db_session: AsyncSession, mock_redis, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Patch the session contexts in security.py and module/client.py, and its Redis.
+    """Patch the session contexts in security.py and modules client/setup, and its Redis.
 
     Functions like _verify_cookie(), create_api_token() and record_sighting() open a session
     directly instead of using FastAPI dependency injection. Patching it in the
@@ -259,7 +245,7 @@ def override_db_context(
     as the real context commits.
     """
     from nexctf.api import security
-    from nexctf.module import client
+    from nexctf.module import client, setup
 
     @asynccontextmanager
     async def _test_db_context() -> AsyncGenerator[AsyncSession]:
@@ -270,6 +256,7 @@ def override_db_context(
     monkeypatch.setattr(security, "get_db_context", _test_db_context)
     monkeypatch.setattr(security, "get_auth_db_context", _test_db_context)
     monkeypatch.setattr(client, "get_auth_db_context", _test_db_context)
+    monkeypatch.setattr(setup, "get_db_context", _test_db_context)
 
 
 @pytest.fixture

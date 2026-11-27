@@ -208,7 +208,6 @@ function AccountStep() {
       setError(t("setup.account.error_sign_in"));
       return;
     }
-    await qc.invalidateQueries({ queryKey: ["info"] });
     qc.setQueryData(SETUP_QUERY.queryKey, { admin_required: false });
     await navigate({ search: { step: "event" }, replace: true });
   }
@@ -216,7 +215,7 @@ function AccountStep() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (password !== confirm) {
-      setError(t("setup.account.mismatch"));
+      setError(t("reset_password.mismatch"));
       return;
     }
     setError(null);
@@ -253,7 +252,7 @@ function AccountStep() {
             </div>
           )}
           <div className="space-y-2">
-            <Label htmlFor="username">{t("setup.account.username")}</Label>
+            <Label htmlFor="username">{t("login.username")}</Label>
             <Input
               id="username"
               required
@@ -264,7 +263,7 @@ function AccountStep() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">{t("setup.account.email")}</Label>
+            <Label htmlFor="email">{t("register.email")}</Label>
             <Input
               id="email"
               type="email"
@@ -274,7 +273,7 @@ function AccountStep() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">{t("setup.account.password")}</Label>
+            <Label htmlFor="password">{t("login.password")}</Label>
             <Input
               id="password"
               type="password"
@@ -286,7 +285,7 @@ function AccountStep() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirm">{t("setup.account.confirm_password")}</Label>
+            <Label htmlFor="confirm">{t("reset_password.confirm_password")}</Label>
             <Input
               id="confirm"
               type="password"
@@ -327,7 +326,7 @@ function EventStep() {
     mutationFn: () => updateConfig(changed),
     onSuccess: async (updated) => {
       qc.setQueryData(["config"], updated);
-      await qc.invalidateQueries({ queryKey: ["info", "public"] });
+      void qc.invalidateQueries({ queryKey: ["info", "public"] });
       await goNext();
     },
   });

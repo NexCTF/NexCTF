@@ -1,7 +1,5 @@
 """Tests for the first-run setup endpoints."""
 
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock
 
 import pytest
@@ -10,7 +8,9 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nexctf.api.dep import require_setup_done
 from nexctf.api.security import verify_password
+from nexctf.main import app
 from nexctf.model import Event, User, UserRole
 from nexctf.module import setup
 
@@ -39,16 +39,14 @@ async def _users(db_session: AsyncSession) -> list[User]:
 
 @pytest.fixture(autouse=True)
 def setup_pending(
-    monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession, mock_redis: AsyncMock
+    app_overrides: None,
+    override_db_context: None,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_redis: AsyncMock,
 ) -> None:
     """Start each test on an instance that has not seen an admin yet."""
-
-    @asynccontextmanager
-    async def _db() -> AsyncGenerator[AsyncSession]:
-        yield db_session
-
+    app.dependency_overrides.pop(require_setup_done)
     monkeypatch.setattr(setup, "_admin_seen", False)
-    monkeypatch.setattr(setup, "get_db_context", _db)
     mock_redis.exists = AsyncMock(return_value=0)
 
 

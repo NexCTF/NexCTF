@@ -1311,19 +1311,14 @@
   },
   "setup": {
     "account": {
-      "confirm_password": "Confirmer le mot de passe",
-      "email": "Email (facultatif)",
       "error_sign_in": "Le compte a été créé, mais la connexion a échoué. Connectez-vous depuis la page de connexion.",
       "error_unexpected": "Le compte n'a pas pu être créé",
-      "mismatch": "Les mots de passe ne correspondent pas",
-      "password": "Mot de passe",
       "submit": "Créer le compte",
       "subtitle": "Cette instance n'a pas encore d'administrateur. Le compte créé ici permet de gérer tout le reste.",
       "title": "Créer le compte administrateur",
       "token": "Token de configuration",
       "token_hint": "Affiché dans les logs du serveur au démarrage. Lancez manager bootstrap --new-link sur le serveur pour en obtenir un nouveau.",
-      "token_invalid": "Ce token de configuration n'est plus valide. Lancez manager bootstrap --new-link sur le serveur pour obtenir un nouveau lien.",
-      "username": "Nom d'utilisateur"
+      "token_invalid": "Ce token de configuration n'est plus valide. Lancez manager bootstrap --new-link sur le serveur pour obtenir un nouveau lien."
     },
     "event": {
       "error": "Les paramètres n'ont pas pu être enregistrés",

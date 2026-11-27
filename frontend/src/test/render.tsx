@@ -10,9 +10,9 @@ import {
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { vi } from "vitest";
 import { type AuthContext, AuthCtx } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
+import { authContext } from "@/test/fixtures";
 
 interface RenderRouteOptions {
   /** URL to start at, search string included. */
@@ -36,14 +36,7 @@ export function renderRoute(
   route: AnyRoute,
   { path = "/", routePath, auth, queryClient: client }: RenderRouteOptions = {},
 ) {
-  const authValue: AuthContext = {
-    user: null,
-    isLoading: false,
-    login: vi.fn(),
-    logout: vi.fn(),
-    refresh: vi.fn().mockResolvedValue(undefined),
-    ...auth,
-  };
+  const authValue = authContext(auth);
   const rootRoute = createRootRoute({
     component: () => (
       <ThemeProvider>

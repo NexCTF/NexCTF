@@ -8,7 +8,7 @@ from nexctf.api.dep import RedisDep, SessionDep, bind_setup_audit_context
 from nexctf.api.security import issue_session_cookie
 from nexctf.core.logging import bind_user_context
 from nexctf.core.rate_limit import check_rate_limit, client_rate_key
-from nexctf.module.setup import admin_exists, create_first_admin
+from nexctf.module.setup import create_first_admin, setup_done
 from nexctf.schema.setup import SetupAdminCreate, SetupStatusRead
 
 setup_router = APIRouter(
@@ -17,11 +17,9 @@ setup_router = APIRouter(
 
 
 @setup_router.get("")
-async def setup_status(session: SessionDep) -> Response[SetupStatusRead]:
+async def setup_status(redis: RedisDep) -> Response[SetupStatusRead]:
     """Whether the instance still waits for its first admin."""
-    return Response(
-        data=SetupStatusRead(admin_required=not await admin_exists(session))
-    )
+    return Response(data=SetupStatusRead(admin_required=not await setup_done(redis)))
 
 
 @setup_router.post("/admin", status_code=204)
