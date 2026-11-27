@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Download, RefreshCw, Trophy } from "lucide-react";
+import { Download, MonitorPlay, RefreshCw, Trophy } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { BracketSelect } from "@/components/bracket-select";
 import { CLICKABLE_ROW_CLS, RowChevron } from "@/components/data-table";
+import { DisplayLinkDialog } from "@/components/display-link-dialog";
 import { PageHeader } from "@/components/page-header";
 import { RankBadge, ScoreboardBanners } from "@/components/scoreboard";
 import { ScoreboardExportDialog } from "@/components/scoreboard-export-dialog";
@@ -27,6 +28,7 @@ function ScoreboardSection() {
   const queryClient = useQueryClient();
   const [bracket, setBracket] = useState<string | undefined>(undefined);
   const [isExporting, setIsExporting] = useState(false);
+  const [isLinkingDisplay, setIsLinkingDisplay] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "scoreboard", bracket],
@@ -50,6 +52,10 @@ function ScoreboardSection() {
         <h2 className="text-lg font-semibold">{t("admin.scoreboard.rankings_title")}</h2>
         <div className="flex flex-wrap items-center gap-2">
           {data && <BracketSelect brackets={data.brackets} value={bracket} onChange={setBracket} />}
+          <Button variant="outline" size="sm" onClick={() => setIsLinkingDisplay(true)}>
+            <MonitorPlay />
+            {t("admin.scoreboard.big_screen", { defaultValue: "Big screen" })}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setIsExporting(true)} disabled={!data}>
             <Download />
             {t("admin.scoreboard.export", { defaultValue: "Export" })}
@@ -65,6 +71,13 @@ function ScoreboardSection() {
           </Button>
         </div>
       </div>
+
+      {isLinkingDisplay && (
+        <DisplayLinkDialog
+          brackets={data?.brackets ?? []}
+          onClose={() => setIsLinkingDisplay(false)}
+        />
+      )}
 
       {isExporting && data && (
         <ScoreboardExportDialog

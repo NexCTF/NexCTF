@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UserRouteImport } from './routes/_user'
+import { Route as DisplayRouteImport } from './routes/display'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as RegisterRouteImport } from './routes/register'
@@ -59,6 +60,11 @@ import { Route as AdminAdminPluginsKeySplatRouteImport } from './routes/admin/_a
 
 const UserRoute = UserRouteImport.update({
   id: '/_user',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DisplayRoute = DisplayRouteImport.update({
+  id: '/display',
+  path: '/display',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -300,6 +306,7 @@ const AdminAdminPluginsKeySplatRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof UserIndexRoute
+  '/display': typeof DisplayRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -347,6 +354,7 @@ export interface FileRoutesByFullPath {
   '/admin/plugins/$key/$': typeof AdminAdminPluginsKeySplatRoute
 }
 export interface FileRoutesByTo {
+  '/display': typeof DisplayRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -396,6 +404,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_user': typeof UserRouteWithChildren
+  '/display': typeof DisplayRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -447,6 +456,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/display'
     | '/forgot-password'
     | '/login'
     | '/register'
@@ -494,6 +504,7 @@ export interface FileRouteTypes {
     | '/admin/plugins/$key/$'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/display'
     | '/forgot-password'
     | '/login'
     | '/register'
@@ -542,6 +553,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_user'
+    | '/display'
     | '/forgot-password'
     | '/login'
     | '/register'
@@ -592,6 +604,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   UserRoute: typeof UserRouteWithChildren
+  DisplayRoute: typeof DisplayRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
@@ -609,6 +622,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof UserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/display': {
+      id: '/display'
+      path: '/display'
+      fullPath: '/display'
+      preLoaderRoute: typeof DisplayRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -1032,6 +1052,7 @@ const AdminAdminRouteWithChildren = AdminAdminRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   UserRoute: UserRouteWithChildren,
+  DisplayRoute: DisplayRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,

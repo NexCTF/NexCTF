@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Banner } from "@/components/banner";
 import { useEventPhase } from "@/lib/use-event-phase";
 
-const MEDALS: Record<number, string> = {
+export const MEDALS: Record<number, string> = {
   1: "bg-yellow-400/20 text-yellow-500",
   2: "bg-zinc-300/20 text-zinc-400",
   3: "bg-amber-700/20 text-amber-600",

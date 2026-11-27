@@ -384,11 +384,20 @@ export async function getGrantableScopes(): Promise<string[]> {
   return request<string[]>("/me/tokens/scopes");
 }
 
-export async function createMyToken(name: string, scopes: string[]): Promise<ApiToken> {
+export async function createMyToken(
+  name: string,
+  scopes: string[],
+  expiresAt: string | null = null,
+): Promise<ApiToken> {
   return request<ApiToken>("/me/tokens", {
     method: "POST",
-    body: JSON.stringify({ name, scopes }),
+    body: JSON.stringify({ name, scopes, expires_at: expiresAt }),
   });
+}
+
+/** Request options authenticating with the API *token* alone, leaving the session cookie out. */
+function bearer(token: string | null | undefined): RequestInit | undefined {
+  return token ? { headers: { Authorization: `Bearer ${token}` }, credentials: "omit" } : undefined;
 }
 
 export async function deleteMyToken(id: string): Promise<void> {
@@ -1178,8 +1187,8 @@ export interface NotificationListResponse {
   last_read_at: string | null;
 }
 
-export async function getMyNotifications(): Promise<NotificationListResponse> {
-  return request<NotificationListResponse>("/notification");
+export async function getMyNotifications(token?: string | null): Promise<NotificationListResponse> {
+  return request<NotificationListResponse>("/notification", bearer(token));
 }
 
 export async function markNotificationsRead(): Promise<void> {
@@ -1997,11 +2006,11 @@ export interface ScoreboardHistory {
   computed_at: string;
 }
 
-export async function getScoreboard(bracket?: string): Promise<Scoreboard> {
+export async function getScoreboard(bracket?: string, token?: string | null): Promise<Scoreboard> {
   const params = new URLSearchParams();
   if (bracket) params.set("bracket", bracket);
   const qs = params.toString();
-  return request<Scoreboard>(qs ? `/scoreboard?${qs}` : "/scoreboard");
+  return request<Scoreboard>(qs ? `/scoreboard?${qs}` : "/scoreboard", bearer(token));
 }
 
 export interface AdminScoreboardEntry {
@@ -2061,10 +2070,11 @@ export async function getTeamScore(teamId: string): Promise<TeamScoreDetail> {
 export async function getScoreboardHistory(
   limit = 10,
   bracket?: string,
+  token?: string | null,
 ): Promise<ScoreboardHistory> {
   const params = new URLSearchParams({ limit: String(limit) });
   if (bracket) params.set("bracket", bracket);
-  return request<ScoreboardHistory>(`/scoreboard/history?${params}`);
+  return request<ScoreboardHistory>(`/scoreboard/history?${params}`, bearer(token));
 }
 
 // ---------------------------------------------------------------------------
