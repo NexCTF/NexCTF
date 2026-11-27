@@ -15,7 +15,10 @@ from nexctf.module.submission import recalculate_question
 from nexctf.plugins.builtin.challenge.standard.model import StandardChallenge
 from nexctf.plugins.builtin.solution.match.model import MatchSolution
 
+from ..base import put_in_team
+
 FLAG = "flag{rescore}"
+NEW_FLAG = "flag{rescore-v2}"
 _T0 = datetime.now(UTC) - timedelta(hours=1)
 
 
@@ -51,6 +54,7 @@ async def _play(
         sub = Submission(
             answer=answer,
             is_correct=correct,
+            correct_at_submit=correct,
             points_earned=points,
             wrong_count_before=wrong,
             team_id=team.id,
@@ -123,6 +127,81 @@ class TestQuestionEdit:
         await _put(admin, question, label="Renamed", points=100, malus=10)
 
         assert calls == []
+
+
+async def _set_flag(
+    admin: AsyncClient, db_session: AsyncSession, question: Question, value: str
+) -> None:
+    """Replace the question's only flag through the admin API."""
+    sol_id = str(
+        await db_session.scalar(
+            select(MatchSolution.id).where(MatchSolution.question_id == question.id)
+        )
+    )
+    resp = await admin.put(
+        f"/admin/solution/{sol_id}", json={"id": sol_id, "value": value}
+    )
+    assert resp.status_code == 200, resp.text
+
+
+async def _verdicts(
+    db_session: AsyncSession, question: Question
+) -> list[tuple[str, bool, int, int]]:
+    rows = await db_session.execute(
+        select(
+            Submission.answer,
+            Submission.is_correct,
+            Submission.wrong_count_before,
+            Submission.points_earned,
+        )
+        .where(Submission.question_id == question.id)
+        .order_by(Submission.created_at)
+    )
+    return [tuple(r) for r in rows]
+
+
+class TestFlagChange:
+    async def test_a_new_flag_moves_the_solve_to_the_team_that_sent_it(
+        self, admin_client: tuple[AsyncClient, User], db_session: AsyncSession
+    ) -> None:
+        admin, _ = admin_client
+        question = await _question(db_session, points=100, malus=None)
+        old = await _play(db_session, question, [FLAG], name="old")
+        new = await _play(db_session, question, [NEW_FLAG], name="new")
+
+        await _set_flag(admin, db_session, question, NEW_FLAG)
+
+        assert await _earned(db_session, old) == 0
+        assert await _earned(db_session, new) == 100
+
+    async def test_a_revoked_solve_does_not_use_an_attempt(
+        self,
+        admin_client: tuple[AsyncClient, User],
+        user_client: tuple[AsyncClient, User],
+        db_session: AsyncSession,
+    ) -> None:
+        admin, _ = admin_client
+        c, user = user_client
+        await put_in_team(db_session, user)
+        question = await _question(db_session, points=100, malus=10)
+        question.max_attempts = 3
+        await db_session.flush()
+        url = f"/challenges/{question.challenge_id}/{question.id}/submit"
+        for answer in ("nope", "still nope", FLAG):
+            await c.post(url, json={"answer": answer})
+
+        await _set_flag(admin, db_session, question, NEW_FLAG)
+        resp = await c.post(url, json={"answer": NEW_FLAG})
+        await _put(admin, question, points=200)
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["data"]["is_correct"] is True
+        assert await _verdicts(db_session, question) == [
+            ("nope", False, 0, 0),
+            ("still nope", False, 1, 0),
+            (FLAG, False, 2, 0),
+            (NEW_FLAG, True, 2, 180),
+        ]
 
 
 class TestSubmissionDelete:

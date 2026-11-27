@@ -113,7 +113,7 @@ async def recalculate_question(
         else:
             new_points = 0
 
-        if not new_is_correct:
+        if not new_is_correct and not sub.correct_at_submit:
             wrong_count_by_team[team_id] = wrong_before + 1
 
         if (

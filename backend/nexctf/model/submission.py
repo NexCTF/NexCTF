@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Index
+from sqlalchemy import ColumnElement, ForeignKey, Index, and_
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -23,7 +24,7 @@ class Submission(Base):
             "ix_submissions_team_question",
             "team_id",
             "question_id",
-            postgresql_include=["is_correct"],
+            postgresql_include=["is_correct", "correct_at_submit"],
         ),
     )
 
@@ -32,12 +33,29 @@ class Submission(Base):
     points_earned: Mapped[int] = mapped_column(default=0)
     wrong_count_before: Mapped[int] = mapped_column(default=0)
     is_trap: Mapped[bool] = mapped_column(default=False, server_default="false")
+    correct_at_submit: Mapped[bool] = mapped_column(
+        default=False, server_default="false"
+    )
 
     team: Mapped[Team] = relationship(back_populates="submissions")
     team_id: Mapped[UUID] = mapped_column(ForeignKey("teams.id"))
 
     question: Mapped[Question] = relationship()
     question_id: Mapped[UUID] = mapped_column(ForeignKey("questions.id"))
+
+    @hybrid_property
+    def counts_as_wrong(self) -> bool:
+        """Whether this attempt counts against the attempt limit and the malus.
+
+        An answer accepted when it was sent never does, even once a rescore
+        marks it wrong.
+        """
+        return not self.is_correct and not self.correct_at_submit
+
+    @counts_as_wrong.inplace.expression
+    @classmethod
+    def _counts_as_wrong_expression(cls) -> ColumnElement[bool]:
+        return and_(cls.is_correct.is_(False), cls.correct_at_submit.is_(False))
 
     @property
     def team_name(self) -> str | None:
