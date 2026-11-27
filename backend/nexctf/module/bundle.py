@@ -62,7 +62,6 @@ from nexctf.model import (
     User,
 )
 from nexctf.model.link import Visibility
-from nexctf.model.question import question_files_table
 from nexctf.module.audit import REDACTED, audit_actor
 from nexctf.module.challenge.compute import solution_load_option
 from nexctf.module.challenge.removal import (
@@ -202,6 +201,7 @@ def _challenge_ir(challenge: Challenge) -> ChallengeIR:
         category=challenge.category,
         tags=list(challenge.tags),
         author_username=challenge.author.username if challenge.author else None,
+        file_ids=[f.id for f in challenge.files],
         data=_extras(
             challenge_registry,
             challenge.challenge_type,
@@ -215,6 +215,7 @@ def _challenge_ir(challenge: Challenge) -> ChallengeIR:
 async def _load_challenges(session: AsyncSession) -> list[Challenge]:
     """Every challenge with its questions, hints, solutions, files and subclass rows."""
     options: list[Any] = [
+        selectinload(Challenge.files),
         selectinload(Challenge.questions).selectinload(Question.hints),
         selectinload(Challenge.questions).selectinload(Question.files),
         selectinload(Challenge.questions).options(solution_load_option()),
@@ -238,6 +239,11 @@ async def _config_values(
         for key, def_ in appconfig.all_defs().items()
         if include_secrets or def_.type is not ConfigType.SECRET
     }
+
+
+def _digest(blob: bytes | None) -> str | None:
+    """Hex SHA-256 of *blob*, or None without one."""
+    return hashlib.sha256(blob).hexdigest() if blob is not None else None
 
 
 async def _file_blobs(files: list[File]) -> dict[UUID, bytes]:
@@ -282,7 +288,7 @@ async def build_bundle(
             mime_type=f.mime_type,
             file_size=f.file_size,
             is_public=f.is_public,
-            sha256=hashlib.sha256(blobs[f.id]).hexdigest() if f.id in blobs else None,
+            sha256=f.sha256 or _digest(blobs.get(f.id)),
         )
         for f in file_rows
     ]
@@ -480,9 +486,9 @@ async def _blocked_deletes(
 async def _fill_hashes(
     session: AsyncSession, current: Bundle, incoming: Bundle
 ) -> None:
-    """Hash the stored blobs the incoming bundle also carries a hash for."""
+    """Hash the unhashed stored blobs the incoming bundle carries a hash for."""
     wanted = {f.id for f in incoming.files if f.sha256 is not None} & {
-        f.id for f in current.files
+        f.id for f in current.files if f.sha256 is None
     }
     if not wanted:
         return
@@ -736,6 +742,7 @@ class _Writer:
                     continue
                 _assign(instance, file, _FILE_COLUMNS)
             if blob is not None:
+                instance.sha256 = file.sha256 or _digest(blob)
                 await s3.upload(instance.s3_key, blob, file.mime_type)
 
     async def _challenges(self) -> None:
@@ -760,6 +767,7 @@ class _Writer:
             **self._challenge_data(challenge),
         )
         _assign(instance, challenge, _CHALLENGE_COLUMNS)
+        instance.files = await self._files_for(challenge.file_ids)
         self.session.add(instance)
 
     async def _update_challenge(self, challenge: ChallengeIR) -> None:
@@ -771,6 +779,7 @@ class _Writer:
         instance.author_id = self.authors.get(challenge.author_username or "")
         for key, value in self._challenge_data(challenge).items():
             setattr(instance, key, value)
+        await self._set_files(instance, challenge.file_ids)
 
     @staticmethod
     def _challenge_data(challenge: ChallengeIR) -> dict[str, Any]:
@@ -816,20 +825,20 @@ class _Writer:
                 if instance is None:
                     continue
             if action in (Action.CREATE, Action.UPDATE):
-                await self._set_files(instance, question)
+                await self._set_files(instance, question.file_ids)
             await self._hints(question)
             await self._solutions(question)
 
-    async def _set_files(self, question: Any, node: QuestionIR) -> None:
-        """Rewrite the ``question_files`` m2m from the bundle's file references."""
-        await self.session.refresh(question, ["files"])
-        if not node.file_ids:
-            question.files = []
-            return
-        rows = await self.session.execute(
-            select(File).where(File.id.in_(node.file_ids))
-        )
-        question.files = list(rows.scalars().all())
+    async def _files_for(self, file_ids: list[UUID]) -> list[File]:
+        if not file_ids:
+            return []
+        rows = await self.session.execute(select(File).where(File.id.in_(file_ids)))
+        return list(rows.scalars().all())
+
+    async def _set_files(self, owner: Any, file_ids: list[UUID]) -> None:
+        """Rewrite a challenge's or question's file links from the bundle's ids."""
+        await self.session.refresh(owner, ["files"])
+        owner.files = await self._files_for(file_ids)
 
     async def _hints(self, question: QuestionIR) -> None:
         for hint in question.hints:
@@ -913,13 +922,10 @@ class _Writer:
         instance = await self._get(File, file_id)
         if instance is None:
             return
-        await self.session.execute(
-            question_files_table.delete().where(
-                question_files_table.c.file_id == file_id
-            )
-        )
-        await s3.delete(instance.s3_key)
+        s3_key = instance.s3_key
         await self.session.delete(instance)
+        await self.session.flush()
+        await s3.delete(s3_key)
 
 
 async def _apply_config(

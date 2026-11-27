@@ -6,7 +6,6 @@ import {
   ArrowUp,
   ChevronDown,
   ChevronUp,
-  Paperclip,
   Pencil,
   Plus,
   Puzzle,
@@ -15,6 +14,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { AttachedFiles } from "@/components/attached-files";
 import { ConfirmDialog, DeleteButton } from "@/components/confirm-dialog";
 import { DetailPageShell, DetailSection } from "@/components/detail-page";
 import { LabelInput } from "@/components/label-input";
@@ -54,12 +54,12 @@ import {
   deleteQuestion,
   deleteSolution,
   getAdminChallenge,
-  getAdminFiles,
   getAdminHint,
   getAdminHints,
   getAdminQuestions,
   getAdminSolution,
   getAdminSolutions,
+  getChallengeFiles,
   getChallengeTypes,
   getSolutionTypes,
   type Hint,
@@ -67,6 +67,7 @@ import {
   type Question,
   type Solution,
   type SolutionTypeInfo,
+  setChallengeFiles,
   updateChallenge,
   updateHint,
   updateQuestion,
@@ -912,134 +913,6 @@ function EditHintDialog({ hint, onSaved }: { hint: Hint; onSaved: () => void }) 
   );
 }
 
-// ── Files dialog ──────────────────────────────────────────────────────────────
-
-function ManageFilesDialog({ question, onSaved }: { question: Question; onSaved: () => void }) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(question.files.map((f) => f.id)),
-  );
-
-  const { data: filesResp, isLoading } = useQuery({
-    queryKey: ["admin", "files", "all"],
-    queryFn: () => getAdminFiles("items_per_page=100"),
-    enabled: open,
-    staleTime: 30_000,
-  });
-  const allFiles = filesResp?.data ?? [];
-
-  const filtered = search.trim()
-    ? allFiles.filter(
-        (f) =>
-          f.name.toLowerCase().includes(search.toLowerCase()) ||
-          f.original_filename.toLowerCase().includes(search.toLowerCase()),
-      )
-    : allFiles;
-
-  const mutation = useMutation({
-    mutationFn: () => updateQuestion(question.id, { files_ids: [...selected] }),
-    onSuccess: () => {
-      toast.success(t("admin.challenge.file.updated"));
-      setOpen(false);
-      onSaved();
-    },
-    onError: (err) => toast.error(apiErrorMessage(err, t("admin.challenge.file.update_error"))),
-  });
-
-  function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        setOpen(v);
-        if (v) {
-          setSelected(new Set(question.files.map((f) => f.id)));
-          setSearch("");
-        }
-      }}
-    >
-      <DialogTrigger
-        render={
-          <Button variant="outline" size="sm" className="h-7 text-xs">
-            <Paperclip className="size-3" />
-            {t("admin.challenge.file.manage")}
-          </Button>
-        }
-      />
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{t("admin.challenge.file.attach_title")}</DialogTitle>
-        </DialogHeader>
-
-        {isLoading ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">{t("common.loading")}</p>
-        ) : allFiles.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">
-            {t("admin.challenge.file.no_files")}
-          </p>
-        ) : (
-          <div className="space-y-2">
-            <Input
-              placeholder={t("admin.challenge.file.search_placeholder")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-8 text-sm"
-            />
-            <div className="max-h-64 overflow-y-auto space-y-1 border rounded-md p-2">
-              {filtered.length === 0 ? (
-                <p className="py-3 text-center text-sm text-muted-foreground">
-                  {t("admin.challenge.file.no_match")}
-                </p>
-              ) : (
-                filtered.map((file) => (
-                  <label
-                    key={file.id}
-                    className="flex items-center gap-3 rounded px-2 py-1.5 hover:bg-muted/50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.has(file.id)}
-                      onChange={() => toggle(file.id)}
-                      className="rounded"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{file.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {file.original_filename}
-                        {file.mime_type && ` · ${file.mime_type}`}
-                      </p>
-                    </div>
-                  </label>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-            {t("common.cancel")}
-          </Button>
-          <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || isLoading}>
-            {mutation.isPending
-              ? t("common.saving")
-              : t("admin.challenge.file.save_files", { count: selected.size })}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ── Question card ─────────────────────────────────────────────────────────────
 
 function QuestionCard({
@@ -1286,37 +1159,46 @@ function QuestionCard({
             )}
           </div>
 
-          {/* Files */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                {t("admin.challenge.file.section_title", {
-                  n: question.files.length,
-                })}
-              </span>
-              <ManageFilesDialog question={question} onSaved={onUpdated} />
-            </div>
-            {question.files.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-1">
-                {t("admin.challenge.file.empty")}
-              </p>
-            ) : (
-              <div className="space-y-1">
-                {question.files.map((file) => (
-                  <div
-                    key={file.id}
-                    className="flex items-center gap-2 rounded-md border px-3 py-1.5"
-                  >
-                    <Paperclip className="size-3 text-muted-foreground shrink-0" />
-                    <span className="flex-1 text-xs font-medium truncate">{file.name}</span>
-                    <span className="text-xs text-muted-foreground">{file.mime_type ?? "—"}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <AttachedFiles
+            title={t("files.attached.question_title", { defaultValue: "Files" })}
+            files={question.files}
+            onSave={async (ids) => {
+              await updateQuestion(question.id, { files_ids: ids });
+              onUpdated();
+            }}
+          />
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Challenge files ───────────────────────────────────────────────────────────
+
+function ChallengeFilesSection({ challengeId }: { challengeId: string }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const queryKey = ["admin", "challenge", challengeId, "files"];
+  const { data: files = [] } = useQuery({
+    queryKey,
+    queryFn: () => getChallengeFiles(challengeId),
+  });
+
+  return (
+    <div className="rounded-lg border p-6 space-y-2">
+      <p className="text-xs text-muted-foreground">
+        {t("files.attached.challenge_hint", {
+          defaultValue: "Shared by every question, shown to players above the questions.",
+        })}
+      </p>
+      <AttachedFiles
+        title={t("files.attached.challenge_title", { defaultValue: "Challenge files" })}
+        files={files}
+        onSave={async (ids) => {
+          queryClient.setQueryData(queryKey, await setChallengeFiles(challengeId, ids));
+          void queryClient.invalidateQueries({ queryKey: ["admin", "files"] });
+        }}
+      />
     </div>
   );
 }
@@ -1479,6 +1361,7 @@ function ChallengePage() {
       {challenge && (
         <>
           <ChallengeInfoSection challenge={challenge} />
+          <ChallengeFilesSection challengeId={challengeId} />
           <QuestionsSection challengeId={challengeId} />
         </>
       )}

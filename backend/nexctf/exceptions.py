@@ -664,6 +664,15 @@ class FileNotFoundApiError(ApiException):
     )
 
 
+class FileInUseError(ApiException):
+    api_error = ApiError(
+        code=409,
+        msg="File in use",
+        desc="The file is still linked or referenced; unlink it or force the delete.",
+        err_code="FILE-409-IN-USE",
+    )
+
+
 class InternalServerError(ApiException):
     api_error = ApiError(
         code=500,

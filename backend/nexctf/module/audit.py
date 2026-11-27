@@ -104,7 +104,7 @@ def _wrap(instance: object, schema: type[BaseModel] | None) -> Any:
     return Response(data=schema.model_validate(instance)) if schema else instance
 
 
-async def _emit_write(
+async def emit_write(
     session: AsyncSession,
     table: str,
     action: str,
@@ -139,7 +139,7 @@ class AuditedCrud(Crud[ModelType]):
         schema: type[BaseModel] | None = None,
     ) -> Any:
         instance = await super().create(session, obj)
-        await _emit_write(
+        await emit_write(
             session,
             cls.model.__tablename__,
             "created",
@@ -171,7 +171,7 @@ class AuditedCrud(Crud[ModelType]):
             exclude_none=exclude_none,
             with_for_update=with_for_update,
         )
-        await _emit_write(
+        await emit_write(
             session,
             cls.model.__tablename__,
             "updated",
@@ -197,7 +197,7 @@ class AuditedCrud(Crud[ModelType]):
         result = await super().delete(session, filters, return_response=return_response)
         table = cls.model.__tablename__
         for target_id, target_label in targets:
-            await _emit_write(
+            await emit_write(
                 session,
                 table,
                 "deleted",

@@ -29,3 +29,23 @@ class ClientCategory(str, Enum):
     AI = "ai"
     AUTOMATION = "automation"
     BROWSER = "browser"
+
+
+class FileUsageKind(str, Enum):
+    """Where a stored file is used: a link table or a text reference."""
+
+    CHALLENGE = "challenge"
+    QUESTION = "question"
+    CHALLENGE_TEXT = "challenge_text"
+    QUESTION_TEXT = "question_text"
+    HINT_TEXT = "hint_text"
+    PAGE_TEXT = "page_text"
+    NOTIFICATION_TEXT = "notification_text"
+    CONFIG = "config"
+
+
+class FileUsageFilter(str, Enum):
+    """Whether a file listing keeps the used or the unused files."""
+
+    USED = "used"
+    UNUSED = "unused"

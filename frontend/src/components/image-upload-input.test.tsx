@@ -2,15 +2,21 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
-import { uploadAdminFile } from "@/lib/api";
+import { getAdminFiles, uploadAdminFile } from "@/lib/api";
+import { paginated, storedFile } from "@/test/fixtures";
 import { ImageUploadInput } from "./image-upload-input";
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
+  getAdminFiles: vi.fn(),
   uploadAdminFile: vi.fn(),
 }));
 
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
+}));
+
+const ID = "11111111-1111-1111-1111-111111111111";
 
 function renderInput(value: string, onChange: (v: string) => void) {
   const queryClient = new QueryClient({
@@ -24,30 +30,30 @@ function renderInput(value: string, onChange: (v: string) => void) {
 }
 
 beforeEach(() => {
-  vi.mocked(uploadAdminFile).mockResolvedValue({
-    id: "11111111-1111-1111-1111-111111111111",
-    name: "logo.png",
-    s3_key: "files/11111111-1111-1111-1111-111111111111",
-    original_filename: "logo.png",
-    mime_type: "image/png",
-    file_size: 3,
-    is_public: true,
-    created_at: "2026-01-01T00:00:00Z",
-    updated_at: "2026-01-01T00:00:00Z",
-  });
+  vi.mocked(getAdminFiles).mockResolvedValue(paginated([]));
+  vi.mocked(uploadAdminFile).mockResolvedValue({ ...storedFile({ id: ID }), duplicates: [] });
 });
 
-it("uploads a public file and stores its stable URL", async () => {
+it("uploads a public image and stores its stable URL", async () => {
   const onChange = vi.fn();
-  const { container } = renderInput("", onChange);
+  renderInput("", onChange);
   const file = new File(["png"], "logo.png", { type: "image/png" });
 
-  // biome-ignore lint/style/noNonNullAssertion: the hidden file input is always rendered
-  await userEvent.upload(container.querySelector<HTMLInputElement>("input[type=file]")!, file);
+  await userEvent.click(screen.getByRole("button", { name: "Choose" }));
+  await userEvent.upload(await screen.findByTestId("file-picker-upload"), file);
+  await waitFor(() => expect(uploadAdminFile).toHaveBeenCalledWith("logo.png", file, true));
+  await userEvent.click(screen.getByRole("button", { name: "Use image" }));
 
-  expect(uploadAdminFile).toHaveBeenCalledWith("logo.png", file, true);
+  await waitFor(() => expect(onChange).toHaveBeenCalledWith(`/api/v1/file/${ID}/view`));
+});
+
+it("lists only images", async () => {
+  renderInput("", vi.fn());
+
+  await userEvent.click(screen.getByRole("button", { name: "Choose" }));
+
   await waitFor(() =>
-    expect(onChange).toHaveBeenCalledWith("/api/v1/file/11111111-1111-1111-1111-111111111111/view"),
+    expect(vi.mocked(getAdminFiles).mock.calls[0]?.[0]).toContain("mime_prefix=image%2F"),
   );
 });
 

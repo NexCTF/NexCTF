@@ -52,6 +52,7 @@ _CHALLENGE_KEYS = [
     "is_active",
     "sequential",
     "author",
+    "files",
     "data",
 ]
 _QUESTION_KEYS = [
@@ -129,9 +130,12 @@ def _challenge_yaml(challenge: ChallengeIR) -> dict[str, Any]:
     raw = challenge.model_dump(mode="json")
     raw["tags"] = sorted(challenge.tags)
     raw["author"] = challenge.author_username
+    raw["files"] = sorted(str(f) for f in challenge.file_ids)
     body = ordered(raw, _CHALLENGE_KEYS)
     if challenge.author_username is None:
         body.pop("author", None)
+    if not challenge.file_ids:
+        body.pop("files", None)
     if not challenge.data:
         body.pop("data", None)
     return body
@@ -245,6 +249,7 @@ def _read_page(path: str, raw: bytes) -> PageIR:
 def _read_challenge(tree: dict[str, bytes], base: str) -> ChallengeIR:
     data = load_yaml(tree[f"{base}/challenge.yaml"])
     data["author_username"] = data.pop("author", None)
+    data["file_ids"] = data.pop("files", [])
     for field, filename in (
         ("description", "description.md"),
         ("writeup", "writeup.md"),

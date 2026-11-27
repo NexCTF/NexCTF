@@ -1,5 +1,5 @@
 import { Trash2 } from "lucide-react";
-import { type ReactElement, useState } from "react";
+import { type ReactElement, type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +15,7 @@ type ConfirmDialogProps = {
   /** Element opening the dialog. Rendered as the trigger. */
   trigger: ReactElement;
   /** What the confirmation is about. */
-  description: string;
+  description: ReactNode;
   confirmLabel?: string;
   /** Styles the confirm button as destructive. Off for actions that only spend. */
   destructive?: boolean;
@@ -39,7 +39,7 @@ export function ConfirmDialog({
         <DialogHeader>
           <DialogTitle>{t("common.confirm_title", { defaultValue: "Are you sure?" })}</DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <div className="text-sm text-muted-foreground">{description}</div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => setOpen(false)}>
             {t("common.cancel")}
@@ -67,20 +67,23 @@ export function DeleteButton({
   disabled,
   size = "icon-sm",
   label,
+  confirmLabel,
 }: {
-  description: string;
+  description: ReactNode;
   onConfirm: () => void;
   disabled?: boolean;
   /** "icon-xs" for compact inline rows. */
   size?: "icon-xs" | "icon-sm";
   /** Accessible name, when "Delete" is not what the action is called. */
   label?: string;
+  /** Confirm button text, when "Delete" undersells what happens. */
+  confirmLabel?: string;
 }) {
   const { t } = useTranslation();
   return (
     <ConfirmDialog
       description={description}
-      confirmLabel={t("common.delete")}
+      confirmLabel={confirmLabel ?? t("common.delete")}
       onConfirm={onConfirm}
       trigger={
         <Button

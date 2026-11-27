@@ -15,8 +15,10 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { DeleteButton } from "@/components/confirm-dialog";
+import { ChallengeSelect } from "@/components/challenge-select";
+import { ConfirmDialog, DeleteButton } from "@/components/confirm-dialog";
 import { type Column, DataTable, useTableState } from "@/components/data-table";
+import { FileUsageBadge, useUsageKindLabel } from "@/components/file-usage";
 import { PageHeader } from "@/components/page-header";
 import { ActionsCell, EmptyCell, idColumn } from "@/components/table-cells";
 import { Button } from "@/components/ui/button";
@@ -36,12 +38,16 @@ import {
   deleteAdminFile,
   getAdminFile,
   getAdminFiles,
+  getAdminFilesSummary,
+  isTextUsage,
   markFilePublic,
   publicFileUrl,
   type StoredFile,
+  type StoredFileListItem,
   updateAdminFile,
   uploadAdminFile,
 } from "@/lib/api";
+import { useDuplicateWarning } from "@/lib/use-file-upload";
 import { copyToClipboard, formatBytes } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/_admin/files")({
@@ -59,12 +65,14 @@ function UploadFileDialog({ onCreated }: { onCreated: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [isPublic, setIsPublic] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const warnDuplicate = useDuplicateWarning();
 
   const mutation = useMutation({
     // biome-ignore lint/style/noNonNullAssertion: button is disabled when file is null
     mutationFn: () => uploadAdminFile(name, file!, isPublic),
-    onSuccess: () => {
+    onSuccess: (uploaded) => {
       toast.success(t("admin.files.uploaded", { defaultValue: "File uploaded" }));
+      warnDuplicate(uploaded);
       setOpen(false);
       setName("");
       setFile(null);
@@ -400,7 +408,10 @@ function PreviewButton({ file }: { file: StoredFile }) {
           <PreviewContent kind={kind} url={detail.view_url} filename={file.original_filename} />
         )}
 
-        <div className="flex justify-end pt-1">
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <p className="min-w-0 truncate font-mono text-xs text-muted-foreground">
+            {file.sha256 && `SHA-256 ${file.sha256}`}
+          </p>
           <Button
             variant="outline"
             size="sm"
@@ -420,7 +431,7 @@ function PreviewButton({ file }: { file: StoredFile }) {
 // Public toggle
 // ---------------------------------------------------------------------------
 
-function PublicToggle({ file, onUpdated }: { file: StoredFile; onUpdated: () => void }) {
+function PublicToggle({ file, onUpdated }: { file: StoredFileListItem; onUpdated: () => void }) {
   const { t } = useTranslation();
 
   const mutation = useMutation({
@@ -432,7 +443,7 @@ function PublicToggle({ file, onUpdated }: { file: StoredFile; onUpdated: () => 
       ),
   });
 
-  return (
+  const toggleButton = (onClick?: () => void) => (
     <Button
       variant="ghost"
       size="icon"
@@ -441,12 +452,27 @@ function PublicToggle({ file, onUpdated }: { file: StoredFile; onUpdated: () => 
           ? t("admin.files.make_private", { defaultValue: "Make private" })
           : t("admin.files.make_public", { defaultValue: "Make public" })
       }
-      onClick={() => mutation.mutate()}
+      onClick={onClick}
       disabled={mutation.isPending}
       className={file.is_public ? "text-green-600 hover:text-green-700" : "text-muted-foreground"}
     >
       {file.is_public ? <Globe className="size-4" /> : <Lock className="size-4" />}
     </Button>
+  );
+
+  const embedded = file.usages.filter(isTextUsage);
+  if (!file.is_public || embedded.length === 0) return toggleButton(() => mutation.mutate());
+  return (
+    <ConfirmDialog
+      trigger={toggleButton()}
+      description={t("files.private_breaks_links", {
+        n: embedded.length,
+        defaultValue:
+          "This file is embedded in {{n}} text(s). Making it private breaks those images and links.",
+      })}
+      confirmLabel={t("admin.files.make_private", { defaultValue: "Make private" })}
+      onConfirm={() => mutation.mutate()}
+    />
   );
 }
 
@@ -481,11 +507,19 @@ function PublicLinkButton({ file }: { file: StoredFile }) {
 // Delete button
 // ---------------------------------------------------------------------------
 
-function DeleteFileButton({ file, onDeleted }: { file: StoredFile; onDeleted: () => void }) {
+function DeleteFileButton({
+  file,
+  onDeleted,
+}: {
+  file: StoredFileListItem;
+  onDeleted: () => void;
+}) {
   const { t } = useTranslation();
+  const kindLabel = useUsageKindLabel();
+  const inUse = file.usages.length > 0;
 
   const mutation = useMutation({
-    mutationFn: () => deleteAdminFile(file.id),
+    mutationFn: () => deleteAdminFile(file.id, inUse),
     onSuccess: () => {
       toast.success(t("admin.files.deleted", { defaultValue: "File deleted" }));
       onDeleted();
@@ -496,12 +530,36 @@ function DeleteFileButton({ file, onDeleted }: { file: StoredFile; onDeleted: ()
       ),
   });
 
+  const description = inUse ? (
+    <>
+      {t("files.delete_in_use", {
+        name: file.name,
+        defaultValue: 'Delete "{{name}}"? It is still used by:',
+      })}
+      <ul className="my-2 list-disc pl-5">
+        {file.usages.map((u) => (
+          <li key={`${u.kind}:${u.target_id ?? u.label}`}>
+            {kindLabel(u.kind)}: {u.label}
+          </li>
+        ))}
+      </ul>
+      {t("files.delete_in_use_effect", {
+        defaultValue: "Its attachments will be removed and text references will break.",
+      })}
+    </>
+  ) : (
+    t("admin.files.delete_confirm", {
+      name: file.name,
+      defaultValue: 'Delete file "{{name}}"?',
+    })
+  );
+
   return (
     <DeleteButton
-      description={t("admin.files.delete_confirm", {
-        name: file.name,
-        defaultValue: 'Delete file "{{name}}"?',
-      })}
+      description={description}
+      confirmLabel={
+        inUse ? t("files.unlink_and_delete", { defaultValue: "Unlink and delete" }) : undefined
+      }
       disabled={mutation.isPending}
       onConfirm={() => mutation.mutate()}
     />
@@ -528,13 +586,17 @@ function FilesPage() {
     queryFn: () => getAdminFiles(table.queryString),
     placeholderData: (prev) => prev,
   });
+  const { data: summary } = useQuery({
+    queryKey: ["admin", "files", "summary"],
+    queryFn: getAdminFilesSummary,
+  });
 
   function invalidate() {
     void queryClient.invalidateQueries({ queryKey: ["admin", "files"] });
   }
 
-  const columns: Column<StoredFile>[] = [
-    idColumn<StoredFile>(t),
+  const columns: Column<StoredFileListItem>[] = [
+    idColumn<StoredFileListItem>(t),
     {
       key: "name",
       header: t("table.col_name", { defaultValue: "Name" }),
@@ -579,6 +641,16 @@ function FilesPage() {
       ),
     },
     {
+      key: "usage" as keyof StoredFileListItem,
+      header: t("files.col_usage", { defaultValue: "Usage" }),
+      sortable: false,
+      filterOptions: {
+        used: t("files.usage.used", { defaultValue: "Used" }),
+        unused: t("files.usage.unused", { defaultValue: "Unused" }),
+      },
+      cell: (f) => <FileUsageBadge usages={f.usages} />,
+    },
+    {
       key: "is_public",
       header: t("table.col_public", { defaultValue: "Public" }),
       sortable: false,
@@ -586,7 +658,7 @@ function FilesPage() {
       className: "w-16 text-center",
     },
     {
-      key: "actions" as keyof StoredFile,
+      key: "actions" as keyof StoredFileListItem,
       header: "",
       sortable: false,
       cell: (f) => (
@@ -608,6 +680,27 @@ function FilesPage() {
         title={t("admin.nav.files", { defaultValue: "Files" })}
         actions={<UploadFileDialog onCreated={invalidate} />}
       />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          {summary &&
+            t("files.summary", {
+              files: summary.count,
+              size: formatBytes(summary.total_size),
+              unused: summary.unused_count,
+              defaultValue: "{{files}} files · {{size}} · {{unused}} unused",
+            })}
+        </p>
+        <div className="flex w-full items-center gap-2 sm:w-72">
+          <span className="shrink-0 text-sm text-muted-foreground">
+            {t("files.filter_challenge", { defaultValue: "Challenge" })}
+          </span>
+          <ChallengeSelect
+            value={table.state.filters.challenge_id?.[0] ?? null}
+            onChange={(id) => table.setFilterValues("challenge_id", id ? [id] : [])}
+          />
+        </div>
+      </div>
 
       <DataTable
         columns={columns}

@@ -58,6 +58,7 @@ def sample_bundle() -> Bundle:
                 category="web",
                 tags=["b", "a"],
                 author_username="admin",
+                file_ids=[FILE_ID],
                 questions=[
                     QuestionIR(
                         id=_id(2),

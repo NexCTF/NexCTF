@@ -93,20 +93,6 @@
       "field_title": "Titre",
       "field_writeup": "Writeup",
       "field_writeup_hint": "Markdown, affiché aux joueurs une fois le challenge terminé (ou après la fin de l'événement, si activé)",
-      "file": {
-        "attach_title": "Joindre des fichiers à la question",
-        "empty": "Aucun fichier attaché",
-        "manage": "Gérer les fichiers",
-        "no_files": "Aucun fichier uploadé. Rendez-vous dans la section Fichiers pour en ajouter.",
-        "no_match": "Aucun fichier ne correspond à votre recherche",
-        "save_files_one": "Enregistrer ({{count}} fichier)",
-        "save_files_many": "Enregistrer ({{count}} fichiers)",
-        "save_files_other": "Enregistrer ({{count}} fichiers)",
-        "search_placeholder": "Rechercher des fichiers…",
-        "section_title": "Fichiers ({{n}})",
-        "update_error": "Échec de la mise à jour des fichiers",
-        "updated": "Fichiers mis à jour"
-      },
       "hint": {
         "add": "Ajouter un indice",
         "add_error": "Échec de l'ajout de l'indice",
@@ -716,6 +702,7 @@
     "answer_label": "Réponse",
     "answer_placeholder": "Entrez votre réponse…",
     "back": "Retour aux challenges",
+    "copy_sha256": "",
     "event_ended_banner": "Le CTF est terminé. Les soumissions ne sont plus acceptées.",
     "event_not_started_banner": "Le CTF n'a pas encore commencé. Les soumissions ouvriront dès le début.",
     "feedback_error": "Impossible d'enregistrer votre retour",
@@ -778,9 +765,7 @@
     "saving": "Enregistrement…",
     "search": "Rechercher…",
     "sign_out": "Se déconnecter",
-    "true": "vrai",
-    "upload": "Importer",
-    "uploading": "Import en cours…"
+    "true": "vrai"
   },
   "config": {
     "appearance": {
@@ -1030,6 +1015,58 @@
     "not_found": "Page introuvable",
     "not_found_desc": "Cette page n'existe pas ou n'est pas publiée."
   },
+  "files": {
+    "attached": {
+      "challenge_hint": "",
+      "challenge_title": "",
+      "detach": "",
+      "empty": "",
+      "error": "",
+      "manage": "",
+      "pick_title": "",
+      "question_title": "",
+      "save": "",
+      "saved": ""
+    },
+    "col_usage": "",
+    "delete_in_use": "",
+    "delete_in_use_effect": "",
+    "duplicate_upload": "",
+    "filter_challenge": "",
+    "image_picker": {
+      "open": "",
+      "title": "",
+      "use": ""
+    },
+    "picker": {
+      "drop_hint": "",
+      "empty": "",
+      "error": "",
+      "list": "",
+      "more": "",
+      "upload": "",
+      "will_publish": "",
+      "wrong_type": ""
+    },
+    "private": "",
+    "private_breaks_links": "",
+    "public": "",
+    "summary": "",
+    "unlink_and_delete": "",
+    "usage": {
+      "challenge": "",
+      "challenge_text": "",
+      "config": "",
+      "count": "",
+      "hint_text": "",
+      "notification_text": "",
+      "page_text": "",
+      "question": "",
+      "question_text": "",
+      "unused": "",
+      "used": ""
+    }
+  },
   "forgot_password": {
     "email_label": "Email",
     "error_unexpected": "Une erreur inattendue est survenue",
@@ -1064,14 +1101,12 @@
     "verify_title": "Vérifiez votre email"
   },
   "markdown": {
+    "insert": "",
     "insert_file": "Insérer un fichier",
-    "make_public_error": "Impossible de rendre le fichier public",
-    "no_files": "Aucun fichier trouvé. Uploadez des fichiers dans la section Fichiers.",
     "nothing_to_preview": "Rien à prévisualiser.",
     "pick_file": "Choisir un fichier à insérer",
     "preview": "Aperçu",
-    "upload_file": "Téléverser",
-    "will_make_public": "sera rendu public",
+    "uploaded_public": "",
     "write": "Écrire"
   },
   "nav": {

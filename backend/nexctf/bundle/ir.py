@@ -84,6 +84,7 @@ class ChallengeIR(BundleBase):
     category: str | None = None
     tags: list[str] = []
     author_username: str | None = None
+    file_ids: list[UUID] = []
     data: dict[str, Any] = {}
     questions: list[QuestionIR] = []
 
